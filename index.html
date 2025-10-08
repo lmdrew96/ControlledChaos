@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controlled Chaos 🌀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .current-date {
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5em;
+            border-bottom: 3px solid;
+            padding-bottom: 10px;
+        }
+
+        .card.today h2 { border-color: #FF6B6B; }
+        .card.week h2 { border-color: #4ECDC4; }
+        .card.deadlines h2 { border-color: #FFE66D; }
+        .card.projects h2 { border-color: #95E1D3; }
+        .card.schedule h2 { border-color: #A8E6CF; }
+
+        .today { grid-column: span 1; }
+        .week { grid-column: span 1; }
+        .deadlines { grid-column: span 1; }
+
+        .task-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .task-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .task-label {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .task-time {
+            color: #666;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .deadline-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .deadline-item.urgent {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .deadline-item.soon {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+
+        .deadline-item.coming {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+
+        .deadline-countdown {
+            font-weight: bold;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: white;
+        }
+
+        .schedule-day {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .schedule-day h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .schedule-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+
+        .schedule-item.class {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+
+        .schedule-item.work {
+            background: #fce4ec;
+            border-left: 3px solid #e91e63;
+        }
+
+        .schedule-item.personal {
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .schedule-item.free {
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
+        }
+
+        .project-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .project-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin: 5px 5px 5px 0;
+        }
+
+        .status-active { background: #c8e6c9; color: #2e7d32; }
+        .status-paused { background: #fff9c4; color: #f57f17; }
+        .status-planning { background: #e1bee7; color: #6a1b9a; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .focus-area {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin: 0 5px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌀 Controlled Chaos</h1>
+            <p style="color: #764ba2; font-style: italic; margin-top: 5px;">Managing the beautiful mess of college life</p>
+            <div class="current-date" id="currentDate"></div>
+        </header>
+
+        <div class="focus-area" id="todayFocus">
+            <span class="emoji">🎯</span>
+            <span id="focusText">Loading today's focus...</span>
+            <span class="emoji">✨</span>
+        </div>
+
+        <div class="grid">
+            <div class="card today">
+                <h2>📅 Today's Tasks</h2>
+                <div id="todayTasks"></div>
+            </div>
+
+            <div class="card week">
+                <h2>📝 This Week</h2>
+                <div id="weekTasks"></div>
+            </div>
+
+            <div class="card deadlines">
+                <h2>⏰ Upcoming Deadlines</h2>
+                <div id="deadlinesList"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card projects">
+                <h2>💻 Projects Tracker</h2>
+                <div id="projectsList"></div>
+            </div>
+
+            <div class="card schedule">
+                <h2>🗓️ Weekly Schedule</h2>
+                <div id="scheduleView"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get current date and day
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const today = new Date();
+        const dayName = days[today.getDay()];
+        const dayNum = today.getDate();
+        const monthName = months[today.getMonth()];
+        const year = today.getFullYear();
+
+        document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${dayNum}, ${year}`;
+
+        // Daily focus messages
+        const focusMessages = {
+            'Monday': 'World History & US Politics Day! Plus some coding time 💻',
+            'Tuesday': 'BIO DAY after therapy! Get it done tonight 🧪',
+            'Wednesday': 'Beatles discussion day! Plus catch-up time 🎵',
+            'Thursday': 'Finish Beatles work & World History prep 📖',
+            'Friday': 'Flex day! Finish anything due this weekend ⚡',
+            'Saturday': 'Work day - rest and recover! 💪',
+            'Sunday': 'Submit Sunday deadlines, then D&D time! 🎲'
+        };
+
+        document.getElementById('focusText').textContent = focusMessages[dayName];
+
+        // Weekly schedule
+        const schedule = {
+            'Monday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '8:00-8:40 AM', text: 'Commute to school', type: 'free' },
+                { time: '8:40-10:35 AM', text: 'FREE TIME - study at school', type: 'free' },
+                { time: '10:35-11:55 AM', text: 'US Politics class', type: 'class' },
+                { time: '12-1 PM', text: 'Peer Mentor (optional)', type: 'personal' },
+                { time: '1:40-2:20 PM', text: 'Commute home', type: 'free' },
+                { time: '3-5 PM', text: 'World History reading', type: 'free' },
+                { time: '7-9 PM', text: 'US Politics OR coding', type: 'free' }
+            ],
+            'Tuesday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:20 AM', text: 'World History class', type: 'class' },
+                { time: '11-11:55 AM', text: 'Peer Mentor (mandatory)', type: 'personal' },
+                { time: '12-1 PM', text: 'Hen & Ink Society', type: 'personal' },
+                { time: '1-3 PM', text: 'FREE - start assignments', type: 'free' },
+                { time: '3 PM', text: 'Therapy (at school)', type: 'personal' },
+                { time: '4:40 PM', text: 'Arrive home', type: 'free' },
+                { time: '5-8 PM', text: 'BIO WORK - all due Wed!', type: 'free' }
+            ],
+            'Wednesday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:30 AM', text: 'Beatles discussion post', type: 'free' },
+                { time: '10:35-11:55 AM', text: 'US Politics class', type: 'class' },
+                { time: '12-1 PM', text: 'Peer Mentor (optional)', type: 'personal' },
+                { time: '1-1:55 PM', text: 'Peer Mentor (mandatory)', type: 'personal' },
+                { time: '3:15 PM', text: 'Arrive home', type: 'free' },
+                { time: '4-6 PM', text: 'Beatles PowerPoint Part 1', type: 'free' },
+                { time: '7-9 PM', text: 'Catch-up OR coding', type: 'free' }
+            ],
+            'Thursday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:20 AM', text: 'World History class', type: 'class' },
+                { time: '10:20 AM-12 PM', text: 'Beatles PowerPoint Part 2', type: 'free' },
+                { time: '12-1 PM', text: 'Hen & Ink Society', type: 'personal' },
+                { time: '1-3 PM', text: 'Beatles quiz + catch-up', type: 'free' },
+                { time: '4:45-7 PM', text: 'Bio class', type: 'class' },
+                { time: '7:40 PM', text: 'Arrive home', type: 'free' },
+                { time: '8-10 PM', text: 'Papers OR coding', type: 'free' }
+            ],
+            'Friday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9 AM-12 PM', text: 'Flex time - finish weekend work', type: 'free' },
+                { time: '12-2 PM', text: 'D&D prep OR personal projects', type: 'free' },
+                { time: '3-10 PM', text: 'WORK (no school work allowed!)', type: 'work' }
+            ],
+            'Saturday': [
+                { time: '9-10:30 AM', text: 'Light reading if needed', type: 'free' },
+                { time: '11 AM-10 PM', text: 'WORK (rest day!)', type: 'work' }
+            ],
+            'Sunday': [
+                { time: '9 AM-12 PM', text: 'Submit deadlines & review', type: 'free' },
+                { time: 'Afternoon/Evening', text: 'D&D TIME! 🎲', type: 'personal' }
+            ]
+        };
+
+        // Render weekly schedule
+        function renderSchedule() {
+            const scheduleView = document.getElementById('scheduleView');
+            const currentDay = dayName;
+            
+            // Show current day and next day
+            const daysToShow = [currentDay];
+            const currentIndex = days.indexOf(currentDay);
+            const nextDay = days[(currentIndex + 1) % 7];
+            daysToShow.push(nextDay);
+
+            scheduleView.innerHTML = daysToShow.map(day => {
+                const daySchedule = schedule[day] || [];
+                return `
+                    <div class="schedule-day">
+                        <h3>${day}${day === currentDay ? ' (Today!)' : ''}</h3>
+                        ${daySchedule.map(item => 
+                            `<div class="schedule-item ${item.type}">
+                                <strong>${item.time}:</strong> ${item.text}
+                            </div>`
+                        ).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Deadlines tracker
+        const deadlines = [
+            { name: 'Bio Lab 4 & Quiz 7', date: new Date(2025, 9, 8, 23, 58), course: 'Bio' },
+            { name: 'Beatles discussion & quiz', date: new Date(2025, 9, 13, 23, 58), course: 'Beatles' },
+            { name: 'Bio SmartBooks 5, 6, 7 + Assignments + Lab 5', date: new Date(2025, 9, 15, 23, 58), course: 'Bio' },
+            { name: 'Bio EXAM 2', date: new Date(2025, 9, 16, 16, 45), course: 'Bio' },
+            { name: 'Beatles weekly work', date: new Date(2025, 9, 20, 23, 58), course: 'Beatles' },
+            { name: 'Media evolution presentations begin', date: new Date(2025, 9, 27, 9, 0), course: 'US Politics' },
+            { name: 'World History analytical paper', date: new Date(2025, 9, 28, 23, 59), course: 'World History' },
+            { name: 'World History EXAM', date: new Date(2025, 9, 30, 10, 0), course: 'World History' }
+        ];
+
+        function renderDeadlines() {
+            const deadlinesList = document.getElementById('deadlinesList');
+            const now = new Date();
+
+            const upcoming = deadlines
+                .filter(d => d.date > now)
+                .sort((a, b) => a.date - b.date)
+                .slice(0, 5);
+
+            deadlinesList.innerHTML = upcoming.map(deadline => {
+                const daysUntil = Math.ceil((deadline.date - now) / (1000 * 60 * 60 * 24));
+                let urgencyClass = 'coming';
+                let countdownText = `${daysUntil} days`;
+
+                if (daysUntil === 0) {
+                    urgencyClass = 'urgent';
+                    countdownText = 'TODAY!';
+                } else if (daysUntil === 1) {
+                    urgencyClass = 'urgent';
+                    countdownText = 'Tomorrow';
+                } else if (daysUntil <= 3) {
+                    urgencyClass = 'soon';
+                }
+
+                return `
+                    <div class="deadline-item ${urgencyClass}">
+                        <div>
+                            <strong>${deadline.name}</strong><br>
+                            <small>${deadline.course}</small>
+                        </div>
+                        <div class="deadline-countdown">${countdownText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Projects tracker
+        const projects = [
+            { name: 'Portfolio Contact Form', status: 'active', progress: 80, description: 'Just needs Resend API setup' },
+            { name: 'Tumblr Blog Setup', status: 'planning', progress: 30, description: 'Content ready, needs posting' },
+            { name: 'FeySpace Player App', status: 'paused', progress: 60, description: 'Works, needs upgrades' },
+            { name: 'N.I.P.P.L.E. DM App', status: 'paused', progress: 40, description: 'Needs major features' },
+            { name: 'ScribeCat App', status: 'planning', progress: 0, description: 'Defer until winter break' },
+            { name: 'Romanian Blog', status: 'planning', progress: 0, description: 'Start in November' }
+        ];
+
+        function renderProjects() {
+            const projectsList = document.getElementById('projectsList');
+            
+            projectsList.innerHTML = projects.map(project => {
+                const statusClass = `status-${project.status}`;
+                return `
+                    <div class="project-item">
+                        <div class="project-title">${project.name}</div>
+                        <span class="project-status ${statusClass}">${project.status.toUpperCase()}</span>
+                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                            ${project.description}
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${project.progress}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Today's tasks based on day of week
+        const dailyTasks = {
+            'Monday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: 'World History textbook reading', time: '3-5 PM' },
+                { text: 'US Politics reading/quizzes', time: '7-9 PM' }
+            ],
+            'Tuesday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: 'Start weekly assignments', time: '1-3 PM' },
+                { text: 'Therapy', time: '3 PM' },
+                { text: '🧪 BIO WORK - SmartBook, Assignment, Quiz, Lab', time: '5-8 PM' }
+            ],
+            'Wednesday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: '🎵 Beatles discussion post', time: '9-10:30 AM' },
+                { text: '🎵 Beatles PowerPoint - Part 1', time: '4-6 PM' }
+            ],
+            'Thursday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: '🎵 Beatles PowerPoint - Part 2', time: '10:20-12 PM' },
+                { text: '🎵 Beatles quiz', time: '1-2 PM' }
+            ],
+            'Friday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: 'Finish anything due this weekend', time: '9 AM-12 PM' },
+                { text: 'D&D prep OR coding', time: '12-2 PM' }
+            ],
+            'Saturday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: 'Light reading if desperate (otherwise REST!)', time: '9-10:30 AM' },
+                { text: 'Work all day', time: '11 AM-10 PM' }
+            ],
+            'Sunday': [
+                { text: 'Take Adderall XR at 7:15am', time: '7:15 AM' },
+                { text: 'Submit Sunday deadlines', time: '9 AM-12 PM' },
+                { text: 'D&D TIME! 🎲', time: 'Afternoon' }
+            ]
+        };
+
+        // Weekly recurring tasks
+        const weeklyTasks = [
+            { text: 'Bio SmartBook, Assignment, Quiz, Lab', day: 'Tuesday' },
+            { text: 'Beatles discussion post', day: 'Wednesday' },
+            { text: 'Beatles PowerPoint', day: 'Wednesday-Thursday' },
+            { text: 'Beatles quiz', day: 'Thursday' },
+            { text: 'World History reading', day: 'Monday' },
+            { text: 'US Politics quizzes', day: 'Monday' }
+        ];
+
+        function renderTodayTasks() {
+            const todayTasks = document.getElementById('todayTasks');
+            const tasks = dailyTasks[dayName] || [];
+            
+            // Load completed tasks from localStorage
+            const completed = JSON.parse(localStorage.getItem('completedTasks') || '{}');
+            const todayKey = `${year}-${today.getMonth()}-${dayNum}`;
+            const todayCompleted = completed[todayKey] || [];
+
+            todayTasks.innerHTML = tasks.map((task, index) => {
+                const isCompleted = todayCompleted.includes(index);
+                return `
+                    <div class="task-item ${isCompleted ? 'completed' : ''}">
+                        <input type="checkbox" 
+                               id="task-${index}" 
+                               ${isCompleted ? 'checked' : ''}
+                               onchange="toggleTask(${index})">
+                        <label class="task-label" for="task-${index}">${task.text}</label>
+                        <span class="task-time">${task.time}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderWeekTasks() {
+            const weekTasks = document.getElementById('weekTasks');
+            weekTasks.innerHTML = weeklyTasks.map(task => `
+                <div class="task-item">
+                    <label class="task-label">${task.text}</label>
+                    <span class="task-time">${task.day}</span>
+                </div>
+            `).join('');
+        }
+
+        function toggleTask(index) {
+            const completed = JSON.parse(localStorage.getItem('completedTasks') || '{}');
+            const todayKey = `${year}-${today.getMonth()}-${dayNum}`;
+            
+            if (!completed[todayKey]) {
+                completed[todayKey] = [];
+            }
+
+            if (completed[todayKey].includes(index)) {
+                completed[todayKey] = completed[todayKey].filter(i => i !== index);
+            } else {
+                completed[todayKey].push(index);
+            }
+
+            localStorage.setItem('completedTasks', JSON.stringify(completed));
+            renderTodayTasks();
+        }
+
+        // Initialize
+        renderSchedule();
+        renderDeadlines();
+        renderProjects();
+        renderTodayTasks();
+        renderWeekTasks();
+
+        // Refresh deadlines every minute
+        setInterval(renderDeadlines, 60000);
+    </script>
+</body>
+</html>
