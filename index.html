@@ -600,73 +600,91 @@
         const crisisPlan = {
             start: new Date(2025, 9, 8),
             end: new Date(2025, 9, 16),
-            plan: {
-                'Wednesday': {
-                    date: 'Oct 8',
+            plan: [
+                {
+                    date: new Date(2025, 9, 8),
+                    dayName: 'Wednesday',
+                    displayDate: 'Oct 8',
                     tasks: [
                         '✅ Lab 4: Cellular Respiration (at work)',
                         '✅ Quiz Chapter 7 (when you get home)'
                     ]
                 },
-                'Thursday': {
-                    date: 'Oct 9',
+                {
+                    date: new Date(2025, 9, 9),
+                    dayName: 'Thursday',
+                    displayDate: 'Oct 9',
                     tasks: [
                         '10:20am-12pm: SmartBook Chapter 5 + Assignment',
                         '1-4:45pm: SmartBook Chapter 6 (start)'
                     ]
                 },
-                'Friday': {
-                    date: 'Oct 10',
+                {
+                    date: new Date(2025, 9, 10),
+                    dayName: 'Friday',
+                    displayDate: 'Oct 10',
                     tasks: [
                         'Before work: Finish Chapter 6 Assignment',
                         'During work slow periods: Start Chapter 7 SmartBook on phone'
                     ]
                 },
-                'Saturday': {
-                    date: 'Oct 11',
+                {
+                    date: new Date(2025, 9, 11),
+                    dayName: 'Saturday',
+                    displayDate: 'Oct 11',
                     tasks: [
                         'REST DAY - Work 11am-10pm'
                     ]
                 },
-                'Sunday': {
-                    date: 'Oct 12',
+                {
+                    date: new Date(2025, 9, 12),
+                    dayName: 'Sunday',
+                    displayDate: 'Oct 12',
                     tasks: [
                         'Morning: Finish Chapter 7 SmartBook + Assignment',
                         'Morning: Beatles quiz + discussion comment',
                         'Afternoon: D&D guilt-free! Everything done! 🎲'
                     ]
                 },
-                'Monday': {
-                    date: 'Oct 13',
+                {
+                    date: new Date(2025, 9, 13),
+                    dayName: 'Monday',
+                    displayDate: 'Oct 13',
                     tasks: [
                         'Anytime: Lab 5 Photosynthesis',
                         'Review all chapters for exam'
                     ]
                 },
-                'Tuesday': {
-                    date: 'Oct 14',
+                {
+                    date: new Date(2025, 9, 14),
+                    dayName: 'Tuesday',
+                    displayDate: 'Oct 14',
                     tasks: [
                         'Therapy 3pm',
                         'Final exam review',
                         'Make sure everything is submitted'
                     ]
                 },
-                'Wednesday': {
-                    date: 'Oct 15',
+                {
+                    date: new Date(2025, 9, 15),
+                    dayName: 'Wednesday',
+                    displayDate: 'Oct 15',
                     tasks: [
                         'Submit all bio work by 11:58pm',
                         'Study for exam tomorrow'
                     ]
                 },
-                'Thursday': {
-                    date: 'Oct 16',
+                {
+                    date: new Date(2025, 9, 16),
+                    dayName: 'Thursday',
+                    displayDate: 'Oct 16',
                     tasks: [
                         '10:20am-12pm: Final exam review',
                         '4:45pm: TAKE EXAM 2 in class',
                         'CRISIS OVER! 🎉'
                     ]
                 }
-            }
+            ]
         };
 
         function renderCrisisPlan() {
@@ -682,18 +700,37 @@
 
             crisisSection.style.display = 'block';
             
-            const currentDayPlan = crisisPlan.plan[dayName];
-            const nextDayName = days[(today.getDay() + 1) % 7];
-            const nextDayPlan = crisisPlan.plan[nextDayName];
+            // Find today's plan by matching the date
+            const todayDateStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+            const currentDayPlan = crisisPlan.plan.find(day => {
+                const planDate = day.date;
+                const planDateStr = `${planDate.getFullYear()}-${planDate.getMonth()}-${planDate.getDate()}`;
+                return planDateStr === todayDateStr;
+            });
+
+            // Find tomorrow's plan
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowDateStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+            const nextDayPlan = crisisPlan.plan.find(day => {
+                const planDate = day.date;
+                const planDateStr = `${planDate.getFullYear()}-${planDate.getMonth()}-${planDate.getDate()}`;
+                return planDateStr === tomorrowDateStr;
+            });
+
+            if (!currentDayPlan) {
+                crisisContent.innerHTML = '<p>No tasks scheduled for today in the crisis plan.</p>';
+                return;
+            }
 
             // Load completed crisis tasks
             const completed = JSON.parse(localStorage.getItem('crisisTasks') || '{}');
-            const todayKey = `${dayName}-${currentDayPlan.date}`;
+            const todayKey = `${currentDayPlan.dayName}-${currentDayPlan.displayDate}`;
             const todayCompleted = completed[todayKey] || [];
 
             crisisContent.innerHTML = `
                 <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
-                    <h3 style="color: #ff6b00; margin-bottom: 10px;">📅 Today (${currentDayPlan.date})</h3>
+                    <h3 style="color: #ff6b00; margin-bottom: 10px;">📅 Today (${currentDayPlan.displayDate})</h3>
                     ${currentDayPlan.tasks.map((task, index) => {
                         const isCompleted = todayCompleted.includes(index);
                         return `
@@ -710,7 +747,7 @@
                 </div>
                 ${nextDayPlan ? `
                     <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
-                        <h3 style="color: #1976d2; margin-bottom: 10px;">👉 Tomorrow (${nextDayPlan.date})</h3>
+                        <h3 style="color: #1976d2; margin-bottom: 10px;">👉 Tomorrow (${nextDayPlan.displayDate})</h3>
                         ${nextDayPlan.tasks.map(task => `
                             <div style="padding: 8px; margin: 5px 0; background: white; border-radius: 5px;">
                                 ${task}
