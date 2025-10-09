@@ -857,6 +857,22 @@
             <div id="scheduleView"></div>
         </div>
 
+        <!-- Deadlines Section -->
+        <div class="card">
+            <h2>📋 Deadlines</h2>
+            <div class="quick-add">
+                <input type="text" id="quickDeadlineInput" placeholder="Quick add a deadline... (press Enter)" 
+                       onkeypress="if(event.key==='Enter') showAddDeadlineModal()">
+                <button class="btn btn-primary" onclick="showAddDeadlineModal()">Add Deadline</button>
+            </div>
+            <div id="allDeadlines" class="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📅</div>
+                    <p>No deadlines yet!</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Commute Task List Section -->
         <div class="card commute-section">
             <h2>🚗 Commute Tasks</h2>
