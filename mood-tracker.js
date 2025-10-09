@@ -920,6 +920,554 @@ const MoodTracker = {
         }
     },
     
+    // ===== PHASE 5: PDF EXPORT =====
+    
+    showExportModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal active mood-check-in-modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>📄 Export Mood Data for Therapy</h2>
+                </div>
+                
+                <div class="export-config">
+                    <div class="config-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: #4a5568;">Date Range</h3>
+                        <select id="exportDateRange" style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 1rem;">
+                            <option value="7">Last 7 days</option>
+                            <option value="14" selected>Last 2 weeks</option>
+                            <option value="30">Last month</option>
+                            <option value="90">Last 3 months</option>
+                            <option value="custom">Custom range</option>
+                        </select>
+                        
+                        <div id="customDateRange" style="display: none; margin-top: 12px;">
+                            <label style="display: block; margin-bottom: 8px;">
+                                From: <input type="date" id="exportStartDate" style="padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px;">
+                            </label>
+                            <label style="display: block;">
+                                To: <input type="date" id="exportEndDate" style="padding: 6px; border: 1px solid #cbd5e0; border-radius: 4px;">
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section" style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: #4a5568;">Include in Report</h3>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeMoodEnergy" checked disabled style="margin-right: 8px;">
+                            Mood & Energy Trends (required)
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeSleep" checked style="margin-right: 8px;">
+                            Sleep Patterns
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeMedication" checked style="margin-right: 8px;">
+                            Medication Adherence
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeWarnings" checked style="margin-right: 8px;">
+                            Warning Signs Summary
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includePatterns" checked style="margin-right: 8px;">
+                            Detected Patterns & Insights
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeNotes" checked style="margin-right: 8px;">
+                            Daily Notes
+                        </label>
+                        <label style="display: block; margin: 8px 0; cursor: pointer;">
+                            <input type="checkbox" id="includeCheckInLog" style="margin-right: 8px;">
+                            Complete Check-In Log (detailed)
+                        </label>
+                    </div>
+                    
+                    <div class="config-section" style="margin-bottom: 24px;">
+                        <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: #4a5568;">Notes for Therapist (optional)</h3>
+                        <textarea id="therapistNotes" placeholder="Add any context or questions you want to discuss..." rows="4" 
+                                  style="width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 1rem; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="MoodTracker.closeExportModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="MoodTracker.generatePDF()" style="flex: 1;">Generate PDF</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle date range selector
+        document.getElementById('exportDateRange').addEventListener('change', (e) => {
+            const customRange = document.getElementById('customDateRange');
+            if (e.target.value === 'custom') {
+                customRange.style.display = 'block';
+                // Set default dates
+                const today = new Date();
+                const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+                document.getElementById('exportEndDate').valueAsDate = today;
+                document.getElementById('exportStartDate').valueAsDate = twoWeeksAgo;
+            } else {
+                customRange.style.display = 'none';
+            }
+        });
+    },
+    
+    closeExportModal() {
+        const modal = document.querySelector('.mood-check-in-modal');
+        if (modal) {
+            modal.remove();
+        }
+    },
+    
+    async generatePDF() {
+        // Show loading state
+        this.showToast('📄 Generating PDF...');
+        
+        // Get configuration
+        const dateRange = document.getElementById('exportDateRange').value;
+        const includeSleep = document.getElementById('includeSleep').checked;
+        const includeMedication = document.getElementById('includeMedication').checked;
+        const includeWarnings = document.getElementById('includeWarnings').checked;
+        const includePatterns = document.getElementById('includePatterns').checked;
+        const includeNotes = document.getElementById('includeNotes').checked;
+        const includeCheckInLog = document.getElementById('includeCheckInLog').checked;
+        const therapistNotes = document.getElementById('therapistNotes').value;
+        
+        // Calculate date range
+        let startDate, endDate;
+        if (dateRange === 'custom') {
+            const startInput = document.getElementById('exportStartDate').value;
+            const endInput = document.getElementById('exportEndDate').value;
+            if (!startInput || !endInput) {
+                this.showToast('⚠️ Please select both start and end dates');
+                return;
+            }
+            startDate = new Date(startInput);
+            endDate = new Date(endInput);
+        } else {
+            endDate = new Date();
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - parseInt(dateRange));
+        }
+        
+        // Filter check-ins by date range
+        const filteredCheckIns = this.checkIns.filter(c => {
+            const checkInDate = new Date(c.timestamp);
+            return checkInDate >= startDate && checkInDate <= endDate;
+        });
+        
+        if (filteredCheckIns.length === 0) {
+            this.showToast('⚠️ No check-ins found in this date range');
+            return;
+        }
+        
+        // Initialize jsPDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        let yPosition = 20;
+        const pageHeight = doc.internal.pageSize.height;
+        const marginBottom = 20;
+        
+        // Helper function to check if we need a new page
+        const checkPageBreak = (neededSpace) => {
+            if (yPosition + neededSpace > pageHeight - marginBottom) {
+                doc.addPage();
+                yPosition = 20;
+                return true;
+            }
+            return false;
+        };
+        
+        // HEADER
+        doc.setFontSize(20);
+        doc.setTextColor(102, 126, 234);
+        doc.text('Mood Tracking Report', 105, yPosition, { align: 'center' });
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        const dateRangeText = `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+        doc.text(dateRangeText, 105, yPosition, { align: 'center' });
+        yPosition += 5;
+        
+        const generatedText = `Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`;
+        doc.text(generatedText, 105, yPosition, { align: 'center' });
+        yPosition += 15;
+        
+        // OVERVIEW SECTION
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Overview', 20, yPosition);
+        yPosition += 8;
+        
+        doc.setFontSize(10);
+        const totalCheckIns = filteredCheckIns.length;
+        const avgMood = this.calculateAverage(filteredCheckIns, 'mood', 'moodOverall');
+        const avgEnergy = this.calculateAverage(filteredCheckIns, 'energyLevel', 'energyOverall');
+        const medAdherence = this.calculateMedicationAdherence(filteredCheckIns);
+        
+        doc.text(`Total Check-Ins: ${totalCheckIns}`, 20, yPosition);
+        yPosition += 6;
+        doc.text(`Average Mood: ${avgMood.toFixed(1)}/5 (${this.getMoodLabel(avgMood)})`, 20, yPosition);
+        yPosition += 6;
+        doc.text(`Average Energy: ${avgEnergy.toFixed(1)}/5 (${this.getEnergyLabel(avgEnergy)})`, 20, yPosition);
+        yPosition += 6;
+        
+        if (includeMedication) {
+            doc.text(`Medication Adherence: ${medAdherence}%`, 20, yPosition);
+            yPosition += 10;
+        }
+        
+        // MOOD & ENERGY TRENDS
+        checkPageBreak(40);
+        doc.setFontSize(14);
+        doc.text('Mood & Energy Trends', 20, yPosition);
+        yPosition += 8;
+        
+        doc.setFontSize(10);
+        const moodTrend = this.analyzeTrend(filteredCheckIns, 'mood', 'moodOverall');
+        const energyTrend = this.analyzeTrend(filteredCheckIns, 'energyLevel', 'energyOverall');
+        
+        doc.text(`Mood Trend: ${moodTrend}`, 20, yPosition);
+        yPosition += 6;
+        doc.text(`Energy Trend: ${energyTrend}`, 20, yPosition);
+        yPosition += 10;
+        
+        // SLEEP PATTERNS
+        if (includeSleep) {
+            checkPageBreak(40);
+            doc.setFontSize(14);
+            doc.text('Sleep Patterns', 20, yPosition);
+            yPosition += 8;
+            
+            const morningCheckIns = filteredCheckIns.filter(c => c.checkInType === 'morning');
+            if (morningCheckIns.length > 0) {
+                const avgSleep = morningCheckIns.reduce((sum, c) => sum + (c.sleepHours || 0), 0) / morningCheckIns.length;
+                const sleepQuality = {
+                    restless: morningCheckIns.filter(c => c.sleepQuality === 'restless').length,
+                    okay: morningCheckIns.filter(c => c.sleepQuality === 'okay').length,
+                    good: morningCheckIns.filter(c => c.sleepQuality === 'good').length
+                };
+                
+                doc.setFontSize(10);
+                doc.text(`Average Sleep: ${avgSleep.toFixed(1)} hours`, 20, yPosition);
+                yPosition += 6;
+                doc.text(`Sleep Quality Distribution:`, 20, yPosition);
+                yPosition += 6;
+                doc.text(`  Restless: ${sleepQuality.restless} nights (${((sleepQuality.restless / morningCheckIns.length) * 100).toFixed(0)}%)`, 25, yPosition);
+                yPosition += 6;
+                doc.text(`  Okay: ${sleepQuality.okay} nights (${((sleepQuality.okay / morningCheckIns.length) * 100).toFixed(0)}%)`, 25, yPosition);
+                yPosition += 6;
+                doc.text(`  Good: ${sleepQuality.good} nights (${((sleepQuality.good / morningCheckIns.length) * 100).toFixed(0)}%)`, 25, yPosition);
+                yPosition += 10;
+            }
+        }
+        
+        // WARNING SIGNS
+        if (includeWarnings) {
+            checkPageBreak(50);
+            doc.setFontSize(14);
+            doc.text('Warning Signs', 20, yPosition);
+            yPosition += 8;
+            
+            const warningCounts = {
+                racing: 0,
+                irritable: 0,
+                impulsive: 0,
+                substances: 0,
+                none: 0
+            };
+            
+            filteredCheckIns.forEach(c => {
+                if (c.warningFlags) {
+                    c.warningFlags.forEach(flag => {
+                        if (warningCounts[flag] !== undefined) {
+                            warningCounts[flag]++;
+                        }
+                    });
+                }
+            });
+            
+            doc.setFontSize(10);
+            if (warningCounts.racing > 0) {
+                doc.text(`Racing Thoughts: ${warningCounts.racing} times`, 20, yPosition);
+                yPosition += 6;
+            }
+            if (warningCounts.irritable > 0) {
+                doc.text(`Irritability: ${warningCounts.irritable} times`, 20, yPosition);
+                yPosition += 6;
+            }
+            if (warningCounts.impulsive > 0) {
+                doc.text(`Impulsivity: ${warningCounts.impulsive} times`, 20, yPosition);
+                yPosition += 6;
+            }
+            if (warningCounts.substances > 0) {
+                doc.text(`Alcohol/Substances: ${warningCounts.substances} times`, 20, yPosition);
+                yPosition += 6;
+            }
+            if (warningCounts.none > 0) {
+                doc.text(`Stable Days: ${warningCounts.none} times`, 20, yPosition);
+                yPosition += 6;
+            }
+            yPosition += 4;
+        }
+        
+        // DETECTED PATTERNS
+        if (includePatterns) {
+            checkPageBreak(50);
+            doc.setFontSize(14);
+            doc.text('Detected Patterns & Insights', 20, yPosition);
+            yPosition += 8;
+            
+            doc.setFontSize(10);
+            const patterns = this.generateInsights(filteredCheckIns);
+            
+            patterns.forEach(pattern => {
+                checkPageBreak(15);
+                const lines = doc.splitTextToSize(`• ${pattern}`, 170);
+                lines.forEach(line => {
+                    checkPageBreak(6);
+                    doc.text(line, 20, yPosition);
+                    yPosition += 6;
+                });
+            });
+            yPosition += 4;
+        }
+        
+        // DAILY NOTES
+        if (includeNotes) {
+            const checkInsWithNotes = filteredCheckIns.filter(c => c.note && c.note.trim() !== '');
+            
+            if (checkInsWithNotes.length > 0) {
+                checkPageBreak(30);
+                doc.setFontSize(14);
+                doc.text('Daily Notes', 20, yPosition);
+                yPosition += 8;
+                
+                doc.setFontSize(10);
+                checkInsWithNotes.forEach(c => {
+                    checkPageBreak(15);
+                    const date = new Date(c.timestamp).toLocaleDateString();
+                    doc.text(`${date}:`, 20, yPosition);
+                    yPosition += 6;
+                    
+                    const noteLines = doc.splitTextToSize(c.note, 160);
+                    noteLines.forEach(line => {
+                        checkPageBreak(6);
+                        doc.text(line, 25, yPosition);
+                        yPosition += 6;
+                    });
+                    yPosition += 2;
+                });
+            }
+        }
+        
+        // THERAPIST NOTES
+        if (therapistNotes && therapistNotes.trim() !== '') {
+            checkPageBreak(40);
+            doc.setFontSize(14);
+            doc.text('Notes for Discussion', 20, yPosition);
+            yPosition += 8;
+            
+            doc.setFontSize(10);
+            const noteLines = doc.splitTextToSize(therapistNotes, 160);
+            noteLines.forEach(line => {
+                checkPageBreak(6);
+                doc.text(line, 20, yPosition);
+                yPosition += 6;
+            });
+        }
+        
+        // COMPLETE CHECK-IN LOG
+        if (includeCheckInLog) {
+            doc.addPage();
+            yPosition = 20;
+            
+            doc.setFontSize(14);
+            doc.text('Complete Check-In Log', 20, yPosition);
+            yPosition += 10;
+            
+            const tableData = filteredCheckIns.map(c => {
+                const date = new Date(c.timestamp);
+                return [
+                    date.toLocaleDateString(),
+                    date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                    c.checkInType,
+                    c.mood || c.moodOverall || '-',
+                    c.energyLevel || c.energyOverall || '-',
+                    c.note ? c.note.substring(0, 50) + (c.note.length > 50 ? '...' : '') : '-'
+                ];
+            });
+            
+            doc.autoTable({
+                startY: yPosition,
+                head: [['Date', 'Time', 'Type', 'Mood', 'Energy', 'Notes']],
+                body: tableData,
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [102, 126, 234] },
+                columnStyles: {
+                    5: { cellWidth: 50 }
+                }
+            });
+        }
+        
+        // FOOTER on every page
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                `Controlled Chaos - Mood Tracking Report | Page ${i} of ${pageCount}`,
+                105,
+                pageHeight - 10,
+                { align: 'center' }
+            );
+        }
+        
+        // Save the PDF
+        const filename = `mood-tracking-${startDate.toISOString().split('T')[0]}-to-${endDate.toISOString().split('T')[0]}.pdf`;
+        doc.save(filename);
+        
+        this.closeExportModal();
+        this.showToast('✅ PDF downloaded! Ready for therapy.');
+        
+        // Confetti if available
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+    },
+    
+    // Helper functions for PDF generation
+    calculateAverage(checkIns, ...fields) {
+        let sum = 0;
+        let count = 0;
+        
+        checkIns.forEach(c => {
+            for (const field of fields) {
+                if (c[field] !== undefined && c[field] !== null) {
+                    sum += c[field];
+                    count++;
+                    break;
+                }
+            }
+        });
+        
+        return count > 0 ? sum / count : 0;
+    },
+    
+    calculateMedicationAdherence(checkIns) {
+        const morningCheckIns = checkIns.filter(c => c.checkInType === 'morning');
+        if (morningCheckIns.length === 0) return 0;
+        
+        const takenCount = morningCheckIns.filter(c => c.medicationTaken).length;
+        return Math.round((takenCount / morningCheckIns.length) * 100);
+    },
+    
+    getMoodLabel(avgMood) {
+        if (avgMood >= 4.5) return 'Very elevated';
+        if (avgMood >= 3.5) return 'Elevated';
+        if (avgMood >= 2.5) return 'Stable';
+        if (avgMood >= 1.5) return 'Low';
+        return 'Very low';
+    },
+    
+    getEnergyLabel(avgEnergy) {
+        if (avgEnergy >= 4.5) return 'Very elevated';
+        if (avgEnergy >= 3.5) return 'Elevated';
+        if (avgEnergy >= 2.5) return 'Normal';
+        if (avgEnergy >= 1.5) return 'Low';
+        return 'Depleted';
+    },
+    
+    analyzeTrend(checkIns, ...fields) {
+        if (checkIns.length < 2) return 'Insufficient data';
+        
+        const midpoint = Math.floor(checkIns.length / 2);
+        const firstHalf = checkIns.slice(0, midpoint);
+        const secondHalf = checkIns.slice(midpoint);
+        
+        const firstAvg = this.calculateAverage(firstHalf, ...fields);
+        const secondAvg = this.calculateAverage(secondHalf, ...fields);
+        
+        const diff = secondAvg - firstAvg;
+        
+        if (Math.abs(diff) < 0.3) return 'Stable';
+        if (diff > 0) return 'Increasing trend';
+        return 'Decreasing trend';
+    },
+    
+    generateInsights(checkIns) {
+        const insights = [];
+        
+        if (checkIns.length === 0) return insights;
+        
+        // Stability analysis
+        const stableDays = checkIns.filter(c => {
+            const mood = c.mood || c.moodOverall || 0;
+            const energy = c.energyLevel || c.energyOverall || 0;
+            return mood >= 2.5 && mood <= 3.5 && energy >= 2.5 && energy <= 3.5;
+        }).length;
+        
+        insights.push(`${stableDays} stable days (${Math.round((stableDays / checkIns.length) * 100)}%)`);
+        
+        // Elevated energy analysis
+        const elevatedDays = checkIns.filter(c => {
+            const energy = c.energyLevel || c.energyOverall || 0;
+            return energy >= 4;
+        }).length;
+        
+        if (elevatedDays > 0) {
+            insights.push(`${elevatedDays} days with elevated energy`);
+        }
+        
+        // Low mood analysis
+        const lowMoodDays = checkIns.filter(c => {
+            const mood = c.mood || c.moodOverall || 0;
+            return mood <= 2;
+        }).length;
+        
+        if (lowMoodDays > 0) {
+            insights.push(`${lowMoodDays} days with low mood`);
+        }
+        
+        // Sleep correlation
+        const morningCheckIns = checkIns.filter(c => c.checkInType === 'morning');
+        if (morningCheckIns.length > 3) {
+            const avgSleep = morningCheckIns.reduce((sum, c) => sum + (c.sleepHours || 0), 0) / morningCheckIns.length;
+            if (avgSleep < 6) {
+                insights.push('Sleep below recommended 7-9 hours - may impact mood');
+            } else if (avgSleep > 9) {
+                insights.push('Sleep above typical range - monitor for depression signals');
+            }
+        }
+        
+        // Medication adherence impact
+        const medAdherence = this.calculateMedicationAdherence(checkIns);
+        if (medAdherence < 80 && medAdherence > 0) {
+            insights.push(`Medication adherence at ${medAdherence}% - consider discussing barriers with provider`);
+        }
+        
+        // Pattern detection summary
+        const hasRacing = checkIns.some(c => c.warningFlags && c.warningFlags.includes('racing'));
+        const hasIrritability = checkIns.some(c => c.warningFlags && c.warningFlags.includes('irritable'));
+        
+        if (hasRacing && hasIrritability) {
+            insights.push('Racing thoughts and irritability noted - discuss mixed state symptoms');
+        }
+        
+        return insights;
+    },
+    
     // ===== PHASE 4: PATTERN VISUALIZATION =====
     
     showVisualization() {
@@ -942,6 +1490,14 @@ const MoodTracker = {
                     <button class="viz-tab" data-tab="insights" onclick="MoodTracker.switchVizTab('insights', this)">
                         💡 Insights
                     </button>
+                </div>
+                
+                <!-- PDF Export Button -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="MoodTracker.showExportModal()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                        📄 Export for Therapy
+                    </button>
+                    <p style="font-size: 0.9em; color: var(--text-light); margin-top: 8px;">Generate a PDF report to share with your therapist</p>
                 </div>
                 
                 <div id="vizContent">
