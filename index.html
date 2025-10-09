@@ -697,7 +697,191 @@
             color: #856404;
         }
 
+        /* Visual Time Block Planner Styles */
+        .planner-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .planner-day-column {
+            min-width: 150px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .planner-day-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .time-block {
+            position: relative;
+            margin: 4px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 2px dashed transparent;
+            transition: all 0.2s;
+            min-height: 60px;
+        }
+
+        .time-block.type-free {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .time-block.type-class {
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+
+        .time-block.type-work {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        .time-block.type-personal {
+            background: #f3e5f5;
+            border-color: #ce93d8;
+        }
+
+        .time-block.type-protected {
+            background: linear-gradient(135deg, #e9d5ff, #ddd6fe);
+            border-color: #a78bfa;
+        }
+
+        .time-block.type-commute {
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+        }
+
+        .block-time {
+            font-size: 0.75em;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .block-title {
+            font-size: 0.85em;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .block-lock {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 1.2em;
+        }
+
+        .block-tasks {
+            min-height: 30px;
+            margin-top: 8px;
+            padding: 4px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .block-tasks.drop-target {
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px dashed var(--primary);
+        }
+
+        .mini-task-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 6px 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary);
+            font-size: 0.85rem;
+            cursor: move;
+        }
+
+        .mini-task-card:hover {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .mini-task-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mini-task-time {
+            font-size: 0.75em;
+            color: var(--text-light);
+            margin: 0 4px;
+        }
+
+        .mini-task-remove {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.8em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .mini-task-remove:hover {
+            background: #dc2626;
+        }
+
+        .task-card.dragging {
+            opacity: 0.5;
+        }
+
+        .unscheduled-task-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            margin: 8px 0;
+            cursor: move;
+            transition: all 0.2s;
+        }
+
+        .unscheduled-task-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .unscheduled-task-card.dragging {
+            opacity: 0.5;
+        }
+
         /* Responsive */
+        @media (max-width: 768px) {
+            .planner-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+
+            .planner-day-column {
+                min-width: 140px;
+            }
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -935,6 +1119,29 @@
             
             <div class="commute-home-indicator" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-top: 15px;" id="commuteHomeIndicator">
                 🚗 You're driving home - good time to make stops!
+            </div>
+        </div>
+
+        <!-- Visual Time Block Planner -->
+        <div class="card">
+            <h2>📅 Visual Week Planner</h2>
+            <p style="color: var(--text-light); margin-bottom: 15px;">
+                Drag tasks onto time blocks to plan your week
+            </p>
+            <div class="planner-controls" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="showCurrentWeek()">This Week</button>
+                <button class="btn btn-secondary" onclick="showNextWeek()">Next Week</button>
+            </div>
+            
+            <div class="planner-grid" id="plannerGrid">
+                <!-- Generated dynamically -->
+            </div>
+            
+            <div class="unscheduled-tasks" style="margin-top: 30px; padding: 20px; background: var(--bg-main); border-radius: 12px;">
+                <h3 style="margin-bottom: 15px;">📋 Unscheduled Tasks</h3>
+                <div id="unscheduledTasksList">
+                    <!-- Tasks that haven't been assigned to time blocks -->
+                </div>
             </div>
         </div>
 
@@ -3201,12 +3408,274 @@ Format as natural, encouraging text. Be brief and direct.`;
             document.body.classList.toggle('dyslexia-font');
         }
 
+        // ===== VISUAL TIME BLOCK PLANNER =====
+        let currentPlannerWeek = new Date();
+
+        function showCurrentWeek() {
+            currentPlannerWeek = new Date();
+            generatePlannerGrid(currentPlannerWeek);
+        }
+
+        function showNextWeek() {
+            currentPlannerWeek = new Date();
+            currentPlannerWeek.setDate(currentPlannerWeek.getDate() + 7);
+            generatePlannerGrid(currentPlannerWeek);
+        }
+
+        function generatePlannerGrid(startDate) {
+            const grid = document.getElementById('plannerGrid');
+            grid.innerHTML = '';
+            
+            // Get start of week (Sunday)
+            const weekStart = new Date(startDate);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            
+            // Generate 7 days
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                
+                const dayColumn = document.createElement('div');
+                dayColumn.className = 'planner-day-column';
+                
+                // Day header
+                const header = document.createElement('div');
+                header.className = 'planner-day-header';
+                header.textContent = date.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                dayColumn.appendChild(header);
+                
+                // Get schedule for this day
+                const dayName = days[date.getDay()];
+                const daySchedule = appData.schedule[dayName] || [];
+                
+                // Create blocks
+                daySchedule.forEach(block => {
+                    const blockEl = createTimeBlockElement(block, date);
+                    dayColumn.appendChild(blockEl);
+                });
+                
+                grid.appendChild(dayColumn);
+            }
+            
+            // Render unscheduled tasks
+            renderUnscheduledTasks();
+            
+            // Enable drag and drop
+            enableDragAndDrop();
+        }
+
+        function createTimeBlockElement(block, date) {
+            const blockEl = document.createElement('div');
+            blockEl.className = `time-block type-${block.type}`;
+            
+            const dateStr = date.toISOString().split('T')[0];
+            const blockId = `${dateStr}-${block.startTime}`;
+            blockEl.dataset.blockId = blockId;
+            
+            // Calculate height based on duration
+            const duration = parseTime(block.endTime) - parseTime(block.startTime);
+            const heightPx = Math.max((duration / 30) * 40, 60); // Min 60px
+            blockEl.style.height = `${heightPx}px`;
+            
+            // Block content
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'block-time';
+            timeDiv.textContent = `${formatTime(block.startTime)} - ${formatTime(block.endTime)}`;
+            blockEl.appendChild(timeDiv);
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'block-title';
+            titleDiv.textContent = block.text;
+            blockEl.appendChild(titleDiv);
+            
+            // Lock icon for protected blocks
+            if (block.type === 'protected') {
+                const lockDiv = document.createElement('div');
+                lockDiv.className = 'block-lock';
+                lockDiv.textContent = '🔒';
+                blockEl.appendChild(lockDiv);
+            }
+            
+            // Tasks container (only for free blocks)
+            if (block.type === 'free' && block.editable) {
+                const tasksContainer = document.createElement('div');
+                tasksContainer.className = 'block-tasks';
+                tasksContainer.dataset.blockId = blockId;
+                
+                // Load any tasks already scheduled for this block
+                const scheduledTasks = appData.tasks.filter(t => 
+                    !t.completed && t.scheduledBlock === blockId
+                );
+                
+                scheduledTasks.forEach(task => {
+                    tasksContainer.appendChild(createMiniTaskCard(task));
+                });
+                
+                blockEl.appendChild(tasksContainer);
+            }
+            
+            return blockEl;
+        }
+
+        function createMiniTaskCard(task) {
+            const card = document.createElement('div');
+            card.className = 'mini-task-card';
+            card.dataset.taskId = task.id;
+            card.draggable = true;
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'mini-task-title';
+            titleSpan.textContent = task.title;
+            card.appendChild(titleSpan);
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'mini-task-time';
+            timeSpan.textContent = `${task.timeEstimate}m`;
+            card.appendChild(timeSpan);
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'mini-task-remove';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                unscheduleTask(task.id);
+            };
+            card.appendChild(removeBtn);
+            
+            // Add drag event listeners
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+            
+            return card;
+        }
+
+        function renderUnscheduledTasks() {
+            const container = document.getElementById('unscheduledTasksList');
+            const unscheduledTasks = appData.tasks.filter(t => 
+                !t.completed && !t.scheduledBlock
+            );
+            
+            if (unscheduledTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p style="color: var(--text-light);">All tasks are scheduled! 🎉</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = '';
+            unscheduledTasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'unscheduled-task-card';
+                card.dataset.taskId = task.id;
+                card.draggable = true;
+                
+                card.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">${task.title}</div>
+                        <div style="display: flex; gap: 8px; font-size: 0.85em;">
+                            <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                            <span class="location-badge">📍 ${task.location}</span>
+                            <span class="time-estimate">⏱️ ${task.timeEstimate}min</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Add drag event listeners
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                
+                container.appendChild(card);
+            });
+        }
+
+        function enableDragAndDrop() {
+            // Make block-tasks drop zones
+            document.querySelectorAll('.block-tasks').forEach(zone => {
+                zone.addEventListener('dragover', handleDragOver);
+                zone.addEventListener('dragleave', handleDragLeave);
+                zone.addEventListener('drop', handleDrop);
+            });
+        }
+
+        let draggedTaskId = null;
+
+        function handleDragStart(e) {
+            draggedTaskId = e.currentTarget.dataset.taskId;
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            draggedTaskId = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drop-target');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drop-target');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop-target');
+            
+            if (!draggedTaskId) return;
+            
+            const blockId = e.currentTarget.dataset.blockId;
+            const task = appData.tasks.find(t => t.id === draggedTaskId);
+            
+            if (!task) return;
+            
+            // Check if this is a protected block (shouldn't happen, but safety check)
+            const blockEl = e.currentTarget.closest('.time-block');
+            if (blockEl && blockEl.classList.contains('type-protected')) {
+                showToast('⚠️ Cannot schedule tasks during protected time');
+                return;
+            }
+            
+            // Update task with scheduled block
+            task.scheduledBlock = blockId;
+            saveData();
+            
+            // Refresh the planner
+            generatePlannerGrid(currentPlannerWeek);
+            
+            showToast(`✅ Scheduled: ${task.title}`);
+        }
+
+        function unscheduleTask(taskId) {
+            const task = appData.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.scheduledBlock = null;
+                saveData();
+                generatePlannerGrid(currentPlannerWeek);
+                showToast(`📋 Unscheduled: ${task.title}`);
+            }
+        }
+
         // ===== UI UPDATE =====
         function updateUI() {
             updateCurrentDate();
             renderSchedule();
             renderTasks();
             updateWhatNow();
+            renderDeadlines();
+            
+            // Initialize planner if visible
+            if (document.getElementById('plannerGrid').children.length === 0) {
+                showCurrentWeek();
+            }
         }
 
         // ===== INITIALIZATION =====
