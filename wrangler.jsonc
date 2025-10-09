@@ -1,0 +1,6 @@
+{
+  "name": "controlled-chaos-api",
+  "main": "worker.js",
+  "compatibility_date": "2025-10-09",
+  "compatibility_flags": ["nodejs_compat"]
+}
