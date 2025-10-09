@@ -1919,6 +1919,57 @@ Return ONLY valid JSON array, no other text:
             }
         }
 
+        function calculateAvailableTime(deadline) {
+            const now = new Date();
+            const dueDate = new Date(deadline.dueDate);
+            
+            // Find all free blocks between now and deadline
+            const freeBlocks = [];
+            let currentDate = new Date(now);
+            
+            while (currentDate <= dueDate) {
+                const dayName = days[currentDate.getDay()];
+                const daySchedule = appData.schedule[dayName] || [];
+                const currentMinutes = currentDate.getTime() === now.getTime() ? now.getHours() * 60 + now.getMinutes() : 0;
+                
+                daySchedule.forEach(block => {
+                    if (block.type === 'free' && !block.protected && block.editable) {
+                        const startMinutes = parseTime(block.startTime);
+                        const endMinutes = parseTime(block.endTime);
+                        
+                        // Skip blocks that have already passed today
+                        if (currentDate.toDateString() === now.toDateString() && endMinutes <= currentMinutes) {
+                            return;
+                        }
+                        
+                        const duration = endMinutes - startMinutes;
+                        
+                        freeBlocks.push({
+                            date: currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                            time: `${formatTime(block.startTime)}-${formatTime(block.endTime)}`,
+                            duration: duration,
+                            location: block.location
+                        });
+                    }
+                });
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            // Calculate total available hours
+            const totalMinutes = freeBlocks.reduce((sum, block) => sum + block.duration, 0);
+            const totalHours = Math.floor(totalMinutes / 60);
+            const remainingMinutes = totalMinutes % 60;
+            
+            return {
+                freeBlocks,
+                totalHours,
+                remainingMinutes,
+                blockCount: freeBlocks.length,
+                totalMinutes
+            };
+        }
+
         function renderDeadlines() {
             const container = document.getElementById('allDeadlines');
             const activeDeadlines = appData.deadlines.filter(d => !d.completed);
@@ -1960,21 +2011,65 @@ Return ONLY valid JSON array, no other text:
                 
                 const relatedTasks = appData.tasks.filter(t => t.parentDeadline === deadline.id);
                 const completedTasks = relatedTasks.filter(t => t.completed).length;
+                const incompleteTasks = relatedTasks.filter(t => !t.completed);
+                
+                // Calculate available time and work needed
+                const timeAvailable = calculateAvailableTime(deadline);
+                const totalWorkMinutes = incompleteTasks.reduce((sum, t) => sum + (t.timeEstimate || 30), 0);
+                const totalWorkHours = Math.floor(totalWorkMinutes / 60);
+                const workMinutesRemainder = totalWorkMinutes % 60;
+                
+                // Determine if achievable
+                const isAchievable = timeAvailable.totalMinutes >= totalWorkMinutes;
+                const statusIcon = isAchievable ? '✅' : '⚠️';
+                const cardClass = isAchievable ? '' : 'tight-deadline';
                 
                 return `
-                    <div class="task-item" style="border-left: 4px solid ${urgencyColor};">
+                    <div class="task-item ${cardClass}" style="border-left: 4px solid ${urgencyColor}; ${!isAchievable && incompleteTasks.length > 0 ? 'background: linear-gradient(to right, #fff5f0, white);' : ''}">
                         <input type="checkbox" class="task-checkbox" 
                                onchange="toggleDeadline('${deadline.id}')" ${deadline.completed ? 'checked' : ''}>
-                        <div class="task-content">
+                        <div class="task-content" style="flex: 1;">
                             <div class="task-title">${deadline.title}</div>
-                            <div class="task-meta">
-                                <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
-                                    📅 ${urgencyText}
-                                </span>
-                                ${relatedTasks.length > 0 ? `
-                                    <span style="background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">
-                                        ${completedTasks}/${relatedTasks.length} tasks done
+                            <div class="task-meta" style="flex-direction: column; gap: 8px; align-items: flex-start;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
+                                        📅 ${urgencyText}
                                     </span>
+                                    ${relatedTasks.length > 0 ? `
+                                        <span style="background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">
+                                            ${completedTasks}/${relatedTasks.length} tasks done
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${incompleteTasks.length > 0 && daysUntil > 0 ? `
+                                    <div style="font-size: 0.85em; color: var(--text-light); margin-top: 5px;">
+                                        ${statusIcon} <strong>${timeAvailable.blockCount} free blocks</strong> = ${timeAvailable.totalHours}h ${timeAvailable.remainingMinutes}m available
+                                        <br>
+                                        📝 ${totalWorkHours}h ${workMinutesRemainder}m of work needed
+                                        ${!isAchievable ? `
+                                            <br>
+                                            <span style="color: var(--warning); font-weight: 600;">⚠️ Tight schedule! Consider moving tasks or extending deadline.</span>
+                                        ` : ''}
+                                    </div>
+                                    ${timeAvailable.freeBlocks.length > 0 ? `
+                                        <details style="margin-top: 8px; font-size: 0.85em;">
+                                            <summary style="cursor: pointer; color: var(--primary); font-weight: 500;">
+                                                View ${timeAvailable.freeBlocks.length} available time blocks
+                                            </summary>
+                                            <div style="margin-top: 8px; padding: 10px; background: var(--bg-main); border-radius: 6px;">
+                                                ${timeAvailable.freeBlocks.slice(0, 5).map(block => `
+                                                    <div style="padding: 4px 0; color: var(--text-light);">
+                                                        • ${block.date}: ${block.time} (${Math.floor(block.duration / 60)}h ${block.duration % 60}m) at ${block.location}
+                                                    </div>
+                                                `).join('')}
+                                                ${timeAvailable.freeBlocks.length > 5 ? `
+                                                    <div style="padding: 4px 0; color: var(--text-light); font-style: italic;">
+                                                        + ${timeAvailable.freeBlocks.length - 5} more blocks
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </details>
+                                    ` : ''}
                                 ` : ''}
                             </div>
                         </div>
