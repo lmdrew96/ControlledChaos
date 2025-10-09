@@ -87,10 +87,35 @@ export default {
       // Log error responses for debugging
       if (!response.ok) {
         console.error('Anthropic API error:', response.status, data);
+        // Return error responses as-is
+        return new Response(data, {
+          status: response.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+
+      // Parse the successful response
+      const parsedData = JSON.parse(data);
+      
+      // Strip markdown code blocks if present in the response text
+      if (parsedData.content && parsedData.content[0] && parsedData.content[0].text) {
+        const responseText = parsedData.content[0].text;
+        
+        // Strip markdown code fences (```json ... ``` or ``` ... ```)
+        const cleanedText = responseText.trim()
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '');
+        
+        // Update the response with cleaned text
+        parsedData.content[0].text = cleanedText;
       }
       
-      // Return with CORS headers
-      return new Response(data, {
+      // Return the cleaned response with CORS headers
+      return new Response(JSON.stringify(parsedData), {
         status: response.status,
         headers: {
           'Content-Type': 'application/json',
