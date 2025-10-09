@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controlled Chaos v2 🌀</title>
+    <title>Controlled Chaos v3 🌀</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
@@ -42,7 +42,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: var(--bg-main);
             border-radius: 20px;
@@ -67,6 +67,13 @@
             color: var(--text-light);
             font-style: italic;
             font-size: 1.1em;
+        }
+
+        .current-date {
+            color: var(--text);
+            font-size: 1.1em;
+            margin-top: 10px;
+            font-weight: 600;
         }
 
         .header-buttons {
@@ -119,6 +126,70 @@
         .btn-success {
             background: var(--success);
             color: white;
+        }
+
+        /* Focus Area */
+        .focus-area {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin: 0 5px;
+        }
+
+        /* Crisis Plan */
+        .crisis-plan {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .crisis-plan h2 {
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .crisis-day {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .crisis-day h3 {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .crisis-task {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .crisis-task input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .crisis-task.completed {
+            opacity: 0.6;
+            text-decoration: line-through;
         }
 
         /* Priority Section */
@@ -191,6 +262,7 @@
             gap: 10px;
             font-size: 0.9em;
             opacity: 0.9;
+            flex-wrap: wrap;
         }
 
         .energy-badge {
@@ -220,6 +292,14 @@
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.85em;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         /* Modal */
@@ -311,7 +391,12 @@
             color: var(--primary);
             margin-bottom: 20px;
             font-size: 1.5em;
+            border-bottom: 3px solid;
+            padding-bottom: 10px;
         }
+
+        .card.deadlines h2 { border-color: #FFE66D; }
+        .card.schedule h2 { border-color: #A8E6CF; }
 
         /* Task List */
         .task-list {
@@ -360,6 +445,7 @@
         .task-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         .task-btn {
@@ -378,24 +464,77 @@
             color: white;
         }
 
-        /* Progress Bar */
-        .progress-bar {
-            background: var(--border);
-            height: 30px;
-            border-radius: 15px;
-            overflow: hidden;
-            margin-top: 10px;
+        /* Deadlines */
+        .deadline-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            transition: width 0.5s ease;
+        .deadline-item.urgent {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .deadline-item.soon {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+
+        .deadline-item.coming {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+
+        .deadline-countdown {
+            font-weight: bold;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: white;
+        }
+
+        /* Schedule */
+        .schedule-day {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .schedule-day h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .schedule-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 0.95em;
+        }
+
+        .schedule-item.class {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+
+        .schedule-item.work {
+            background: #fce4ec;
+            border-left: 3px solid #e91e63;
+        }
+
+        .schedule-item.personal {
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .schedule-item.free {
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
         }
 
         /* Weekly Wins */
@@ -459,25 +598,6 @@
             margin-top: 20px;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-
-            .header-buttons {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-            }
-        }
-
         /* Quick Add Input */
         .quick-add {
             display: flex;
@@ -502,13 +622,45 @@
             font-size: 0.8em;
             font-weight: 600;
         }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .task-actions {
+                width: 100%;
+            }
+
+            .task-btn {
+                flex: 1;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🌀 Controlled Chaos v2</h1>
+            <h1>🌀 Controlled Chaos v3</h1>
             <p class="tagline">Managing the beautiful mess of college life</p>
+            <div class="current-date" id="currentDate"></div>
             
             <div class="header-buttons">
                 <button class="btn btn-primary" onclick="showPickForMe()">🎯 Pick For Me</button>
@@ -520,6 +672,19 @@
                 <button class="btn btn-secondary" onclick="toggleFont()">🔤 Font</button>
             </div>
         </header>
+
+        <!-- Daily Focus -->
+        <div class="focus-area">
+            <span class="emoji">🎯</span>
+            <span id="focusText">Loading today's focus...</span>
+            <span class="emoji">✨</span>
+        </div>
+
+        <!-- Crisis Management Plan -->
+        <div class="crisis-plan" id="crisisPlan" style="display: none;">
+            <h2>🚨 Crisis Management Plan (Oct 8-16)</h2>
+            <div id="crisisPlanContent"></div>
+        </div>
 
         <!-- Top 3 Priorities -->
         <div class="priority-section">
@@ -543,6 +708,22 @@
                 <button class="mood-btn" onclick="setMood('😄')" data-mood="😄">😄</button>
             </div>
             <p id="moodStatus" class="text-center text-light" style="color: var(--text-light);"></p>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="grid">
+            <!-- Upcoming Deadlines -->
+            <div class="card deadlines">
+                <h2>⏰ Upcoming Deadlines</h2>
+                <div id="deadlinesList"></div>
+                <button class="btn btn-primary mt-20" onclick="showAddDeadline()" style="width: 100%;">➕ Add Deadline</button>
+            </div>
+
+            <!-- Weekly Schedule -->
+            <div class="card schedule">
+                <h2>🗓️ Weekly Schedule</h2>
+                <div id="scheduleView"></div>
+            </div>
         </div>
 
         <!-- Tasks Section -->
@@ -585,17 +766,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Projects Progress -->
-        <div class="card">
-            <h2>📊 Project Progress</h2>
-            <div id="projectProgress">
-                <div class="empty-state">
-                    <div class="empty-state-icon">🚀</div>
-                    <p>Add projects to track your progress!</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Settings Modal -->
@@ -606,10 +776,10 @@
                 <button class="close-modal" onclick="closeModal('settingsModal')">&times;</button>
             </div>
             <div class="form-group">
-                <label for="apiKeyInput">Anthropic API Key</label>
+                <label for="apiKeyInput">Anthropic API Key (Optional)</label>
                 <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
                 <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                    Your API key is stored locally in your browser and never sent anywhere except Anthropic's API.
+                    Your API key is stored locally in your browser and never sent anywhere except Anthropic's API. This enables "Pick For Me", "I'm Stuck", and "Brain Dump" features.
                 </p>
             </div>
             <div class="form-group">
@@ -663,25 +833,268 @@
         </div>
     </div>
 
+    <!-- Add Deadline Modal -->
+    <div id="addDeadlineModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Deadline</h2>
+                <button class="close-modal" onclick="closeModal('addDeadlineModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Name:</label>
+                <input type="text" id="newDeadlineName">
+            </div>
+            <div class="form-group">
+                <label>Course:</label>
+                <input type="text" id="newDeadlineCourse">
+            </div>
+            <div class="form-group">
+                <label>Due Date:</label>
+                <input type="datetime-local" id="newDeadlineDate">
+            </div>
+            <button class="btn btn-primary" onclick="addDeadline()">Add Deadline</button>
+        </div>
+    </div>
+
     <script>
+        // Get current date and day
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const today = new Date();
+        const dayName = days[today.getDay()];
+        const dayNum = today.getDate();
+        const monthName = months[today.getMonth()];
+        const year = today.getFullYear();
+
+        document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${dayNum}, ${year}`;
+
+        // Daily focus messages
+        const focusMessages = {
+            'Monday': 'World History & US Politics Day! Plus some coding time 💻',
+            'Tuesday': 'BIO DAY after therapy! Get it done tonight 🧪',
+            'Wednesday': 'Beatles discussion day! Plus catch-up time 🎵',
+            'Thursday': 'Finish Beatles work & World History prep 📖',
+            'Friday': 'Flex day! Finish anything due this weekend ⚡',
+            'Saturday': 'Work day - rest and recover! 💪',
+            'Sunday': 'Submit Sunday deadlines, then D&D time! 🎲'
+        };
+
+        document.getElementById('focusText').textContent = focusMessages[dayName];
+
+        // Crisis Management Plan (Oct 8-16)
+        const crisisPlan = {
+            start: new Date(2025, 9, 8),
+            end: new Date(2025, 9, 16),
+            plan: [
+                {
+                    date: new Date(2025, 9, 8),
+                    dayName: 'Wednesday',
+                    displayDate: 'Oct 8',
+                    tasks: [
+                        '✅ Lab 4: Cellular Respiration (at work)',
+                        '✅ Quiz Chapter 7 (when you get home)'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 9),
+                    dayName: 'Thursday',
+                    displayDate: 'Oct 9',
+                    tasks: [
+                        '10:20am-12pm: SmartBook Chapter 5 + Assignment',
+                        '1-4:45pm: SmartBook Chapter 6 (start)'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 10),
+                    dayName: 'Friday',
+                    displayDate: 'Oct 10',
+                    tasks: [
+                        'Before work: Finish Chapter 6 Assignment',
+                        'During work slow periods: Start Chapter 7 SmartBook on phone'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 11),
+                    dayName: 'Saturday',
+                    displayDate: 'Oct 11',
+                    tasks: [
+                        'REST DAY - Work 11am-10pm'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 12),
+                    dayName: 'Sunday',
+                    displayDate: 'Oct 12',
+                    tasks: [
+                        'Morning: Finish Chapter 7 SmartBook + Assignment',
+                        'Morning: Beatles quiz + discussion comment',
+                        'Afternoon: D&D guilt-free! Everything done! 🎲'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 13),
+                    dayName: 'Monday',
+                    displayDate: 'Oct 13',
+                    tasks: [
+                        'Anytime: Lab 5 Photosynthesis',
+                        'Review all chapters for exam'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 14),
+                    dayName: 'Tuesday',
+                    displayDate: 'Oct 14',
+                    tasks: [
+                        'Therapy 3pm',
+                        'Final exam review',
+                        'Make sure everything is submitted'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 15),
+                    dayName: 'Wednesday',
+                    displayDate: 'Oct 15',
+                    tasks: [
+                        'Submit all bio work by 11:58pm',
+                        'Study for exam tomorrow'
+                    ]
+                },
+                {
+                    date: new Date(2025, 9, 16),
+                    dayName: 'Thursday',
+                    displayDate: 'Oct 16',
+                    tasks: [
+                        '10:20am-12pm: Final exam review',
+                        '4:45pm: TAKE EXAM 2 in class',
+                        'CRISIS OVER! 🎉'
+                    ]
+                }
+            ]
+        };
+
+        // Weekly schedule
+        const schedule = {
+            'Monday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '8:00-8:40 AM', text: 'Commute to school', type: 'free' },
+                { time: '8:40-10:35 AM', text: 'FREE TIME - study at school', type: 'free' },
+                { time: '10:35-11:55 AM', text: 'US Politics class', type: 'class' },
+                { time: '12-1 PM', text: 'Peer Mentor (optional)', type: 'personal' },
+                { time: '1:40-2:20 PM', text: 'Commute home', type: 'free' },
+                { time: '3-5 PM', text: 'World History reading', type: 'free' },
+                { time: '7-9 PM', text: 'US Politics OR coding', type: 'free' }
+            ],
+            'Tuesday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:20 AM', text: 'World History class', type: 'class' },
+                { time: '11-11:55 AM', text: 'Peer Mentor (mandatory)', type: 'personal' },
+                { time: '12-1 PM', text: 'Hen & Ink Society', type: 'personal' },
+                { time: '1-3 PM', text: 'FREE - start assignments', type: 'free' },
+                { time: '3 PM', text: 'Therapy (at school)', type: 'personal' },
+                { time: '4:40 PM', text: 'Arrive home', type: 'free' },
+                { time: '5-8 PM', text: 'BIO WORK - all due Wed!', type: 'free' }
+            ],
+            'Wednesday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:30 AM', text: 'Beatles discussion post', type: 'free' },
+                { time: '10:35-11:55 AM', text: 'US Politics class', type: 'class' },
+                { time: '12-1 PM', text: 'Peer Mentor (optional)', type: 'personal' },
+                { time: '1-1:55 PM', text: 'Peer Mentor (mandatory)', type: 'personal' },
+                { time: '3:15 PM', text: 'Arrive home', type: 'free' },
+                { time: '4-6 PM', text: 'Beatles PowerPoint Part 1', type: 'free' },
+                { time: '7-9 PM', text: 'Catch-up OR coding', type: 'free' }
+            ],
+            'Thursday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9-10:20 AM', text: 'World History class', type: 'class' },
+                { time: '10:20 AM-12 PM', text: 'Beatles PowerPoint Part 2', type: 'free' },
+                { time: '12-1 PM', text: 'Hen & Ink Society', type: 'personal' },
+                { time: '1-3 PM', text: 'Beatles quiz + catch-up', type: 'free' },
+                { time: '4:45-7 PM', text: 'Bio class', type: 'class' },
+                { time: '7:40 PM', text: 'Arrive home', type: 'free' },
+                { time: '8-10 PM', text: 'Papers OR coding', type: 'free' }
+            ],
+            'Friday': [
+                { time: '7:15 AM', text: 'Wake up & take meds', type: 'personal' },
+                { time: '9 AM-12 PM', text: 'Flex time - finish weekend work', type: 'free' },
+                { time: '12-2 PM', text: 'D&D prep OR personal projects', type: 'free' },
+                { time: '3-10 PM', text: 'WORK (no school work allowed!)', type: 'work' }
+            ],
+            'Saturday': [
+                { time: '9-10:30 AM', text: 'Light reading if needed', type: 'free' },
+                { time: '11 AM-10 PM', text: 'WORK (rest day!)', type: 'work' }
+            ],
+            'Sunday': [
+                { time: '9 AM-12 PM', text: 'Submit deadlines & review', type: 'free' },
+                { time: 'Afternoon/Evening', text: 'D&D TIME! 🎲', type: 'personal' }
+            ]
+        };
+
+        // Default deadlines
+        const defaultDeadlines = [
+            // OCTOBER
+            { name: 'Bio Lab 4 & Quiz 7', date: new Date(2025, 9, 8, 23, 58), course: 'Bio' },
+            { name: 'Beatles Unit 3 response & quiz', date: new Date(2025, 9, 12, 23, 59), course: 'Beatles' },
+            { name: 'Bio SmartBooks 5, 6, 7 + Assignments + Lab 5', date: new Date(2025, 9, 15, 23, 58), course: 'Bio' },
+            { name: 'Bio EXAM 2', date: new Date(2025, 9, 16, 16, 45), course: 'Bio' },
+            { name: 'Beatles Unit 4 original post', date: new Date(2025, 9, 19, 23, 59), course: 'Beatles' },
+            { name: 'US Politics Quiz #2, #3, #4', date: new Date(2025, 9, 19, 23, 59), course: 'US Politics' },
+            { name: 'Bio Lab 6: Mitosis and Cell Division', date: new Date(2025, 9, 22, 23, 58), course: 'Bio' },
+            { name: 'Beatles Unit 4 response & quiz', date: new Date(2025, 9, 26, 23, 59), course: 'Beatles' },
+            { name: 'Media evolution presentations begin', date: new Date(2025, 9, 27, 9, 0), course: 'US Politics' },
+            { name: 'World History analytical paper (APS #3)', date: new Date(2025, 9, 28, 23, 59), course: 'World History' },
+            { name: 'Bio Online Quiz CH 8-9', date: new Date(2025, 9, 29, 23, 58), course: 'Bio' },
+            { name: 'Bio Lab 7: Examining Meiosis', date: new Date(2025, 9, 29, 23, 58), course: 'Bio' },
+            { name: 'World History EXAM 2', date: new Date(2025, 9, 30, 10, 0), course: 'World History' },
+            
+            // NOVEMBER
+            { name: 'Beatles Unit 5 original post', date: new Date(2025, 10, 2, 23, 59), course: 'Beatles' },
+            { name: 'Bio SmartBooks 8, 9, 10 + Assignments + Lab 8', date: new Date(2025, 10, 5, 23, 58), course: 'Bio' },
+            { name: 'Bio EXAM 3', date: new Date(2025, 10, 6, 23, 59), course: 'Bio' },
+            { name: 'Beatles Unit 5 response & quiz', date: new Date(2025, 10, 9, 23, 59), course: 'Beatles' },
+            { name: 'Bio Lab 9: Transcription, Translation & Mutations', date: new Date(2025, 10, 12, 23, 58), course: 'Bio' },
+            { name: 'Beatles Unit 6 original post', date: new Date(2025, 10, 16, 23, 59), course: 'Beatles' },
+            { name: 'Bio Online Quiz CH 11&14', date: new Date(2025, 10, 19, 23, 58), course: 'Bio' },
+            { name: 'Bio Labs 10A & 10B (Macroevolution & Microevolution)', date: new Date(2025, 10, 19, 23, 58), course: 'Bio' },
+            { name: 'Beatles Unit 6 response & quiz', date: new Date(2025, 10, 21, 23, 59), course: 'Beatles' },
+            
+            // DECEMBER
+            { name: 'World History analytical paper (APS #4)', date: new Date(2025, 11, 2, 23, 59), course: 'World History' },
+            { name: 'Bio Chapter 11, 14, 15 Assignments + Lab 11', date: new Date(2025, 11, 3, 23, 58), course: 'Bio' },
+            { name: 'Bio SmartBooks 11, 14, 15', date: new Date(2025, 11, 4, 23, 58), course: 'Bio' },
+            { name: 'Bio EXAM 4', date: new Date(2025, 11, 4, 23, 59), course: 'Bio' },
+            { name: 'World History Final Exam', date: new Date(2025, 11, 11, 23, 59), course: 'World History' },
+            { name: 'Media evolution paper final deadline', date: new Date(2025, 11, 15, 23, 59), course: 'US Politics' }
+        ];
+
         // Data structure
         let appData = {
             apiKey: '',
-            autoAnalyze: true,
+            autoAnalyze: false,
             tasks: [],
             notTodayTasks: [],
             completedTasks: [],
+            deadlines: [],
             mood: null,
             moodDate: null,
-            history: [],
-            projects: []
+            history: []
         };
 
         // Load data on startup
         function loadData() {
-            const saved = localStorage.getItem('controlledChaosV2');
+            const saved = localStorage.getItem('controlledChaosV3');
             if (saved) {
-                appData = { ...appData, ...JSON.parse(saved) };
+                const parsed = JSON.parse(saved);
+                appData = { ...appData, ...parsed };
+                
+                // Convert date strings back to Date objects
+                appData.deadlines = appData.deadlines.map(d => ({
+                    ...d,
+                    date: new Date(d.date)
+                }));
+            } else {
+                // First time - load default deadlines
+                appData.deadlines = defaultDeadlines;
             }
             
             // Check if we need to restore "not today" tasks
@@ -694,6 +1107,8 @@
                 localStorage.setItem('lastNotTodayCheck', today);
             }
             
+            renderCrisisPlan();
+            renderSchedule();
             render();
         }
 
@@ -702,10 +1117,177 @@
             // Save to history for undo
             appData.history.push(JSON.stringify(appData));
             if (appData.history.length > 10) {
-                appData.history.shift(); // Keep last 10 states
+                appData.history.shift();
             }
             
-            localStorage.setItem('controlledChaosV2', JSON.stringify(appData));
+            localStorage.setItem('controlledChaosV3', JSON.stringify(appData));
+        }
+
+        // Render crisis plan
+        function renderCrisisPlan() {
+            const now = new Date();
+            const crisisSection = document.getElementById('crisisPlan');
+            const crisisContent = document.getElementById('crisisPlanContent');
+            
+            // Check if we're in crisis period
+            if (now < crisisPlan.start || now > crisisPlan.end) {
+                crisisSection.style.display = 'none';
+                return;
+            }
+
+            crisisSection.style.display = 'block';
+            
+            // Find today's plan
+            const todayDateStr = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+            const currentDayPlan = crisisPlan.plan.find(day => {
+                const planDate = day.date;
+                const planDateStr = `${planDate.getFullYear()}-${planDate.getMonth()}-${planDate.getDate()}`;
+                return planDateStr === todayDateStr;
+            });
+
+            // Find tomorrow's plan
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowDateStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+            const nextDayPlan = crisisPlan.plan.find(day => {
+                const planDate = day.date;
+                const planDateStr = `${planDate.getFullYear()}-${planDate.getMonth()}-${planDate.getDate()}`;
+                return planDateStr === tomorrowDateStr;
+            });
+
+            if (!currentDayPlan) {
+                crisisContent.innerHTML = '<p>No tasks scheduled for today in the crisis plan.</p>';
+                return;
+            }
+
+            // Load completed crisis tasks
+            const completed = JSON.parse(localStorage.getItem('crisisTasks') || '{}');
+            const todayKey = `${currentDayPlan.dayName}-${currentDayPlan.displayDate}`;
+            const todayCompleted = completed[todayKey] || [];
+
+            let html = `<div class="crisis-day">
+                    <h3>📅 Today (${currentDayPlan.displayDate})</h3>`;
+            
+            currentDayPlan.tasks.forEach((task, index) => {
+                const isCompleted = todayCompleted.includes(index);
+                html += `
+                    <div class="crisis-task ${isCompleted ? 'completed' : ''}">
+                        <input type="checkbox" 
+                               id="crisis-${index}" 
+                               ${isCompleted ? 'checked' : ''}
+                               onchange="toggleCrisisTask('${todayKey}', ${index})">
+                        <label for="crisis-${index}" style="flex: 1; cursor: pointer;">${task}</label>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+
+            if (nextDayPlan) {
+                html += `<div class="crisis-day">
+                    <h3>👉 Tomorrow (${nextDayPlan.displayDate})</h3>`;
+                nextDayPlan.tasks.forEach(task => {
+                    html += `<div class="crisis-task">${task}</div>`;
+                });
+                html += '</div>';
+            }
+
+            html += `<div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.2); border-radius: 8px; text-align: center;">
+                <strong>Crisis ends:</strong> Thursday Oct 16 after Bio exam! You got this! 💪
+            </div>`;
+
+            crisisContent.innerHTML = html;
+        }
+
+        function toggleCrisisTask(dayKey, index) {
+            const completed = JSON.parse(localStorage.getItem('crisisTasks') || '{}');
+            
+            if (!completed[dayKey]) {
+                completed[dayKey] = [];
+            }
+
+            if (completed[dayKey].includes(index)) {
+                completed[dayKey] = completed[dayKey].filter(i => i !== index);
+            } else {
+                completed[dayKey].push(index);
+            }
+
+            localStorage.setItem('crisisTasks', JSON.stringify(completed));
+            renderCrisisPlan();
+        }
+
+        // Render weekly schedule
+        function renderSchedule() {
+            const scheduleView = document.getElementById('scheduleView');
+            const currentDayIndex = today.getDay();
+            
+            // Get 7 days starting from today
+            const daysToShow = [];
+            for (let i = 0; i < 7; i++) {
+                const dayIndex = (currentDayIndex + i) % 7;
+                daysToShow.push(days[dayIndex]);
+            }
+
+            scheduleView.innerHTML = daysToShow.map((day, index) => {
+                const daySchedule = schedule[day] || [];
+                const isToday = index === 0;
+                return `
+                    <div class="schedule-day">
+                        <h3>${day}${isToday ? ' (Today!)' : ''}</h3>
+                        ${daySchedule.map(item => 
+                            `<div class="schedule-item ${item.type}">
+                                <strong>${item.time}:</strong> ${item.text}
+                            </div>`
+                        ).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render deadlines
+        function renderDeadlines() {
+            const deadlinesList = document.getElementById('deadlinesList');
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            const upcoming = appData.deadlines
+                .filter(d => d.date > new Date())
+                .sort((a, b) => a.date - b.date)
+                .slice(0, 5);
+
+            if (upcoming.length === 0) {
+                deadlinesList.innerHTML = '<div class="empty-state"><p>No upcoming deadlines!</p></div>';
+                return;
+            }
+
+            deadlinesList.innerHTML = upcoming.map(deadline => {
+                const deadlineDay = new Date(deadline.date);
+                deadlineDay.setHours(0, 0, 0, 0);
+                
+                const daysUntil = Math.floor((deadlineDay - now) / (1000 * 60 * 60 * 24));
+                let urgencyClass = 'coming';
+                let countdownText = `${daysUntil} days`;
+
+                if (daysUntil === 0) {
+                    urgencyClass = 'urgent';
+                    countdownText = 'TODAY!';
+                } else if (daysUntil === 1) {
+                    urgencyClass = 'urgent';
+                    countdownText = 'Tomorrow';
+                } else if (daysUntil <= 3) {
+                    urgencyClass = 'soon';
+                }
+
+                return `
+                    <div class="deadline-item ${urgencyClass}">
+                        <div style="flex: 1;">
+                            <strong>${deadline.name}</strong><br>
+                            <small>${deadline.course}</small>
+                        </div>
+                        <div class="deadline-countdown">${countdownText}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // Undo
@@ -713,7 +1295,7 @@
             if (appData.history.length > 0) {
                 const previous = appData.history.pop();
                 appData = JSON.parse(previous);
-                localStorage.setItem('controlledChaosV2', JSON.stringify(appData));
+                localStorage.setItem('controlledChaosV3', JSON.stringify(appData));
                 render();
                 showToast('✅ Undone!');
             } else {
@@ -755,7 +1337,6 @@
         // Analyze task with Claude
         async function analyzeTask(task) {
             if (!appData.apiKey) {
-                showToast('⚠️ Add your API key in settings first!');
                 return;
             }
             
@@ -779,7 +1360,7 @@ Task: "${task.title}"
 Respond with:
 {
   "energy": "low" | "medium" | "high",
-  "timeEstimate": "5min" | "15min" | "30min" | "1hr" | "2hrs" | "3hrs+" ,
+  "timeEstimate": "5min" | "15min" | "30min" | "1hr" | "2hrs" | "3hrs+",
   "reasoning": "brief reason for your assessment"
 }
 
@@ -800,16 +1381,13 @@ Base time estimates on typical completion time for a college student.`
                 const data = await response.json();
                 const text = data.content[0].text.trim();
                 
-                // Extract JSON from response (in case Claude adds extra text)
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) {
-                    console.error('No JSON found in response:', text);
                     return;
                 }
                 
                 const analysis = JSON.parse(jsonMatch[0]);
                 
-                // Update task
                 task.energy = analysis.energy;
                 task.timeEstimate = analysis.timeEstimate;
                 
@@ -818,7 +1396,6 @@ Base time estimates on typical completion time for a college student.`
                 
             } catch (error) {
                 console.error('Failed to analyze task:', error);
-                // Don't show toast for failed analysis - not critical
             }
         }
 
@@ -850,7 +1427,6 @@ Base time estimates on typical completion time for a college student.`
                 return;
             }
             
-            // Use Claude to organize
             showToast('🤔 Claude is organizing your chaos...');
             
             try {
@@ -893,7 +1469,6 @@ Rules:
                 const data = await response.json();
                 const text_response = data.content[0].text.trim();
                 
-                // Extract JSON
                 const jsonMatch = text_response.match(/\[[\s\S]*\]/);
                 if (!jsonMatch) {
                     throw new Error('No JSON array found');
@@ -901,7 +1476,6 @@ Rules:
                 
                 const tasks = JSON.parse(jsonMatch[0]);
                 
-                // Add tasks
                 tasks.forEach(taskData => {
                     appData.tasks.push({
                         id: Date.now() + Math.random(),
@@ -935,16 +1509,13 @@ Rules:
                 return;
             }
             
-            // Simple algorithm: prioritize high priority, then urgent due dates, then high energy (when you have energy)
             const sortedTasks = [...availableTasks].sort((a, b) => {
-                // Priority first
                 const priorityScore = { high: 3, medium: 2, low: 1 };
                 const aDiff = priorityScore[a.priority] || 2;
                 const bDiff = priorityScore[b.priority] || 2;
                 
                 if (aDiff !== bDiff) return bDiff - aDiff;
                 
-                // Then by due date if available
                 if (a.dueDate && b.dueDate) {
                     return new Date(a.dueDate) - new Date(b.dueDate);
                 }
@@ -977,7 +1548,6 @@ Rules:
                 return;
             }
             
-            // Show list of tasks to pick from
             let html = '<p style="margin-bottom: 15px;">Which task are you stuck on?</p><div class="task-list">';
             
             availableTasks.forEach(task => {
@@ -1001,7 +1571,6 @@ Rules:
             if (!task) return;
             
             if (!appData.apiKey) {
-                // Simple breakdown without AI
                 const steps = [
                     'Open the relevant files/materials',
                     'Set a 5-minute timer and just start',
@@ -1030,7 +1599,6 @@ Rules:
                 return;
             }
             
-            // Use Claude
             document.getElementById('stuckContent').innerHTML = '<p>🤔 Let me break this down for you...</p>';
             
             try {
@@ -1088,7 +1656,6 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             task.completed = true;
             task.completedAt = new Date().toISOString();
             
-            // Add to weekly wins
             const thisWeek = getWeekStart();
             if (!task.weekCompleted || task.weekCompleted === thisWeek) {
                 task.weekCompleted = thisWeek;
@@ -1098,7 +1665,6 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             saveData();
             render();
             
-            // Confetti!
             confetti({
                 particleCount: 100,
                 spread: 70,
@@ -1106,31 +1672,24 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             });
             
             showToast('🎉 Task completed!');
-            
-            // Update top 3 after a delay
-            setTimeout(() => {
-                render();
-            }, 1000);
         }
 
         function skipTask(taskId) {
             const task = appData.tasks.find(t => t.id === taskId);
             if (!task) return;
             
-            // Move to end of list
             appData.tasks = appData.tasks.filter(t => t.id !== taskId);
             appData.tasks.push(task);
             
             saveData();
             render();
-            showToast('⏭️ Task skipped to later');
+            showToast('⭐ Task skipped to later');
         }
 
         function notTodayTask(taskId) {
             const task = appData.tasks.find(t => t.id === taskId);
             if (!task) return;
             
-            // Move to not today pile
             appData.tasks = appData.tasks.filter(t => t.id !== taskId);
             appData.notTodayTasks.push(task);
             
@@ -1162,6 +1721,38 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             showToast('🗑️ Task deleted');
         }
 
+        // Deadline functions
+        function showAddDeadline() {
+            showModal('addDeadlineModal');
+        }
+
+        function addDeadline() {
+            const name = document.getElementById('newDeadlineName').value.trim();
+            const course = document.getElementById('newDeadlineCourse').value.trim();
+            const dateStr = document.getElementById('newDeadlineDate').value;
+            
+            if (!name || !course || !dateStr) {
+                showToast('Please fill all fields!');
+                return;
+            }
+            
+            appData.deadlines.push({
+                name,
+                course,
+                date: new Date(dateStr)
+            });
+            
+            saveData();
+            render();
+            closeModal('addDeadlineModal');
+            
+            document.getElementById('newDeadlineName').value = '';
+            document.getElementById('newDeadlineCourse').value = '';
+            document.getElementById('newDeadlineDate').value = '';
+            
+            showToast('✅ Deadline added!');
+        }
+
         // Mood tracker
         function setMood(emoji) {
             const today = new Date().toDateString();
@@ -1170,7 +1761,6 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             
             saveData();
             
-            // Update UI
             document.querySelectorAll('.mood-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
@@ -1225,7 +1815,6 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
 
         // Toast notifications
         function showToast(message) {
-            // Simple toast implementation
             const toast = document.createElement('div');
             toast.style.cssText = `
                 position: fixed;
@@ -1263,13 +1852,13 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
             renderNotTodayPile();
             renderWeeklyWins();
             renderMood();
+            renderDeadlines();
         }
 
         function renderTopPriorities() {
             const container = document.getElementById('priorityTasks');
             const availableTasks = appData.tasks.filter(t => !t.completed);
             
-            // Sort by priority and due date
             const priorityScore = { high: 3, medium: 2, low: 1 };
             const sorted = [...availableTasks].sort((a, b) => {
                 const aDiff = priorityScore[a.priority] || 2;
@@ -1329,7 +1918,7 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
                         </div>
                     </div>
                     <div class="task-actions">
-                        <button class="task-btn" onclick="skipTask(${task.id})">⏭️ Skip</button>
+                        <button class="task-btn" onclick="skipTask(${task.id})">⭐ Skip</button>
                         <button class="task-btn" onclick="notTodayTask(${task.id})">🌙 Not Today</button>
                         <button class="task-btn" onclick="deleteTask(${task.id})">🗑️</button>
                     </div>
@@ -1403,13 +1992,11 @@ Be direct and brief. Help me overcome the "starting" hurdle.`
         window.onload = () => {
             loadData();
             
-            // Load font preference
             const dyslexiaFont = localStorage.getItem('dyslexiaFont') === 'true';
             if (dyslexiaFont) {
                 document.body.classList.add('dyslexia-font');
             }
             
-            // Check if API key is set
             if (!appData.apiKey) {
                 setTimeout(() => {
                     showToast('💡 Tip: Add your Anthropic API key in Settings for smart features!');
