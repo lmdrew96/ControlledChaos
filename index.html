@@ -2185,6 +2185,66 @@ Return ONLY valid JSON array of tasks, no other text:
             modal.classList.add('active');
         }
 
+        function findNextAvailableBlock(task) {
+            const now = getCurrentDateTime();
+            const currentDay = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            // Check today's remaining schedule first
+            const todaySchedule = appData.schedule[currentDay] || [];
+            for (let block of todaySchedule) {
+                const startMinutes = parseTime(block.startTime);
+                const endMinutes = parseTime(block.endTime);
+                const duration = endMinutes - startMinutes;
+                
+                // Skip if block already passed or is protected/class
+                if (startMinutes <= currentMinutes || block.type === 'protected' || block.type === 'class') {
+                    continue;
+                }
+                
+                // Check if block is suitable for task
+                if (block.type === 'free' && 
+                    (task.location === 'anywhere' || task.location === block.location || block.location === 'anywhere') &&
+                    (!task.timeEstimate || duration >= task.timeEstimate)) {
+                    return {
+                        day: currentDay,
+                        time: `${formatTime(block.startTime)}-${formatTime(block.endTime)}`,
+                        location: block.location,
+                        duration: duration,
+                        available: true
+                    };
+                }
+            }
+            
+            // Check next 7 days
+            for (let i = 1; i <= 7; i++) {
+                const checkDate = new Date(now);
+                checkDate.setDate(checkDate.getDate() + i);
+                const dayName = days[checkDate.getDay()];
+                const daySchedule = appData.schedule[dayName] || [];
+                
+                for (let block of daySchedule) {
+                    const startMinutes = parseTime(block.startTime);
+                    const endMinutes = parseTime(block.endTime);
+                    const duration = endMinutes - startMinutes;
+                    
+                    if (block.type === 'free' && 
+                        (task.location === 'anywhere' || task.location === block.location || block.location === 'anywhere') &&
+                        (!task.timeEstimate || duration >= task.timeEstimate)) {
+                        return {
+                            day: dayName,
+                            time: `${formatTime(block.startTime)}-${formatTime(block.endTime)}`,
+                            location: block.location,
+                            duration: duration,
+                            available: true
+                        };
+                    }
+                }
+            }
+            
+            return { available: false };
+        }
+
         async function getStuckHelp(taskId) {
             const task = appData.tasks.find(t => t.id === taskId);
             if (!task) return;
@@ -2196,24 +2256,68 @@ Return ONLY valid JSON array of tasks, no other text:
             `;
 
             try {
-                const systemPrompt = `You are an ADHD coach helping break down tasks. The user is stuck on a task. Break it into 3-5 tiny, concrete steps. Be encouraging and specific. Keep it brief.`;
+                // Find next available time block
+                const nextBlock = findNextAvailableBlock(task);
+                
+                const scheduleContext = nextBlock.available 
+                    ? `Next available time: ${nextBlock.day} ${nextBlock.time} at ${nextBlock.location} (${nextBlock.duration} minutes available)`
+                    : 'No clear free time found soon - user may need to make time';
+                
+                const systemPrompt = `You are an ADHD coach helping break down tasks. The user is stuck on a task.
+
+Task: ${task.title}
+Time estimate: ${task.timeEstimate ? task.timeEstimate + ' minutes' : 'not specified'}
+Location needed: ${task.location}
+
+${scheduleContext}
+
+Break this down into the TINIEST possible first step to overcome starting paralysis. Then suggest 2-3 follow-up micro-steps.
+
+Each step should be:
+- Completable in under 10 minutes
+- Require zero decision-making
+- Be physically actionable
+- Build momentum
+
+${nextBlock.available ? `Reminder: User can work on this ${nextBlock.day} ${nextBlock.time}. Acknowledge this in your response.` : ''}
+
+Format as natural, encouraging text. Be brief and direct.`;
 
                 const response = await callClaudeAPI([{
                     role: 'user',
                     content: `I'm stuck on: ${task.title}`
                 }], systemPrompt);
 
+                let scheduleInfo = '';
+                if (nextBlock.available) {
+                    scheduleInfo = `
+                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                            <strong>📅 Your next good time for this:</strong><br>
+                            ${nextBlock.day} ${nextBlock.time} at ${nextBlock.location}<br>
+                            <small>(${nextBlock.duration} minutes available)</small>
+                        </div>
+                    `;
+                }
+
                 content.innerHTML = `
                     <h3>${task.title}</h3>
+                    ${scheduleInfo}
                     <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin: 20px 0;">
                         ${response.replace(/\n/g, '<br>')}
                     </div>
-                    <button class="btn btn-success" onclick="toggleTask('${task.id}')">
-                        ✅ Got it! Mark as done
-                    </button>
-                    <button class="btn btn-secondary" onclick="closeModal('stuckModal')" style="margin-left: 10px;">
-                        Close
-                    </button>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="toggleTask('${task.id}')">
+                            ✅ Got it! Mark as done
+                        </button>
+                        ${nextBlock.available ? `
+                            <button class="btn btn-warning" onclick="scheduleReminder('${task.id}', '${nextBlock.day}', '${nextBlock.time}')">
+                                ⏰ Remind me ${nextBlock.day}
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-secondary" onclick="closeModal('stuckModal')">
+                            Close
+                        </button>
+                    </div>
                 `;
             } catch (error) {
                 console.error('Stuck help error:', error);
@@ -2223,6 +2327,13 @@ Return ONLY valid JSON array of tasks, no other text:
                     <button class="btn btn-secondary" onclick="closeModal('stuckModal')">Close</button>
                 `;
             }
+        }
+
+        function scheduleReminder(taskId, day, time) {
+            // For now, just show a confirmation
+            // In a full implementation, this could integrate with browser notifications or calendar
+            alert(`✅ Reminder set!\n\nI'll remind you about this task on ${day} ${time}.\n\n(Note: Browser notifications would be implemented in a production version)`);
+            closeModal('stuckModal');
         }
 
         // ===== MODAL FUNCTIONS =====
