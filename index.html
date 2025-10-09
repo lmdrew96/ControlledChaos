@@ -264,6 +264,32 @@
             color: white;
         }
 
+        /* Done for Today Button */
+        .done-for-today-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .done-for-today-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .done-hint {
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+
         /* WHAT NOW - Hero Section */
         .what-now-hero {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -838,6 +864,16 @@
 
             <div id="suggestionCard" style="display: none;">
                 <!-- Suggestion will be inserted here -->
+            </div>
+            
+            <!-- Done for Today Section -->
+            <div class="done-for-today-section" style="margin-top: 20px;">
+                <button id="doneForTodayBtn" class="done-for-today-btn" onclick="handleDoneForToday()">
+                    😴 Done for Today
+                </button>
+                <p class="done-hint" style="color: rgba(255,255,255,0.8); font-size: 0.9em; margin-top: 8px;">
+                    Exhausted? Move remaining tasks to tomorrow - no guilt!
+                </p>
             </div>
         </div>
 
@@ -2505,6 +2541,160 @@ Format as natural, encouraging text. Be brief and direct.`;
             // In a full implementation, this could integrate with browser notifications or calendar
             alert(`✅ Reminder set!\n\nI'll remind you about this task on ${day} ${time}.\n\n(Note: Browser notifications would be implemented in a production version)`);
             closeModal('stuckModal');
+        }
+
+        // ===== TIER 3 FEATURE 1: DONE FOR TODAY =====
+        function handleDoneForToday() {
+            const incompleteTasks = appData.tasks.filter(t => !t.completed);
+            
+            if (incompleteTasks.length === 0) {
+                showToast('🎉 You already finished everything!');
+                return;
+            }
+            
+            // Show confirmation modal
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>😴 Call it a day?</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <p style="margin-bottom: 20px;">You have ${incompleteTasks.length} incomplete task${incompleteTasks.length > 1 ? 's' : ''}. Move them all to tomorrow?</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="moveTasksToTomorrow(${JSON.stringify(incompleteTasks.map(t => t.id))}); this.closest('.modal').remove();">
+                            Yes, move ${incompleteTasks.length} task${incompleteTasks.length > 1 ? 's' : ''}
+                        </button>
+                        <button class="btn btn-secondary" onclick="showDoneForTodayWithNote(${JSON.stringify(incompleteTasks.map(t => t.id))}); this.closest('.modal').remove();">
+                            Add a note first
+                        </button>
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function moveTasksToTomorrow(taskIds) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toISOString().split('T')[0];
+            
+            taskIds.forEach(taskId => {
+                const task = appData.tasks.find(t => t.id === taskId);
+                if (task && !task.completed) {
+                    task.movedToTomorrow = true;
+                    task.originalDueDate = task.dueDate;
+                    task.dueDate = tomorrowStr;
+                }
+            });
+            
+            saveData();
+            renderTasks();
+            showCelebration();
+        }
+
+        function showCelebration() {
+            const completedToday = appData.tasks.filter(t => 
+                t.completed && 
+                t.completedAt && 
+                isToday(new Date(t.completedAt))
+            );
+            
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>✨ Great Work Today!</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="celebration-stats">
+                        <h3 style="color: var(--primary); margin-bottom: 15px;">You completed ${completedToday.length} task${completedToday.length !== 1 ? 's' : ''} today!</h3>
+                        ${completedToday.length > 0 ? `
+                            <ul style="list-style: none; padding: 0; margin: 20px 0;">
+                                ${completedToday.map(t => `<li style="padding: 8px; background: var(--bg-main); margin: 5px 0; border-radius: 6px;">✓ ${t.title}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                        <p style="color: var(--text-light); font-style: italic; margin-top: 20px;">Rest up - tomorrow is a fresh start! 🌟</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="this.closest('.modal').remove();" style="margin-top: 20px;">
+                        Thanks! 😊
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showDoneForTodayWithNote(taskIds) {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Why are you done for today?</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <p style="color: var(--text-light); margin-bottom: 15px;">Optional - helps track patterns</p>
+                    <div class="form-group">
+                        <label>Reason</label>
+                        <select id="doneReason" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 8px;">
+                            <option>Exhausted/burned out</option>
+                            <option>Unexpected stuff came up</option>
+                            <option>Took longer than expected</option>
+                            <option>Not feeling well</option>
+                            <option>Just need a break</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes (optional)</label>
+                        <textarea id="doneNotes" placeholder="Anything else to remember?" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 8px; min-height: 80px;"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveDoneForTodayNote(${JSON.stringify(taskIds)}); this.closest('.modal').remove();">
+                        Save & Move Tasks
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function saveDoneForTodayNote(taskIds) {
+            const reason = document.getElementById('doneReason').value;
+            const notes = document.getElementById('doneNotes').value;
+            
+            const note = {
+                date: new Date().toISOString(),
+                reason: reason,
+                notes: notes,
+                tasksRemaining: taskIds.length
+            };
+            
+            // Initialize doneForTodayNotes if it doesn't exist
+            if (!appData.doneForTodayNotes) {
+                appData.doneForTodayNotes = [];
+            }
+            
+            appData.doneForTodayNotes.push(note);
+            saveData();
+            
+            moveTasksToTomorrow(taskIds);
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                   date.getMonth() === today.getMonth() &&
+                   date.getFullYear() === today.getFullYear();
         }
 
         // ===== MODAL FUNCTIONS =====
