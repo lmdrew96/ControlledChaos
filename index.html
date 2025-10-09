@@ -1319,6 +1319,33 @@
             saveDataToDrive();
         }
 
+        // Force sync current defaultSchedule to Drive (overwrites stored schedule)
+        async function syncDefaultScheduleToDrive() {
+            if (!googleAccessToken || !gapiInitialized) {
+                alert('Please sign in with Google first to sync the schedule!');
+                return;
+            }
+
+            try {
+                console.log('Syncing default schedule to Drive...');
+                
+                // Update appData.schedule with current defaultSchedule
+                appData.schedule = JSON.parse(JSON.stringify(defaultSchedule));
+                
+                // Force save to Drive
+                await saveDataToDrive();
+                
+                console.log('Default schedule synced to Drive successfully!');
+                showToast('✅ Schedule synced to Google Drive');
+                
+                // Update UI to reflect changes
+                updateUI();
+            } catch (error) {
+                console.error('Error syncing schedule to Drive:', error);
+                alert('Failed to sync schedule to Drive. Please try again.');
+            }
+        }
+
         // ===== TASK MANAGEMENT =====
         function addTask(task) {
             task.id = Date.now().toString();
@@ -1786,6 +1813,13 @@ Return ONLY valid JSON array of tasks, no other text:
             // Wait a moment for gapi to initialize, then restore session
             setTimeout(async () => {
                 await restoreSession();
+                
+                // Sync the updated defaultSchedule to Drive after session restore
+                if (googleAccessToken && gapiInitialized) {
+                    setTimeout(async () => {
+                        await syncDefaultScheduleToDrive();
+                    }, 2000);
+                }
             }, 1000);
             
             updateUI();
