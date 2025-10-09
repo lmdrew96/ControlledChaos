@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controlled Chaos v4 🌀</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-main: #f8fafc;
+            --bg-card: white;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            
+            --energy-high: #ef4444;
+            --energy-medium: #f59e0b;
+            --energy-low: #10b981;
+            
+            --protected: #9333ea;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        body.dyslexia-font {
+            font-family: 'OpenDyslexic', sans-serif;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--bg-main);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: var(--text-light);
+            font-style: italic;
+            font-size: 1.1em;
+        }
+
+        .current-date {
+            color: var(--text);
+            font-size: 1.1em;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* WHAT NOW - Hero Section */
+        .what-now-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .what-now-hero h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .location-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .location-btn {
+            padding: 15px 25px;
+            border: 3px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .location-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .location-btn.active {
+            background: white;
+            color: var(--primary);
+            border-color: white;
+        }
+
+        .context-info {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .context-info h3 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .suggestion-card {
+            background: white;
+            color: var(--text);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .suggestion-card h3 {
+            color: var(--primary);
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .suggestion-reason {
+            color: var(--text-light);
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Crisis Plan */
+        .crisis-plan {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .crisis-plan h2 {
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .crisis-day {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .crisis-day h3 {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .crisis-task {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .crisis-task input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .crisis-task.completed {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        /* Schedule Section */
+        .schedule-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .schedule-header h2 {
+            color: var(--primary);
+            font-size: 1.5em;
+        }
+
+        .current-block {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .current-block h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
+        .time-remaining {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .schedule-day {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .schedule-day h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .schedule-item {
+            padding: 10px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .schedule-item.class {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+
+        .schedule-item.work {
+            background: #fce4ec;
+            border-left: 3px solid #e91e63;
+        }
+
+        .schedule-item.personal {
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .schedule-item.free {
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
+        }
+
+        .schedule-item.protected {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            color: white;
+            border-left: 3px solid #6b21a8;
+        }
+
+        .schedule-item.current {
+            border: 3px solid var(--warning);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+
+        .schedule-item .lock-icon {
+            font-size: 1.2em;
+        }
+
+        /* Task Cards */
+        .card {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid;
+            padding-bottom: 10px;
+        }
+
+        .task-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: var(--bg-main);
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .task-item:hover {
+            border-color: var(--primary);
+        }
+
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 0.85em;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .task-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            background: var(--border);
+            color: var(--text);
+            transition: all 0.3s;
+        }
+
+        .task-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .energy-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .energy-high {
+            background: var(--energy-high);
+            color: white;
+        }
+
+        .energy-medium {
+            background: var(--energy-medium);
+            color: white;
+        }
+
+        .energy-low {
+            background: var(--energy-low);
+            color: white;
+        }
+
+        .location-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            background: var(--border);
+        }
+
+        .time-estimate {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: var(--primary);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: var(--text-light);
+            line-height: 1;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .quick-add {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-add input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .location-selector {
+                flex-direction: column;
+            }
+
+            .location-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌀 Controlled Chaos v4</h1>
+            <p class="tagline">Your ADHD-friendly productivity companion</p>
+            <div class="current-date" id="currentDate"></div>
+            
+            <div class="header-buttons">
+                <button class="btn btn-secondary" onclick="showQuickAdd()">⚡ Quick Add</button>
+                <button class="btn btn-secondary" onclick="showBrainDump()">🧠 Brain Dump</button>
+                <button class="btn btn-secondary" onclick="showStuck()">🤔 I'm Stuck</button>
+                <button class="btn btn-secondary" onclick="showEditSchedule()">📅 Edit Schedule</button>
+                <button class="btn btn-secondary" onclick="showSettings()">⚙️ Settings</button>
+                <button class="btn btn-secondary" onclick="toggleFont()">🔤 Font</button>
+            </div>
+        </header>
+
+        <!-- WHAT NOW Hero Section -->
+        <div class="what-now-hero">
+            <h2>🎯 What Should I Do Right Now?</h2>
+            
+            <div class="location-selector">
+                <button class="location-btn" data-location="home" onclick="setLocation('home')">🏠 Home</button>
+                <button class="location-btn" data-location="school" onclick="setLocation('school')">🏫 School</button>
+                <button class="location-btn" data-location="work" onclick="setLocation('work')">💼 Work</button>
+                <button class="location-btn" data-location="commute" onclick="setLocation('commute')">🚗 Commute</button>
+            </div>
+
+            <div id="contextInfo" class="context-info" style="display: none;">
+                <h3 id="contextTitle">Loading...</h3>
+                <p id="contextDetails"></p>
+            </div>
+
+            <div id="suggestionCard" style="display: none;">
+                <!-- Suggestion will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Crisis Plan -->
+        <div class="crisis-plan" id="crisisPlan" style="display: none;">
+            <h2>🚨 Crisis Mode Active</h2>
+            <div id="crisisPlanContent"></div>
+        </div>
+
+        <!-- Current Schedule Block -->
+        <div class="schedule-section">
+            <div class="schedule-header">
+                <h2>📅 Your Schedule</h2>
+                <button class="btn btn-warning" onclick="showEditSchedule()">✏️ Edit Schedule</button>
+            </div>
+            
+            <div id="currentBlock" class="current-block" style="display: none;">
+                <h3>📍 YOU ARE HERE</h3>
+                <p id="currentBlockText"></p>
+                <p class="time-remaining" id="timeRemaining"></p>
+            </div>
+
+            <div id="scheduleView"></div>
+        </div>
+
+        <!-- Tasks Section -->
+        <div class="card">
+            <h2>📋 All Tasks</h2>
+            <div class="quick-add">
+                <input type="text" id="quickTaskInput" placeholder="Quick add a task... (press Enter)" 
+                       onkeypress="if(event.key==='Enter') quickAddTask()">
+                <button class="btn btn-primary" onclick="quickAddTask()">Add</button>
+            </div>
+            <div id="allTasks" class="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div id="addTaskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Task</h2>
+                <button class="close-modal" onclick="closeModal('addTaskModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Task Name:</label>
+                <input type="text" id="newTaskName">
+            </div>
+            <div class="form-group">
+                <label>Energy Level:</label>
+                <select id="newTaskEnergy">
+                    <option value="low">Low - Easy, simple tasks</option>
+                    <option value="medium" selected>Medium - Moderate focus</option>
+                    <option value="high">High - Deep work required</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Time Estimate:</label>
+                <select id="newTaskTime">
+                    <option value="5min">5 minutes</option>
+                    <option value="15min">15 minutes</option>
+                    <option value="30min" selected>30 minutes</option>
+                    <option value="1hr">1 hour</option>
+                    <option value="2hrs">2 hours</option>
+                    <option value="3hrs+">3+ hours</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Location:</label>
+                <select id="newTaskLocation">
+                    <option value="anywhere">🌍 Anywhere</option>
+                    <option value="home">🏠 Home only</option>
+                    <option value="school">🏫 School only</option>
+                    <option value="work">💼 Work (breaks only)</option>
+                    <option value="phone">📱 Phone (commute-friendly)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Priority:</label>
+                <select id="newTaskPriority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="addTask()">Add Task</button>
+        </div>
+    </div>
+
+    <!-- Edit Schedule Modal -->
+    <div id="editScheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Schedule</h2>
+                <button class="close-modal" onclick="closeModal('editScheduleModal')">&times;</button>
+            </div>
+            <p style="margin-bottom: 20px; color: var(--text-light);">
+                Modify your schedule for this week. After making changes, click "Reoptimize My Week" to get AI suggestions for task placement.
+            </p>
+            <div id="scheduleEditor"></div>
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-primary" onclick="reoptimizeWeek()">✨ Reoptimize My Week</button>
+                <button class="btn btn-secondary" onclick="saveSchedule()">💾 Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brain Dump Modal -->
+    <div id="brainDumpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🧠 Brain Dump</h2>
+                <button class="close-modal" onclick="closeModal('brainDumpModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Dump everything on your mind:</label>
+                <textarea id="brainDumpText" placeholder="Write essay for english&#10;Buy groceries&#10;Email professor about extension&#10;...or just type whatever is stressing you out!"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="processBrainDump()">✨ Organize My Chaos</button>
+        </div>
+    </div>
+
+    <!-- Stuck Modal -->
+    <div id="stuckModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🤔 Let's Break This Down</h2>
+                <button class="close-modal" onclick="closeModal('stuckModal')">&times;</button>
+            </div>
+            <div id="stuckContent">
+                <p>What task are you stuck on?</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-modal" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="apiKeyInput">Anthropic API Key (Optional)</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                    Your API key is stored locally and enables AI features like Brain Dump, I'm Stuck, Crisis Detection, and Schedule Reoptimization.
+                </p>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+
+    <script>
+        // Get current date and time
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        function getCurrentDateTime() {
+            return new Date();
+        }
+
+        function updateCurrentDate() {
+            const today = getCurrentDateTime();
+            const dayName = days[today.getDay()];
+            const dayNum = today.getDate();
+            const monthName = months[today.getMonth()];
+            const year = today.getFullYear();
+            document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${dayNum}, ${year}`;
+        }
+
+        // Default schedule structure
+        const defaultSchedule = {
+            'Monday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '10:35', text: 'FREE TIME - study at school', type: 'free', location: 'school', editable: true },
+                { startTime: '10:35', endTime: '11:55', text: 'US Politics class', type: 'class', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Peer Mentor (optional)', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '13:40', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Tuesday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '09:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '09:00', endTime: '10:20', text: 'World History class', type: 'class', location: 'school', editable: false },
+                { startTime: '10:20', endTime: '11:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '11:00', endTime: '11:55', text: 'Peer Mentor (mandatory)', type: 'personal', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Hen & Ink Society', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '15:00', text: 'FREE at school', type: 'free', location: 'school', editable: true },
+                { startTime: '15:00', endTime: '16:00', text: 'Therapy (at school)', type: 'personal', location: 'school', editable: false },
+                { startTime: '16:00', endTime: '16:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '16:40', endTime: '21:00', text: 'BIO WORK - all due Wed!', type: 'free', location: 'home', editable: true }
+            ],
+            'Wednesday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '10:35', text: 'FREE at school (Beatles discussion)', type: 'free', location: 'school', editable: true },
+                { startTime: '10:35', endTime: '11:55', text: 'US Politics class', type: 'class', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Peer Mentor (optional)', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:55', text: 'Peer Mentor (mandatory)', type: 'personal', location: 'school', editable: false },
+                { startTime: '13:55', endTime: '15:15', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '15:15', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Thursday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '09:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '09:00', endTime: '10:20', text: 'World History class', type: 'class', location: 'school', editable: false },
+                { startTime: '10:20', endTime: '12:00', text: 'FREE at school', type: 'free', location: 'school', editable: true },
+                { startTime: '12:00', endTime: '13:00', text: 'Hen & Ink Society', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '15:00', text: 'FREE at school', type: 'free', location: 'school', editable: true },
+                { startTime: '16:45', endTime: '19:00', text: 'Bio class', type: 'class', location: 'school', editable: false },
+                { startTime: '19:00', endTime: '19:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '20:00', endTime: '21:00', text: 'D&D PREP SESSION 1 (PROTECTED)', type: 'protected', location: 'home', editable: false, protected: true },
+                { startTime: '21:00', endTime: '22:00', text: 'Free time / wind down', type: 'free', location: 'home', editable: true }
+            ],
+            'Friday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '09:00', endTime: '12:00', text: 'Flex time - finish weekend work', type: 'free', location: 'school', editable: true },
+                { startTime: '12:00', endTime: '14:00', text: 'D&D PREP SESSION 2 (PROTECTED)', type: 'protected', location: 'school', editable: false, protected: true },
+                { startTime: '14:35', endTime: '15:00', text: 'Commute to work', type: 'free', location: 'commute', editable: false },
+                { startTime: '15:00', endTime: '22:00', text: 'WORK (no school work!)', type: 'work', location: 'work', editable: true },
+                { startTime: '22:25', endTime: '22:50', text: 'Commute home', type: 'free', location: 'commute', editable: false }
+            ],
+            'Saturday': [
+                { startTime: '09:00', endTime: '10:30', text: 'D&D PREP SESSION 3 (PROTECTED)', type: 'protected', location: 'home', editable: false, protected: true },
+                { startTime: '10:35', endTime: '11:00', text: 'Commute to work', type: 'free', location: 'commute', editable: false },
+                { startTime: '11:00', endTime: '22:00', text: 'WORK (long shift!)', type: 'work', location: 'work', editable: true },
+                { startTime: '22:25', endTime: '22:50', text: 'Commute home', type: 'free', location: 'commute', editable: false }
+            ],
+            'Sunday': [
+                { startTime: '09:00', endTime: '12:00', text: 'Submit deadlines & review', type: 'free', location: 'home', editable: true },
+                { startTime: '12:00', endTime: '16:00', text: 'MAYBE WORK (check schedule)', type: 'work', location: 'work', editable: true },
+                { startTime: '16:30', endTime: '20:30', text: 'D&D GAME! 🎲', type: 'protected', location: 'home', editable: false, protected: true }
+            ]
+        };
+
+        // App data structure
+        let appData = {
+            apiKey: '',
+            tasks: [],
+            schedule: JSON.parse(JSON.stringify(defaultSchedule)), // Deep copy
+            currentLocation: null,
+            crisisMode: false,
+            crisisData: null
+        };
+
+        // Load data
+        function loadData() {
+            const saved = localStorage.getItem('controlledChaosV4');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                appData = { ...appData, ...parsed };
+            }
+            
+            // Load dyslexia font preference
+            const dyslexiaFont = localStorage.getItem('dyslexiaFont') === 'true';
+            if (dyslexiaFont) {
+                document.body.classList.add('dyslexia-font');
+            }
+        }
+
+        // Save data
+        function saveData() {
+            localStorage.setItem('controlledChaosV4', JSON.stringify(appData));
+        }
+
+        // Parse time string to minutes
+        function parseTimeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        // Format minutes to time string
+        function formatMinutesToTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        }
+
+        // Get current schedule block
+        function getCurrentScheduleBlock() {
+            const now = getCurrentDateTime();
+            const dayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            const todaySchedule = appData.schedule[dayName] || [];
+            
+            for (let block of todaySchedule) {
+                const startMinutes = parseTimeToMinutes(block.startTime);
+                const endMinutes = parseTimeToMinutes(block.endTime);
+                
+                if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+                    return {
+                        ...block,
+                        startMinutes,
+                        endMinutes,
+                        remainingMinutes: endMinutes - currentMinutes
+                    };
+                }
+            }
+            
+            return null;
+        }
+
+        // Get next commitment
+        function getNextCommitment() {
+            const now = getCurrentDateTime();
+            const dayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            const todaySchedule = appData.schedule[dayName] || [];
+            
+            for (let block of todaySchedule) {
+                const startMinutes = parseTimeToMinutes(block.startTime);
+                
+                if (startMinutes > currentMinutes) {
+                    return {
+                        ...block,
+                        minutesUntil: startMinutes - currentMinutes
+                    };
+                }
+            }
+            
+            return null;
+        }
+
+        // Set location and show context
+        function setLocation(location) {
+            appData.currentLocation = location;
+            saveData();
+            
+            // Update UI
+            document.querySelectorAll('.location-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-location="${location}"]`).classList.add('active');
+            
+            // Show context and suggestion
+            showContextAndSuggestion();
+        }
+
+        // Show context and suggestion
+        function showContextAndSuggestion() {
+            const contextInfo = document.getElementById('contextInfo');
+            const contextTitle = document.getElementById('contextTitle');
+            const contextDetails = document.getElementById('contextDetails');
+            const suggestionCard = document.getElementById('suggestionCard');
+            
+            if (!appData.currentLocation) {
+                contextInfo.style.display = 'none';
+                suggestionCard.style.display = 'none';
+                return;
+            }
+            
+            const currentBlock = getCurrentScheduleBlock();
+            const nextCommitment = getNextCommitment();
+            
+            contextInfo.style.display = 'block';
+            
+            if (currentBlock) {
+                const hours = Math.floor(currentBlock.remainingMinutes / 60);
+                const mins = currentBlock.remainingMinutes % 60;
+                let timeStr = '';
+                if (hours > 0) timeStr += `${hours}hr `;
+                if (mins > 0) timeStr += `${mins}min`;
+                
+                contextTitle.textContent = `You have ${timeStr} until ${currentBlock.endTime}`;
+                contextDetails.textContent = `Current block: ${currentBlock.text}`;
+                
+                // Check if in protected time
+                if (currentBlock.protected) {
+                    suggestionCard.style.display = 'block';
+                    suggestionCard.innerHTML = `
+                        <div class="suggestion-card">
+                            <h3>🔒 Protected Time</h3>
+                            <p>This is your ${currentBlock.text}. Focus on what matters most to you right now!</p>
+                            <p class="suggestion-reason">Protected time blocks are sacred - no task suggestions here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+            } else if (nextCommitment) {
+                const hours = Math.floor(nextCommitment.minutesUntil / 60);
+                const mins = nextCommitment.minutesUntil % 60;
+                let timeStr = '';
+                if (hours > 0) timeStr += `${hours}hr `;
+                if (mins > 0) timeStr += `${mins}min`;
+                
+                contextTitle.textContent = `You have ${timeStr} until ${nextCommitment.startTime}`;
+                contextDetails.textContent = `Next: ${nextCommitment.text}`;
+            } else {
+                contextTitle.textContent = 'Free time!';
+                contextDetails.textContent = 'No more commitments today';
+            }
+            
+            // Get task suggestion
+            const suggestion = getTaskSuggestion(currentBlock);
+            
+            if (suggestion) {
+                suggestionCard.style.display = 'block';
+                suggestionCard.innerHTML = `
+                    <div class="suggestion-card">
+                        <h3>I suggest: ${suggestion.task.title}</h3>
+                        <div class="task-meta" style="margin: 15px 0;">
+                            ${suggestion.task.energy ? `<span class="energy-badge energy-${suggestion.task.energy}">${suggestion.task.energy}</span>` : ''}
+                            ${suggestion.task.timeEstimate ? `<span class="time-estimate">⏱️ ${suggestion.task.timeEstimate}</span>` : ''}
+                            ${suggestion.task.location ? `<span class="location-badge">${getLocationIcon(suggestion.task.location)} ${suggestion.task.location}</span>` : ''}
+                        </div>
+                        <p class="suggestion-reason">${suggestion.reason}</p>
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-success" onclick="completeTask(${suggestion.task.id})">✓ Done!</button>
+                            <button class="btn btn-secondary" onclick="showContextAndSuggestion()">🔄 Different task</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                suggestionCard.style.display = 'block';
+                suggestionCard.innerHTML = `
+                    <div class="suggestion-card">
+                        <h3>No matching tasks right now</h3>
+                        <p>Either you've completed everything for this location, or you need to add some tasks!</p>
+                        <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">⚡ Add Task</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Get location icon
+        function getLocationIcon(location) {
+            const icons = {
+                'home': '🏠',
+                'school': '🏫',
+                'work': '💼',
+                'phone': '📱',
+                'commute': '🚗',
+                'anywhere': '🌍'
+            };
+            return icons[location] || '📍';
+        }
+
+        // Get task suggestion based on context
+        function getTaskSuggestion(currentBlock) {
+            const availableTasks = appData.tasks.filter(t => !t.completed);
+            
+            if (availableTasks.length === 0) return null;
+            
+            // Filter by location
+            let filtered = availableTasks.filter(task => {
+                if (task.location === 'anywhere') return true;
+                if (task.location === 'phone' && appData.currentLocation === 'commute') return true;
+                return task.location === appData.currentLocation;
+            });
+            
+            if (filtered.length === 0) return null;
+            
+            // Filter by time available
+            if (currentBlock && currentBlock.remainingMinutes) {
+                filtered = filtered.filter(task => {
+                    const taskMinutes = parseTimeEstimate(task.timeEstimate);
+                    return taskMinutes <= currentBlock.remainingMinutes;
+                });
+            }
+            
+            if (filtered.length === 0) return null;
+            
+            // Get energy level for current time
+            const now = getCurrentDateTime();
+            const hour = now.getHours();
+            let preferredEnergy = 'medium';
+            if (hour >= 8 && hour < 12) preferredEnergy = 'high';
+            else if (hour >= 17 || hour < 8) preferredEnergy = 'low';
+            
+            // Sort by priority and energy match
+            filtered.sort((a, b) => {
+                const priorityScore = { high: 3, medium: 2, low: 1 };
+                const aPriority = priorityScore[a.priority] || 2;
+                const bPriority = priorityScore[b.priority] || 2;
+                
+                if (aPriority !== bPriority) return bPriority - aPriority;
+                
+                // Prefer energy match
+                const aEnergyMatch = a.energy === preferredEnergy ? 1 : 0;
+                const bEnergyMatch = b.energy === preferredEnergy ? 1 : 0;
+                
+                return bEnergyMatch - aEnergyMatch;
+            });
+            
+            const chosen = filtered[0];
+            
+            // Generate reason
+            let reason = `Because you're at ${appData.currentLocation}`;
+            if (currentBlock && currentBlock.remainingMinutes) {
+                const hours = Math.floor(currentBlock.remainingMinutes / 60);
+                const mins = currentBlock.remainingMinutes % 60;
+                let timeStr = '';
+                if (hours > 0) timeStr += `${hours}hr `;
+                if (mins > 0) timeStr += `${mins}min`;
+                reason += `, you have ${timeStr}`;
+            }
+            if (chosen.energy) {
+                reason += `, and this is a ${chosen.energy}-energy task`;
+            }
+            reason += '. Perfect match!';
+            
+            return { task: chosen, reason };
+        }
+
+        // Parse time estimate to minutes
+        function parseTimeEstimate(estimate) {
+            if (!estimate) return 30;
+            if (estimate.includes('5min')) return 5;
+            if (estimate.includes('15min')) return 15;
+            if (estimate.includes('30min')) return 30;
+            if (estimate.includes('1hr')) return 60;
+            if (estimate.includes('2hrs')) return 120;
+            if (estimate.includes('3hrs')) return 180;
+            return 30;
+        }
+
+        // Update current block display
+        function updateCurrentBlockDisplay() {
+            const currentBlock = getCurrentScheduleBlock();
+            const currentBlockDiv = document.getElementById('currentBlock');
+            const currentBlockText = document.getElementById('currentBlockText');
+            const timeRemaining = document.getElementById('timeRemaining');
+            
+            if (currentBlock) {
+                currentBlockDiv.style.display = 'block';
+                currentBlockText.textContent = currentBlock.text;
+                
+                const hours = Math.floor(currentBlock.remainingMinutes / 60);
+                const mins = currentBlock.remainingMinutes % 60;
+                let timeStr = '';
+                if (hours > 0) timeStr += `${hours} hour${hours > 1 ? 's' : ''} `;
+                if (mins > 0) timeStr += `${mins} minute${mins > 1 ? 's' : ''}`;
+                
+                timeRemaining.textContent = `⏱️ ${timeStr} remaining`;
+            } else {
+                currentBlockDiv.style.display = 'none';
+            }
+        }
+
+        // Render schedule
+        function renderSchedule() {
+            const scheduleView = document.getElementById('scheduleView');
+            const now = getCurrentDateTime();
+            const currentDayIndex = now.getDay();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            // Show today and next 2 days
+            const daysToShow = [];
+            for (let i = 0; i < 3; i++) {
+                const dayIndex = (currentDayIndex + i) % 7;
+                daysToShow.push(days[dayIndex]);
+            }
+            
+            scheduleView.innerHTML = daysToShow.map((day, index) => {
+                const daySchedule = appData.schedule[day] || [];
+                const isToday = index === 0;
+                
+                return `
+                    <div class="schedule-day">
+                        <h3>${day}${isToday ? ' (Today!)' : ''}</h3>
+                        ${daySchedule.map(item => {
+                            const startMinutes = parseTimeToMinutes(item.startTime);
+                            const endMinutes = parseTimeToMinutes(item.endTime);
+                            const isCurrent = isToday && currentMinutes >= startMinutes && currentMinutes < endMinutes;
+                            
+                            return `<div class="schedule-item ${item.type} ${isCurrent ? 'current' : ''}">
+                                <span><strong>${item.startTime}-${item.endTime}:</strong> ${item.text}</span>
+                                ${item.protected ? '<span class="lock-icon">🔒</span>' : ''}
+                            </div>`;
+                        }).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Quick add task
+        function quickAddTask() {
+            const input = document.getElementById('quickTaskInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const task = {
+                id: Date.now(),
+                title: text,
+                completed: false,
+                energy: 'medium',
+                timeEstimate: '30min',
+                location: 'anywhere',
+                priority: 'medium',
+                createdAt: new Date().toISOString()
+            };
+            
+            appData.tasks.push(task);
+            input.value = '';
+            
+            saveData();
+            renderTasks();
+            showToast('✅ Task added!');
+        }
+
+        // Show quick add
+        function showQuickAdd() {
+            document.getElementById('quickTaskInput').focus();
+        }
+
+        // Add task with full details
+        function addTask() {
+            const name = document.getElementById('newTaskName').value.trim();
+            const energy = document.getElementById('newTaskEnergy').value;
+            const time = document.getElementById('newTaskTime').value;
+            const location = document.getElementById('newTaskLocation').value;
+            const priority = document.getElementById('newTaskPriority').value;
+            
+            if (!name) {
+                showToast('Please enter a task name!');
+                return;
+            }
+            
+            const task = {
+                id: Date.now(),
+                title: name,
+                completed: false,
+                energy,
+                timeEstimate: time,
+                location,
+                priority,
+                createdAt: new Date().toISOString()
+            };
+            
+            appData.tasks.push(task);
+            
+            saveData();
+            renderTasks();
+            closeModal('addTaskModal');
+            
+            document.getElementById('newTaskName').value = '';
+            
+            showToast('✅ Task added!');
+        }
+
+        // Complete task
+        function completeTask(taskId) {
+            const task = appData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            task.completed = true;
+            task.completedAt = new Date().toISOString();
+            
+            saveData();
+            renderTasks();
+            showContextAndSuggestion();
+            
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+            
+            showToast('🎉 Task completed!');
+        }
+
+        // Delete task
+        function deleteTask(taskId) {
+            if (!confirm('Delete this task?')) return;
+            
+            appData.tasks = appData.tasks.filter(t => t.id !== taskId);
+            
+            saveData();
+            renderTasks();
+            showToast('🗑️ Task deleted');
+        }
+
+        // Render tasks
+        function renderTasks() {
+            const container = document.getElementById('allTasks');
+            const tasks = appData.tasks.filter(t => !t.completed);
+            
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <input type="checkbox" class="task-checkbox" onchange="completeTask(${task.id})">
+                    <div class="task-content">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-meta">
+                            ${task.energy ? `<span class="energy-badge energy-${task.energy}">${task.energy}</span>` : ''}
+                            ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}</span>` : ''}
+                            ${task.location ? `<span class="location-badge">${getLocationIcon(task.location)} ${task.location}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn" onclick="deleteTask(${task.id})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Brain dump processor
+        async function processBrainDump() {
+            const text = document.getElementById('brainDumpText').value.trim();
+            if (!text) return;
+            
+            if (!appData.apiKey) {
+                // No API key - do simple processing
+                const lines = text.split('\n').filter(line => line.trim());
+                lines.forEach(line => {
+                    appData.tasks.push({
+                        id: Date.now() + Math.random(),
+                        title: line.trim(),
+                        completed: false,
+                        energy: 'medium',
+                        timeEstimate: '30min',
+                        location: 'anywhere',
+                        priority: 'medium',
+                        createdAt: new Date().toISOString()
+                    });
+                });
+                
+                saveData();
+                renderTasks();
+                closeModal('brainDumpModal');
+                showToast(`✅ Added ${lines.length} tasks!`);
+                document.getElementById('brainDumpText').value = '';
+                return;
+            }
+            
+            showToast('🤔 Claude is organizing your chaos...');
+            
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': appData.apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1000,
+                        messages: [{
+                            role: 'user',
+                            content: `Parse this brain dump into actionable tasks. Respond ONLY with a JSON array (no other text):
+
+"${text}"
+
+Extract tasks and respond with:
+[
+  {
+    "title": "clear, actionable task title",
+    "energy": "low" | "medium" | "high",
+    "timeEstimate": "5min" | "15min" | "30min" | "1hr" | "2hrs" | "3hrs+",
+    "location": "home" | "school" | "work" | "phone" | "anywhere",
+    "priority": "low" | "medium" | "high"
+  }
+]
+
+Rules:
+- Break vague items into specific tasks
+- Make each task actionable (starts with a verb)
+- Estimate realistically for a college student
+- Return at least 1 task`
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                const text_response = data.content[0].text.trim();
+                
+                const jsonMatch = text_response.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) {
+                    throw new Error('No JSON array found');
+                }
+                
+                const tasks = JSON.parse(jsonMatch[0]);
+                
+                tasks.forEach(taskData => {
+                    appData.tasks.push({
+                        id: Date.now() + Math.random(),
+                        title: taskData.title,
+                        completed: false,
+                        energy: taskData.energy,
+                        timeEstimate: taskData.timeEstimate,
+                        location: taskData.location || 'anywhere',
+                        priority: taskData.priority || 'medium',
+                        createdAt: new Date().toISOString()
+                    });
+                });
+                
+                saveData();
+                renderTasks();
+                closeModal('brainDumpModal');
+                showToast(`✨ Created ${tasks.length} organized tasks!`);
+                document.getElementById('brainDumpText').value = '';
+                
+            } catch (error) {
+                console.error('Brain dump failed:', error);
+                showToast('❌ Failed to process. Try simpler text or check API key.');
+            }
+        }
+
+        // Show brain dump modal
+        function showBrainDump() {
+            showModal('brainDumpModal');
+            document.getElementById('brainDumpText').focus();
+        }
+
+        // Show stuck modal
+        function showStuck() {
+            const availableTasks = appData.tasks.filter(t => !t.completed);
+            
+            if (availableTasks.length === 0) {
+                showToast('No tasks to be stuck on!');
+                return;
+            }
+            
+            let html = '<p style="margin-bottom: 15px;">Which task are you stuck on?</p><div class="task-list">';
+            
+            availableTasks.forEach(task => {
+                html += `
+                    <div class="task-item" style="cursor: pointer;" onclick="breakDownTask(${task.id})">
+                        <div class="task-content">
+                            <div class="task-title">${task.title}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            document.getElementById('stuckContent').innerHTML = html;
+            showModal('stuckModal');
+        }
+
+        // Break down task
+        async function breakDownTask(taskId) {
+            const task = appData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            
+            if (!appData.apiKey) {
+                const steps = [
+                    'Open the relevant files/materials',
+                    'Set a 5-minute timer and just start',
+                    'Do the first small piece',
+                    'Take a break',
+                    'Continue with the next piece'
+                ];
+                
+                let html = `
+                    <h3 style="color: var(--primary); margin-bottom: 15px;">${task.title}</h3>
+                    <p style="margin-bottom: 15px;">Here's how to get started:</p>
+                    <ol style="padding-left: 20px;">
+                `;
+                
+                steps.forEach(step => {
+                    html += `<li style="margin-bottom: 10px;">${step}</li>`;
+                });
+                
+                html += `</ol>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="closeModal('stuckModal')">Got it! 👍</button>
+                    </div>
+                `;
+                
+                document.getElementById('stuckContent').innerHTML = html;
+                return;
+            }
+            
+            document.getElementById('stuckContent').innerHTML = '<p>🤔 Let me break this down for you...</p>';
+            
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': appData.apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 500,
+                        messages: [{
+                            role: 'user',
+                            content: `I'm stuck on this task: "${task.title}"
+
+Break it down into the SMALLEST possible first step (something I can do in 5 minutes or less to just get started). 
+
+Give me:
+1. The tiniest first action (be very specific and concrete)
+2. A friendly encouragement
+3. What to do after that first step
+
+Be direct and brief. Help me overcome the "starting" hurdle.`
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                const advice = data.content[0].text;
+                
+                document.getElementById('stuckContent').innerHTML = `
+                    <h3 style="color: var(--primary); margin-bottom: 15px;">${task.title}</h3>
+                    <div style="white-space: pre-wrap; line-height: 1.6;">${advice}</div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="closeModal('stuckModal')">Let's start! 💪</button>
+                    </div>
+                `;
+                
+            } catch (error) {
+                document.getElementById('stuckContent').innerHTML = `
+                    <p style="color: var(--danger);">Couldn't get advice right now. But here's the thing:</p>
+                    <p style="margin-top: 15px;">Just do ONE tiny piece of "${task.title}". Even 30 seconds of work counts. Starting is the hardest part.</p>
+                    <button class="btn btn-primary" onclick="closeModal('stuckModal')" style="margin-top: 20px;">Okay, I'll try</button>
+                `;
+            }
+        }
+
+        // Show edit schedule modal
+        function showEditSchedule() {
+            showToast('Schedule editing coming soon! For now, you can modify tasks and use "What Now?" to adapt.');
+        }
+
+        // Reoptimize week (placeholder for AI feature)
+        function reoptimizeWeek() {
+            if (!appData.apiKey) {
+                showToast('Add your API key in Settings to use AI reoptimization!');
+                return;
+            }
+            showToast('AI reoptimization coming soon!');
+        }
+
+        // Save schedule
+        function saveSchedule() {
+            saveData();
+            closeModal('editScheduleModal');
+            showToast('✅ Schedule saved!');
+        }
+
+        // Settings
+        function showSettings() {
+            document.getElementById('apiKeyInput').value = appData.apiKey;
+            showModal('settingsModal');
+        }
+
+        function saveSettings() {
+            appData.apiKey = document.getElementById('apiKeyInput').value.trim();
+            saveData();
+            closeModal('settingsModal');
+            showToast('✅ Settings saved!');
+        }
+
+        // Font toggle
+        function toggleFont() {
+            document.body.classList.toggle('dyslexia-font');
+            const isDyslexic = document.body.classList.contains('dyslexia-font');
+            localStorage.setItem('dyslexiaFont', isDyslexic);
+            showToast(isDyslexic ? '🔤 Dyslexia font enabled' : '🔤 Standard font enabled');
+        }
+
+        // Modal functions
+        function showModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // Toast notifications
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: var(--text);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 2000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize app
+        window.onload = () => {
+            loadData();
+            updateCurrentDate();
+            updateCurrentBlockDisplay();
+            renderSchedule();
+            renderTasks();
+            
+            // Update every minute
+            setInterval(() => {
+                updateCurrentDate();
+                updateCurrentBlockDisplay();
+                renderSchedule();
+                if (appData.currentLocation) {
+                    showContextAndSuggestion();
+                }
+            }, 60000);
+            
+            // Show welcome message
+            if (!appData.apiKey) {
+                setTimeout(() => {
+                    showToast('💡 Tip: Add your Anthropic API key in Settings for smart features!');
+                }, 2000);
+            }
+        };
+    </script>
+</body>
+</html>

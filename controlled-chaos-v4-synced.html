@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controlled Chaos v4 🌀</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google API Scripts -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-main: #f8fafc;
+            --bg-card: white;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            
+            --energy-high: #ef4444;
+            --energy-medium: #f59e0b;
+            --energy-low: #10b981;
+            
+            --protected: #9333ea;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        body.dyslexia-font {
+            font-family: 'OpenDyslexic', sans-serif;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--bg-main);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: var(--text-light);
+            font-style: italic;
+            font-size: 1.1em;
+        }
+
+        .current-date {
+            color: var(--text);
+            font-size: 1.1em;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .sync-status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sync-status.signed-in {
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success);
+        }
+
+        .sync-status.signed-out {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid var(--primary);
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* WHAT NOW - Hero Section */
+        .what-now-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .what-now-hero h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .location-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .location-btn {
+            padding: 15px 25px;
+            border: 3px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .location-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .location-btn.active {
+            background: white;
+            color: var(--primary);
+            border-color: white;
+        }
+
+        .context-info {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .context-info h3 {
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .suggestion-card {
+            background: white;
+            color: var(--text);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .suggestion-card h3 {
+            color: var(--primary);
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .suggestion-reason {
+            color: var(--text-light);
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        /* Schedule Section */
+        .schedule-section {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .schedule-header h2 {
+            color: var(--primary);
+            font-size: 1.5em;
+        }
+
+        .current-block {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .current-block h3 {
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+
+        .time-remaining {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .schedule-day {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .schedule-day h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .schedule-item {
+            padding: 10px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .schedule-item.class {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+
+        .schedule-item.work {
+            background: #fce4ec;
+            border-left: 3px solid #e91e63;
+        }
+
+        .schedule-item.personal {
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }
+
+        .schedule-item.free {
+            background: #e8f5e9;
+            border-left: 3px solid #4caf50;
+        }
+
+        .schedule-item.protected {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            color: white;
+            border-left: 3px solid #6b21a8;
+        }
+
+        .schedule-item.current {
+            border: 3px solid var(--warning);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+
+        .schedule-item .lock-icon {
+            font-size: 1.2em;
+        }
+
+        /* Task Cards */
+        .card {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid;
+            padding-bottom: 10px;
+        }
+
+        .task-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: var(--bg-main);
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .task-item:hover {
+            border-color: var(--primary);
+        }
+
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-content {
+            flex: 1;
+        }
+
+        .task-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 0.85em;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .task-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            cursor: pointer;
+            background: var(--border);
+            color: var(--text);
+            transition: all 0.3s;
+        }
+
+        .task-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .energy-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .energy-high {
+            background: var(--energy-high);
+            color: white;
+        }
+
+        .energy-medium {
+            background: var(--energy-medium);
+            color: white;
+        }
+
+        .energy-low {
+            background: var(--energy-low);
+            color: white;
+        }
+
+        .location-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            background: var(--border);
+        }
+
+        .time-estimate {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: var(--primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: var(--primary);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: var(--text-light);
+            line-height: 1;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .quick-add {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quick-add input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .config-warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            color: #856404;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .location-selector {
+                flex-direction: column;
+            }
+
+            .location-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌀 Controlled Chaos v4</h1>
+            <p class="tagline">Your ADHD-friendly productivity companion with cross-device sync</p>
+            <div class="current-date" id="currentDate"></div>
+            
+            <!-- Google Sign In / Status -->
+            <div id="googleSignIn" class="sync-status signed-out">
+                <button class="btn btn-primary" onclick="handleGoogleSignIn()">
+                    🔐 Sign in with Google
+                </button>
+                <p style="font-size: 0.9em; margin-top: 10px;">
+                    Sign in to sync your data across all devices
+                </p>
+            </div>
+
+            <div id="syncStatus" class="sync-status signed-in" style="display: none;">
+                <p style="margin-bottom: 10px;">
+                    ✅ Signed in as <strong id="userEmail"></strong>
+                </p>
+                <p style="font-size: 0.9em; opacity: 0.8; margin-bottom: 10px;">
+                    <span id="syncIndicator">☁️ Synced with Google Drive</span>
+                </p>
+                <button class="btn btn-secondary" onclick="handleGoogleSignOut()">Sign Out</button>
+            </div>
+            
+            <div class="header-buttons">
+                <button class="btn btn-secondary" onclick="showQuickAdd()">⚡ Quick Add</button>
+                <button class="btn btn-secondary" onclick="showBrainDump()">🧠 Brain Dump</button>
+                <button class="btn btn-secondary" onclick="showStuck()">🤔 I'm Stuck</button>
+                <button class="btn btn-secondary" onclick="showEditSchedule()">📅 Edit Schedule</button>
+                <button class="btn btn-secondary" onclick="showSettings()">⚙️ Settings</button>
+                <button class="btn btn-secondary" onclick="toggleFont()">🔤 Font</button>
+            </div>
+        </header>
+
+        <!-- Configuration Warning -->
+        <div id="configWarning" class="config-warning">
+            <strong>⚠️ Configuration Required</strong><br>
+            Please update the configuration in Settings with your Cloudflare Worker URL and Google Client ID.
+            See SETUP-INSTRUCTIONS.md for details.
+        </div>
+
+        <!-- WHAT NOW Hero Section -->
+        <div class="what-now-hero">
+            <h2>🎯 What Should I Do Right Now?</h2>
+            
+            <div class="location-selector">
+                <button class="location-btn" data-location="home" onclick="setLocation('home')">🏠 Home</button>
+                <button class="location-btn" data-location="school" onclick="setLocation('school')">🏫 School</button>
+                <button class="location-btn" data-location="work" onclick="setLocation('work')">💼 Work</button>
+                <button class="location-btn" data-location="commute" onclick="setLocation('commute')">🚗 Commute</button>
+            </div>
+
+            <div id="contextInfo" class="context-info" style="display: none;">
+                <h3 id="contextTitle">Loading...</h3>
+                <p id="contextDetails"></p>
+            </div>
+
+            <div id="suggestionCard" style="display: none;">
+                <!-- Suggestion will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Current Schedule Block -->
+        <div class="schedule-section">
+            <div class="schedule-header">
+                <h2>📅 Your Schedule</h2>
+                <button class="btn btn-warning" onclick="showEditSchedule()">✏️ Edit Schedule</button>
+            </div>
+            
+            <div id="currentBlock" class="current-block" style="display: none;">
+                <h3>📍 YOU ARE HERE</h3>
+                <p id="currentBlockText"></p>
+                <p class="time-remaining" id="timeRemaining"></p>
+            </div>
+
+            <div id="scheduleView"></div>
+        </div>
+
+        <!-- Tasks Section -->
+        <div class="card">
+            <h2>📋 All Tasks</h2>
+            <div class="quick-add">
+                <input type="text" id="quickTaskInput" placeholder="Quick add a task... (press Enter)" 
+                       onkeypress="if(event.key==='Enter') quickAddTask()">
+                <button class="btn btn-primary" onclick="quickAddTask()">Add</button>
+            </div>
+            <div id="allTasks" class="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="close-modal" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="workerUrlInput">Cloudflare Worker URL</label>
+                <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev/api/claude">
+                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                    Your Cloudflare Worker URL for API proxy. See SETUP-INSTRUCTIONS.md Part 1.
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label for="clientIdInput">Google OAuth Client ID</label>
+                <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
+                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                    Your Google OAuth Client ID for Drive sync. See SETUP-INSTRUCTIONS.md Part 2.
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label for="apiKeyInput">Anthropic API Key (Optional)</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                    Your API key enables AI features. Stored securely in Google Drive.
+                </p>
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+
+    <!-- Brain Dump Modal -->
+    <div id="brainDumpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🧠 Brain Dump</h2>
+                <button class="close-modal" onclick="closeModal('brainDumpModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Dump everything on your mind:</label>
+                <textarea id="brainDumpText" placeholder="Write essay for english&#10;Buy groceries&#10;Email professor about extension&#10;...or just type whatever is stressing you out!"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="processBrainDump()">✨ Organize My Chaos</button>
+        </div>
+    </div>
+
+    <!-- Stuck Modal -->
+    <div id="stuckModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🤔 Let's Break This Down</h2>
+                <button class="close-modal" onclick="closeModal('stuckModal')">&times;</button>
+            </div>
+            <div id="stuckContent">
+                <p>What task are you stuck on?</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURATION =====
+        // Replace these after deploying your Cloudflare Worker and setting up Google OAuth
+        let CLOUDFLARE_WORKER_URL = 'YOUR-WORKER-URL-HERE/api/claude';
+        let GOOGLE_CLIENT_ID = 'YOUR-CLIENT-ID-HERE.apps.googleusercontent.com';
+        const DRIVE_FILE_NAME = 'controlled-chaos-data.json';
+
+        // ===== GOOGLE DRIVE INTEGRATION =====
+        let googleAccessToken = null;
+        let driveFileId = null;
+        let isOnline = navigator.onLine;
+        let pendingChanges = false;
+        let gapiInitialized = false;
+
+        // ===== DATE/TIME UTILITIES =====
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        function getCurrentDateTime() {
+            return new Date();
+        }
+
+        function updateCurrentDate() {
+            const today = getCurrentDateTime();
+            const dayName = days[today.getDay()];
+            const dayNum = today.getDate();
+            const monthName = months[today.getMonth()];
+            const year = today.getFullYear();
+            document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${dayNum}, ${year}`;
+        }
+
+        // ===== DEFAULT SCHEDULE =====
+        const defaultSchedule = {
+            'Monday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '10:35', text: 'FREE TIME - study at school', type: 'free', location: 'school', editable: true },
+                { startTime: '10:35', endTime: '11:55', text: 'US Politics class', type: 'class', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Peer Mentor (optional)', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '13:40', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Tuesday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '09:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '09:00', endTime: '10:20', text: 'World History class', type: 'class', location: 'school', editable: false },
+                { startTime: '10:20', endTime: '11:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '11:00', endTime: '11:55', text: 'Peer Mentor (mandatory)', type: 'personal', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Hen & Ink Society', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '15:00', text: 'FREE at school', type: 'free', location: 'school', editable: true },
+                { startTime: '15:00', endTime: '16:00', text: 'Therapy (at school)', type: 'personal', location: 'school', editable: false },
+                { startTime: '16:00', endTime: '16:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '16:40', endTime: '21:00', text: 'BIO WORK - all due Wed!', type: 'free', location: 'home', editable: true }
+            ],
+            'Wednesday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '10:35', text: 'FREE at school (Beatles discussion)', type: 'free', location: 'school', editable: true },
+                { startTime: '10:35', endTime: '11:55', text: 'US Politics class', type: 'class', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Peer Mentor (optional)', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:55', text: 'Peer Mentor (mandatory)', type: 'personal', location: 'school', editable: false },
+                { startTime: '13:55', endTime: '15:15', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '15:15', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Thursday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '09:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '09:00', endTime: '10:20', text: 'World History class', type: 'class', location: 'school', editable: false },
+                { startTime: '10:20', endTime: '11:00', text: 'FREE TIME at school', type: 'free', location: 'school', editable: true },
+                { startTime: '11:00', endTime: '11:55', text: 'Peer Mentor (mandatory)', type: 'personal', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Hen & Ink Society', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '13:40', endTime: '18:00', text: '🔒 D&D PREP TIME (PROTECTED)', type: 'protected', location: 'home', editable: false },
+                { startTime: '18:00', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Friday': [
+                { startTime: '07:15', endTime: '08:00', text: 'Wake up & take meds', type: 'personal', location: 'home', editable: false },
+                { startTime: '08:00', endTime: '08:40', text: 'Commute to school', type: 'free', location: 'commute', editable: false },
+                { startTime: '08:40', endTime: '10:35', text: 'FREE at school', type: 'free', location: 'school', editable: true },
+                { startTime: '10:35', endTime: '11:55', text: 'US Politics class', type: 'class', location: 'school', editable: false },
+                { startTime: '12:00', endTime: '13:00', text: 'Peer Mentor (optional)', type: 'personal', location: 'school', editable: true },
+                { startTime: '13:00', endTime: '13:40', text: 'Commute home', type: 'free', location: 'commute', editable: false },
+                { startTime: '13:40', endTime: '18:00', text: '🔒 THERAPY (PROTECTED)', type: 'protected', location: 'home', editable: false },
+                { startTime: '18:00', endTime: '21:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Saturday': [
+                { startTime: '09:00', endTime: '14:00', text: 'Morning free time', type: 'free', location: 'home', editable: true },
+                { startTime: '14:00', endTime: '18:00', text: '🔒 D&D GAME (PROTECTED)', type: 'protected', location: 'home', editable: false },
+                { startTime: '18:00', endTime: '23:00', text: 'Evening free time', type: 'free', location: 'home', editable: true }
+            ],
+            'Sunday': [
+                { startTime: '09:00', endTime: '23:00', text: 'Free day - rest & recharge', type: 'free', location: 'home', editable: true }
+            ]
+        };
+
+        // ===== APP DATA STRUCTURE =====
+        let appData = {
+            tasks: [],
+            schedule: JSON.parse(JSON.stringify(defaultSchedule)),
+            settings: {
+                workerUrl: '',
+                clientId: '',
+                apiKey: ''
+            },
+            currentLocation: 'home',
+            lastSync: null
+        };
+
+        // ===== GOOGLE DRIVE API FUNCTIONS =====
+        function initGoogleAPI() {
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: '', // Not needed for OAuth flow
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+                    });
+                    gapiInitialized = true;
+                    console.log('Google API initialized');
+                } catch (error) {
+                    console.error('Error initializing Google API:', error);
+                }
+            });
+        }
+
+        async function handleGoogleSignIn() {
+            if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR-CLIENT-ID-HERE.apps.googleusercontent.com') {
+                alert('Please configure your Google Client ID in Settings first!');
+                showSettings();
+                return;
+            }
+
+            try {
+                const client = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/drive.file',
+                    callback: async (response) => {
+                        if (response.access_token) {
+                            googleAccessToken = response.access_token;
+                            gapi.client.setToken({ access_token: googleAccessToken });
+                            
+                            // Get user info
+                            const userInfo = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                                headers: { Authorization: `Bearer ${googleAccessToken}` }
+                            }).then(r => r.json());
+                            
+                            document.getElementById('userEmail').textContent = userInfo.email;
+                            document.getElementById('googleSignIn').style.display = 'none';
+                            document.getElementById('syncStatus').style.display = 'block';
+                            
+                            // Load data from Drive
+                            await loadDataFromDrive();
+                            updateUI();
+                        }
+                    }
+                });
+                client.requestAccessToken();
+            } catch (error) {
+                console.error('Sign in error:', error);
+                alert('Failed to sign in. Please try again.');
+            }
+        }
+
+        function handleGoogleSignOut() {
+            if (googleAccessToken) {
+                google.accounts.oauth2.revoke(googleAccessToken);
+                googleAccessToken = null;
+                driveFileId = null;
+            }
+            
+            document.getElementById('googleSignIn').style.display = 'block';
+            document.getElementById('syncStatus').style.display = 'none';
+        }
+
+        async function loadDataFromDrive() {
+            if (!googleAccessToken || !gapiInitialized) return;
+
+            try {
+                document.getElementById('syncIndicator').textContent = '⏳ Loading from Drive...';
+                
+                // Search for existing file
+                const response = await gapi.client.drive.files.list({
+                    q: `name='${DRIVE_FILE_NAME}' and trashed=false`,
+                    spaces: 'drive',
+                    fields: 'files(id, name)'
+                });
+
+                if (response.result.files && response.result.files.length > 0) {
+                    driveFileId = response.result.files[0].id;
+                    
+                    // Download file content
+                    const fileResponse = await gapi.client.drive.files.get({
+                        fileId: driveFileId,
+                        alt: 'media'
+                    });
+                    
+                    appData = JSON.parse(fileResponse.body);
+                    appData.lastSync = new Date().toISOString();
+                    
+                    // Apply settings
+                    if (appData.settings.workerUrl) CLOUDFLARE_WORKER_URL = appData.settings.workerUrl;
+                    if (appData.settings.clientId) GOOGLE_CLIENT_ID = appData.settings.clientId;
+                    
+                    document.getElementById('syncIndicator').textContent = '☁️ Synced with Google Drive';
+                    console.log('Data loaded from Drive');
+                } else {
+                    // No file exists, create one
+                    await saveDataToDrive();
+                }
+            } catch (error) {
+                console.error('Error loading from Drive:', error);
+                document.getElementById('syncIndicator').textContent = '⚠️ Sync error';
+            }
+        }
+
+        async function saveDataToDrive() {
+            if (!googleAccessToken || !gapiInitialized) {
+                pendingChanges = true;
+                return;
+            }
+
+            try {
+                document.getElementById('syncIndicator').textContent = '⏳ Saving to Drive...';
+                
+                appData.lastSync = new Date().toISOString();
+                const content = JSON.stringify(appData, null, 2);
+                const blob = new Blob([content], { type: 'application/json' });
+
+                const metadata = {
+                    name: DRIVE_FILE_NAME,
+                    mimeType: 'application/json'
+                };
+
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', blob);
+
+                const method = driveFileId ? 'PATCH' : 'POST';
+                const url = driveFileId 
+                    ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
+                    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        Authorization: `Bearer ${googleAccessToken}`
+                    },
+                    body: form
+                });
+
+                const result = await response.json();
+                if (result.id) {
+                    driveFileId = result.id;
+                    pendingChanges = false;
+                    document.getElementById('syncIndicator').textContent = '☁️ Synced with Google Drive';
+                    console.log('Data saved to Drive');
+                }
+            } catch (error) {
+                console.error('Error saving to Drive:', error);
+                document.getElementById('syncIndicator').textContent = '⚠️ Sync error';
+                pendingChanges = true;
+            }
+        }
+
+        // Auto-save on changes
+        function saveData() {
+            saveDataToDrive();
+        }
+
+        // ===== TASK MANAGEMENT =====
+        function addTask(task) {
+            task.id = Date.now().toString();
+            task.completed = false;
+            task.createdAt = new Date().toISOString();
+            appData.tasks.push(task);
+            saveData();
+            renderTasks();
+        }
+
+        function toggleTask(taskId) {
+            const task = appData.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                if (task.completed) {
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
+                saveData();
+                renderTasks();
+                updateWhatNow();
+            }
+        }
+
+        function deleteTask(taskId) {
+            if (confirm('Delete this task?')) {
+                appData.tasks = appData.tasks.filter(t => t.id !== taskId);
+                saveData();
+                renderTasks();
+                updateWhatNow();
+            }
+        }
+
+        function quickAddTask() {
+            const input = document.getElementById('quickTaskInput');
+            const text = input.value.trim();
+            if (text) {
+                addTask({
+                    title: text,
+                    energy: 'medium',
+                    location: 'anywhere',
+                    timeEstimate: 30
+                });
+                input.value = '';
+            }
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('allTasks');
+            const incompleteTasks = appData.tasks.filter(t => !t.completed);
+            
+            if (incompleteTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = incompleteTasks.map(task => `
+                <div class="task-item">
+                    <input type="checkbox" class="task-checkbox" 
+                           onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+                    <div class="task-content">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-meta">
+                            <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                            <span class="location-badge">📍 ${task.location}</span>
+                            ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== SCHEDULE FUNCTIONS =====
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function formatTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':');
+            const h = parseInt(hours);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            return `${displayHour}:${minutes} ${ampm}`;
+        }
+
+        function getCurrentBlock() {
+            const now = getCurrentDateTime();
+            const dayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            const todaySchedule = appData.schedule[dayName] || [];
+            
+            for (let block of todaySchedule) {
+                const startMinutes = parseTime(block.startTime);
+                const endMinutes = parseTime(block.endTime);
+                
+                if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+                    return {
+                        ...block,
+                        minutesRemaining: endMinutes - currentMinutes
+                    };
+                }
+            }
+            
+            return null;
+        }
+
+        function renderSchedule() {
+            const now = getCurrentDateTime();
+            const dayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            const currentBlock = getCurrentBlock();
+            const currentBlockDiv = document.getElementById('currentBlock');
+            
+            if (currentBlock) {
+                currentBlockDiv.style.display = 'block';
+                document.getElementById('currentBlockText').textContent = currentBlock.text;
+                const hours = Math.floor(currentBlock.minutesRemaining / 60);
+                const mins = currentBlock.minutesRemaining % 60;
+                document.getElementById('timeRemaining').textContent = 
+                    `⏱️ ${hours}h ${mins}m remaining`;
+            } else {
+                currentBlockDiv.style.display = 'none';
+            }
+            
+            const scheduleView = document.getElementById('scheduleView');
+            const todaySchedule = appData.schedule[dayName] || [];
+            
+            scheduleView.innerHTML = `
+                <div class="schedule-day">
+                    <h3>${dayName}</h3>
+                    ${todaySchedule.map(block => {
+                        const startMinutes = parseTime(block.startTime);
+                        const endMinutes = parseTime(block.endTime);
+                        const isCurrent = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+                        
+                        return `
+                            <div class="schedule-item ${block.type} ${isCurrent ? 'current' : ''}">
+                                <span>
+                                    ${block.type === 'protected' ? '<span class="lock-icon">🔒</span> ' : ''}
+                                    ${formatTime(block.startTime)} - ${formatTime(block.endTime)}
+                                </span>
+                                <span>${block.text}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // ===== WHAT NOW LOGIC =====
+        function setLocation(location) {
+            appData.currentLocation = location;
+            document.querySelectorAll('.location-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.location === location);
+            });
+            updateWhatNow();
+            saveData();
+        }
+
+        function getCurrentEnergy() {
+            const hour = getCurrentDateTime().getHours();
+            if (hour >= 6 && hour < 12) return 'high';
+            if (hour >= 12 && hour < 17) return 'medium';
+            return 'low';
+        }
+
+        function updateWhatNow() {
+            const currentBlock = getCurrentBlock();
+            const currentEnergy = getCurrentEnergy();
+            const location = appData.currentLocation;
+            
+            const contextInfo = document.getElementById('contextInfo');
+            const contextTitle = document.getElementById('contextTitle');
+            const contextDetails = document.getElementById('contextDetails');
+            
+            contextInfo.style.display = 'block';
+            contextTitle.textContent = `📍 ${location.charAt(0).toUpperCase() + location.slice(1)} | ⚡ ${currentEnergy} energy`;
+            
+            if (currentBlock) {
+                if (currentBlock.type === 'protected') {
+                    contextDetails.textContent = `🔒 Protected time: ${currentBlock.text}`;
+                } else if (currentBlock.type === 'class') {
+                    contextDetails.textContent = `📚 In class: ${currentBlock.text}`;
+                } else {
+                    contextDetails.textContent = `Current block: ${currentBlock.text}`;
+                }
+            } else {
+                contextDetails.textContent = 'No scheduled block right now';
+            }
+            
+            // Find best task
+            const availableTasks = appData.tasks.filter(t => 
+                !t.completed && 
+                (t.location === 'anywhere' || t.location === location) &&
+                (t.energy === currentEnergy || t.energy === 'medium')
+            );
+            
+            const suggestionCard = document.getElementById('suggestionCard');
+            
+            if (currentBlock && currentBlock.type === 'protected') {
+                suggestionCard.innerHTML = `
+                    <div class="suggestion-card">
+                        <h3>🔒 Protected Time</h3>
+                        <p>This is your ${currentBlock.text}. Enjoy it guilt-free!</p>
+                        <p class="suggestion-reason">Protected blocks are sacred - no tasks allowed.</p>
+                    </div>
+                `;
+                suggestionCard.style.display = 'block';
+            } else if (availableTasks.length > 0) {
+                const task = availableTasks[0];
+                suggestionCard.innerHTML = `
+                    <div class="suggestion-card">
+                        <h3>✨ Suggested Task</h3>
+                        <p style="font-size: 1.2em; font-weight: 600; margin: 10px 0;">${task.title}</p>
+                        <div style="display: flex; gap: 10px; margin: 15px 0;">
+                            <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                            <span class="location-badge">📍 ${task.location}</span>
+                            ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                        </div>
+                        <p class="suggestion-reason">
+                            Perfect for your ${currentEnergy} energy at ${location}
+                        </p>
+                        <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
+                            ✅ Mark Complete
+                        </button>
+                    </div>
+                `;
+                suggestionCard.style.display = 'block';
+            } else {
+                suggestionCard.innerHTML = `
+                    <div class="suggestion-card">
+                        <h3>🎉 All Clear!</h3>
+                        <p>No tasks match your current context. Time to relax or add new tasks!</p>
+                        <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
+                            ➕ Add Task
+                        </button>
+                    </div>
+                `;
+                suggestionCard.style.display = 'block';
+            }
+        }
+
+        // ===== AI FEATURES =====
+        async function callClaudeAPI(messages, systemPrompt = '') {
+            if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude') {
+                alert('Please configure your Cloudflare Worker URL in Settings!');
+                showSettings();
+                throw new Error('Worker URL not configured');
+            }
+
+            const apiKey = appData.settings.apiKey || '';
+            if (!apiKey) {
+                alert('Please add your Anthropic API key in Settings to use AI features!');
+                showSettings();
+                throw new Error('API key not configured');
+            }
+
+            const response = await fetch(CLOUDFLARE_WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-5-sonnet-20241022',
+                    max_tokens: 2000,
+                    system: systemPrompt,
+                    messages: messages
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.content[0].text;
+        }
+
+        async function processBrainDump() {
+            const text = document.getElementById('brainDumpText').value.trim();
+            if (!text) return;
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🧠 Processing...';
+
+            try {
+                const systemPrompt = `You are an ADHD-friendly task organizer. Parse the user's brain dump into clear, actionable tasks. For each task, determine:
+- energy level (high/medium/low)
+- location (home/school/work/commute/anywhere)
+- time estimate in minutes
+
+Return ONLY valid JSON array of tasks, no other text:
+[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30}]`;
+
+                const response = await callClaudeAPI([{
+                    role: 'user',
+                    content: text
+                }], systemPrompt);
+
+                const tasks = JSON.parse(response);
+                tasks.forEach(task => addTask(task));
+
+                closeModal('brainDumpModal');
+                document.getElementById('brainDumpText').value = '';
+                
+                confetti({
+                    particleCount: 150,
+                    spread: 100,
+                    origin: { y: 0.6 }
+                });
+            } catch (error) {
+                console.error('Brain dump error:', error);
+                alert('Failed to process brain dump. Check your API configuration.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✨ Organize My Chaos';
+            }
+        }
+
+        async function showStuck() {
+            const incompleteTasks = appData.tasks.filter(t => !t.completed);
+            
+            if (incompleteTasks.length === 0) {
+                alert('No tasks to help with! Add some tasks first.');
+                return;
+            }
+
+            const modal = document.getElementById('stuckModal');
+            const content = document.getElementById('stuckContent');
+            
+            content.innerHTML = `
+                <p>Select a task you're stuck on:</p>
+                <div style="margin: 20px 0;">
+                    ${incompleteTasks.map(task => `
+                        <button class="btn btn-secondary" onclick="getStuckHelp('${task.id}')" 
+                                style="width: 100%; margin: 5px 0; text-align: left;">
+                            ${task.title}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        async function getStuckHelp(taskId) {
+            const task = appData.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            const content = document.getElementById('stuckContent');
+            content.innerHTML = `
+                <h3>${task.title}</h3>
+                <p>🤔 Breaking this down into tiny steps...</p>
+            `;
+
+            try {
+                const systemPrompt = `You are an ADHD coach helping break down tasks. The user is stuck on a task. Break it into 3-5 tiny, concrete steps. Be encouraging and specific. Keep it brief.`;
+
+                const response = await callClaudeAPI([{
+                    role: 'user',
+                    content: `I'm stuck on: ${task.title}`
+                }], systemPrompt);
+
+                content.innerHTML = `
+                    <h3>${task.title}</h3>
+                    <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                        ${response.replace(/\n/g, '<br>')}
+                    </div>
+                    <button class="btn btn-success" onclick="toggleTask('${task.id}')">
+                        ✅ Got it! Mark as done
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeModal('stuckModal')" style="margin-left: 10px;">
+                        Close
+                    </button>
+                `;
+            } catch (error) {
+                console.error('Stuck help error:', error);
+                content.innerHTML = `
+                    <h3>${task.title}</h3>
+                    <p style="color: var(--danger);">Failed to get help. Check your API configuration.</p>
+                    <button class="btn btn-secondary" onclick="closeModal('stuckModal')">Close</button>
+                `;
+            }
+        }
+
+        // ===== MODAL FUNCTIONS =====
+        function showQuickAdd() {
+            document.getElementById('quickTaskInput').focus();
+        }
+
+        function showBrainDump() {
+            document.getElementById('brainDumpModal').classList.add('active');
+            document.getElementById('brainDumpText').focus();
+        }
+
+        function showEditSchedule() {
+            alert('Schedule editing coming soon! For now, edit the defaultSchedule in the code.');
+        }
+
+        function showSettings() {
+            document.getElementById('workerUrlInput').value = appData.settings.workerUrl || CLOUDFLARE_WORKER_URL;
+            document.getElementById('clientIdInput').value = appData.settings.clientId || GOOGLE_CLIENT_ID;
+            document.getElementById('apiKeyInput').value = appData.settings.apiKey || '';
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function saveSettings() {
+            const workerUrl = document.getElementById('workerUrlInput').value.trim();
+            const clientId = document.getElementById('clientIdInput').value.trim();
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            
+            appData.settings.workerUrl = workerUrl;
+            appData.settings.clientId = clientId;
+            appData.settings.apiKey = apiKey;
+            
+            if (workerUrl) CLOUDFLARE_WORKER_URL = workerUrl;
+            if (clientId) GOOGLE_CLIENT_ID = clientId;
+            
+            // Hide warning if configured
+            if (workerUrl && clientId) {
+                document.getElementById('configWarning').style.display = 'none';
+            }
+            
+            saveData();
+            closeModal('settingsModal');
+            alert('Settings saved! Refresh the page if you just added your Google Client ID.');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function toggleFont() {
+            document.body.classList.toggle('dyslexia-font');
+        }
+
+        // ===== UI UPDATE =====
+        function updateUI() {
+            updateCurrentDate();
+            renderSchedule();
+            renderTasks();
+            updateWhatNow();
+        }
+
+        // ===== INITIALIZATION =====
+        window.addEventListener('load', () => {
+            initGoogleAPI();
+            updateUI();
+            
+            // Update every minute
+            setInterval(() => {
+                updateUI();
+            }, 60000);
+            
+            // Set default location
+            setLocation('home');
+            
+            // Check if configured
+            if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude' ||
+                !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR-CLIENT-ID-HERE.apps.googleusercontent.com') {
+                document.getElementById('configWarning').style.display = 'block';
+            } else {
+                document.getElementById('configWarning').style.display = 'none';
+            }
+        });
+
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Online/offline detection
+        window.addEventListener('online', () => {
+            isOnline = true;
+            if (pendingChanges && googleAccessToken) {
+                saveDataToDrive();
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+        });
+    </script>
+</body>
+</html>
