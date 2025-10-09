@@ -2202,6 +2202,11 @@ Return ONLY valid JSON array, no other text:
         }
 
         function renderDeadlines() {
+            // Safety check: ensure deadlines array exists
+            if (!appData.deadlines) {
+                appData.deadlines = [];
+            }
+            
             const container = document.getElementById('allDeadlines');
             const activeDeadlines = appData.deadlines.filter(d => !d.completed);
             
