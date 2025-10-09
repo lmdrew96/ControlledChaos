@@ -1326,6 +1326,15 @@
                 return;
             }
 
+            // Check if we've already synced this version
+            const SCHEDULE_VERSION = '2025-01-09-v1'; // Update this when schedule changes
+            const lastSyncedVersion = localStorage.getItem('lastScheduleSyncVersion');
+            
+            if (lastSyncedVersion === SCHEDULE_VERSION) {
+                console.log('Schedule already synced to Drive (version: ' + SCHEDULE_VERSION + ')');
+                return;
+            }
+
             try {
                 console.log('Syncing default schedule to Drive...');
                 
@@ -1334,6 +1343,9 @@
                 
                 // Force save to Drive
                 await saveDataToDrive();
+                
+                // Mark this version as synced
+                localStorage.setItem('lastScheduleSyncVersion', SCHEDULE_VERSION);
                 
                 console.log('Default schedule synced to Drive successfully!');
                 showToast('✅ Schedule synced to Google Drive');
