@@ -1695,9 +1695,180 @@ Return ONLY valid JSON array, no other text:
             }).join('');
         }
 
-        // Placeholder for Feature 4
-        function breakDownDeadline(deadlineId) {
-            alert('Feature 4: Auto-Break-Down Deadlines - Coming next!');
+        // Feature 4: Auto-Break-Down Deadlines
+        function getAvailableFreeBlocks(startDate, endDate) {
+            const blocks = [];
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            // Iterate through each day until deadline
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dayName = days[d.getDay()];
+                const daySchedule = appData.schedule[dayName] || [];
+                
+                daySchedule.forEach(block => {
+                    if (block.type === 'free' && !block.protected) {
+                        const startMinutes = parseTime(block.startTime);
+                        const endMinutes = parseTime(block.endTime);
+                        const duration = endMinutes - startMinutes;
+                        
+                        blocks.push({
+                            day: dayName,
+                            date: new Date(d).toLocaleDateString(),
+                            time: `${formatTime(block.startTime)}-${formatTime(block.endTime)}`,
+                            duration: duration,
+                            location: block.location
+                        });
+                    }
+                });
+            }
+            
+            return blocks;
+        }
+
+        async function breakDownDeadline(deadlineId) {
+            const deadline = appData.deadlines.find(d => d.id === deadlineId);
+            if (!deadline) return;
+            
+            // Check if already broken down
+            if (deadline.brokenDown) {
+                if (confirm('This deadline has already been broken down. Break it down again?')) {
+                    // Remove old subtasks
+                    appData.tasks = appData.tasks.filter(t => t.parentDeadline !== deadlineId);
+                } else {
+                    return;
+                }
+            }
+            
+            // Show loading modal
+            const loadingModal = document.createElement('div');
+            loadingModal.className = 'modal active';
+            loadingModal.innerHTML = `
+                <div class="modal-content">
+                    <h2>🔨 Breaking down deadline...</h2>
+                    <p>AI is analyzing your schedule and creating a plan for "${deadline.title}"...</p>
+                </div>
+            `;
+            document.body.appendChild(loadingModal);
+            
+            try {
+                const now = new Date();
+                const dueDate = new Date(deadline.dueDate);
+                const availableBlocks = getAvailableFreeBlocks(now, dueDate);
+                
+                if (availableBlocks.length === 0) {
+                    loadingModal.remove();
+                    alert('No free time blocks found before the deadline. Consider adjusting your schedule or deadline date.');
+                    return;
+                }
+                
+                const blocksText = availableBlocks.slice(0, 10).map(b => 
+                    `- ${b.day} ${b.time}: ${b.duration} minutes at ${b.location}`
+                ).join('\n');
+                
+                const systemPrompt = `You are an ADHD-friendly task planner. Break down the deadline into 3-6 specific, actionable subtasks.
+
+Deadline: ${deadline.title}
+Due: ${deadline.dueDate}
+
+Available time blocks before deadline:
+${blocksText}
+
+Create subtasks that:
+1. Are concrete and completable (not vague like "work on essay")
+2. Have realistic time estimates (15-90 minutes each)
+3. Can fit in the available time blocks
+4. Build toward completing the deadline
+5. Include buffer/review time at the end
+
+Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
+{
+  "subtasks": [
+    {
+      "title": "specific task name",
+      "timeEstimate": 45,
+      "energy": "medium",
+      "location": "school",
+      "suggestedBlock": "Monday 8:40 AM-10:30 AM at school",
+      "reasoning": "why this fits here"
+    }
+  ]
+}`;
+
+                const response = await callClaudeAPI([{
+                    role: 'user',
+                    content: `Break down this deadline into subtasks that fit my schedule.`
+                }], systemPrompt);
+
+                const data = JSON.parse(response);
+                
+                // Create tasks from subtasks
+                data.subtasks.forEach(subtask => {
+                    addTask({
+                        title: subtask.title,
+                        energy: subtask.energy,
+                        location: subtask.location,
+                        timeEstimate: subtask.timeEstimate,
+                        parentDeadline: deadlineId,
+                        dueDate: deadline.dueDate,
+                        suggestedBlock: subtask.suggestedBlock,
+                        reasoning: subtask.reasoning
+                    });
+                });
+                
+                // Mark deadline as broken down
+                deadline.brokenDown = true;
+                saveData();
+                renderDeadlines();
+                
+                loadingModal.remove();
+                
+                // Show success modal with timeline
+                const successModal = document.createElement('div');
+                successModal.className = 'modal active';
+                successModal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>✅ Deadline Broken Down!</h2>
+                            <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                        </div>
+                        <p style="margin-bottom: 20px;">Created ${data.subtasks.length} tasks for <strong>${deadline.title}</strong>:</p>
+                        <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                            ${data.subtasks.map((subtask, i) => `
+                                <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--primary);">
+                                    <div style="font-weight: 600; margin-bottom: 5px;">
+                                        ${i + 1}. ${subtask.title}
+                                    </div>
+                                    <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 5px;">
+                                        ⏱️ ${subtask.timeEstimate} min | 📍 ${subtask.location} | ⚡ ${subtask.energy}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: var(--primary); margin-bottom: 5px;">
+                                        📅 Suggested: ${subtask.suggestedBlock}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: var(--text-light); font-style: italic;">
+                                        ${subtask.reasoning}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                            Got it! Let's do this 🚀
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(successModal);
+                
+                confetti({
+                    particleCount: 150,
+                    spread: 100,
+                    origin: { y: 0.6 }
+                });
+                
+            } catch (error) {
+                console.error('Break down deadline error:', error);
+                loadingModal.remove();
+                alert('Failed to break down deadline. Check your API configuration and try again.');
+            }
         }
 
         // ===== TASK MANAGEMENT =====
