@@ -1117,6 +1117,7 @@
             tasks: [],
             deadlines: [],
             schedule: JSON.parse(JSON.stringify(defaultSchedule)),
+            templates: [],
             settings: {
                 workerUrl: '',
                 clientId: '',
@@ -1125,6 +1126,34 @@
             currentLocation: 'home',
             lastSync: null
         };
+
+        // ===== DEFAULT TEMPLATES =====
+        const defaultTemplates = [
+            {
+                id: 'bio-weekly',
+                name: 'Bio Weekly Work',
+                tasks: [
+                    { title: 'SmartBook chapter', timeEstimate: 45, energy: 'medium', location: 'anywhere', priority: 'high' },
+                    { title: 'Bio assignment', timeEstimate: 30, energy: 'medium', location: 'school', priority: 'high' },
+                    { title: 'Bio quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'high' },
+                    { title: 'Digital lab', timeEstimate: 60, energy: 'high', location: 'home', priority: 'high' }
+                ],
+                dueDay: 'Wednesday',
+                dueTime: '23:58'
+            },
+            {
+                id: 'beatles-weekly',
+                name: 'Beatles Weekly Work',
+                tasks: [
+                    { title: 'Discussion post', timeEstimate: 20, energy: 'medium', location: 'phone', priority: 'medium' },
+                    { title: 'Discussion response', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' },
+                    { title: 'PowerPoint slides', timeEstimate: 45, energy: 'medium', location: 'home', priority: 'medium' },
+                    { title: 'Beatles quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' }
+                ],
+                dueDay: 'Sunday',
+                dueTime: '23:58'
+            }
+        ];
 
         // ===== GOOGLE DRIVE API FUNCTIONS =====
         function initGoogleAPI() {
