@@ -1389,6 +1389,317 @@
             }
         }
 
+        // ===== DEADLINE MANAGEMENT =====
+        function showAddDeadlineModal() {
+            const quickInput = document.getElementById('quickDeadlineInput');
+            const quickText = quickInput.value.trim();
+            
+            // Create a simple prompt modal
+            const title = quickText || prompt('What\'s the deadline for?');
+            if (!title) return;
+            
+            const dateStr = prompt('When is it due? (YYYY-MM-DD or MM/DD)');
+            if (!dateStr) return;
+            
+            // Parse date
+            let dueDate;
+            if (dateStr.includes('-')) {
+                dueDate = dateStr; // Already in YYYY-MM-DD format
+            } else {
+                // Convert MM/DD to YYYY-MM-DD
+                const [month, day] = dateStr.split('/');
+                const year = new Date().getFullYear();
+                dueDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+            
+            addDeadline(title, dueDate);
+            quickInput.value = '';
+        }
+
+        function addDeadline(title, dueDate) {
+            const deadline = {
+                id: Date.now().toString(),
+                title: title,
+                dueDate: dueDate,
+                createdAt: new Date().toISOString(),
+                completed: false
+            };
+            
+            appData.deadlines.push(deadline);
+            saveData();
+            renderDeadlines();
+            
+            // Show the "Create tasks?" modal
+            afterDeadlineCreated(deadline);
+        }
+
+        function afterDeadlineCreated(deadline) {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>✨ Create tasks for this deadline?</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <p style="margin-bottom: 20px;">Would you like to create tasks for <strong>${deadline.title}</strong>?</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="autoCreateTasksWithAI('${deadline.id}'); this.closest('.modal').remove();">
+                            ✨ Auto-create (AI)
+                        </button>
+                        <button class="btn btn-secondary" onclick="showQuickTaskCreator('${deadline.id}'); this.closest('.modal').remove();">
+                            📝 Quick setup
+                        </button>
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                            Skip for now
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        async function autoCreateTasksWithAI(deadlineId) {
+            const deadline = appData.deadlines.find(d => d.id === deadlineId);
+            if (!deadline) return;
+            
+            // Show loading state
+            const loadingModal = document.createElement('div');
+            loadingModal.className = 'modal active';
+            loadingModal.innerHTML = `
+                <div class="modal-content">
+                    <h2>✨ Creating tasks...</h2>
+                    <p>AI is breaking down "${deadline.title}" into manageable tasks...</p>
+                </div>
+            `;
+            document.body.appendChild(loadingModal);
+            
+            try {
+                const daysUntil = Math.ceil((new Date(deadline.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+                
+                const systemPrompt = `You are an ADHD-friendly task planner. Break down the deadline into 2-4 concrete, actionable tasks. Consider the time available (${daysUntil} days). For each task, determine:
+- title (clear, specific action)
+- energy level (high/medium/low)
+- location (home/school/work/phone/anywhere)
+- timeEstimate in minutes (realistic)
+
+Return ONLY valid JSON array, no other text:
+[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30}]`;
+
+                const response = await callClaudeAPI([{
+                    role: 'user',
+                    content: `Deadline: ${deadline.title}\nDue: ${deadline.dueDate}\nDays until due: ${daysUntil}`
+                }], systemPrompt);
+
+                const tasks = JSON.parse(response);
+                tasks.forEach(task => {
+                    task.parentDeadline = deadlineId;
+                    task.dueDate = deadline.dueDate;
+                    addTask(task);
+                });
+
+                loadingModal.remove();
+                
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                
+                alert(`✅ Created ${tasks.length} tasks for "${deadline.title}"!`);
+            } catch (error) {
+                console.error('Auto-create tasks error:', error);
+                loadingModal.remove();
+                alert('Failed to create tasks. Check your API configuration or try Quick setup instead.');
+            }
+        }
+
+        function showQuickTaskCreator(deadlineId) {
+            const deadline = appData.deadlines.find(d => d.id === deadlineId);
+            if (!deadline) return;
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>📝 Quick Task Setup</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <p style="margin-bottom: 15px;">Create up to 3 tasks for <strong>${deadline.title}</strong>:</p>
+                    
+                    <div class="form-group">
+                        <label>Task 1</label>
+                        <input type="text" id="quickTask1" placeholder="e.g., Research topic">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Task 2 (optional)</label>
+                        <input type="text" id="quickTask2" placeholder="e.g., Write outline">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Task 3 (optional)</label>
+                        <input type="text" id="quickTask3" placeholder="e.g., Final review">
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="saveQuickTasks('${deadlineId}'); this.closest('.modal').remove();">
+                        ✅ Create Tasks
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Focus first input
+            setTimeout(() => document.getElementById('quickTask1').focus(), 100);
+        }
+
+        function saveQuickTasks(deadlineId) {
+            const deadline = appData.deadlines.find(d => d.id === deadlineId);
+            if (!deadline) return;
+            
+            const task1 = document.getElementById('quickTask1').value.trim();
+            const task2 = document.getElementById('quickTask2').value.trim();
+            const task3 = document.getElementById('quickTask3').value.trim();
+            
+            let count = 0;
+            [task1, task2, task3].forEach(title => {
+                if (title) {
+                    addTask({
+                        title: title,
+                        energy: 'medium',
+                        location: 'anywhere',
+                        timeEstimate: 30,
+                        parentDeadline: deadlineId,
+                        dueDate: deadline.dueDate
+                    });
+                    count++;
+                }
+            });
+            
+            if (count > 0) {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                alert(`✅ Created ${count} task${count > 1 ? 's' : ''} for "${deadline.title}"!`);
+            }
+        }
+
+        function toggleDeadline(deadlineId) {
+            const deadline = appData.deadlines.find(d => d.id === deadlineId);
+            if (deadline) {
+                deadline.completed = !deadline.completed;
+                
+                // Also complete all related tasks
+                if (deadline.completed) {
+                    appData.tasks.forEach(task => {
+                        if (task.parentDeadline === deadlineId) {
+                            task.completed = true;
+                        }
+                    });
+                    
+                    confetti({
+                        particleCount: 150,
+                        spread: 100,
+                        origin: { y: 0.6 }
+                    });
+                }
+                
+                saveData();
+                renderDeadlines();
+                renderTasks();
+            }
+        }
+
+        function deleteDeadline(deadlineId) {
+            if (confirm('Delete this deadline and all related tasks?')) {
+                appData.deadlines = appData.deadlines.filter(d => d.id !== deadlineId);
+                appData.tasks = appData.tasks.filter(t => t.parentDeadline !== deadlineId);
+                saveData();
+                renderDeadlines();
+                renderTasks();
+            }
+        }
+
+        function renderDeadlines() {
+            const container = document.getElementById('allDeadlines');
+            const activeDeadlines = appData.deadlines.filter(d => !d.completed);
+            
+            if (activeDeadlines.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <p>No deadlines yet!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by due date
+            activeDeadlines.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            
+            container.innerHTML = activeDeadlines.map(deadline => {
+                const dueDate = new Date(deadline.dueDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                
+                let urgencyColor = 'var(--success)';
+                let urgencyText = `${daysUntil} days`;
+                
+                if (daysUntil < 0) {
+                    urgencyColor = 'var(--danger)';
+                    urgencyText = 'OVERDUE';
+                } else if (daysUntil === 0) {
+                    urgencyColor = 'var(--danger)';
+                    urgencyText = 'TODAY';
+                } else if (daysUntil === 1) {
+                    urgencyColor = 'var(--warning)';
+                    urgencyText = 'Tomorrow';
+                } else if (daysUntil <= 3) {
+                    urgencyColor = 'var(--warning)';
+                }
+                
+                const relatedTasks = appData.tasks.filter(t => t.parentDeadline === deadline.id);
+                const completedTasks = relatedTasks.filter(t => t.completed).length;
+                
+                return `
+                    <div class="task-item" style="border-left: 4px solid ${urgencyColor};">
+                        <input type="checkbox" class="task-checkbox" 
+                               onchange="toggleDeadline('${deadline.id}')" ${deadline.completed ? 'checked' : ''}>
+                        <div class="task-content">
+                            <div class="task-title">${deadline.title}</div>
+                            <div class="task-meta">
+                                <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
+                                    📅 ${urgencyText}
+                                </span>
+                                ${relatedTasks.length > 0 ? `
+                                    <span style="background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">
+                                        ${completedTasks}/${relatedTasks.length} tasks done
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            ${daysUntil > 3 ? `
+                                <button class="task-btn" onclick="breakDownDeadline('${deadline.id}')" title="Break down into smaller tasks">
+                                    🔨 Break Down
+                                </button>
+                            ` : ''}
+                            <button class="task-btn" onclick="deleteDeadline('${deadline.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Placeholder for Feature 4
+        function breakDownDeadline(deadlineId) {
+            alert('Feature 4: Auto-Break-Down Deadlines - Coming next!');
+        }
+
         // ===== TASK MANAGEMENT =====
         function addTask(task) {
             task.id = Date.now().toString();
