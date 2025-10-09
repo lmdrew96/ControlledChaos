@@ -2,7 +2,7 @@
 // This proxies requests from your app to the Anthropic API with CORS headers
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -28,8 +28,10 @@ export default {
     }
 
     try {
-      // Get the API key from the request header (case-insensitive)
-      const apiKey = request.headers.get('x-api-key') || request.headers.get('X-API-Key');
+      // Get API key from Cloudflare secret first, then fall back to header
+      const apiKey = env.ANTHROPIC_API_KEY || 
+                     request.headers.get('x-api-key') || 
+                     request.headers.get('X-API-Key');
       
       console.log('API Key present:', !!apiKey);
       console.log('API Key starts with sk-ant-:', apiKey?.startsWith('sk-ant-'));
