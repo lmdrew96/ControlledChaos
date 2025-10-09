@@ -909,17 +909,32 @@
             </div>
         </div>
 
-        <!-- Commute Task List Section -->
-        <div class="card commute-section">
-            <h2>🚗 Commute Tasks</h2>
-            <p class="commute-hint" style="color: var(--text-light); margin-bottom: 15px;">
-                Tasks you can do on your phone while traveling
+        <!-- Errands & Stops Section -->
+        <div class="card errands-section">
+            <h2>🏪 Errands & Stops</h2>
+            <p class="errands-hint" style="color: var(--text-light); margin-bottom: 15px;">
+                Things to do when you're out and about (post office, grocery store, etc.)
             </p>
-            <div id="commuteTasks" class="task-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📱</div>
-                    <p>No phone-friendly tasks yet!</p>
+            
+            <div class="common-errands" style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px;">Quick add common errands:</h4>
+                <div class="errand-buttons" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    <button class="btn btn-secondary" onclick="quickAddErrand('Post office')" style="width: 100%;">📮 Post office</button>
+                    <button class="btn btn-secondary" onclick="quickAddErrand('Grocery store')" style="width: 100%;">🛒 Grocery</button>
+                    <button class="btn btn-secondary" onclick="quickAddErrand('Gas station')" style="width: 100%;">⛽ Gas</button>
+                    <button class="btn btn-secondary" onclick="quickAddErrand('Pharmacy')" style="width: 100%;">💊 Pharmacy</button>
                 </div>
+            </div>
+            
+            <div id="errandTasks" class="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏪</div>
+                    <p>No errands yet!</p>
+                </div>
+            </div>
+            
+            <div class="commute-home-indicator" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-top: 15px;" id="commuteHomeIndicator">
+                🚗 You're driving home - good time to make stops!
             </div>
         </div>
 
@@ -2312,10 +2327,49 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             }
         }
 
-        function getCommuteTasks() {
+        // Quick add errand function
+        function quickAddErrand(errandType) {
+            const errandDefaults = {
+                'Post office': {
+                    title: 'Stop at post office',
+                    timeEstimate: 10,
+                    energy: 'low'
+                },
+                'Grocery store': {
+                    title: 'Quick grocery run',
+                    timeEstimate: 20,
+                    energy: 'medium'
+                },
+                'Gas station': {
+                    title: 'Fill up gas tank',
+                    timeEstimate: 10,
+                    energy: 'low'
+                },
+                'Pharmacy': {
+                    title: 'Pick up prescription',
+                    timeEstimate: 10,
+                    energy: 'low'
+                }
+            };
+            
+            const defaults = errandDefaults[errandType];
+            
+            const newTask = {
+                title: defaults.title,
+                timeEstimate: defaults.timeEstimate,
+                energy: defaults.energy,
+                location: 'errands',
+                priority: 'medium'
+            };
+            
+            addTask(newTask);
+            showToast(`✅ Added: ${defaults.title}`);
+        }
+
+        function getErrandTasks() {
             return appData.tasks.filter(task => 
                 !task.completed && 
-                (task.location === 'phone' || task.location === 'anywhere')
+                task.location === 'errands'
             ).sort((a, b) => {
                 // Prioritize by due date, then priority
                 if (a.dueDate && b.dueDate) {
@@ -2328,67 +2382,109 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             });
         }
 
-        function renderCommuteTasks() {
-            const container = document.getElementById('commuteTasks');
-            const commuteTasks = getCommuteTasks();
+        function isCommuteHomeBlock() {
+            const now = getCurrentDateTime();
+            const dayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
             
-            if (commuteTasks.length === 0) {
+            const commuteHomeBlocks = [
+                { day: 'Monday', startTime: '13:00', endTime: '13:40' },
+                { day: 'Tuesday', startTime: '16:00', endTime: '16:40' },
+                { day: 'Wednesday', startTime: '14:00', endTime: '14:35' },
+                { day: 'Friday', startTime: '22:25', endTime: '22:50' },
+                { day: 'Saturday', startTime: '22:25', endTime: '22:50' }
+            ];
+            
+            return commuteHomeBlocks.some(block => {
+                if (block.day !== dayName) return false;
+                const startMinutes = parseTime(block.startTime);
+                const endMinutes = parseTime(block.endTime);
+                return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+            });
+        }
+
+        function renderErrandTasks() {
+            const container = document.getElementById('errandTasks');
+            const errandTasks = getErrandTasks();
+            const indicator = document.getElementById('commuteHomeIndicator');
+            
+            // Update commute home indicator
+            if (isCommuteHomeBlock()) {
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+            
+            if (errandTasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📱</div>
-                        <p>No phone-friendly tasks yet!</p>
+                        <div class="empty-state-icon">🏪</div>
+                        <p>No errands yet!</p>
                     </div>
                 `;
                 return;
             }
 
-            // Check if user is currently commuting
-            const currentBlock = getCurrentBlock();
-            const isCommuting = currentBlock && currentBlock.location === 'commute';
-            
-            let html = '';
-            
-            if (isCommuting) {
-                const commuteMinutes = currentBlock.minutesRemaining;
-                const perfectTasks = commuteTasks.filter(t => 
-                    t.timeEstimate && t.timeEstimate >= 15 && t.timeEstimate <= commuteMinutes
-                );
-                
-                if (perfectTasks.length > 0) {
-                    html += `
-                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                            <strong>🚗 You're commuting!</strong> Here are phone-friendly tasks (${commuteMinutes} min available):
-                        </div>
-                    `;
-                }
-            }
-            
-            html += commuteTasks.map(task => {
-                const isPerfectForCommute = task.timeEstimate && task.timeEstimate >= 15 && task.timeEstimate <= 40;
-                
-                return `
-                    <div class="task-item" style="${isPerfectForCommute ? 'border: 2px solid var(--success);' : ''}">
-                        <input type="checkbox" class="task-checkbox" 
-                               onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
-                        <div class="task-content">
-                            <div class="task-title">
-                                ${task.title}
-                                ${isPerfectForCommute ? ' <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75em;">Perfect for commute!</span>' : ''}
-                            </div>
-                            <div class="task-meta">
-                                <span class="energy-badge energy-${task.energy}">${task.energy}</span>
-                                <span class="location-badge">📍 ${task.location}</span>
-                                ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
-                            </div>
-                        </div>
-                        <div class="task-actions">
-                            <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+            container.innerHTML = errandTasks.map(task => `
+                <div class="task-item">
+                    <input type="checkbox" class="task-checkbox" 
+                           onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+                    <div class="task-content">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-meta">
+                            <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                            <span class="location-badge">🏪 ${task.location}</span>
+                            ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
                         </div>
                     </div>
-                `;
-            }).join('');
+                    <div class="task-actions">
+                        <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Migration function for existing 'phone' tasks
+        function migratePhoneToErrands() {
+            const migrationKey = 'phone_to_errands_migration_done';
             
-            container.innerHTML = html;
+            if (localStorage.getItem(migrationKey)) {
+                return; // Already migrated
+            }
+            
+            let migratedCount = 0;
+            
+            appData.tasks.forEach(task => {
+                if (task.location === 'phone') {
+                    // Analyze the task to determine if it's actually an errand
+                    const isActualErrand = 
+                        task.title.toLowerCase().includes('post office') ||
+                        task.title.toLowerCase().includes('grocery') ||
+                        task.title.toLowerCase().includes('gas') ||
+                        task.title.toLowerCase().includes('store') ||
+                        task.title.toLowerCase().includes('pharmacy') ||
+                        task.title.toLowerCase().includes('pick up') ||
+                        task.title.toLowerCase().includes('drop off') ||
+                        task.title.toLowerCase().includes('errand');
+                    
+                    if (isActualErrand) {
+                        task.location = 'errands';
+                    } else {
+                        // These were probably meant to be phone tasks but are unsafe
+                        // Change to 'anywhere' since they can do them when NOT driving
+                        task.location = 'anywhere';
+                    }
+                    
+                    migratedCount++;
+                }
+            });
+            
+            if (migratedCount > 0) {
+                saveData();
+                showToast(`📝 Updated ${migratedCount} tasks for safety`);
+            }
+            
+            localStorage.setItem(migrationKey, 'true');
         }
 
         function renderTasks() {
@@ -2423,8 +2519,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
                 </div>
             `).join('');
             
-            // Also render commute tasks
-            renderCommuteTasks();
+            // Also render errand tasks
+            renderErrandTasks();
         }
 
         // ===== SCHEDULE FUNCTIONS =====
@@ -2550,25 +2646,25 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             
             const suggestionCard = document.getElementById('suggestionCard');
             
-            // Special handling for commute location
+            // SAFETY: Special handling for commute location - ONLY show errands during commute home
             if (location === 'commute') {
-                const commuteTasks = getCommuteTasks();
+                const errandTasks = getErrandTasks();
+                const isCommuteHome = isCommuteHomeBlock();
                 
-                if (commuteTasks.length > 0) {
-                    const task = commuteTasks[0];
-                    const timeRemaining = currentBlock ? currentBlock.minutesRemaining : null;
+                if (isCommuteHome && errandTasks.length > 0) {
+                    const task = errandTasks[0];
                     
                     suggestionCard.innerHTML = `
                         <div class="suggestion-card">
-                            <h3>🚗 Commute Task</h3>
+                            <h3>🏪 Errand Suggestion</h3>
                             <p style="font-size: 1.2em; font-weight: 600; margin: 10px 0;">${task.title}</p>
                             <div style="display: flex; gap: 10px; margin: 15px 0;">
                                 <span class="energy-badge energy-${task.energy}">${task.energy}</span>
-                                <span class="location-badge">📍 ${task.location}</span>
+                                <span class="location-badge">🏪 ${task.location}</span>
                                 ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
                             </div>
                             <p class="suggestion-reason">
-                                ${timeRemaining ? `Perfect for your ${timeRemaining} minute commute!` : 'Great for commuting!'}
+                                🚗 You're driving home - good time to make stops!
                             </p>
                             <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
                                 ✅ Mark Complete
@@ -2580,11 +2676,13 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
                 } else {
                     suggestionCard.innerHTML = `
                         <div class="suggestion-card">
-                            <h3>🚗 Commute Time</h3>
-                            <p>No phone-friendly tasks available. Enjoy your commute!</p>
-                            <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
-                                ➕ Add Task
-                            </button>
+                            <h3>🚗 Safe Driving</h3>
+                            <p>Focus on the road! ${isCommuteHome ? 'Add errands with 🏪 if you need to make stops.' : 'Enjoy your commute safely.'}</p>
+                            ${isCommuteHome ? `
+                                <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
+                                    ➕ Add Errand
+                                </button>
+                            ` : ''}
                         </div>
                     `;
                     suggestionCard.style.display = 'block';
@@ -3126,6 +3224,9 @@ Format as natural, encouraging text. Be brief and direct.`;
                     }, 2000);
                 }
             }, 1000);
+            
+            // Run safety migration for phone -> errands
+            migratePhoneToErrands();
             
             updateUI();
             
