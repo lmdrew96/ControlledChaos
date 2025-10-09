@@ -857,6 +857,20 @@
             <div id="scheduleView"></div>
         </div>
 
+        <!-- Commute Task List Section -->
+        <div class="card commute-section">
+            <h2>🚗 Commute Tasks</h2>
+            <p class="commute-hint" style="color: var(--text-light); margin-bottom: 15px;">
+                Tasks you can do on your phone while traveling
+            </p>
+            <div id="commuteTasks" class="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📱</div>
+                    <p>No phone-friendly tasks yet!</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Tasks Section -->
         <div class="card">
             <h2>📋 All Tasks</h2>
@@ -1049,6 +1063,7 @@
         // ===== APP DATA STRUCTURE =====
         let appData = {
             tasks: [],
+            deadlines: [],
             schedule: JSON.parse(JSON.stringify(defaultSchedule)),
             settings: {
                 workerUrl: '',
@@ -1408,6 +1423,85 @@
             }
         }
 
+        function getCommuteTasks() {
+            return appData.tasks.filter(task => 
+                !task.completed && 
+                (task.location === 'phone' || task.location === 'anywhere')
+            ).sort((a, b) => {
+                // Prioritize by due date, then priority
+                if (a.dueDate && b.dueDate) {
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                }
+                const priorityOrder = { high: 3, medium: 2, low: 1 };
+                const aPriority = priorityOrder[a.priority] || 2;
+                const bPriority = priorityOrder[b.priority] || 2;
+                return bPriority - aPriority;
+            });
+        }
+
+        function renderCommuteTasks() {
+            const container = document.getElementById('commuteTasks');
+            const commuteTasks = getCommuteTasks();
+            
+            if (commuteTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📱</div>
+                        <p>No phone-friendly tasks yet!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Check if user is currently commuting
+            const currentBlock = getCurrentBlock();
+            const isCommuting = currentBlock && currentBlock.location === 'commute';
+            
+            let html = '';
+            
+            if (isCommuting) {
+                const commuteMinutes = currentBlock.minutesRemaining;
+                const perfectTasks = commuteTasks.filter(t => 
+                    t.timeEstimate && t.timeEstimate >= 15 && t.timeEstimate <= commuteMinutes
+                );
+                
+                if (perfectTasks.length > 0) {
+                    html += `
+                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                            <strong>🚗 You're commuting!</strong> Here are phone-friendly tasks (${commuteMinutes} min available):
+                        </div>
+                    `;
+                }
+            }
+            
+            html += commuteTasks.map(task => {
+                const isPerfectForCommute = task.timeEstimate && task.timeEstimate >= 15 && task.timeEstimate <= 40;
+                
+                return `
+                    <div class="task-item" style="${isPerfectForCommute ? 'border: 2px solid var(--success);' : ''}">
+                        <input type="checkbox" class="task-checkbox" 
+                               onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+                        <div class="task-content">
+                            <div class="task-title">
+                                ${task.title}
+                                ${isPerfectForCommute ? ' <span style="background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75em;">Perfect for commute!</span>' : ''}
+                            </div>
+                            <div class="task-meta">
+                                <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                                <span class="location-badge">📍 ${task.location}</span>
+                                ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+
         function renderTasks() {
             const container = document.getElementById('allTasks');
             const incompleteTasks = appData.tasks.filter(t => !t.completed);
@@ -1439,6 +1533,9 @@
                     </div>
                 </div>
             `).join('');
+            
+            // Also render commute tasks
+            renderCommuteTasks();
         }
 
         // ===== SCHEDULE FUNCTIONS =====
@@ -1562,14 +1659,56 @@
                 contextDetails.textContent = 'No scheduled block right now';
             }
             
-            // Find best task
+            const suggestionCard = document.getElementById('suggestionCard');
+            
+            // Special handling for commute location
+            if (location === 'commute') {
+                const commuteTasks = getCommuteTasks();
+                
+                if (commuteTasks.length > 0) {
+                    const task = commuteTasks[0];
+                    const timeRemaining = currentBlock ? currentBlock.minutesRemaining : null;
+                    
+                    suggestionCard.innerHTML = `
+                        <div class="suggestion-card">
+                            <h3>🚗 Commute Task</h3>
+                            <p style="font-size: 1.2em; font-weight: 600; margin: 10px 0;">${task.title}</p>
+                            <div style="display: flex; gap: 10px; margin: 15px 0;">
+                                <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                                <span class="location-badge">📍 ${task.location}</span>
+                                ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                            </div>
+                            <p class="suggestion-reason">
+                                ${timeRemaining ? `Perfect for your ${timeRemaining} minute commute!` : 'Great for commuting!'}
+                            </p>
+                            <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
+                                ✅ Mark Complete
+                            </button>
+                        </div>
+                    `;
+                    suggestionCard.style.display = 'block';
+                    return;
+                } else {
+                    suggestionCard.innerHTML = `
+                        <div class="suggestion-card">
+                            <h3>🚗 Commute Time</h3>
+                            <p>No phone-friendly tasks available. Enjoy your commute!</p>
+                            <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
+                                ➕ Add Task
+                            </button>
+                        </div>
+                    `;
+                    suggestionCard.style.display = 'block';
+                    return;
+                }
+            }
+            
+            // Find best task for other locations
             const availableTasks = appData.tasks.filter(t => 
                 !t.completed && 
                 (t.location === 'anywhere' || t.location === location) &&
                 (t.energy === currentEnergy || t.energy === 'medium')
             );
-            
-            const suggestionCard = document.getElementById('suggestionCard');
             
             if (currentBlock && currentBlock.type === 'protected') {
                 suggestionCard.innerHTML = `
