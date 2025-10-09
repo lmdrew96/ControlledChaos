@@ -8,6 +8,8 @@
     <!-- Google API Scripts -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js"></script>
+    <!-- Mood Tracker -->
+    <script src="mood-tracker.js"></script>
     <style>
         :root {
             --primary: #667eea;
@@ -1007,6 +1009,10 @@
                 <button class="btn btn-secondary" onclick="showStuck()" data-tooltip="I'm Stuck">
                     <span class="btn-icon">🤔</span>
                     <span class="btn-text">I'm Stuck</span>
+                </button>
+                <button class="btn btn-secondary" onclick="MoodTracker.showVisualization()" data-tooltip="Mood Patterns">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">Mood Patterns</span>
                 </button>
                 <button class="btn btn-secondary" onclick="showEditSchedule()" data-tooltip="Edit Schedule">
                     <span class="btn-icon">📅</span>
@@ -2499,11 +2505,30 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             if (task) {
                 task.completed = !task.completed;
                 if (task.completed) {
+                    task.completedAt = new Date().toISOString();
+                    
                     confetti({
                         particleCount: 100,
                         spread: 70,
                         origin: { y: 0.6 }
                     });
+                    
+                    // Check if this is the "Wake up & take meds" task
+                    if (task.title && task.title.toLowerCase().includes('wake up') && task.title.toLowerCase().includes('meds')) {
+                        // Show morning check-in after a brief delay
+                        setTimeout(() => {
+                            if (typeof MoodTracker !== 'undefined') {
+                                MoodTracker.showMorningCheckIn();
+                            }
+                        }, 2000);
+                    } else {
+                        // Show task completion micro-check for other tasks
+                        setTimeout(() => {
+                            if (typeof MoodTracker !== 'undefined') {
+                                MoodTracker.showTaskCompletionCheck(taskId);
+                            }
+                        }, 1000);
+                    }
                 }
                 saveData();
                 renderTasks();
