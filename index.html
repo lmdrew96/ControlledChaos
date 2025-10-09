@@ -923,6 +923,41 @@
             </div>
         </div>
 
+        <!-- Templates Section -->
+        <div class="card">
+            <h2>📋 Weekly Task Templates</h2>
+            <p style="color: var(--text-light); margin-bottom: 15px;">
+                Create all your weekly coursework with one click
+            </p>
+            <div class="template-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <!-- Bio template -->
+                <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
+                    <h4 style="color: var(--primary); margin-bottom: 10px;">Bio Weekly Work</h4>
+                    <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                        4 tasks • Due Wednesdays 11:58pm
+                    </p>
+                    <button class="btn btn-primary" onclick="createTasksFromTemplate('bio-weekly')" style="width: 100%;">
+                        ✨ Create Tasks
+                    </button>
+                </div>
+                
+                <!-- Beatles template -->
+                <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
+                    <h4 style="color: var(--primary); margin-bottom: 10px;">Beatles Weekly Work</h4>
+                    <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                        4 tasks • Due Sundays 11:58pm
+                    </p>
+                    <button class="btn btn-primary" onclick="createTasksFromTemplate('beatles-weekly')" style="width: 100%;">
+                        ✨ Create Tasks
+                    </button>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="showCreateTemplateModal()" style="width: 100%;">
+                ➕ Create Custom Template
+            </button>
+        </div>
+
         <!-- Tasks Section -->
         <div class="card">
             <h2>📋 All Tasks</h2>
@@ -1127,33 +1162,229 @@
             lastSync: null
         };
 
-        // ===== DEFAULT TEMPLATES =====
-        const defaultTemplates = [
-            {
-                id: 'bio-weekly',
-                name: 'Bio Weekly Work',
-                tasks: [
-                    { title: 'SmartBook chapter', timeEstimate: 45, energy: 'medium', location: 'anywhere', priority: 'high' },
-                    { title: 'Bio assignment', timeEstimate: 30, energy: 'medium', location: 'school', priority: 'high' },
-                    { title: 'Bio quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'high' },
-                    { title: 'Digital lab', timeEstimate: 60, energy: 'high', location: 'home', priority: 'high' }
-                ],
-                dueDay: 'Wednesday',
-                dueTime: '23:58'
-            },
-            {
-                id: 'beatles-weekly',
-                name: 'Beatles Weekly Work',
-                tasks: [
-                    { title: 'Discussion post', timeEstimate: 20, energy: 'medium', location: 'phone', priority: 'medium' },
-                    { title: 'Discussion response', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' },
-                    { title: 'PowerPoint slides', timeEstimate: 45, energy: 'medium', location: 'home', priority: 'medium' },
-                    { title: 'Beatles quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' }
-                ],
-                dueDay: 'Sunday',
-                dueTime: '23:58'
+        // ===== TEMPLATE FUNCTIONS =====
+        function getNextDayOfWeek(dayName) {
+            const targetDay = days.indexOf(dayName);
+            const today = new Date();
+            const currentDay = today.getDay();
+            
+            let daysUntilTarget = targetDay - currentDay;
+            if (daysUntilTarget <= 0) {
+                daysUntilTarget += 7; // Next week
             }
-        ];
+            
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + daysUntilTarget);
+            return targetDate;
+        }
+
+        function createTasksFromTemplate(templateId) {
+            // Initialize templates if not exists
+            if (!appData.templates || appData.templates.length === 0) {
+                appData.templates = [
+                    {
+                        id: 'bio-weekly',
+                        name: 'Bio Weekly Work',
+                        tasks: [
+                            { title: 'SmartBook chapter', timeEstimate: 45, energy: 'medium', location: 'anywhere', priority: 'high' },
+                            { title: 'Bio assignment', timeEstimate: 30, energy: 'medium', location: 'school', priority: 'high' },
+                            { title: 'Bio quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'high' },
+                            { title: 'Digital lab', timeEstimate: 60, energy: 'high', location: 'home', priority: 'high' }
+                        ],
+                        dueDay: 'Wednesday',
+                        dueTime: '23:58'
+                    },
+                    {
+                        id: 'beatles-weekly',
+                        name: 'Beatles Weekly Work',
+                        tasks: [
+                            { title: 'Discussion post', timeEstimate: 20, energy: 'medium', location: 'phone', priority: 'medium' },
+                            { title: 'Discussion response', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' },
+                            { title: 'PowerPoint slides', timeEstimate: 45, energy: 'medium', location: 'home', priority: 'medium' },
+                            { title: 'Beatles quiz', timeEstimate: 15, energy: 'low', location: 'phone', priority: 'medium' }
+                        ],
+                        dueDay: 'Sunday',
+                        dueTime: '23:58'
+                    }
+                ];
+            }
+            
+            const template = appData.templates.find(t => t.id === templateId);
+            if (!template) {
+                alert('Template not found!');
+                return;
+            }
+            
+            const dueDate = getNextDayOfWeek(template.dueDay);
+            const [hours, minutes] = template.dueTime.split(':');
+            dueDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            
+            template.tasks.forEach(taskTemplate => {
+                const newTask = {
+                    title: taskTemplate.title,
+                    timeEstimate: taskTemplate.timeEstimate,
+                    energy: taskTemplate.energy,
+                    location: taskTemplate.location,
+                    priority: taskTemplate.priority || 'medium',
+                    dueDate: dueDate.toISOString().split('T')[0],
+                    fromTemplate: template.id
+                };
+                
+                addTask(newTask);
+            });
+            
+            showToast(`✅ Created ${template.tasks.length} tasks from ${template.name}`);
+            confetti({
+                particleCount: 50,
+                spread: 60,
+                origin: { y: 0.7 }
+            });
+        }
+
+        function showCreateTemplateModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Create Custom Template</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Template Name</label>
+                        <input type="text" id="templateName" placeholder="e.g., World History Weekly">
+                    </div>
+                    <div class="form-group">
+                        <label>Due Day</label>
+                        <select id="templateDueDay">
+                            <option>Monday</option>
+                            <option>Tuesday</option>
+                            <option>Wednesday</option>
+                            <option>Thursday</option>
+                            <option>Friday</option>
+                            <option>Saturday</option>
+                            <option>Sunday</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Due Time</label>
+                        <input type="time" id="templateDueTime" value="23:58">
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Tasks</label>
+                        <input type="number" id="templateTaskCount" min="1" max="10" value="3">
+                    </div>
+                    <button class="btn btn-primary" onclick="showTaskCreatorForTemplate(); this.closest('.modal').remove();">
+                        Next: Define Tasks
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showTaskCreatorForTemplate() {
+            const name = document.getElementById('templateName').value.trim();
+            const dueDay = document.getElementById('templateDueDay').value;
+            const dueTime = document.getElementById('templateDueTime').value;
+            const taskCount = parseInt(document.getElementById('templateTaskCount').value);
+            
+            if (!name) {
+                alert('Please enter a template name!');
+                return;
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal active';
+            
+            let taskFieldsHTML = '';
+            for (let i = 0; i < taskCount; i++) {
+                taskFieldsHTML += `
+                    <div style="background: var(--bg-main); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin-bottom: 10px;">Task ${i + 1}</h4>
+                        <div class="form-group">
+                            <label>Task Name</label>
+                            <input type="text" id="taskName${i}" placeholder="e.g., Read chapter">
+                        </div>
+                        <div class="form-group">
+                            <label>Time Estimate (minutes)</label>
+                            <input type="number" id="taskTime${i}" value="30" min="5" max="180">
+                        </div>
+                        <div class="form-group">
+                            <label>Energy Level</label>
+                            <select id="taskEnergy${i}">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Location</label>
+                            <select id="taskLocation${i}">
+                                <option value="anywhere" selected>Anywhere</option>
+                                <option value="home">Home</option>
+                                <option value="school">School</option>
+                                <option value="phone">Phone</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h2>Define tasks for ${name}</h2>
+                        <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    ${taskFieldsHTML}
+                    <button class="btn btn-primary" onclick="saveCustomTemplate('${name}', '${dueDay}', '${dueTime}', ${taskCount}); this.closest('.modal').remove();">
+                        ✅ Create Template
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function saveCustomTemplate(name, dueDay, dueTime, taskCount) {
+            const tasks = [];
+            for (let i = 0; i < taskCount; i++) {
+                const taskName = document.getElementById(`taskName${i}`).value.trim();
+                if (taskName) {
+                    tasks.push({
+                        title: taskName,
+                        timeEstimate: parseInt(document.getElementById(`taskTime${i}`).value),
+                        energy: document.getElementById(`taskEnergy${i}`).value,
+                        location: document.getElementById(`taskLocation${i}`).value,
+                        priority: 'medium'
+                    });
+                }
+            }
+            
+            if (tasks.length === 0) {
+                alert('Please add at least one task!');
+                return;
+            }
+            
+            const template = {
+                id: 'custom-' + Date.now(),
+                name: name,
+                tasks: tasks,
+                dueDay: dueDay,
+                dueTime: dueTime,
+                custom: true
+            };
+            
+            if (!appData.templates) {
+                appData.templates = [];
+            }
+            appData.templates.push(template);
+            saveData();
+            
+            showToast(`✅ Template "${name}" created!`);
+            
+            // Refresh the page to show new template
+            location.reload();
+        }
 
         // ===== GOOGLE DRIVE API FUNCTIONS =====
         function initGoogleAPI() {
