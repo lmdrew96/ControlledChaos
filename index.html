@@ -1880,21 +1880,22 @@
                 
                 console.log('🔄 [RESTORE SESSION] Token and email restored from localStorage');
                 
-                // Set token for gapi
-                if (gapiInitialized) {
-                    gapi.client.setToken({ access_token: googleAccessToken });
-                    console.log('🔄 [RESTORE SESSION] Token set for gapi client');
-                }
-                
                 // Update UI to show signed-in state
                 updateSignInUI();
                 console.log('🔄 [RESTORE SESSION] UI updated to show signed-in state');
                 
-                // STEP 3: Try to load from Drive (in background, may update if newer)
+                // STEP 3: Wait for gapi to initialize before attempting Drive operations
+                console.log('🔄 [RESTORE SESSION] Waiting for gapi to initialize...');
+                await waitForGapiInit();
+                
+                // Set token for gapi
+                gapi.client.setToken({ access_token: googleAccessToken });
+                console.log('🔄 [RESTORE SESSION] Token set for gapi client');
+                
+                // STEP 4: Try to load from Drive (in background, may update if newer)
                 try {
                     console.log('🔄 [RESTORE SESSION] Attempting to load data from Drive...');
                     await loadDataFromDrive();
-                    console.log('✅ [RESTORE SESSION] Data loaded successfully from Drive');
                     
                     // Update UI with Drive data (may be newer than localStorage)
                     updateUI();
@@ -1912,14 +1913,43 @@
             }
         }
 
+        // Helper function to wait for gapi initialization
+        function waitForGapiInit() {
+            return new Promise((resolve) => {
+                if (gapiInitialized) {
+                    resolve();
+                    return;
+                }
+                
+                const checkInterval = setInterval(() => {
+                    if (gapiInitialized) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+                
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    console.warn('⚠️ [GAPI] Initialization timeout - proceeding anyway');
+                    resolve();
+                }, 10000);
+            });
+        }
+
         async function loadDataFromDrive() {
             console.log('📥 [LOAD DATA] Starting data load from Drive...');
             console.log('📥 [LOAD DATA] googleAccessToken exists:', !!googleAccessToken);
             console.log('📥 [LOAD DATA] gapiInitialized:', gapiInitialized);
             
-            if (!googleAccessToken || !gapiInitialized) {
-                console.log('⚠️ [LOAD DATA] Cannot load - missing token or gapi not initialized');
+            if (!googleAccessToken) {
+                console.log('⚠️ [LOAD DATA] Cannot load - missing token');
                 return;
+            }
+
+            if (!gapiInitialized) {
+                console.log('⚠️ [LOAD DATA] Cannot load - gapi not initialized');
+                throw new Error('gapi not initialized');
             }
 
             try {
@@ -1983,7 +2013,7 @@
                     appData = loadedData;
                     appData.lastSync = new Date().toISOString();
                     
-                    console.log('✅ [LOAD DATA] Data loaded successfully');
+                    console.log('✅ [LOAD DATA] Data loaded successfully from Drive');
                     console.log('✅ [LOAD DATA] Tasks:', appData.tasks?.length || 0);
                     console.log('✅ [LOAD DATA] Deadlines:', appData.deadlines?.length || 0);
                     console.log('✅ [LOAD DATA] Settings loaded:', !!appData.settings);
@@ -1993,9 +2023,8 @@
                         syncIndicator.textContent = '☁️ Synced with Google Drive';
                     }
                 } else {
-                    console.log('ℹ️ [LOAD DATA] No existing file found, creating new one...');
-                    // No file exists, create one
-                    await saveDataToDrive();
+                    console.log('ℹ️ [LOAD DATA] No existing file found, will create on first save');
+                    // No file exists - don't create one yet, wait for first save
                 }
             } catch (error) {
                 console.error('❌ [LOAD DATA] Error loading from Drive:', error);
@@ -2009,11 +2038,12 @@
                 if (syncIndicator) {
                     syncIndicator.textContent = '⚠️ Sync error';
                 }
-                // If error is auth-related, sign out
+                // If error is auth-related, throw to let caller handle
                 if (error.status === 401 || error.status === 403) {
-                    console.log('🔐 [LOAD DATA] Auth error, signing out...');
-                    handleGoogleSignOut();
+                    console.log('🔐 [LOAD DATA] Auth error detected');
+                    throw error;
                 }
+                throw error;
             }
         }
 
@@ -2025,8 +2055,15 @@
             // Show saving indicator
             showSavingIndicator('💾 Saving...');
             
-            if (!googleAccessToken || !gapiInitialized) {
-                console.log('⚠️ [SAVE DATA] Cannot save to Drive - missing token or gapi not initialized');
+            if (!googleAccessToken) {
+                console.log('⚠️ [SAVE DATA] Cannot save to Drive - missing token');
+                pendingChanges = true;
+                hideSavingIndicator(false, '⚠️ Drive unavailable');
+                return;
+            }
+
+            if (!gapiInitialized) {
+                console.log('⚠️ [SAVE DATA] Cannot save to Drive - gapi not initialized');
                 pendingChanges = true;
                 hideSavingIndicator(false, '⚠️ Drive unavailable');
                 return;
@@ -3971,19 +4008,25 @@ Format as natural, encouraging text. Be brief and direct.`;
 
         // ===== INITIALIZATION =====
         window.addEventListener('load', async () => {
+            console.log('🚀 [INIT] Application starting...');
+            
+            // Initialize Google API
             initGoogleAPI();
             
-            // Wait a moment for gapi to initialize, then restore session
-            setTimeout(async () => {
-                await restoreSession();
-                
-                // Sync the updated defaultSchedule to Drive after session restore
-                if (googleAccessToken && gapiInitialized) {
-                    setTimeout(async () => {
-                        await syncDefaultScheduleToDrive();
-                    }, 2000);
-                }
-            }, 1000);
+            // Wait for gapi to initialize before attempting any Drive operations
+            console.log('⏳ [INIT] Waiting for gapi to initialize...');
+            await waitForGapiInit();
+            console.log('✅ [INIT] gapi initialized, proceeding with session restore');
+            
+            // Now restore session
+            await restoreSession();
+            
+            // Sync the updated defaultSchedule to Drive after session restore
+            if (googleAccessToken && gapiInitialized) {
+                setTimeout(async () => {
+                    await syncDefaultScheduleToDrive();
+                }, 2000);
+            }
             
             // Run safety migration for phone -> errands
             migratePhoneToErrands();
