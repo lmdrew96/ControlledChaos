@@ -1642,6 +1642,8 @@
 
         // Render schedule for specific date
         function renderScheduleForDate(dateStr) {
+            console.log('📅 [RENDER SCHEDULE] Called with dateStr:', dateStr);
+            
             const scheduleDisplay = document.getElementById('scheduleView');
             const schedule = getScheduleForDate(dateStr);
             
@@ -1650,8 +1652,15 @@
                 return;
             }
             
-            const date = new Date(dateStr);
+            // SAFER DATE PARSING: Parse as local date to avoid timezone issues
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day); // month is 0-indexed
+            
+            console.log('📅 [RENDER SCHEDULE] Parsed date object:', date);
+            console.log('📅 [RENDER SCHEDULE] date.getDay():', date.getDay());
+            
             const dayName = date.toLocaleDateString('en-US', {weekday: 'long'});
+            console.log('📅 [RENDER SCHEDULE] Calculated day name:', dayName);
             
             let html = `<div class="schedule-day"><h3>${dayName}</h3>`;
             schedule.forEach(block => {
@@ -2340,7 +2349,7 @@
                             console.log('⚙️ [LOAD DATA] Client ID set to:', GOOGLE_CLIENT_ID);
                         }
                         if (loadedData.settings.apiKey) {
-                            console.log('⚙️ [LOAD DATA] API key:', loadedData.settings.apiKey ? '✓ Present' : '✗ Missing');
+                            console.log('⚙️ [LOAD DATA] API key saved:', loadedData.settings.apiKey ? '✓ Present' : '✗ Missing');
                         }
                     }
                     
@@ -4251,7 +4260,7 @@ Format as natural, encouraging text. Be brief and direct.`;
             
             if (apiKeyInput && appData.settings?.apiKey) {
                 apiKeyInput.value = appData.settings.apiKey;
-                console.log('🔧 [SETTINGS] API key:', appData.settings.apiKey ? '✓ Present' : '✗ Missing');
+                console.log('🔧 [SETTINGS] API key saved:', appData.settings.apiKey ? '✓ Present' : '✗ Missing');
             }
         }
 
