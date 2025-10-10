@@ -13,19 +13,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (syncIndicator) {
         syncIndicator.addEventListener('click', () => {
             console.log('🖱️ Sync indicator clicked - opening Settings');
-            
-            // Find and click the Settings tab button
-            const settingsTab = document.querySelector('[data-tab="settings"]');
-            if (settingsTab) {
-                settingsTab.click();
-            } else {
-                console.error('❌ Settings tab button not found');
-            }
+            handleMoreMenuClick('settings');
         });
         console.log('✅ Sync indicator click handler attached');
     } else {
         console.error('❌ Sync indicator element not found');
     }
+    
+    // Initialize More menu functionality
+    initializeMoreMenu();
     
     // Initialize tab navigation
     initializeTabs();
@@ -65,6 +61,91 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('✅ [INIT] Application ready');
 });
+
+// ===== MORE MENU FUNCTIONALITY =====
+function initializeMoreMenu() {
+    const moreMenuButton = document.getElementById('moreMenuButton');
+    const moreMenu = document.getElementById('moreMenu');
+    
+    if (!moreMenuButton || !moreMenu) {
+        console.error('More menu elements not found');
+        return;
+    }
+    
+    // Toggle More menu on button click
+    moreMenuButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        moreMenu.classList.toggle('hidden');
+    });
+    
+    // Close More menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!moreMenu.contains(e.target) && e.target !== moreMenuButton) {
+            moreMenu.classList.add('hidden');
+        }
+    });
+}
+
+function handleMoreMenuClick(tabName) {
+    const moreMenu = document.getElementById('moreMenu');
+    
+    // Switch to the tab
+    if (typeof openTab === 'function') {
+        openTab(tabName);
+    } else {
+        // Fallback: manually switch tabs
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        
+        const targetTab = document.getElementById(`${tabName}-tab`);
+        if (targetTab) {
+            targetTab.style.display = 'block';
+        }
+        
+        // Update active state on main tabs only
+        document.querySelectorAll('.tab-button:not(.more-menu-item)').forEach(btn => {
+            btn.classList.remove('active');
+        });
+    }
+    
+    // Close the More menu
+    if (moreMenu) {
+        moreMenu.classList.add('hidden');
+    }
+}
+
+function handleAppearanceClick() {
+    const moreMenu = document.getElementById('moreMenu');
+    
+    // Toggle font
+    toggleFont();
+    
+    // Close the More menu
+    if (moreMenu) {
+        moreMenu.classList.add('hidden');
+    }
+}
+
+function handleDriveInfoClick() {
+    const moreMenu = document.getElementById('moreMenu');
+    
+    // Open Settings tab and scroll to Google Drive section
+    handleMoreMenuClick('settings');
+    
+    // Scroll to Google Drive section after a brief delay
+    setTimeout(() => {
+        const driveSection = document.querySelector('.card h2');
+        if (driveSection && driveSection.textContent.includes('Google Drive')) {
+            driveSection.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
+    
+    // Close the More menu
+    if (moreMenu) {
+        moreMenu.classList.add('hidden');
+    }
+}
 
 // Close modals on outside click
 document.querySelectorAll('.modal').forEach(modal => {

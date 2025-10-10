@@ -51,18 +51,6 @@
                     <span class="btn-icon">📊</span>
                     <span class="btn-text">Mood Patterns</span>
                 </button>
-                <button class="btn btn-secondary" onclick="openTab('schedule')" data-tooltip="Schedule">
-                    <span class="btn-icon">📅</span>
-                    <span class="btn-text">Schedule</span>
-                </button>
-                <button class="btn btn-secondary" onclick="openTab('settings')" data-tooltip="Settings">
-                    <span class="btn-icon">⚙️</span>
-                    <span class="btn-text">Settings</span>
-                </button>
-                <button class="btn btn-secondary" onclick="toggleFont()" data-tooltip="Font">
-                    <span class="btn-icon">🔤</span>
-                    <span class="btn-text">Font</span>
-                </button>
             </div>
         </header>
 
@@ -72,8 +60,23 @@
             <button class="tab-button" data-tab="tasks">✅ Tasks & Deadlines</button>
             <button class="tab-button" data-tab="projects">💻 Projects</button>
             <button class="tab-button" data-tab="schedule">📅 Schedule</button>
-            <button class="tab-button" data-tab="templates">📋 Templates</button>
-            <button class="tab-button" data-tab="settings">⚙️ Settings</button>
+            <button class="tab-button more-menu-button" id="moreMenuButton">⚙️ More ▾</button>
+        </div>
+
+        <!-- More Menu Dropdown -->
+        <div class="more-menu hidden" id="moreMenu">
+            <button class="more-menu-item" data-tab="templates" onclick="handleMoreMenuClick('templates')">
+                📋 Templates
+            </button>
+            <button class="more-menu-item" data-tab="settings" onclick="handleMoreMenuClick('settings')">
+                ⚙️ Settings
+            </button>
+            <button class="more-menu-item" id="appearanceButton" onclick="handleAppearanceClick()">
+                🎨 Appearance/Font
+            </button>
+            <button class="more-menu-item" id="driveInfoButton" onclick="handleDriveInfoClick()">
+                ☁️ Google Drive Sync
+            </button>
         </div>
 
         <!-- DASHBOARD TAB -->
