@@ -1,0 +1,482 @@
+// ui.js - UI updates and rendering functions
+
+// ===== TAB NAVIGATION =====
+function initializeTabs() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+            
+            // Update buttons
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Update content
+            tabContents.forEach(content => {
+                content.style.display = 'none';
+            });
+            document.getElementById(`${targetTab}-tab`).style.display = 'block';
+            
+            // Remember active tab
+            localStorage.setItem('activeTab', targetTab);
+            
+            console.log(`📑 Switched to ${targetTab} tab`);
+        });
+    });
+    
+    // Restore last active tab
+    const savedTab = localStorage.getItem('activeTab') || 'dashboard';
+    const savedButton = document.querySelector(`[data-tab="${savedTab}"]`);
+    if (savedButton) {
+        savedButton.click();
+    } else {
+        // Default to dashboard
+        document.querySelector('[data-tab="dashboard"]').click();
+    }
+    
+    console.log('✅ Tab navigation initialized');
+}
+
+function openTab(tabName) {
+    const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
+    if (tabButton) {
+        tabButton.click();
+    }
+}
+
+// ===== MAIN UI UPDATE =====
+function updateUI() {
+    updateCurrentDate();
+    renderSchedule();
+    renderTasks();
+    updateWhatNow();
+    renderDeadlines();
+    
+    // Initialize planner if visible (with null check)
+    const plannerGrid = document.getElementById('plannerGrid');
+    if (plannerGrid && plannerGrid.children.length === 0) {
+        showCurrentWeek();
+    }
+}
+
+// ===== TASK RENDERING =====
+function renderTasks() {
+    const container = document.getElementById('allTasks');
+    const incompleteTasks = appData.tasks.filter(t => !t.completed);
+    
+    if (incompleteTasks.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = incompleteTasks.map(task => `
+        <div class="task-item">
+            <input type="checkbox" class="task-checkbox" 
+                   onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+            <div class="task-content">
+                <div class="task-title">${task.title}</div>
+                <div class="task-meta">
+                    <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                    <span class="location-badge">📍 ${task.location}</span>
+                    ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                </div>
+            </div>
+            <div class="task-actions">
+                <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+    
+    // Also render errand tasks
+    renderErrandTasks();
+}
+
+// ===== ERRAND TASKS RENDERING =====
+function getErrandTasks() {
+    return appData.tasks.filter(task => 
+        !task.completed && 
+        task.location === 'errands'
+    ).sort((a, b) => {
+        // Prioritize by due date, then priority
+        if (a.dueDate && b.dueDate) {
+            return new Date(a.dueDate) - new Date(b.dueDate);
+        }
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        const aPriority = priorityOrder[a.priority] || 2;
+        const bPriority = priorityOrder[b.priority] || 2;
+        return bPriority - aPriority;
+    });
+}
+
+function renderErrandTasks() {
+    const container = document.getElementById('errandTasks');
+    const errandTasks = getErrandTasks();
+    const indicator = document.getElementById('commuteHomeIndicator');
+    
+    // Update commute home indicator
+    if (isCommuteHomeBlock()) {
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+    
+    if (errandTasks.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🏪</div>
+                <p>No errands yet!</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = errandTasks.map(task => `
+        <div class="task-item">
+            <input type="checkbox" class="task-checkbox" 
+                   onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+            <div class="task-content">
+                <div class="task-title">${task.title}</div>
+                <div class="task-meta">
+                    <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                    <span class="location-badge">🏪 ${task.location}</span>
+                    ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                </div>
+            </div>
+            <div class="task-actions">
+                <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== DEADLINE RENDERING =====
+function renderDeadlines() {
+    // Safety check: ensure deadlines array exists
+    if (!appData.deadlines) {
+        appData.deadlines = [];
+    }
+    
+    const container = document.getElementById('allDeadlines');
+    const activeDeadlines = appData.deadlines.filter(d => !d.completed);
+    
+    if (activeDeadlines.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📅</div>
+                <p>No deadlines yet!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by due date
+    activeDeadlines.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    
+    container.innerHTML = activeDeadlines.map(deadline => {
+        const dueDate = new Date(deadline.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        
+        let urgencyColor = 'var(--success)';
+        let urgencyText = `${daysUntil} days`;
+        
+        if (daysUntil < 0) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = 'OVERDUE';
+        } else if (daysUntil === 0) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = 'TODAY';
+        } else if (daysUntil === 1) {
+            urgencyColor = 'var(--warning)';
+            urgencyText = 'Tomorrow';
+        } else if (daysUntil <= 3) {
+            urgencyColor = 'var(--warning)';
+        }
+        
+        const relatedTasks = appData.tasks.filter(t => t.parentDeadline === deadline.id);
+        const completedTasks = relatedTasks.filter(t => t.completed).length;
+        const incompleteTasks = relatedTasks.filter(t => !t.completed);
+        
+        // Calculate available time and work needed
+        const timeAvailable = calculateAvailableTime(deadline);
+        const totalWorkMinutes = incompleteTasks.reduce((sum, t) => sum + (t.timeEstimate || 30), 0);
+        const totalWorkHours = Math.floor(totalWorkMinutes / 60);
+        const workMinutesRemainder = totalWorkMinutes % 60;
+        
+        // Determine if achievable
+        const isAchievable = timeAvailable.totalMinutes >= totalWorkMinutes;
+        const statusIcon = isAchievable ? '✅' : '⚠️';
+        const cardClass = isAchievable ? '' : 'tight-deadline';
+        
+        return `
+            <div class="task-item ${cardClass}" style="border-left: 4px solid ${urgencyColor}; ${!isAchievable && incompleteTasks.length > 0 ? 'background: linear-gradient(to right, #fff5f0, white);' : ''}">
+                <input type="checkbox" class="task-checkbox" 
+                       onchange="toggleDeadline('${deadline.id}')" ${deadline.completed ? 'checked' : ''}>
+                <div class="task-content" style="flex: 1;">
+                    <div class="task-title">${deadline.title}</div>
+                    <div class="task-meta" style="flex-direction: column; gap: 8px; align-items: flex-start;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
+                                📅 ${urgencyText}
+                            </span>
+                            ${relatedTasks.length > 0 ? `
+                                <span style="background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">
+                                    ${completedTasks}/${relatedTasks.length} tasks done
+                                </span>
+                            ` : ''}
+                        </div>
+                        ${incompleteTasks.length > 0 && daysUntil > 0 ? `
+                            <div style="font-size: 0.85em; color: var(--text-light); margin-top: 5px;">
+                                ${statusIcon} <strong>${timeAvailable.blockCount} free blocks</strong> = ${timeAvailable.totalHours}h ${timeAvailable.remainingMinutes}m available
+                                <br>
+                                📝 ${totalWorkHours}h ${workMinutesRemainder}m of work needed
+                                ${!isAchievable ? `
+                                    <br>
+                                    <span style="color: var(--warning); font-weight: 600;">⚠️ Tight schedule! Consider moving tasks or extending deadline.</span>
+                                ` : ''}
+                            </div>
+                            ${timeAvailable.freeBlocks.length > 0 ? `
+                                <details style="margin-top: 8px; font-size: 0.85em;">
+                                    <summary style="cursor: pointer; color: var(--primary); font-weight: 500;">
+                                        View ${timeAvailable.freeBlocks.length} available time blocks
+                                    </summary>
+                                    <div style="margin-top: 8px; padding: 10px; background: var(--bg-main); border-radius: 6px;">
+                                        ${timeAvailable.freeBlocks.slice(0, 5).map(block => `
+                                            <div style="padding: 4px 0; color: var(--text-light);">
+                                                • ${block.date}: ${block.time} (${Math.floor(block.duration / 60)}h ${block.duration % 60}m) at ${block.location}
+                                            </div>
+                                        `).join('')}
+                                        ${timeAvailable.freeBlocks.length > 5 ? `
+                                            <div style="padding: 4px 0; color: var(--text-light); font-style: italic;">
+                                                + ${timeAvailable.freeBlocks.length - 5} more blocks
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </details>
+                            ` : ''}
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="task-actions">
+                    ${daysUntil > 3 ? `
+                        <button class="task-btn" onclick="breakDownDeadline('${deadline.id}')" title="Break down into smaller tasks">
+                            🔨 Break Down
+                        </button>
+                    ` : ''}
+                    <button class="task-btn" onclick="deleteDeadline('${deadline.id}')">🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ===== WHAT NOW LOGIC =====
+function getCurrentEnergy() {
+    const hour = getCurrentDateTime().getHours();
+    if (hour >= 6 && hour < 12) return 'high';
+    if (hour >= 12 && hour < 17) return 'medium';
+    return 'low';
+}
+
+function updateWhatNow() {
+    const currentBlock = getCurrentBlock();
+    const currentEnergy = getCurrentEnergy();
+    const location = appData.currentLocation;
+    
+    const contextInfo = document.getElementById('contextInfo');
+    const contextTitle = document.getElementById('contextTitle');
+    const contextDetails = document.getElementById('contextDetails');
+    
+    contextInfo.style.display = 'block';
+    contextTitle.textContent = `📍 ${location.charAt(0).toUpperCase() + location.slice(1)} | ⚡ ${currentEnergy} energy`;
+    
+    if (currentBlock) {
+        if (currentBlock.type === 'protected') {
+            contextDetails.textContent = `🔒 Protected time: ${currentBlock.text}`;
+        } else if (currentBlock.type === 'class') {
+            contextDetails.textContent = `📚 In class: ${currentBlock.text}`;
+        } else {
+            contextDetails.textContent = `Current block: ${currentBlock.text}`;
+        }
+    } else {
+        contextDetails.textContent = 'No scheduled block right now';
+    }
+    
+    const suggestionCard = document.getElementById('suggestionCard');
+    
+    // SAFETY: Special handling for commute location - ONLY show errands during commute home
+    if (location === 'commute') {
+        const errandTasks = getErrandTasks();
+        const isCommuteHome = isCommuteHomeBlock();
+        
+        if (isCommuteHome && errandTasks.length > 0) {
+            const task = errandTasks[0];
+            
+            suggestionCard.innerHTML = `
+                <div class="suggestion-card">
+                    <h3>🏪 Errand Suggestion</h3>
+                    <p style="font-size: 1.2em; font-weight: 600; margin: 10px 0;">${task.title}</p>
+                    <div style="display: flex; gap: 10px; margin: 15px 0;">
+                        <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                        <span class="location-badge">🏪 ${task.location}</span>
+                        ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                    </div>
+                    <p class="suggestion-reason">
+                        🚗 You're driving home - good time to make stops!
+                    </p>
+                    <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
+                        ✅ Mark Complete
+                    </button>
+                </div>
+            `;
+            suggestionCard.style.display = 'block';
+            return;
+        } else {
+            suggestionCard.innerHTML = `
+                <div class="suggestion-card">
+                    <h3>🚗 Safe Driving</h3>
+                    <p>Focus on the road! ${isCommuteHome ? 'Add errands with 🏪 if you need to make stops.' : 'Enjoy your commute safely.'}</p>
+                    ${isCommuteHome ? `
+                        <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
+                            ➕ Add Errand
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            suggestionCard.style.display = 'block';
+            return;
+        }
+    }
+    
+    // Find best task for other locations
+    const availableTasks = appData.tasks.filter(t => 
+        !t.completed && 
+        (t.location === 'anywhere' || t.location === location) &&
+        (t.energy === currentEnergy || t.energy === 'medium')
+    );
+    
+    if (currentBlock && currentBlock.type === 'protected') {
+        suggestionCard.innerHTML = `
+            <div class="suggestion-card">
+                <h3>🔒 Protected Time</h3>
+                <p>This is your ${currentBlock.text}. Enjoy it guilt-free!</p>
+                <p class="suggestion-reason">Protected blocks are sacred - no tasks allowed.</p>
+            </div>
+        `;
+        suggestionCard.style.display = 'block';
+    } else if (availableTasks.length > 0) {
+        const task = availableTasks[0];
+        suggestionCard.innerHTML = `
+            <div class="suggestion-card">
+                <h3>✨ Suggested Task</h3>
+                <p style="font-size: 1.2em; font-weight: 600; margin: 10px 0;">${task.title}</p>
+                <div style="display: flex; gap: 10px; margin: 15px 0;">
+                    <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                    <span class="location-badge">📍 ${task.location}</span>
+                    ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                </div>
+                <p class="suggestion-reason">
+                    Perfect for your ${currentEnergy} energy at ${location}
+                </p>
+                <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
+                    ✅ Mark Complete
+                </button>
+            </div>
+        `;
+        suggestionCard.style.display = 'block';
+    } else {
+        suggestionCard.innerHTML = `
+            <div class="suggestion-card">
+                <h3>🎉 All Clear!</h3>
+                <p>No tasks match your current context. Time to relax or add new tasks!</p>
+                <button class="btn btn-primary" onclick="showQuickAdd()" style="margin-top: 15px;">
+                    ➕ Add Task
+                </button>
+            </div>
+        `;
+        suggestionCard.style.display = 'block';
+    }
+}
+
+// ===== MODAL FUNCTIONS =====
+function showQuickAdd() {
+    document.getElementById('quickTaskInput').focus();
+}
+
+function showBrainDump() {
+    document.getElementById('brainDumpModal').classList.add('active');
+    document.getElementById('brainDumpText').focus();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+// ===== SETTINGS FUNCTIONS =====
+function showSettings() {
+    openTab('settings');
+}
+
+function populateSettingsInputs() {
+    console.log('🔧 [SETTINGS] Populating settings input fields...');
+    
+    const workerUrlInput = document.getElementById('workerUrlInput');
+    const clientIdInput = document.getElementById('clientIdInput');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    
+    if (workerUrlInput && appData.settings?.workerUrl) {
+        workerUrlInput.value = appData.settings.workerUrl;
+        console.log('🔧 [SETTINGS] Worker URL populated');
+    }
+    
+    if (clientIdInput && appData.settings?.clientId) {
+        clientIdInput.value = appData.settings.clientId;
+        console.log('🔧 [SETTINGS] Client ID populated');
+    }
+    
+    if (apiKeyInput && appData.settings?.apiKey) {
+        apiKeyInput.value = appData.settings.apiKey;
+        console.log('🔧 [SETTINGS] API key saved:', appData.settings.apiKey ? '✓ Present' : '✗ Missing');
+    }
+}
+
+// ===== TOAST NOTIFICATION =====
+function showToast(message) {
+    // Remove any existing toast
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create new toast
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+
+// ===== UTILITY FUNCTIONS =====
+function toggleFont() {
+    document.body.classList.toggle('dyslexia-font');
+}
+
+function isToday(date) {
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+}
