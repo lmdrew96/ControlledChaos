@@ -2134,6 +2134,8 @@
             }
 
             try {
+                console.log('🔐 [SIGN IN] Button clicked');
+                
                 const client = google.accounts.oauth2.initTokenClient({
                     client_id: GOOGLE_CLIENT_ID,
                     scope: 'https://www.googleapis.com/auth/drive.file',
@@ -2149,12 +2151,19 @@
                             
                             userEmail = userInfo.email;
                             
+                            console.log('✅ [SIGN IN] Email:', userEmail);
+                            console.log('✅ [SIGN IN] Token obtained');
+                            
                             // Save token and email to localStorage for persistence
                             localStorage.setItem('googleAccessToken', googleAccessToken);
                             localStorage.setItem('userEmail', userEmail);
                             
-                            // Update UI
+                            console.log('💾 [SIGN IN] Email and token saved to localStorage');
+                            
+                            // Update UI immediately - don't wait for page refresh
                             updateSignInUI();
+                            
+                            console.log('✅ [SIGN IN] UI updated');
                             
                             // Show toast notification
                             showToast(`✅ Signed in as ${userEmail}`);
@@ -2167,12 +2176,14 @@
                 });
                 client.requestAccessToken();
             } catch (error) {
-                console.error('Sign in error:', error);
+                console.error('❌ [SIGN IN] Failed:', error);
                 alert('Failed to sign in. Please try again.');
             }
         }
 
         function handleGoogleSignOut() {
+            console.log('🚪 [SIGN OUT] Button clicked');
+            
             if (googleAccessToken) {
                 google.accounts.oauth2.revoke(googleAccessToken);
             }
@@ -2184,19 +2195,24 @@
             localStorage.removeItem('googleAccessToken');
             localStorage.removeItem('userEmail');
             
-            // Update UI
+            console.log('💾 [SIGN OUT] Credentials cleared from localStorage');
+            
+            // Update UI immediately
             updateSignInUI();
+            
+            console.log('✅ [SIGN OUT] UI updated');
+            console.log('✅ [SIGN OUT] Completed');
             
             showToast('👋 Signed out successfully');
         }
 
         function updateSignInUI() {
-            console.log('🎨 [UPDATE UI] Updating sign-in UI...');
-            console.log('🎨 [UPDATE UI] googleAccessToken exists:', !!googleAccessToken);
-            console.log('🎨 [UPDATE UI] userEmail:', userEmail);
+            console.log('🎨 [AUTH UI] Updating sign-in UI...');
+            console.log('🎨 [AUTH UI] googleAccessToken exists:', !!googleAccessToken);
+            console.log('🎨 [AUTH UI] userEmail:', userEmail);
             
             if (googleAccessToken && userEmail) {
-                console.log('🎨 [UPDATE UI] Showing signed-in state');
+                console.log('🎨 [AUTH UI] Showing signed-in state for:', userEmail);
                 
                 // Update Settings tab UI
                 const signInSettings = document.getElementById('googleSignInSettings');
@@ -2205,7 +2221,10 @@
                 
                 if (signInSettings) signInSettings.style.display = 'none';
                 if (accountInfo) accountInfo.style.display = 'block';
-                if (emailDisplay) emailDisplay.textContent = userEmail;
+                if (emailDisplay) {
+                    emailDisplay.textContent = userEmail;
+                    console.log('🎨 [AUTH UI] Email display updated to:', userEmail);
+                }
                 
                 // Update sync indicator
                 const syncIndicator = document.getElementById('syncIndicator');
@@ -2293,12 +2312,14 @@
             console.log('🔄 [RESTORE SESSION] Saved email:', savedEmail);
             
             if (savedToken && savedEmail) {
+                // Restore credentials from localStorage
                 googleAccessToken = savedToken;
                 userEmail = savedEmail;
                 
                 console.log('🔄 [RESTORE SESSION] Token and email restored from localStorage');
+                console.log('🔄 [RESTORE SESSION] userEmail is now:', userEmail);
                 
-                // Update UI to show signed-in state
+                // Update UI to show signed-in state immediately
                 updateSignInUI();
                 console.log('🔄 [RESTORE SESSION] UI updated to show signed-in state');
                 
@@ -2328,6 +2349,9 @@
                 }
             } else {
                 console.log('ℹ️ [RESTORE SESSION] No saved Google session found');
+                
+                // Still update UI to show signed-out state
+                updateSignInUI();
             }
         }
 
@@ -4628,6 +4652,27 @@ Format as natural, encouraging text. Be brief and direct.`;
         // ===== INITIALIZATION =====
         window.addEventListener('load', async () => {
             console.log('🚀 [INIT] Application starting...');
+            
+            // FIX 1: Add sync indicator click handler
+            document.addEventListener('DOMContentLoaded', () => {
+                const syncIndicator = document.getElementById('syncIndicator');
+                if (syncIndicator) {
+                    syncIndicator.addEventListener('click', () => {
+                        console.log('🖱️ Sync indicator clicked - opening Settings');
+                        
+                        // Find and click the Settings tab button
+                        const settingsTab = document.querySelector('[data-tab="settings"]');
+                        if (settingsTab) {
+                            settingsTab.click();
+                        } else {
+                            console.error('❌ Settings tab button not found');
+                        }
+                    });
+                    console.log('✅ Sync indicator click handler attached');
+                } else {
+                    console.error('❌ Sync indicator element not found');
+                }
+            });
             
             // Initialize tab navigation
             initializeTabs();
