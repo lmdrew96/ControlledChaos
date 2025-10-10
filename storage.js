@@ -117,11 +117,13 @@ async function handleGoogleSignIn() {
                     console.log('✅ [SIGN IN] Email:', userEmail);
                     console.log('✅ [SIGN IN] Token obtained');
                     
-                    // Save token and email to localStorage for persistence
+                    // Save to appData AND localStorage
+                    appData.userEmail = userEmail;
+                    appData.googleAccessToken = googleAccessToken;
                     localStorage.setItem('googleAccessToken', googleAccessToken);
                     localStorage.setItem('userEmail', userEmail);
                     
-                    console.log('💾 [SIGN IN] Email and token saved to localStorage');
+                    console.log('💾 [SIGN IN] Email and token saved to localStorage and appData');
                     
                     // Update UI immediately - don't wait for page refresh
                     updateSignInUI();
@@ -435,8 +437,13 @@ async function restoreSession() {
         googleAccessToken = savedToken;
         userEmail = savedEmail;
         
+        // Also save to appData
+        appData.userEmail = savedEmail;
+        appData.googleAccessToken = savedToken;
+        
         console.log('🔄 [RESTORE SESSION] Token and email restored from localStorage');
         console.log('🔄 [RESTORE SESSION] userEmail is now:', userEmail);
+        console.log('🔄 [RESTORE SESSION] appData.userEmail is now:', appData.userEmail);
         
         // Update UI to show signed-in state immediately
         updateSignInUI();

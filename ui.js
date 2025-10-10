@@ -1,9 +1,24 @@
 // ui.js - UI updates and rendering functions
 
+// ===== SYNC INDICATOR CLICK HANDLER =====
+function setupSyncIndicatorClick() {
+    const syncIndicator = document.getElementById('syncIndicator');
+    if (syncIndicator) {
+        syncIndicator.addEventListener('click', () => {
+            console.log('🖱️ Sync indicator clicked');
+            openTab('settings');
+        });
+        console.log('✅ Sync indicator click handler attached');
+    }
+}
+
 // ===== TAB NAVIGATION =====
 function initializeTabs() {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+    
+    // Setup sync indicator click handler
+    setupSyncIndicatorClick();
     
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
