@@ -5,6 +5,7 @@ let appData = {
     tasks: [],
     deadlines: [],
     errandTasks: [],
+    projects: [],
     schedule: JSON.parse(JSON.stringify(defaultSchedule)), // Deep copy from data.js
     scheduleOverrides: {},
     templates: [],
@@ -397,6 +398,43 @@ function saveData() {
     }
 }
 
+// ===== INITIALIZE DEFAULT DATA =====
+function initializeDefaultData() {
+    console.log('🔧 [INIT] Checking for default data initialization...');
+    
+    // Initialize deadlines if empty
+    if (!appData.deadlines || appData.deadlines.length === 0) {
+        console.log('📝 [INIT] Loading default deadlines...');
+        appData.deadlines = defaultDeadlines.map((d, index) => ({
+            id: `deadline_${Date.now()}_${index}`,
+            title: d.name,
+            dueDate: d.date,
+            category: d.category,
+            class: d.class,
+            completed: false,
+            createdAt: new Date().toISOString()
+        }));
+        console.log(`✅ [INIT] Loaded ${appData.deadlines.length} deadlines`);
+    }
+    
+    // Initialize projects if empty
+    if (!appData.projects || appData.projects.length === 0) {
+        console.log('📝 [INIT] Loading default projects...');
+        appData.projects = JSON.parse(JSON.stringify(defaultProjects)); // Deep copy
+        console.log(`✅ [INIT] Loaded ${appData.projects.length} projects`);
+    }
+    
+    // Initialize templates if empty
+    if (!appData.templates || appData.templates.length === 0) {
+        console.log('📝 [INIT] Loading default templates...');
+        appData.templates = JSON.parse(JSON.stringify(defaultTemplates)); // Deep copy
+        console.log(`✅ [INIT] Loaded ${appData.templates.length} templates`);
+    }
+    
+    // Save to localStorage after initialization
+    saveToLocalStorage();
+}
+
 // ===== SESSION RESTORE =====
 async function restoreSession() {
     console.log('🔄 [RESTORE SESSION] Starting session restoration...');
@@ -406,6 +444,11 @@ async function restoreSession() {
     if (localData) {
         console.log('📥 [RESTORE SESSION] Found localStorage backup, loading immediately...');
         appData = localData;
+        
+        // Ensure projects array exists (for backward compatibility)
+        if (!appData.projects) {
+            appData.projects = [];
+        }
         
         // Apply settings from localStorage
         if (localData.settings) {
@@ -420,9 +463,16 @@ async function restoreSession() {
         // Populate settings input fields
         populateSettingsInputs();
         
+        // Initialize default data if needed
+        initializeDefaultData();
+        
         // Update UI immediately with localStorage data
         updateUI();
         console.log('✅ [RESTORE SESSION] UI updated with localStorage data');
+    } else {
+        // No localStorage data - initialize with defaults
+        console.log('📝 [RESTORE SESSION] No localStorage data, initializing defaults...');
+        initializeDefaultData();
     }
     
     // STEP 2: Check for saved Google session

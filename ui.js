@@ -68,6 +68,7 @@ function updateUI() {
     renderTasks();
     updateWhatNow();
     renderDeadlines();
+    renderProjects();
     
     // Initialize planner if visible (with null check)
     const plannerGrid = document.getElementById('plannerGrid');
@@ -169,6 +170,60 @@ function renderErrandTasks() {
             </div>
         </div>
     `).join('');
+}
+
+// ===== PROJECT RENDERING =====
+function renderProjects() {
+    const container = document.getElementById('projectsList');
+    if (!container) return; // Projects tab might not exist yet
+    
+    // Safety check: ensure projects array exists
+    if (!appData.projects) {
+        appData.projects = [];
+    }
+    
+    if (appData.projects.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">💻</div>
+                <p>No projects yet!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = appData.projects.map(project => {
+        const statusColors = {
+            'active': '#10b981',
+            'paused': '#f59e0b',
+            'planning': '#6366f1',
+            'completed': '#8b5cf6'
+        };
+        
+        const statusColor = statusColors[project.status] || '#6b7280';
+        
+        return `
+            <div class="project-card">
+                <div class="project-header">
+                    <h3>${project.name}</h3>
+                    <div class="project-badges">
+                        <span class="status-badge status-${project.status}">${project.status}</span>
+                        <span class="category-badge">${project.category}</span>
+                    </div>
+                </div>
+                <p class="project-description">${project.description}</p>
+                <div class="project-progress-container" onclick="showProjectModal(${project.id})" title="Click to view tasks">
+                    <div class="project-progress-bar">
+                        <div class="project-progress-fill" style="width: ${project.progress}%; background: ${statusColor};"></div>
+                    </div>
+                    <span class="project-progress-text">${project.progress}%</span>
+                </div>
+                <div class="project-task-count">
+                    ${project.tasks.filter(t => t.completed).length}/${project.tasks.length} tasks complete
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // ===== DEADLINE RENDERING =====

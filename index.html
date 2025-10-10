@@ -70,6 +70,7 @@
         <div class="tab-navigation">
             <button class="tab-button active" data-tab="dashboard">🏠 Dashboard</button>
             <button class="tab-button" data-tab="tasks">✅ Tasks & Deadlines</button>
+            <button class="tab-button" data-tab="projects">💻 Projects</button>
             <button class="tab-button" data-tab="schedule">📅 Schedule</button>
             <button class="tab-button" data-tab="templates">📋 Templates</button>
             <button class="tab-button" data-tab="settings">⚙️ Settings</button>
@@ -193,6 +194,16 @@
                 <div class="commute-home-indicator" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-top: 15px;" id="commuteHomeIndicator">
                     🚗 You're driving home - good time to make stops!
                 </div>
+            </div>
+        </div>
+
+        <!-- PROJECTS TAB -->
+        <div class="tab-content" id="projects-tab" style="display: none;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">💻 Projects</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Track your coding and personal projects with interactive task checklists.</p>
+            
+            <div id="projectsList" class="projects-grid">
+                <!-- Projects will be rendered here by JavaScript -->
             </div>
         </div>
 
