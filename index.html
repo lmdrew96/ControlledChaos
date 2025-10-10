@@ -3285,26 +3285,73 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
                 throw new Error('API key not configured');
             }
 
-            const response = await fetch(CLOUDFLARE_WORKER_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': apiKey
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-5-20250929',
-                    max_tokens: 2000,
-                    system: systemPrompt,
-                    messages: messages
-                })
-            });
+            const maxRetries = 3;
+            const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    // Show retry message if not first attempt
+                    if (attempt > 0) {
+                        showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
+                    }
+                    
+                    const response = await fetch(CLOUDFLARE_WORKER_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': apiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-5-20250929',
+                            max_tokens: 2000,
+                            system: systemPrompt,
+                            messages: messages
+                        })
+                    });
 
-            if (!response.ok) {
-                throw new Error(`API call failed: ${response.statusText}`);
+                    // Check for 503 Service Unavailable
+                    if (response.status === 503) {
+                        // If this is the last attempt, throw error
+                        if (attempt === maxRetries - 1) {
+                            throw new Error('Service temporarily unavailable after multiple retries');
+                        }
+                        
+                        // Wait before retrying with exponential backoff
+                        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                        continue; // Retry
+                    }
+
+                    // For other errors, throw immediately
+                    if (!response.ok) {
+                        throw new Error(`API call failed: ${response.statusText}`);
+                    }
+
+                    // Success! Parse and return
+                    const data = await response.json();
+                    
+                    // Show success message if we had to retry
+                    if (attempt > 0) {
+                        showToast('✅ Got it! Claude responded successfully.');
+                    }
+                    
+                    return data.content[0].text;
+                    
+                } catch (error) {
+                    // If this is the last attempt, throw the error
+                    if (attempt === maxRetries - 1) {
+                        throw error;
+                    }
+                    
+                    // For network errors or 503s, wait and retry
+                    if (error.message.includes('503') || error.message.includes('fetch')) {
+                        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                        continue;
+                    }
+                    
+                    // For other errors, throw immediately
+                    throw error;
+                }
             }
-
-            const data = await response.json();
-            return data.content[0].text;
         }
 
         async function processBrainDump() {
