@@ -103,6 +103,46 @@
             border: 2px solid var(--primary);
         }
 
+        /* Saving indicator */
+        .saving-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(102, 126, 234, 0.95);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1500;
+            display: none;
+            animation: slideInUp 0.3s ease-out;
+        }
+
+        .saving-indicator.visible {
+            display: block;
+        }
+
+        .saving-indicator.success {
+            background: rgba(16, 185, 129, 0.95);
+        }
+
+        .saving-indicator.error {
+            background: rgba(239, 68, 68, 0.95);
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
         /* Toast notification for sign-in */
         .toast {
             position: fixed;
@@ -1620,6 +1660,68 @@
             location.reload();
         }
 
+        // ===== SAVING INDICATOR =====
+        function showSavingIndicator(message = '💾 Saving...') {
+            const indicator = document.querySelector('.saving-indicator');
+            if (!indicator) {
+                const newIndicator = document.createElement('div');
+                newIndicator.className = 'saving-indicator';
+                newIndicator.textContent = message;
+                document.body.appendChild(newIndicator);
+            } else {
+                indicator.textContent = message;
+                indicator.className = 'saving-indicator visible';
+            }
+        }
+
+        function hideSavingIndicator(success = true, message = null) {
+            const indicator = document.querySelector('.saving-indicator');
+            if (indicator) {
+                if (message) {
+                    indicator.textContent = message;
+                } else {
+                    indicator.textContent = success ? '✅ Saved!' : '⚠️ Save failed';
+                }
+                indicator.className = `saving-indicator visible ${success ? 'success' : 'error'}`;
+                
+                setTimeout(() => {
+                    indicator.classList.remove('visible');
+                }, 2000);
+            }
+        }
+
+        // ===== LOCALSTORAGE BACKUP FUNCTIONS =====
+        function saveToLocalStorage() {
+            try {
+                const dataToSave = {
+                    ...appData,
+                    lastLocalSave: new Date().toISOString()
+                };
+                localStorage.setItem('controlledChaosData', JSON.stringify(dataToSave));
+                console.log('💾 [LOCALSTORAGE] Data saved to localStorage');
+                return true;
+            } catch (error) {
+                console.error('❌ [LOCALSTORAGE] Failed to save to localStorage:', error);
+                return false;
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('controlledChaosData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    console.log('📥 [LOCALSTORAGE] Data loaded from localStorage');
+                    console.log('📥 [LOCALSTORAGE] Last local save:', parsedData.lastLocalSave);
+                    return parsedData;
+                }
+                return null;
+            } catch (error) {
+                console.error('❌ [LOCALSTORAGE] Failed to load from localStorage:', error);
+                return null;
+            }
+        }
+
         // ===== GOOGLE DRIVE API FUNCTIONS =====
         function initGoogleAPI() {
             gapi.load('client', async () => {
@@ -1743,6 +1845,29 @@
 
         async function restoreSession() {
             console.log('🔄 [RESTORE SESSION] Starting session restoration...');
+            
+            // STEP 1: Try to load from localStorage FIRST (fastest recovery)
+            const localData = loadFromLocalStorage();
+            if (localData) {
+                console.log('📥 [RESTORE SESSION] Found localStorage backup, loading immediately...');
+                appData = localData;
+                
+                // Apply settings from localStorage
+                if (localData.settings) {
+                    if (localData.settings.workerUrl) {
+                        CLOUDFLARE_WORKER_URL = localData.settings.workerUrl;
+                    }
+                    if (localData.settings.clientId) {
+                        GOOGLE_CLIENT_ID = localData.settings.clientId;
+                    }
+                }
+                
+                // Update UI immediately with localStorage data
+                updateUI();
+                console.log('✅ [RESTORE SESSION] UI updated with localStorage data');
+            }
+            
+            // STEP 2: Check for saved Google session
             const savedToken = localStorage.getItem('googleAccessToken');
             const savedEmail = localStorage.getItem('userEmail');
             
@@ -1761,26 +1886,29 @@
                     console.log('🔄 [RESTORE SESSION] Token set for gapi client');
                 }
                 
-                // Update UI FIRST to show signed-in state
+                // Update UI to show signed-in state
                 updateSignInUI();
                 console.log('🔄 [RESTORE SESSION] UI updated to show signed-in state');
                 
-                // Try to load data from Drive
+                // STEP 3: Try to load from Drive (in background, may update if newer)
                 try {
                     console.log('🔄 [RESTORE SESSION] Attempting to load data from Drive...');
                     await loadDataFromDrive();
                     console.log('✅ [RESTORE SESSION] Data loaded successfully from Drive');
                     
-                    // Update UI with loaded data
+                    // Update UI with Drive data (may be newer than localStorage)
                     updateUI();
-                    console.log('✅ [RESTORE SESSION] UI updated with loaded data');
+                    console.log('✅ [RESTORE SESSION] UI updated with Drive data');
                 } catch (error) {
-                    console.error('❌ [RESTORE SESSION] Failed to restore session:', error);
+                    console.error('❌ [RESTORE SESSION] Failed to load from Drive:', error);
                     // Token might be expired, clear it
                     handleGoogleSignOut();
+                    
+                    // But we still have localStorage data, so user can continue working
+                    console.log('ℹ️ [RESTORE SESSION] Continuing with localStorage data');
                 }
             } else {
-                console.log('ℹ️ [RESTORE SESSION] No saved session found');
+                console.log('ℹ️ [RESTORE SESSION] No saved Google session found');
             }
         }
 
@@ -1894,9 +2022,13 @@
             console.log('💾 [SAVE DATA] googleAccessToken exists:', !!googleAccessToken);
             console.log('💾 [SAVE DATA] gapiInitialized:', gapiInitialized);
             
+            // Show saving indicator
+            showSavingIndicator('💾 Saving...');
+            
             if (!googleAccessToken || !gapiInitialized) {
-                console.log('⚠️ [SAVE DATA] Cannot save - missing token or gapi not initialized');
+                console.log('⚠️ [SAVE DATA] Cannot save to Drive - missing token or gapi not initialized');
                 pendingChanges = true;
+                hideSavingIndicator(false, '⚠️ Drive unavailable');
                 return;
             }
 
@@ -1957,8 +2089,10 @@
                     }
                     console.log('✅ [SAVE DATA] Data saved successfully to Drive');
                     console.log('✅ [SAVE DATA] File ID:', driveFileId);
+                    hideSavingIndicator(true);
                 } else {
                     console.error('❌ [SAVE DATA] No file ID in response');
+                    hideSavingIndicator(false);
                 }
             } catch (error) {
                 console.error('❌ [SAVE DATA] Error saving to Drive:', error);
@@ -1972,12 +2106,28 @@
                     syncIndicator.textContent = '⚠️ Sync error';
                 }
                 pendingChanges = true;
+                hideSavingIndicator(false);
             }
         }
 
-        // Auto-save on changes
+        // Auto-save on changes - saves to BOTH localStorage AND Drive
         function saveData() {
+            // ALWAYS save to localStorage first (instant backup)
+            const localSaveSuccess = saveToLocalStorage();
+            
+            // Then save to Drive (may fail if offline/not signed in)
             saveDataToDrive();
+            
+            if (localSaveSuccess && !googleAccessToken) {
+                // Show indicator that we saved locally but not to Drive
+                showSavingIndicator('💾 Saved locally');
+                setTimeout(() => {
+                    const indicator = document.querySelector('.saving-indicator');
+                    if (indicator) {
+                        indicator.classList.remove('visible');
+                    }
+                }, 2000);
+            }
         }
 
         // Force sync current defaultSchedule to Drive (overwrites stored schedule)
@@ -3531,9 +3681,14 @@ Format as natural, encouraging text. Be brief and direct.`;
                 document.getElementById('configWarning').style.display = 'none';
             }
             
+            // IMMEDIATE save to localStorage when settings change
+            saveToLocalStorage();
+            
+            // Then save to Drive
             saveData();
+            
             closeModal('settingsModal');
-            alert('Settings saved! Refresh the page if you just added your Google Client ID.');
+            showToast('✅ Settings saved!');
         }
 
         function closeModal(modalId) {
