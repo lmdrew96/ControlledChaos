@@ -1700,12 +1700,18 @@
         }
 
         function updateSignInUI() {
+            console.log('🎨 [UPDATE UI] Updating sign-in UI...');
+            console.log('🎨 [UPDATE UI] googleAccessToken exists:', !!googleAccessToken);
+            console.log('🎨 [UPDATE UI] userEmail:', userEmail);
+            
             if (googleAccessToken && userEmail) {
+                console.log('🎨 [UPDATE UI] Showing signed-in state');
                 document.getElementById('googleSignIn').style.display = 'none';
                 document.getElementById('userInfo').style.display = 'inline-flex';
                 document.getElementById('userEmail').textContent = userEmail;
                 document.getElementById('syncIndicator').style.display = 'block';
             } else {
+                console.log('🎨 [UPDATE UI] Showing signed-out state');
                 document.getElementById('googleSignIn').style.display = 'block';
                 document.getElementById('userInfo').style.display = 'none';
                 document.getElementById('syncIndicator').style.display = 'none';
@@ -1733,41 +1739,65 @@
         }
 
         async function restoreSession() {
+            console.log('🔄 [RESTORE SESSION] Starting session restoration...');
             const savedToken = localStorage.getItem('googleAccessToken');
             const savedEmail = localStorage.getItem('userEmail');
+            
+            console.log('🔄 [RESTORE SESSION] Saved token exists:', !!savedToken);
+            console.log('🔄 [RESTORE SESSION] Saved email:', savedEmail);
             
             if (savedToken && savedEmail) {
                 googleAccessToken = savedToken;
                 userEmail = savedEmail;
                 
+                console.log('🔄 [RESTORE SESSION] Token and email restored from localStorage');
+                
                 // Set token for gapi
                 if (gapiInitialized) {
                     gapi.client.setToken({ access_token: googleAccessToken });
+                    console.log('🔄 [RESTORE SESSION] Token set for gapi client');
                 }
                 
-                // Update UI
+                // Update UI FIRST to show signed-in state
                 updateSignInUI();
+                console.log('🔄 [RESTORE SESSION] UI updated to show signed-in state');
                 
                 // Try to load data from Drive
                 try {
+                    console.log('🔄 [RESTORE SESSION] Attempting to load data from Drive...');
                     await loadDataFromDrive();
+                    console.log('✅ [RESTORE SESSION] Data loaded successfully from Drive');
+                    
+                    // Update UI with loaded data
                     updateUI();
+                    console.log('✅ [RESTORE SESSION] UI updated with loaded data');
                 } catch (error) {
-                    console.error('Failed to restore session:', error);
+                    console.error('❌ [RESTORE SESSION] Failed to restore session:', error);
                     // Token might be expired, clear it
                     handleGoogleSignOut();
                 }
+            } else {
+                console.log('ℹ️ [RESTORE SESSION] No saved session found');
             }
         }
 
         async function loadDataFromDrive() {
-            if (!googleAccessToken || !gapiInitialized) return;
+            console.log('📥 [LOAD DATA] Starting data load from Drive...');
+            console.log('📥 [LOAD DATA] googleAccessToken exists:', !!googleAccessToken);
+            console.log('📥 [LOAD DATA] gapiInitialized:', gapiInitialized);
+            
+            if (!googleAccessToken || !gapiInitialized) {
+                console.log('⚠️ [LOAD DATA] Cannot load - missing token or gapi not initialized');
+                return;
+            }
 
             try {
                 const syncIndicator = document.getElementById('syncIndicator');
                 if (syncIndicator) {
                     syncIndicator.textContent = '⏳ Loading from Drive...';
                 }
+                
+                console.log('📥 [LOAD DATA] Searching for file:', DRIVE_FILE_NAME);
                 
                 // Search for existing file
                 const response = await gapi.client.drive.files.list({
@@ -1776,46 +1806,93 @@
                     fields: 'files(id, name)'
                 });
 
+                console.log('📥 [LOAD DATA] Search response:', response.result);
+
                 if (response.result.files && response.result.files.length > 0) {
                     driveFileId = response.result.files[0].id;
+                    console.log('📥 [LOAD DATA] Found file with ID:', driveFileId);
                     
                     // Download file content
+                    console.log('📥 [LOAD DATA] Downloading file content...');
                     const fileResponse = await gapi.client.drive.files.get({
                         fileId: driveFileId,
                         alt: 'media'
                     });
                     
-                    appData = JSON.parse(fileResponse.body);
+                    console.log('📥 [LOAD DATA] Raw file content length:', fileResponse.body.length);
+                    
+                    // Parse and load data
+                    const loadedData = JSON.parse(fileResponse.body);
+                    console.log('📥 [LOAD DATA] Parsed data structure:', {
+                        hasTasks: !!loadedData.tasks,
+                        taskCount: loadedData.tasks?.length || 0,
+                        hasDeadlines: !!loadedData.deadlines,
+                        deadlineCount: loadedData.deadlines?.length || 0,
+                        hasSettings: !!loadedData.settings,
+                        hasSchedule: !!loadedData.schedule
+                    });
+                    
+                    // CRITICAL: Apply settings FIRST before updating appData
+                    if (loadedData.settings) {
+                        console.log('⚙️ [LOAD DATA] Applying settings from Drive...');
+                        if (loadedData.settings.workerUrl) {
+                            CLOUDFLARE_WORKER_URL = loadedData.settings.workerUrl;
+                            console.log('⚙️ [LOAD DATA] Worker URL set to:', CLOUDFLARE_WORKER_URL);
+                        }
+                        if (loadedData.settings.clientId) {
+                            GOOGLE_CLIENT_ID = loadedData.settings.clientId;
+                            console.log('⚙️ [LOAD DATA] Client ID set to:', GOOGLE_CLIENT_ID);
+                        }
+                        if (loadedData.settings.apiKey) {
+                            console.log('⚙️ [LOAD DATA] API key loaded (length:', loadedData.settings.apiKey.length, ')');
+                        }
+                    }
+                    
+                    // Now update appData
+                    appData = loadedData;
                     appData.lastSync = new Date().toISOString();
                     
-                    // Apply settings
-                    if (appData.settings.workerUrl) CLOUDFLARE_WORKER_URL = appData.settings.workerUrl;
-                    if (appData.settings.clientId) GOOGLE_CLIENT_ID = appData.settings.clientId;
+                    console.log('✅ [LOAD DATA] Data loaded successfully');
+                    console.log('✅ [LOAD DATA] Tasks:', appData.tasks?.length || 0);
+                    console.log('✅ [LOAD DATA] Deadlines:', appData.deadlines?.length || 0);
+                    console.log('✅ [LOAD DATA] Settings loaded:', !!appData.settings);
                     
                     const syncIndicator = document.getElementById('syncIndicator');
                     if (syncIndicator) {
                         syncIndicator.textContent = '☁️ Synced with Google Drive';
                     }
-                    console.log('Data loaded from Drive');
                 } else {
+                    console.log('ℹ️ [LOAD DATA] No existing file found, creating new one...');
                     // No file exists, create one
                     await saveDataToDrive();
                 }
             } catch (error) {
-                console.error('Error loading from Drive:', error);
+                console.error('❌ [LOAD DATA] Error loading from Drive:', error);
+                console.error('❌ [LOAD DATA] Error details:', {
+                    message: error.message,
+                    status: error.status,
+                    statusText: error.statusText
+                });
+                
                 const syncIndicator = document.getElementById('syncIndicator');
                 if (syncIndicator) {
                     syncIndicator.textContent = '⚠️ Sync error';
                 }
                 // If error is auth-related, sign out
                 if (error.status === 401 || error.status === 403) {
+                    console.log('🔐 [LOAD DATA] Auth error, signing out...');
                     handleGoogleSignOut();
                 }
             }
         }
 
         async function saveDataToDrive() {
+            console.log('💾 [SAVE DATA] Starting save to Drive...');
+            console.log('💾 [SAVE DATA] googleAccessToken exists:', !!googleAccessToken);
+            console.log('💾 [SAVE DATA] gapiInitialized:', gapiInitialized);
+            
             if (!googleAccessToken || !gapiInitialized) {
+                console.log('⚠️ [SAVE DATA] Cannot save - missing token or gapi not initialized');
                 pendingChanges = true;
                 return;
             }
@@ -1828,6 +1905,14 @@
                 
                 appData.lastSync = new Date().toISOString();
                 const content = JSON.stringify(appData, null, 2);
+                console.log('💾 [SAVE DATA] Data to save:', {
+                    taskCount: appData.tasks?.length || 0,
+                    deadlineCount: appData.deadlines?.length || 0,
+                    hasSettings: !!appData.settings,
+                    hasSchedule: !!appData.schedule,
+                    contentLength: content.length
+                });
+                
                 const blob = new Blob([content], { type: 'application/json' });
 
                 const metadata = {
@@ -1844,6 +1929,9 @@
                     ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
                     : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 
+                console.log('💾 [SAVE DATA] Using method:', method);
+                console.log('💾 [SAVE DATA] File ID:', driveFileId || 'Creating new file');
+
                 const response = await fetch(url, {
                     method: method,
                     headers: {
@@ -1852,7 +1940,11 @@
                     body: form
                 });
 
+                console.log('💾 [SAVE DATA] Response status:', response.status);
+
                 const result = await response.json();
+                console.log('💾 [SAVE DATA] Response result:', result);
+                
                 if (result.id) {
                     driveFileId = result.id;
                     pendingChanges = false;
@@ -1860,10 +1952,18 @@
                     if (syncIndicator) {
                         syncIndicator.textContent = '☁️ Synced with Google Drive';
                     }
-                    console.log('Data saved to Drive');
+                    console.log('✅ [SAVE DATA] Data saved successfully to Drive');
+                    console.log('✅ [SAVE DATA] File ID:', driveFileId);
+                } else {
+                    console.error('❌ [SAVE DATA] No file ID in response');
                 }
             } catch (error) {
-                console.error('Error saving to Drive:', error);
+                console.error('❌ [SAVE DATA] Error saving to Drive:', error);
+                console.error('❌ [SAVE DATA] Error details:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+                
                 const syncIndicator = document.getElementById('syncIndicator');
                 if (syncIndicator) {
                     syncIndicator.textContent = '⚠️ Sync error';
