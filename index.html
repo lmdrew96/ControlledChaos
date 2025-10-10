@@ -1489,42 +1489,6 @@
         <!-- END SETTINGS TAB -->
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>⚙️ Settings</h2>
-                <button class="close-modal" onclick="closeModal('settingsModal')">&times;</button>
-            </div>
-            
-            <div class="form-group">
-                <label for="workerUrlInput">Cloudflare Worker URL</label>
-                <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev/api/claude">
-                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                    Your Cloudflare Worker URL for API proxy. See SETUP-INSTRUCTIONS.md Part 1.
-                </p>
-            </div>
-            
-            <div class="form-group">
-                <label for="clientIdInput">Google OAuth Client ID</label>
-                <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
-                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                    Your Google OAuth Client ID for Drive sync. See SETUP-INSTRUCTIONS.md Part 2.
-                </p>
-            </div>
-            
-            <div class="form-group">
-                <label for="apiKeyInput">Anthropic API Key (Optional)</label>
-                <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
-                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                    Your API key enables AI features. Stored securely in Google Drive.
-                </p>
-            </div>
-            
-            <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-        </div>
-    </div>
-
     <!-- Brain Dump Modal -->
     <div id="brainDumpModal" class="modal">
         <div class="modal-content">
@@ -4557,8 +4521,9 @@ Format as natural, encouraging text. Be brief and direct.`;
             updateWhatNow();
             renderDeadlines();
             
-            // Initialize planner if visible
-            if (document.getElementById('plannerGrid').children.length === 0) {
+            // Initialize planner if visible (with null check)
+            const plannerGrid = document.getElementById('plannerGrid');
+            if (plannerGrid && plannerGrid.children.length === 0) {
                 showCurrentWeek();
             }
         }
