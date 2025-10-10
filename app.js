@@ -1,0 +1,1045 @@
+// app.js - Main application logic and initialization
+
+// Configuration variables (will be loaded from settings)
+let CLOUDFLARE_WORKER_URL = 'https://controlled-chaos-api.lmdrew.workers.dev';
+let GOOGLE_CLIENT_ID = '593850134085-21comnf9tcgcjqp7jnkvum180ksebid7.apps.googleusercontent.com';
+
+// ===== APPLICATION INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 [INIT] Application starting...');
+    
+    // FIX 1: Add sync indicator click handler
+    const syncIndicator = document.getElementById('syncIndicator');
+    if (syncIndicator) {
+        syncIndicator.addEventListener('click', () => {
+            console.log('🖱️ Sync indicator clicked - opening Settings');
+            
+            // Find and click the Settings tab button
+            const settingsTab = document.querySelector('[data-tab="settings"]');
+            if (settingsTab) {
+                settingsTab.click();
+            } else {
+                console.error('❌ Settings tab button not found');
+            }
+        });
+        console.log('✅ Sync indicator click handler attached');
+    } else {
+        console.error('❌ Sync indicator element not found');
+    }
+    
+    // Initialize tab navigation
+    initializeTabs();
+    
+    // Initialize daily schedule with day tabs
+    initializeDailySchedule();
+    
+    // Initialize Google API
+    initGoogleAPI();
+    
+    // Wait for gapi to initialize before attempting any Drive operations
+    console.log('⏳ [INIT] Waiting for gapi to initialize...');
+    await waitForGapiInit();
+    console.log('✅ [INIT] gapi initialized, proceeding with session restore');
+    
+    // Now restore session
+    await restoreSession();
+    
+    // Run safety migration for phone -> errands
+    migratePhoneToErrands();
+    
+    updateUI();
+    
+    // Set up auto-refresh
+    setupAutoRefresh();
+    
+    // Set default location
+    setLocation('home');
+    
+    // Check if configured
+    if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude' ||
+        !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR-CLIENT-ID-HERE.apps.googleusercontent.com') {
+        document.getElementById('configWarning').style.display = 'block';
+    } else {
+        document.getElementById('configWarning').style.display = 'none';
+    }
+    
+    console.log('✅ [INIT] Application ready');
+});
+
+// Close modals on outside click
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+});
+
+// ===== TASK MANAGEMENT =====
+function addTask(task) {
+    task.id = Date.now().toString();
+    task.completed = false;
+    task.createdAt = new Date().toISOString();
+    appData.tasks.push(task);
+    saveData();
+    renderTasks();
+}
+
+function toggleTask(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (task) {
+        task.completed = !task.completed;
+        if (task.completed) {
+            task.completedAt = new Date().toISOString();
+            
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+            
+            // Check if this is the "Wake up & take meds" task
+            if (task.title && task.title.toLowerCase().includes('wake up') && task.title.toLowerCase().includes('meds')) {
+                // Show morning check-in after a brief delay
+                setTimeout(() => {
+                    if (typeof MoodTracker !== 'undefined') {
+                        MoodTracker.showMorningCheckIn();
+                    }
+                }, 2000);
+            } else {
+                // Show task completion micro-check for other tasks
+                setTimeout(() => {
+                    if (typeof MoodTracker !== 'undefined') {
+                        MoodTracker.showTaskCompletionCheck(taskId);
+                    }
+                }, 1000);
+            }
+        }
+        saveData();
+        renderTasks();
+        updateWhatNow();
+    }
+}
+
+function deleteTask(taskId) {
+    if (confirm('Delete this task?')) {
+        appData.tasks = appData.tasks.filter(t => t.id !== taskId);
+        saveData();
+        renderTasks();
+        updateWhatNow();
+    }
+}
+
+function quickAddTask() {
+    const input = document.getElementById('quickTaskInput');
+    const text = input.value.trim();
+    if (text) {
+        addTask({
+            title: text,
+            energy: 'medium',
+            location: 'anywhere',
+            timeEstimate: 30
+        });
+        input.value = '';
+    }
+}
+
+function quickAddErrand(errandType) {
+    const errandDefaults = {
+        'Post office': {
+            title: 'Stop at post office',
+            timeEstimate: 10,
+            energy: 'low'
+        },
+        'Grocery store': {
+            title: 'Quick grocery run',
+            timeEstimate: 20,
+            energy: 'medium'
+        },
+        'Gas station': {
+            title: 'Fill up gas tank',
+            timeEstimate: 10,
+            energy: 'low'
+        },
+        'Pharmacy': {
+            title: 'Pick up prescription',
+            timeEstimate: 10,
+            energy: 'low'
+        }
+    };
+    
+    const defaults = errandDefaults[errandType];
+    
+    const newTask = {
+        title: defaults.title,
+        timeEstimate: defaults.timeEstimate,
+        energy: defaults.energy,
+        location: 'errands',
+        priority: 'medium'
+    };
+    
+    addTask(newTask);
+    showToast(`✅ Added: ${defaults.title}`);
+}
+
+// Migration function for existing 'phone' tasks
+function migratePhoneToErrands() {
+    const migrationKey = 'phone_to_errands_migration_done';
+    
+    if (localStorage.getItem(migrationKey)) {
+        return; // Already migrated
+    }
+    
+    let migratedCount = 0;
+    
+    appData.tasks.forEach(task => {
+        if (task.location === 'phone') {
+            // Analyze the task to determine if it's actually an errand
+            const isActualErrand = 
+                task.title.toLowerCase().includes('post office') ||
+                task.title.toLowerCase().includes('grocery') ||
+                task.title.toLowerCase().includes('gas') ||
+                task.title.toLowerCase().includes('store') ||
+                task.title.toLowerCase().includes('pharmacy') ||
+                task.title.toLowerCase().includes('pick up') ||
+                task.title.toLowerCase().includes('drop off') ||
+                task.title.toLowerCase().includes('errand');
+            
+            if (isActualErrand) {
+                task.location = 'errands';
+            } else {
+                // These were probably meant to be phone tasks but are unsafe
+                // Change to 'anywhere' since they can do them when NOT driving
+                task.location = 'anywhere';
+            }
+            
+            migratedCount++;
+        }
+    });
+    
+    if (migratedCount > 0) {
+        saveData();
+        showToast(`📝 Updated ${migratedCount} tasks for safety`);
+    }
+    
+    localStorage.setItem(migrationKey, 'true');
+}
+
+// ===== DEADLINE MANAGEMENT =====
+function addDeadline(title, dueDate) {
+    const deadline = {
+        id: Date.now().toString(),
+        title: title,
+        dueDate: dueDate,
+        createdAt: new Date().toISOString(),
+        completed: false
+    };
+    
+    appData.deadlines.push(deadline);
+    saveData();
+    renderDeadlines();
+    
+    // Show the "Create tasks?" modal
+    afterDeadlineCreated(deadline);
+}
+
+function toggleDeadline(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (deadline) {
+        deadline.completed = !deadline.completed;
+        
+        // Also complete all related tasks
+        if (deadline.completed) {
+            appData.tasks.forEach(task => {
+                if (task.parentDeadline === deadlineId) {
+                    task.completed = true;
+                }
+            });
+            
+            confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 }
+            });
+        }
+        
+        saveData();
+        renderDeadlines();
+        renderTasks();
+    }
+}
+
+function deleteDeadline(deadlineId) {
+    if (confirm('Delete this deadline and all related tasks?')) {
+        appData.deadlines = appData.deadlines.filter(d => d.id !== deadlineId);
+        appData.tasks = appData.tasks.filter(t => t.parentDeadline !== deadlineId);
+        saveData();
+        renderDeadlines();
+        renderTasks();
+    }
+}
+
+function showAddDeadlineModal() {
+    const quickInput = document.getElementById('quickDeadlineInput');
+    const quickText = quickInput.value.trim();
+    
+    // Create a simple prompt modal
+    const title = quickText || prompt('What\'s the deadline for?');
+    if (!title) return;
+    
+    const dateStr = prompt('When is it due? (YYYY-MM-DD or MM/DD)');
+    if (!dateStr) return;
+    
+    // Parse date
+    let dueDate;
+    if (dateStr.includes('-')) {
+        dueDate = dateStr; // Already in YYYY-MM-DD format
+    } else {
+        // Convert MM/DD to YYYY-MM-DD
+        const [month, day] = dateStr.split('/');
+        const year = new Date().getFullYear();
+        dueDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    addDeadline(title, dueDate);
+    quickInput.value = '';
+}
+
+function afterDeadlineCreated(deadline) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✨ Create tasks for this deadline?</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <p style="margin-bottom: 20px;">Would you like to create tasks for <strong>${deadline.title}</strong>?</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="autoCreateTasksWithAI('${deadline.id}'); this.closest('.modal').remove();">
+                    ✨ Auto-create (AI)
+                </button>
+                <button class="btn btn-secondary" onclick="showQuickTaskCreator('${deadline.id}'); this.closest('.modal').remove();">
+                    📝 Quick setup
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                    Skip for now
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+async function autoCreateTasksWithAI(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    // Show loading state
+    const loadingModal = document.createElement('div');
+    loadingModal.className = 'modal active';
+    loadingModal.innerHTML = `
+        <div class="modal-content">
+            <h2>✨ Creating tasks...</h2>
+            <p>AI is breaking down "${deadline.title}" into manageable tasks...</p>
+        </div>
+    `;
+    document.body.appendChild(loadingModal);
+    
+    try {
+        const daysUntil = Math.ceil((new Date(deadline.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        const systemPrompt = `You are an ADHD-friendly task planner. Break down the deadline into 2-4 concrete, actionable tasks. Consider the time available (${daysUntil} days). For each task, determine:
+- title (clear, specific action)
+- energy level (high/medium/low)
+- location (home/school/work/phone/anywhere)
+- timeEstimate in minutes (realistic)
+
+Return ONLY valid JSON array, no other text:
+[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30}]`;
+
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: `Deadline: ${deadline.title}\nDue: ${deadline.dueDate}\nDays until due: ${daysUntil}`
+        }], systemPrompt);
+
+        const tasks = JSON.parse(response);
+        tasks.forEach(task => {
+            task.parentDeadline = deadlineId;
+            task.dueDate = deadline.dueDate;
+            addTask(task);
+        });
+
+        loadingModal.remove();
+        
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+        
+        alert(`✅ Created ${tasks.length} tasks for "${deadline.title}"!`);
+    } catch (error) {
+        console.error('Auto-create tasks error:', error);
+        loadingModal.remove();
+        alert('Failed to create tasks. Check your API configuration or try Quick setup instead.');
+    }
+}
+
+function showQuickTaskCreator(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📝 Quick Task Setup</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <p style="margin-bottom: 15px;">Create up to 3 tasks for <strong>${deadline.title}</strong>:</p>
+            
+            <div class="form-group">
+                <label>Task 1</label>
+                <input type="text" id="quickTask1" placeholder="e.g., Research topic">
+            </div>
+            
+            <div class="form-group">
+                <label>Task 2 (optional)</label>
+                <input type="text" id="quickTask2" placeholder="e.g., Write outline">
+            </div>
+            
+            <div class="form-group">
+                <label>Task 3 (optional)</label>
+                <input type="text" id="quickTask3" placeholder="e.g., Final review">
+            </div>
+            
+            <button class="btn btn-primary" onclick="saveQuickTasks('${deadlineId}'); this.closest('.modal').remove();">
+                ✅ Create Tasks
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Focus first input
+    setTimeout(() => document.getElementById('quickTask1').focus(), 100);
+}
+
+function saveQuickTasks(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    const task1 = document.getElementById('quickTask1').value.trim();
+    const task2 = document.getElementById('quickTask2').value.trim();
+    const task3 = document.getElementById('quickTask3').value.trim();
+    
+    let count = 0;
+    [task1, task2, task3].forEach(title => {
+        if (title) {
+            addTask({
+                title: title,
+                energy: 'medium',
+                location: 'anywhere',
+                timeEstimate: 30,
+                parentDeadline: deadlineId,
+                dueDate: deadline.dueDate
+            });
+            count++;
+        }
+    });
+    
+    if (count > 0) {
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
+        alert(`✅ Created ${count} task${count > 1 ? 's' : ''} for "${deadline.title}"!`);
+    }
+}
+
+async function breakDownDeadline(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    // Check if already broken down
+    if (deadline.brokenDown) {
+        if (confirm('This deadline has already been broken down. Break it down again?')) {
+            // Remove old subtasks
+            appData.tasks = appData.tasks.filter(t => t.parentDeadline !== deadlineId);
+        } else {
+            return;
+        }
+    }
+    
+    // Show loading modal
+    const loadingModal = document.createElement('div');
+    loadingModal.className = 'modal active';
+    loadingModal.innerHTML = `
+        <div class="modal-content">
+            <h2>🔨 Breaking down deadline...</h2>
+            <p>AI is analyzing your schedule and creating a plan for "${deadline.title}"...</p>
+        </div>
+    `;
+    document.body.appendChild(loadingModal);
+    
+    try {
+        const now = new Date();
+        const dueDate = new Date(deadline.dueDate);
+        const availableBlocks = getAvailableFreeBlocks(now, dueDate);
+        
+        if (availableBlocks.length === 0) {
+            loadingModal.remove();
+            alert('No free time blocks found before the deadline. Consider adjusting your schedule or deadline date.');
+            return;
+        }
+        
+        const blocksText = availableBlocks.slice(0, 10).map(b => 
+            `- ${b.day} ${b.time}: ${b.duration} minutes at ${b.location}`
+        ).join('\n');
+        
+        const systemPrompt = `You are an ADHD-friendly task planner. Break down the deadline into 3-6 specific, actionable subtasks.
+
+Deadline: ${deadline.title}
+Due: ${deadline.dueDate}
+
+Available time blocks before deadline:
+${blocksText}
+
+Create subtasks that:
+1. Are concrete and completable (not vague like "work on essay")
+2. Have realistic time estimates (15-90 minutes each)
+3. Can fit in the available time blocks
+4. Build toward completing the deadline
+5. Include buffer/review time at the end
+
+Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
+{
+  "subtasks": [
+    {
+      "title": "specific task name",
+      "timeEstimate": 45,
+      "energy": "medium",
+      "location": "school",
+      "suggestedBlock": "Monday 8:40 AM-10:30 AM at school",
+      "reasoning": "why this fits here"
+    }
+  ]
+}`;
+
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: `Break down this deadline into subtasks that fit my schedule.`
+        }], systemPrompt);
+
+        const data = JSON.parse(response);
+        
+        // Create tasks from subtasks
+        data.subtasks.forEach(subtask => {
+            addTask({
+                title: subtask.title,
+                energy: subtask.energy,
+                location: subtask.location,
+                timeEstimate: subtask.timeEstimate,
+                parentDeadline: deadlineId,
+                dueDate: deadline.dueDate,
+                suggestedBlock: subtask.suggestedBlock,
+                reasoning: subtask.reasoning
+            });
+        });
+        
+        // Mark deadline as broken down
+        deadline.brokenDown = true;
+        saveData();
+        renderDeadlines();
+        
+        loadingModal.remove();
+        
+        // Show success modal with timeline
+        const successModal = document.createElement('div');
+        successModal.className = 'modal active';
+        successModal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>✅ Deadline Broken Down!</h2>
+                    <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <p style="margin-bottom: 20px;">Created ${data.subtasks.length} tasks for <strong>${deadline.title}</strong>:</p>
+                <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    ${data.subtasks.map((subtask, i) => `
+                        <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid var(--primary);">
+                            <div style="font-weight: 600; margin-bottom: 5px;">
+                                ${i + 1}. ${subtask.title}
+                            </div>
+                            <div style="font-size: 0.9em; color: var(--text-light); margin-bottom: 5px;">
+                                ⏱️ ${subtask.timeEstimate} min | 📍 ${subtask.location} | ⚡ ${subtask.energy}
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--primary); margin-bottom: 5px;">
+                                📅 Suggested: ${subtask.suggestedBlock}
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--text-light); font-style: italic;">
+                                ${subtask.reasoning}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                    Got it! Let's do this 🚀
+                </button>
+            </div>
+        `;
+        document.body.appendChild(successModal);
+        
+        confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 }
+        });
+        
+    } catch (error) {
+        console.error('Break down deadline error:', error);
+        loadingModal.remove();
+        alert('Failed to break down deadline. Check your API configuration and try again.');
+    }
+}
+
+// ===== AI FEATURES =====
+async function callClaudeAPI(messages, systemPrompt = '') {
+    if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude') {
+        alert('Please configure your Cloudflare Worker URL in Settings!');
+        showSettings();
+        throw new Error('Worker URL not configured');
+    }
+
+    const apiKey = appData.settings.apiKey || '';
+    if (!apiKey) {
+        alert('Please add your Anthropic API key in Settings to use AI features!');
+        showSettings();
+        throw new Error('API key not configured');
+    }
+
+    const maxRetries = 3;
+    const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            // Show retry message if not first attempt
+            if (attempt > 0) {
+                showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
+            }
+            
+            const response = await fetch(CLOUDFLARE_WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-5-20250929',
+                    max_tokens: 2000,
+                    system: systemPrompt,
+                    messages: messages
+                })
+            });
+
+            // Check for 503 Service Unavailable
+            if (response.status === 503) {
+                // If this is the last attempt, throw error
+                if (attempt === maxRetries - 1) {
+                    throw new Error('Service temporarily unavailable after multiple retries');
+                }
+                
+                // Wait before retrying with exponential backoff
+                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                continue; // Retry
+            }
+
+            // For other errors, throw immediately
+            if (!response.ok) {
+                throw new Error(`API call failed: ${response.statusText}`);
+            }
+
+            // Success! Parse and return
+            const data = await response.json();
+            
+            // Show success message if we had to retry
+            if (attempt > 0) {
+                showToast('✅ Got it! Claude responded successfully.');
+            }
+            
+            return data.content[0].text;
+            
+        } catch (error) {
+            // If this is the last attempt, throw the error
+            if (attempt === maxRetries - 1) {
+                throw error;
+            }
+            
+            // For network errors or 503s, wait and retry
+            if (error.message.includes('503') || error.message.includes('fetch')) {
+                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                continue;
+            }
+            
+            // For other errors, throw immediately
+            throw error;
+        }
+    }
+}
+
+async function processBrainDump() {
+    const text = document.getElementById('brainDumpText').value.trim();
+    if (!text) return;
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '🧠 Processing...';
+
+    try {
+        // Build template context
+        let templateContext = `The user has these task templates:
+
+1. **Errands & Stops**: For shopping/errands (use simple names like "grocery", "pharmacy", not full sentences)
+2. **Bio Weekly Work**: For weekly biology coursework
+3. **Beatles Weekly Work**: For weekly Beatles discussion tasks`;
+
+        // Add custom templates if they exist
+        if (appData.templates && appData.templates.length > 0) {
+            const customTemplates = appData.templates.filter(t => t.custom);
+            if (customTemplates.length > 0) {
+                templateContext += '\n' + customTemplates.map((t, i) => 
+                    `${i + 4}. **${t.name}**: Custom template`
+                ).join('\n');
+            }
+        }
+
+        const systemPrompt = `You are an ADHD-friendly task organizer. Parse the user's brain dump into clear, actionable tasks.
+
+${templateContext}
+
+**IMPORTANT RULES:**
+
+1. **For errands/shopping tasks** (grocery, store, pharmacy, post office, gas, etc.):
+   - Use location: "errands"
+   - Use simple, short names (e.g., "grocery", "pharmacy", "gas")
+   - NOT full sentences like "Go to grocery store" or "Pick up prescription"
+   - These are stops to make while out
+
+2. **For Beatles-related tasks**:
+   - Mark with a flag so they can be added to Beatles template
+   - Include "beatles" in a tags field
+
+3. **For Bio-related tasks**:
+   - Mark with a flag so they can be added to Bio template
+   - Include "bio" in a tags field
+
+4. **For all other tasks**:
+   - Create as individual tasks
+   - Determine energy level (high/medium/low)
+   - Determine location (home/school/work/anywhere)
+   - Estimate time in minutes
+
+**Examples:**
+
+Input: "buy groceries, pick up prescription, Beatles discussion post"
+Output: 
+- Task 1: title: "grocery", location: "errands", energy: "medium", timeEstimate: 20
+- Task 2: title: "pharmacy", location: "errands", energy: "low", timeEstimate: 10
+- Task 3: title: "Discussion post", location: "anywhere", energy: "medium", timeEstimate: 20, tags: ["beatles"]
+
+Input: "write essay for english, fill up gas tank"
+Output:
+- Task 1: title: "Write essay for english", location: "home", energy: "high", timeEstimate: 90
+- Task 2: title: "gas", location: "errands", energy: "low", timeEstimate: 10
+
+Return ONLY valid JSON array of tasks, no other text:
+[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30, "tags": []}]`;
+
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: text
+        }], systemPrompt);
+
+        const tasks = JSON.parse(response);
+        
+        let errandCount = 0;
+        let beatlesCount = 0;
+        let bioCount = 0;
+        let regularCount = 0;
+        
+        tasks.forEach(task => {
+            // Track what type of task this is
+            if (task.location === 'errands') {
+                errandCount++;
+            } else if (task.tags && task.tags.includes('beatles')) {
+                beatlesCount++;
+            } else if (task.tags && task.tags.includes('bio')) {
+                bioCount++;
+            } else {
+                regularCount++;
+            }
+            
+            // Remove tags field before adding (internal use only)
+            delete task.tags;
+            
+            addTask(task);
+        });
+
+        closeModal('brainDumpModal');
+        document.getElementById('brainDumpText').value = '';
+        
+        // Show summary of what was created
+        let summary = `Created ${tasks.length} task${tasks.length !== 1 ? 's' : ''}:\n`;
+        if (errandCount > 0) summary += `\n🏪 ${errandCount} errand${errandCount !== 1 ? 's' : ''}`;
+        if (beatlesCount > 0) summary += `\n🎵 ${beatlesCount} Beatles task${beatlesCount !== 1 ? 's' : ''}`;
+        if (bioCount > 0) summary += `\n🧬 ${bioCount} Bio task${bioCount !== 1 ? 's' : ''}`;
+        if (regularCount > 0) summary += `\n📝 ${regularCount} other task${regularCount !== 1 ? 's' : ''}`;
+        
+        showToast(summary);
+        
+        confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 }
+        });
+    } catch (error) {
+        console.error('Brain dump error:', error);
+        alert('Failed to process brain dump. Check your API configuration.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Organize My Chaos';
+    }
+}
+
+async function showStuck() {
+    const incompleteTasks = appData.tasks.filter(t => !t.completed);
+    
+    if (incompleteTasks.length === 0) {
+        alert('No tasks to help with! Add some tasks first.');
+        return;
+    }
+
+    const modal = document.getElementById('stuckModal');
+    const content = document.getElementById('stuckContent');
+    
+    content.innerHTML = `
+        <p>Select a task you're stuck on:</p>
+        <div style="margin: 20px 0;">
+            ${incompleteTasks.map(task => `
+                <button class="btn btn-secondary" onclick="getStuckHelp('${task.id}')" 
+                        style="width: 100%; margin: 5px 0; text-align: left;">
+                    ${task.title}
+                </button>
+            `).join('')}
+        </div>
+    `;
+    
+    modal.classList.add('active');
+}
+
+async function getStuckHelp(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const content = document.getElementById('stuckContent');
+    content.innerHTML = `
+        <h3>${task.title}</h3>
+        <p>🤔 Breaking this down into tiny steps...</p>
+    `;
+
+    try {
+        // Find next available time block
+        const nextBlock = findNextAvailableBlock(task);
+        
+        const scheduleContext = nextBlock.available 
+            ? `Next available time: ${nextBlock.day} ${nextBlock.time} at ${nextBlock.location} (${nextBlock.duration} minutes available)`
+            : 'No clear free time found soon - user may need to make time';
+        
+        const systemPrompt = `You are an ADHD coach helping break down tasks. The user is stuck on a task.
+
+Task: ${task.title}
+Time estimate: ${task.timeEstimate ? task.timeEstimate + ' minutes' : 'not specified'}
+Location needed: ${task.location}
+
+${scheduleContext}
+
+Break this down into the TINIEST possible first step to overcome starting paralysis. Then suggest 2-3 follow-up micro-steps.
+
+Each step should be:
+- Completable in under 10 minutes
+- Require zero decision-making
+- Be physically actionable
+- Build momentum
+
+${nextBlock.available ? `Reminder: User can work on this ${nextBlock.day} ${nextBlock.time}. Acknowledge this in your response.` : ''}
+
+Format as natural, encouraging text. Be brief and direct.`;
+
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: `I'm stuck on: ${task.title}`
+        }], systemPrompt);
+
+        let scheduleInfo = '';
+        if (nextBlock.available) {
+            scheduleInfo = `
+                <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                    <strong>📅 Your next good time for this:</strong><br>
+                    ${nextBlock.day} ${nextBlock.time} at ${nextBlock.location}<br>
+                    <small>(${nextBlock.duration} minutes available)</small>
+                </div>
+            `;
+        }
+
+        content.innerHTML = `
+            <h3>${task.title}</h3>
+            ${scheduleInfo}
+            <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                ${response.replace(/\n/g, '<br>')}
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="toggleTask('${task.id}')">
+                    ✅ Got it! Mark as done
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('stuckModal')">
+                    Close
+                </button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Stuck help error:', error);
+        content.innerHTML = `
+            <h3>${task.title}</h3>
+            <p style="color: var(--danger);">Failed to get help. Check your API configuration.</p>
+            <button class="btn btn-secondary" onclick="closeModal('stuckModal')">Close</button>
+        `;
+    }
+}
+
+// ===== LOCATION MANAGEMENT =====
+function setLocation(location) {
+    appData.currentLocation = location;
+    document.querySelectorAll('.location-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.location === location);
+    });
+    updateWhatNow();
+    saveData();
+}
+
+// ===== SETTINGS MANAGEMENT =====
+function saveSettings() {
+    const workerUrl = document.getElementById('workerUrlInput').value.trim();
+    const clientId = document.getElementById('clientIdInput').value.trim();
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    
+    appData.settings.workerUrl = workerUrl;
+    appData.settings.clientId = clientId;
+    appData.settings.apiKey = apiKey;
+    
+    if (workerUrl) CLOUDFLARE_WORKER_URL = workerUrl;
+    if (clientId) GOOGLE_CLIENT_ID = clientId;
+    
+    // Hide warning if configured
+    if (workerUrl && clientId) {
+        document.getElementById('configWarning').style.display = 'none';
+    }
+    
+    // IMMEDIATE save to localStorage when settings change
+    saveToLocalStorage();
+    
+    // Then save to Drive
+    saveData();
+    
+    closeModal('settingsModal');
+    showToast('✅ Settings saved!');
+}
+
+// ===== DONE FOR TODAY FEATURE =====
+function handleDoneForToday() {
+    const incompleteTasks = appData.tasks.filter(t => !t.completed);
+    
+    if (incompleteTasks.length === 0) {
+        showToast('🎉 You already finished everything!');
+        return;
+    }
+    
+    // Show confirmation modal
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>😴 Call it a day?</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <p style="margin-bottom: 20px;">You have ${incompleteTasks.length} incomplete task${incompleteTasks.length > 1 ? 's' : ''}. Move them all to tomorrow?</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="moveTasksToTomorrow(${JSON.stringify(incompleteTasks.map(t => t.id))}); this.closest('.modal').remove();">
+                    Yes, move ${incompleteTasks.length} task${incompleteTasks.length > 1 ? 's' : ''}
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function moveTasksToTomorrow(taskIds) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    taskIds.forEach(taskId => {
+        const task = appData.tasks.find(t => t.id === taskId);
+        if (task && !task.completed) {
+            task.movedToTomorrow = true;
+            task.originalDueDate = task.dueDate;
+            task.dueDate = tomorrowStr;
+        }
+    });
+    
+    saveData();
+    renderTasks();
+    showCelebration();
+}
+
+function showCelebration() {
+    const completedToday = appData.tasks.filter(t => 
+        t.completed && 
+        t.completedAt && 
+        isToday(new Date(t.completedAt))
+    );
+    
+    confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+    });
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✨ Great Work Today!</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="celebration-stats">
+                <h3 style="color: var(--primary); margin-bottom: 15px;">You completed ${completedToday.length} task${completedToday.length !== 1 ? 's' : ''} today!</h3>
+                ${completedToday.length > 0 ? `
+                    <ul style="list-style: none; padding: 0; margin: 20px 0;">
+                        ${completedToday.map(t => `<li style="padding: 8px; background: var(--bg-main); margin: 5px 0; border-radius: 6px;">✓ ${t.title}</li>`).join('')}
+                    </ul>
+                ` : ''}
+                <p style="color: var(--text-light); font-style: italic; margin-top: 20px;">Rest up - tomorrow is a fresh start! 🌟</p>
+            </div>
+            <button class="btn btn-primary" onclick="this.closest('.modal').remove();" style="margin-top: 20px;">
+                Thanks! 😊
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
