@@ -1551,6 +1551,10 @@
 
         // ===== CALENDAR DATE UTILITIES =====
         let currentWeekStart = getWeekStart();
+        
+        // ===== USER SELECTION TRACKING =====
+        let userSelectedDay = null; // null = auto (show today), or specific date string
+        let lastAutoRefresh = Date.now();
 
         // Get the Monday of the current week
         function getWeekStart(date = new Date()) {
@@ -1626,6 +1630,10 @@
                 button.addEventListener('click', () => {
                     const clickedDate = button.dataset.date;
                     console.log('📅 Clicked tab for date:', clickedDate);
+                    
+                    // Track user's manual selection
+                    userSelectedDay = clickedDate;
+                    console.log('👤 User manually selected:', userSelectedDay);
                     
                     document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
                     button.classList.add('active');
@@ -4645,7 +4653,37 @@ Format as natural, encouraging text. Be brief and direct.`;
             
             // Update every minute
             setInterval(() => {
-                updateUI();
+                const today = formatDate(new Date());
+                
+                console.log('🔄 [AUTO-REFRESH] Triggered at', new Date().toLocaleTimeString());
+                console.log('🔄 [AUTO-REFRESH] User selected day:', userSelectedDay);
+                console.log('🔄 [AUTO-REFRESH] Today is:', today);
+                
+                // Only auto-refresh schedule if user hasn't manually selected a different day
+                if (!userSelectedDay || userSelectedDay === today) {
+                    console.log('🔄 Auto-refresh: updating to today');
+                    
+                    // Update the schedule to show today
+                    renderScheduleForDate(today);
+                    
+                    // Update tab highlighting to show today as active
+                    document.querySelectorAll('.day-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                        if (tab.dataset.date === today) {
+                            tab.classList.add('active');
+                        }
+                    });
+                } else {
+                    console.log('⏸️ Auto-refresh: skipping (user selected', userSelectedDay, ')');
+                }
+                
+                // Update other UI elements (current time, tasks, etc.)
+                updateCurrentDate();
+                renderTasks();
+                updateWhatNow();
+                renderDeadlines();
+                
+                lastAutoRefresh = Date.now();
             }, 60000);
             
             // Set default location
