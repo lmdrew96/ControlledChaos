@@ -180,44 +180,57 @@
             }
         }
 
-        /* Subtle user info in top-right corner */
-        .user-info {
+        /* Sync indicator in top-right corner */
+        #syncIndicator {
             position: fixed;
             top: 20px;
             right: 20px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background: rgba(255,255,255,0.95);
-            border-radius: 20px;
-            font-size: 0.8em;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 100;
-        }
-
-        .user-info .email {
-            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
             font-weight: 500;
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
-        .user-info .sign-out-btn {
-            padding: 4px 10px;
-            background: var(--danger);
+        #syncIndicator:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        /* Button styles for Settings */
+        .primary-button {
+            padding: 0.75rem 1.5rem;
+            background: #4285f4;
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 0.85em;
+            border-radius: 6px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
         }
 
-        .user-info .sign-out-btn:hover {
-            background: #dc2626;
+        .primary-button:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+        }
+
+        .secondary-button {
+            padding: 0.5rem 1rem;
+            background: white;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .secondary-button:hover {
+            background: #f8f9fa;
+            border-color: #999;
         }
 
         .header-buttons {
@@ -1169,23 +1182,16 @@
             <p class="tagline">Your ADHD-friendly productivity companion with cross-device sync</p>
             <div class="current-date" id="currentDate"></div>
             
-            <!-- Google Sign In / Status -->
-            <div id="googleSignIn" class="sync-status signed-out">
-                <button class="btn btn-primary" onclick="handleGoogleSignIn()">
-                    🔐 Sign in with Google
-                </button>
-                <p style="font-size: 0.9em; margin-top: 10px;">
-                    Sign in to sync your data across all devices
-                </p>
-            </div>
-
-            <div id="userInfo" class="user-info" style="display: none;">
-                <span class="email" id="userEmail"></span>
-                <button class="sign-out-btn" onclick="handleGoogleSignOut()">Sign Out</button>
-            </div>
-            
-            <div id="syncIndicator" style="display: none; margin-top: 8px; font-size: 0.85em; color: var(--text-light);">
-                ☁️ Synced with Google Drive
+            <!-- Sync Indicator in top-right corner -->
+            <div id="syncIndicator" style="
+                padding: 0.5rem 1rem;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            " title="Click to view sync status">
+                💾 Checking...
             </div>
             
             <div class="header-buttons">
@@ -1439,6 +1445,27 @@
         <div class="tab-content" id="settings-tab" style="display: none;">
             <h2 style="color: var(--primary); margin-bottom: 20px;">⚙️ Settings & Configuration</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">Configure your API keys and preferences.</p>
+            
+            <!-- Google Drive Authentication Section -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>☁️ Google Drive Sync</h2>
+                <p style="color: #666; margin-bottom: 1rem;">
+                    Sign in to sync your data across devices and back up to Google Drive.
+                </p>
+                
+                <div id="googleSignInSettings">
+                    <button id="googleSignInBtn" class="primary-button" onclick="handleGoogleSignIn()">
+                        Sign in with Google
+                    </button>
+                </div>
+                
+                <div id="googleAccountInfo" style="display: none; margin-top: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span id="userEmailDisplay" style="color: #666;">user@example.com</span>
+                        <button id="googleSignOutBtn" class="secondary-button" onclick="handleGoogleSignOut()">Sign Out</button>
+                    </div>
+                </div>
+            </div>
             
             <!-- Settings Content -->
             <div class="card">
@@ -2158,9 +2185,7 @@
             localStorage.removeItem('userEmail');
             
             // Update UI
-            document.getElementById('googleSignIn').style.display = 'block';
-            document.getElementById('userInfo').style.display = 'none';
-            document.getElementById('syncIndicator').style.display = 'none';
+            updateSignInUI();
             
             showToast('👋 Signed out successfully');
         }
@@ -2172,15 +2197,44 @@
             
             if (googleAccessToken && userEmail) {
                 console.log('🎨 [UPDATE UI] Showing signed-in state');
-                document.getElementById('googleSignIn').style.display = 'none';
-                document.getElementById('userInfo').style.display = 'inline-flex';
-                document.getElementById('userEmail').textContent = userEmail;
-                document.getElementById('syncIndicator').style.display = 'block';
+                
+                // Update Settings tab UI
+                const signInSettings = document.getElementById('googleSignInSettings');
+                const accountInfo = document.getElementById('googleAccountInfo');
+                const emailDisplay = document.getElementById('userEmailDisplay');
+                
+                if (signInSettings) signInSettings.style.display = 'none';
+                if (accountInfo) accountInfo.style.display = 'block';
+                if (emailDisplay) emailDisplay.textContent = userEmail;
+                
+                // Update sync indicator
+                const syncIndicator = document.getElementById('syncIndicator');
+                if (syncIndicator) {
+                    syncIndicator.style.display = 'block';
+                    syncIndicator.textContent = '☁️ Synced';
+                    syncIndicator.style.backgroundColor = '#e6f4ea';
+                    syncIndicator.style.color = '#1e8e3e';
+                    syncIndicator.style.border = '1px solid #34a853';
+                }
             } else {
                 console.log('🎨 [UPDATE UI] Showing signed-out state');
-                document.getElementById('googleSignIn').style.display = 'block';
-                document.getElementById('userInfo').style.display = 'none';
-                document.getElementById('syncIndicator').style.display = 'none';
+                
+                // Update Settings tab UI
+                const signInSettings = document.getElementById('googleSignInSettings');
+                const accountInfo = document.getElementById('googleAccountInfo');
+                
+                if (signInSettings) signInSettings.style.display = 'block';
+                if (accountInfo) accountInfo.style.display = 'none';
+                
+                // Update sync indicator
+                const syncIndicator = document.getElementById('syncIndicator');
+                if (syncIndicator) {
+                    syncIndicator.style.display = 'block';
+                    syncIndicator.textContent = '💾 Local Only';
+                    syncIndicator.style.backgroundColor = '#fef7e0';
+                    syncIndicator.style.color = '#b45309';
+                    syncIndicator.style.border = '1px solid #fbbc04';
+                }
             }
         }
 
