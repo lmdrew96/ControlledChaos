@@ -916,6 +916,53 @@
             opacity: 0.5;
         }
 
+        /* Tab Navigation Styles */
+        .tab-navigation {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: #f0f4f8;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: white;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab-button:hover {
+            background: #e8f0fe;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+
+        .tab-button.active {
+            background: #4285f4;
+            color: white;
+            box-shadow: 0 4px 8px rgba(66,133,244,0.3);
+        }
+
+        .tab-content {
+            padding: 2rem;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .planner-grid {
@@ -924,6 +971,16 @@
 
             .planner-day-column {
                 min-width: 140px;
+            }
+            
+            .tab-navigation {
+                gap: 0.3rem;
+                padding: 0.5rem;
+            }
+            
+            .tab-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
             }
         }
 
@@ -1072,14 +1129,25 @@
             </div>
         </header>
 
-        <!-- Configuration Warning -->
-        <div id="configWarning" class="config-warning">
-            <strong>⚠️ Configuration Required</strong><br>
-            Please update the configuration in Settings with your Cloudflare Worker URL and Google Client ID.
-            See SETUP-INSTRUCTIONS.md for details.
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="dashboard">🏠 Dashboard</button>
+            <button class="tab-button" data-tab="tasks">✅ Tasks & Deadlines</button>
+            <button class="tab-button" data-tab="schedule">📅 Schedule</button>
+            <button class="tab-button" data-tab="templates">📋 Templates</button>
+            <button class="tab-button" data-tab="settings">⚙️ Settings</button>
         </div>
 
-        <!-- WHAT NOW Hero Section -->
+        <!-- DASHBOARD TAB -->
+        <div class="tab-content" id="dashboard-tab" style="display: block;">
+            <!-- Configuration Warning -->
+            <div id="configWarning" class="config-warning">
+                <strong>⚠️ Configuration Required</strong><br>
+                Please update the configuration in Settings with your Cloudflare Worker URL and Google Client ID.
+                See SETUP-INSTRUCTIONS.md for details.
+            </div>
+
+            <!-- WHAT NOW Hero Section -->
         <div class="what-now-hero">
             <h2>🎯 What Should I Do Right Now?</h2>
             
@@ -1244,6 +1312,36 @@
                 </div>
             </div>
         </div>
+        </div>
+        <!-- END DASHBOARD TAB -->
+
+        <!-- TASKS TAB -->
+        <div class="tab-content" id="tasks-tab" style="display: none;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">✅ Tasks & Deadlines</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Manage all your tasks, deadlines, and errands in one place.</p>
+        </div>
+        <!-- END TASKS TAB -->
+
+        <!-- SCHEDULE TAB -->
+        <div class="tab-content" id="schedule-tab" style="display: none;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Schedule & Planning</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">View your schedule and plan your week visually.</p>
+        </div>
+        <!-- END SCHEDULE TAB -->
+
+        <!-- TEMPLATES TAB -->
+        <div class="tab-content" id="templates-tab" style="display: none;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">📋 Task Templates</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Create and manage recurring task templates.</p>
+        </div>
+        <!-- END TEMPLATES TAB -->
+
+        <!-- SETTINGS TAB -->
+        <div class="tab-content" id="settings-tab" style="display: none;">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">⚙️ Settings & Configuration</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Configure your API keys and preferences.</p>
+        </div>
+        <!-- END SETTINGS TAB -->
     </div>
 
     <!-- Settings Modal -->
@@ -4135,9 +4233,51 @@ Format as natural, encouraging text. Be brief and direct.`;
             }
         }
 
+        // ===== TAB NAVIGATION =====
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.dataset.tab;
+                    
+                    // Update buttons
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    
+                    // Update content
+                    tabContents.forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    document.getElementById(`${targetTab}-tab`).style.display = 'block';
+                    
+                    // Remember active tab
+                    localStorage.setItem('activeTab', targetTab);
+                    
+                    console.log(`📑 Switched to ${targetTab} tab`);
+                });
+            });
+            
+            // Restore last active tab
+            const savedTab = localStorage.getItem('activeTab') || 'dashboard';
+            const savedButton = document.querySelector(`[data-tab="${savedTab}"]`);
+            if (savedButton) {
+                savedButton.click();
+            } else {
+                // Default to dashboard
+                document.querySelector('[data-tab="dashboard"]').click();
+            }
+            
+            console.log('✅ Tab navigation initialized');
+        }
+
         // ===== INITIALIZATION =====
         window.addEventListener('load', async () => {
             console.log('🚀 [INIT] Application starting...');
+            
+            // Initialize tab navigation
+            initializeTabs();
             
             // Initialize Google API
             initGoogleAPI();
