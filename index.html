@@ -1599,25 +1599,42 @@
             document.getElementById('weekLabel').textContent = 
                 `Week of ${weekStart.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}`;
             
-            // Update day tabs with dates
-            const dayTabs = document.querySelectorAll('.day-tab');
-            dayTabs.forEach((tab, index) => {
+            // Clear and regenerate day tabs dynamically to ensure correct order
+            const dayTabsContainer = document.querySelector('.day-tabs');
+            dayTabsContainer.innerHTML = '';
+            
+            // Generate 7 day tabs starting from Monday
+            for (let i = 0; i < 7; i++) {
                 const date = new Date(weekStart);
-                date.setDate(date.getDate() + index);
+                date.setDate(date.getDate() + i);
                 const dateStr = formatDate(date);
                 const dayName = date.toLocaleDateString('en-US', {weekday: 'short'});
                 const monthDay = date.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
                 
-                tab.dataset.date = dateStr;
-                tab.textContent = `${dayName} ${monthDay}`;
+                const button = document.createElement('button');
+                button.className = 'day-tab';
+                button.dataset.date = dateStr;
+                button.textContent = `${dayName} ${monthDay}`;
                 
                 // Highlight today
                 const today = formatDate(new Date());
                 if (dateStr === today) {
-                    tab.classList.add('active');
-                    renderScheduleForDate(dateStr);
+                    button.classList.add('active');
                 }
-            });
+                
+                // Add click handler
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+                    button.classList.add('active');
+                    renderScheduleForDate(dateStr);
+                });
+                
+                dayTabsContainer.appendChild(button);
+            }
+            
+            // Render today's schedule by default
+            const today = formatDate(new Date());
+            renderScheduleForDate(today);
         }
 
         // Render schedule for specific date
@@ -2174,6 +2191,9 @@
                     }
                 }
                 
+                // Populate settings input fields
+                populateSettingsInputs();
+                
                 // Update UI immediately with localStorage data
                 updateUI();
                 console.log('✅ [RESTORE SESSION] UI updated with localStorage data');
@@ -2324,6 +2344,9 @@
                     // Now update appData
                     appData = loadedData;
                     appData.lastSync = new Date().toISOString();
+                    
+                    // Populate settings input fields after loading from Drive
+                    populateSettingsInputs();
                     
                     console.log('✅ [LOAD DATA] Data loaded successfully from Drive');
                     console.log('✅ [LOAD DATA] Tasks:', appData.tasks?.length || 0);
@@ -3381,7 +3404,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
 
         // Initialize Daily Schedule with day tabs
         function initializeDailySchedule() {
-            // Initialize calendar week
+            // Initialize calendar week (this now handles all tab creation and event listeners)
             renderCalendarWeek();
             
             // Add week navigation event listeners
@@ -3393,21 +3416,6 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             document.getElementById('nextWeek').addEventListener('click', () => {
                 currentWeekStart.setDate(currentWeekStart.getDate() + 7);
                 renderCalendarWeek();
-            });
-
-            // Add click handlers to day tabs
-            document.querySelectorAll('.day-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    // Update active state
-                    document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    
-                    // Render selected date's schedule
-                    const selectedDate = tab.dataset.date;
-                    renderScheduleForDate(selectedDate);
-                    
-                    console.log(`📅 Switched to ${selectedDate} schedule`);
-                });
             });
         }
 
@@ -4219,6 +4227,29 @@ Format as natural, encouraging text. Be brief and direct.`;
 
         function showSettings() {
             openTab('settings');
+        }
+
+        function populateSettingsInputs() {
+            console.log('🔧 [SETTINGS] Populating settings input fields...');
+            
+            const workerUrlInput = document.getElementById('workerUrlInput');
+            const clientIdInput = document.getElementById('clientIdInput');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            
+            if (workerUrlInput && appData.settings?.workerUrl) {
+                workerUrlInput.value = appData.settings.workerUrl;
+                console.log('🔧 [SETTINGS] Worker URL populated');
+            }
+            
+            if (clientIdInput && appData.settings?.clientId) {
+                clientIdInput.value = appData.settings.clientId;
+                console.log('🔧 [SETTINGS] Client ID populated');
+            }
+            
+            if (apiKeyInput && appData.settings?.apiKey) {
+                apiKeyInput.value = appData.settings.apiKey;
+                console.log('🔧 [SETTINGS] API key populated (length:', appData.settings.apiKey.length, ')');
+            }
         }
 
         function saveSettings() {
