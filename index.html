@@ -1531,6 +1531,18 @@
         let pendingChanges = false;
         let gapiInitialized = false;
         let userEmail = null;
+        let driveAuthError = false;
+
+        // Check if Drive is available
+        function isDriveAvailable() {
+            if (!gapi || !gapi.client || !gapi.client.drive) {
+                return false;
+            }
+            
+            // Check if we have a valid access token
+            const token = gapi.auth2?.getAuthInstance()?.currentUser?.get()?.getAuthResponse()?.access_token;
+            return !!token && !!googleAccessToken;
+        }
 
         // ===== DATE/TIME UTILITIES =====
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -2283,25 +2295,19 @@
                 // Timeout after 10 seconds
                 setTimeout(() => {
                     clearInterval(checkInterval);
-                    console.warn('⚠️ [GAPI] Initialization timeout - proceeding anyway');
+                    console.log('ℹ️ [GAPI] Initialization timeout - proceeding anyway');
                     resolve();
                 }, 10000);
             });
         }
 
         async function loadDataFromDrive() {
-            console.log('📥 [LOAD DATA] Starting data load from Drive...');
-            console.log('📥 [LOAD DATA] googleAccessToken exists:', !!googleAccessToken);
-            console.log('📥 [LOAD DATA] gapiInitialized:', gapiInitialized);
-            
-            if (!googleAccessToken) {
-                console.log('⚠️ [LOAD DATA] Cannot load - missing token');
-                return;
-            }
-
-            if (!gapiInitialized) {
-                console.log('⚠️ [LOAD DATA] Cannot load - gapi not initialized');
-                throw new Error('gapi not initialized');
+            if (!isDriveAvailable()) {
+                if (!driveAuthError) {
+                    console.log('ℹ️ [DRIVE] Not authenticated - using localStorage');
+                    driveAuthError = true;
+                }
+                return null;
             }
 
             try {
@@ -2310,8 +2316,6 @@
                     syncIndicator.textContent = '⏳ Loading from Drive...';
                 }
                 
-                console.log('📥 [LOAD DATA] Searching for file:', DRIVE_FILE_NAME);
-                
                 // Search for existing file
                 const response = await gapi.client.drive.files.list({
                     q: `name='${DRIVE_FILE_NAME}' and trashed=false`,
@@ -2319,45 +2323,25 @@
                     fields: 'files(id, name)'
                 });
 
-                console.log('📥 [LOAD DATA] Search response:', response.result);
-
                 if (response.result.files && response.result.files.length > 0) {
                     driveFileId = response.result.files[0].id;
-                    console.log('📥 [LOAD DATA] Found file with ID:', driveFileId);
                     
                     // Download file content
-                    console.log('📥 [LOAD DATA] Downloading file content...');
                     const fileResponse = await gapi.client.drive.files.get({
                         fileId: driveFileId,
                         alt: 'media'
                     });
                     
-                    console.log('📥 [LOAD DATA] Raw file content length:', fileResponse.body.length);
-                    
                     // Parse and load data
                     const loadedData = JSON.parse(fileResponse.body);
-                    console.log('📥 [LOAD DATA] Parsed data structure:', {
-                        hasTasks: !!loadedData.tasks,
-                        taskCount: loadedData.tasks?.length || 0,
-                        hasDeadlines: !!loadedData.deadlines,
-                        deadlineCount: loadedData.deadlines?.length || 0,
-                        hasSettings: !!loadedData.settings,
-                        hasSchedule: !!loadedData.schedule
-                    });
                     
                     // CRITICAL: Apply settings FIRST before updating appData
                     if (loadedData.settings) {
-                        console.log('⚙️ [LOAD DATA] Applying settings from Drive...');
                         if (loadedData.settings.workerUrl) {
                             CLOUDFLARE_WORKER_URL = loadedData.settings.workerUrl;
-                            console.log('⚙️ [LOAD DATA] Worker URL set to:', CLOUDFLARE_WORKER_URL);
                         }
                         if (loadedData.settings.clientId) {
                             GOOGLE_CLIENT_ID = loadedData.settings.clientId;
-                            console.log('⚙️ [LOAD DATA] Client ID set to:', GOOGLE_CLIENT_ID);
-                        }
-                        if (loadedData.settings.apiKey) {
-                            console.log('⚙️ [LOAD DATA] API key saved:', loadedData.settings.apiKey ? '✓ Present' : '✗ Missing');
                         }
                     }
                     
@@ -2368,61 +2352,42 @@
                     // Populate settings input fields after loading from Drive
                     populateSettingsInputs();
                     
-                    console.log('✅ [LOAD DATA] Data loaded successfully from Drive');
-                    console.log('✅ [LOAD DATA] Tasks:', appData.tasks?.length || 0);
-                    console.log('✅ [LOAD DATA] Deadlines:', appData.deadlines?.length || 0);
-                    console.log('✅ [LOAD DATA] Settings loaded:', !!appData.settings);
+                    driveAuthError = false; // Reset flag on success
                     
                     const syncIndicator = document.getElementById('syncIndicator');
                     if (syncIndicator) {
-                        syncIndicator.textContent = '☁️ Synced with Google Drive';
+                        syncIndicator.textContent = '☁️ Synced';
+                        syncIndicator.style.color = '#34a853';
                     }
-                } else {
-                    console.log('ℹ️ [LOAD DATA] No existing file found, will create on first save');
-                    // No file exists - don't create one yet, wait for first save
                 }
             } catch (error) {
-                console.error('❌ [LOAD DATA] Error loading from Drive:', error);
-                console.error('❌ [LOAD DATA] Error details:', {
-                    message: error.message,
-                    status: error.status,
-                    statusText: error.statusText
-                });
-                
-                const syncIndicator = document.getElementById('syncIndicator');
-                if (syncIndicator) {
-                    syncIndicator.textContent = '⚠️ Sync error';
+                if (error.status === 401) {
+                    console.log('⚠️ [DRIVE] Token expired - please re-authenticate');
+                    driveAuthError = true;
+                    const syncIndicator = document.getElementById('syncIndicator');
+                    if (syncIndicator) {
+                        syncIndicator.textContent = '💾 Local Only';
+                        syncIndicator.style.color = '#fbbc04';
+                        syncIndicator.title = 'Drive sync disconnected - click Settings to re-authenticate';
+                    }
+                } else {
+                    console.error('❌ [DRIVE] Load error:', error);
                 }
-                // If error is auth-related, throw to let caller handle
-                if (error.status === 401 || error.status === 403) {
-                    console.log('🔐 [LOAD DATA] Auth error detected');
-                    throw error;
-                }
-                throw error;
+                return null;
             }
         }
 
         async function saveDataToDrive() {
-            console.log('💾 [SAVE DATA] Starting save to Drive...');
-            console.log('💾 [SAVE DATA] googleAccessToken exists:', !!googleAccessToken);
-            console.log('💾 [SAVE DATA] gapiInitialized:', gapiInitialized);
+            if (!isDriveAvailable()) {
+                if (!driveAuthError) {
+                    console.log('ℹ️ [DRIVE] Not authenticated - using localStorage only');
+                    driveAuthError = true;
+                }
+                return; // Fail silently
+            }
             
             // Show saving indicator
             showSavingIndicator('💾 Saving...');
-            
-            if (!googleAccessToken) {
-                console.log('⚠️ [SAVE DATA] Cannot save to Drive - missing token');
-                pendingChanges = true;
-                hideSavingIndicator(false, '⚠️ Drive unavailable');
-                return;
-            }
-
-            if (!gapiInitialized) {
-                console.log('⚠️ [SAVE DATA] Cannot save to Drive - gapi not initialized');
-                pendingChanges = true;
-                hideSavingIndicator(false, '⚠️ Drive unavailable');
-                return;
-            }
 
             try {
                 const syncIndicator = document.getElementById('syncIndicator');
@@ -2432,13 +2397,6 @@
                 
                 appData.lastSync = new Date().toISOString();
                 const content = JSON.stringify(appData, null, 2);
-                console.log('💾 [SAVE DATA] Data to save:', {
-                    taskCount: appData.tasks?.length || 0,
-                    deadlineCount: appData.deadlines?.length || 0,
-                    hasSettings: !!appData.settings,
-                    hasSchedule: !!appData.schedule,
-                    contentLength: content.length
-                });
                 
                 const blob = new Blob([content], { type: 'application/json' });
 
@@ -2456,9 +2414,6 @@
                     ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
                     : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 
-                console.log('💾 [SAVE DATA] Using method:', method);
-                console.log('💾 [SAVE DATA] File ID:', driveFileId || 'Creating new file');
-
                 const response = await fetch(url, {
                     method: method,
                     headers: {
@@ -2467,35 +2422,33 @@
                     body: form
                 });
 
-                console.log('💾 [SAVE DATA] Response status:', response.status);
-
                 const result = await response.json();
-                console.log('💾 [SAVE DATA] Response result:', result);
                 
                 if (result.id) {
                     driveFileId = result.id;
                     pendingChanges = false;
+                    driveAuthError = false; // Reset flag on success
                     const syncIndicator = document.getElementById('syncIndicator');
                     if (syncIndicator) {
-                        syncIndicator.textContent = '☁️ Synced with Google Drive';
+                        syncIndicator.textContent = '☁️ Synced';
+                        syncIndicator.style.color = '#34a853';
                     }
-                    console.log('✅ [SAVE DATA] Data saved successfully to Drive');
-                    console.log('✅ [SAVE DATA] File ID:', driveFileId);
                     hideSavingIndicator(true);
                 } else {
-                    console.error('❌ [SAVE DATA] No file ID in response');
                     hideSavingIndicator(false);
                 }
             } catch (error) {
-                console.error('❌ [SAVE DATA] Error saving to Drive:', error);
-                console.error('❌ [SAVE DATA] Error details:', {
-                    message: error.message,
-                    stack: error.stack
-                });
-                
-                const syncIndicator = document.getElementById('syncIndicator');
-                if (syncIndicator) {
-                    syncIndicator.textContent = '⚠️ Sync error';
+                if (error.status === 401) {
+                    console.log('⚠️ [DRIVE] Token expired - please re-authenticate');
+                    driveAuthError = true;
+                    const syncIndicator = document.getElementById('syncIndicator');
+                    if (syncIndicator) {
+                        syncIndicator.textContent = '💾 Local Only';
+                        syncIndicator.style.color = '#fbbc04';
+                        syncIndicator.title = 'Drive sync disconnected - click Settings to re-authenticate';
+                    }
+                } else {
+                    console.error('❌ [DRIVE] Save error:', error);
                 }
                 pendingChanges = true;
                 hideSavingIndicator(false);
