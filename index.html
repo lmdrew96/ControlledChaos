@@ -1114,11 +1114,11 @@
                     <span class="btn-icon">📊</span>
                     <span class="btn-text">Mood Patterns</span>
                 </button>
-                <button class="btn btn-secondary" onclick="showEditSchedule()" data-tooltip="Edit Schedule">
+                <button class="btn btn-secondary" onclick="openTab('schedule')" data-tooltip="Schedule">
                     <span class="btn-icon">📅</span>
-                    <span class="btn-text">Edit Schedule</span>
+                    <span class="btn-text">Schedule</span>
                 </button>
-                <button class="btn btn-secondary" onclick="showSettings()" data-tooltip="Settings">
+                <button class="btn btn-secondary" onclick="openTab('settings')" data-tooltip="Settings">
                     <span class="btn-icon">⚙️</span>
                     <span class="btn-text">Settings</span>
                 </button>
@@ -1148,7 +1148,7 @@
             </div>
 
             <!-- WHAT NOW Hero Section -->
-        <div class="what-now-hero">
+            <div class="what-now-hero">
             <h2>🎯 What Should I Do Right Now?</h2>
             
             <div class="location-selector">
@@ -1176,142 +1176,20 @@
                     Exhausted? Move remaining tasks to tomorrow - no guilt!
                 </p>
             </div>
-        </div>
-
-        <!-- Current Schedule Block -->
-        <div class="schedule-section">
-            <div class="schedule-header">
-                <h2>📅 Your Schedule</h2>
-                <button class="btn btn-warning" onclick="showEditSchedule()">✏️ Edit Schedule</button>
-            </div>
-            
-            <div id="currentBlock" class="current-block" style="display: none;">
-                <h3>📍 YOU ARE HERE</h3>
-                <p id="currentBlockText"></p>
-                <p class="time-remaining" id="timeRemaining"></p>
             </div>
 
-            <div id="scheduleView"></div>
-        </div>
-
-        <!-- Deadlines Section -->
-        <div class="card">
-            <h2>📋 Deadlines</h2>
-            <div class="quick-add">
-                <input type="text" id="quickDeadlineInput" placeholder="Quick add a deadline... (press Enter)" 
-                       onkeypress="if(event.key==='Enter') showAddDeadlineModal()">
-                <button class="btn btn-primary" onclick="showAddDeadlineModal()">Add Deadline</button>
-            </div>
-            <div id="allDeadlines" class="task-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📅</div>
-                    <p>No deadlines yet!</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Errands & Stops Section -->
-        <div class="card errands-section">
-            <h2>🏪 Errands & Stops</h2>
-            <p class="errands-hint" style="color: var(--text-light); margin-bottom: 15px;">
-                Things to do when you're out and about (post office, grocery store, etc.)
-            </p>
-            
-            <div class="common-errands" style="margin-bottom: 20px;">
-                <h4 style="margin-bottom: 10px;">Quick add common errands:</h4>
-                <div class="errand-buttons" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
-                    <button class="btn btn-secondary" onclick="quickAddErrand('Post office')" style="width: 100%;">📮 Post office</button>
-                    <button class="btn btn-secondary" onclick="quickAddErrand('Grocery store')" style="width: 100%;">🛒 Grocery</button>
-                    <button class="btn btn-secondary" onclick="quickAddErrand('Gas station')" style="width: 100%;">⛽ Gas</button>
-                    <button class="btn btn-secondary" onclick="quickAddErrand('Pharmacy')" style="width: 100%;">💊 Pharmacy</button>
-                </div>
-            </div>
-            
-            <div id="errandTasks" class="task-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">🏪</div>
-                    <p>No errands yet!</p>
-                </div>
-            </div>
-            
-            <div class="commute-home-indicator" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-top: 15px;" id="commuteHomeIndicator">
-                🚗 You're driving home - good time to make stops!
-            </div>
-        </div>
-
-        <!-- Visual Time Block Planner -->
-        <div class="card">
-            <h2>📅 Visual Week Planner</h2>
-            <p style="color: var(--text-light); margin-bottom: 15px;">
-                Drag tasks onto time blocks to plan your week
-            </p>
-            <div class="planner-controls" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="showCurrentWeek()">This Week</button>
-                <button class="btn btn-secondary" onclick="showNextWeek()">Next Week</button>
-            </div>
-            
-            <div class="planner-grid" id="plannerGrid">
-                <!-- Generated dynamically -->
-            </div>
-            
-            <div class="unscheduled-tasks" style="margin-top: 30px; padding: 20px; background: var(--bg-main); border-radius: 12px;">
-                <h3 style="margin-bottom: 15px;">📋 Unscheduled Tasks</h3>
-                <div id="unscheduledTasksList">
-                    <!-- Tasks that haven't been assigned to time blocks -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Templates Section -->
-        <div class="card">
-            <h2>📋 Weekly Task Templates</h2>
-            <p style="color: var(--text-light); margin-bottom: 15px;">
-                Create all your weekly coursework with one click
-            </p>
-            <div class="template-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                <!-- Bio template -->
-                <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
-                    <h4 style="color: var(--primary); margin-bottom: 10px;">Bio Weekly Work</h4>
-                    <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
-                        4 tasks • Due Wednesdays 11:58pm
-                    </p>
-                    <button class="btn btn-primary" onclick="createTasksFromTemplate('bio-weekly')" style="width: 100%;">
-                        ✨ Create Tasks
-                    </button>
+            <!-- Current Schedule Block -->
+            <div class="schedule-section">
+                <div class="schedule-header">
+                    <h2>📅 Your Schedule Right Now</h2>
                 </div>
                 
-                <!-- Beatles template -->
-                <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
-                    <h4 style="color: var(--primary); margin-bottom: 10px;">Beatles Weekly Work</h4>
-                    <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
-                        4 tasks • Due Sundays 11:58pm
-                    </p>
-                    <button class="btn btn-primary" onclick="createTasksFromTemplate('beatles-weekly')" style="width: 100%;">
-                        ✨ Create Tasks
-                    </button>
+                <div id="currentBlock" class="current-block" style="display: none;">
+                    <h3>📍 YOU ARE HERE</h3>
+                    <p id="currentBlockText"></p>
+                    <p class="time-remaining" id="timeRemaining"></p>
                 </div>
             </div>
-            
-            <button class="btn btn-secondary" onclick="showCreateTemplateModal()" style="width: 100%;">
-                ➕ Create Custom Template
-            </button>
-        </div>
-
-        <!-- Tasks Section -->
-        <div class="card">
-            <h2>📋 All Tasks</h2>
-            <div class="quick-add">
-                <input type="text" id="quickTaskInput" placeholder="Quick add a task... (press Enter)" 
-                       onkeypress="if(event.key==='Enter') quickAddTask()">
-                <button class="btn btn-primary" onclick="quickAddTask()">Add</button>
-            </div>
-            <div id="allTasks" class="task-list">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📝</div>
-                    <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
-                </div>
-            </div>
-        </div>
         </div>
         <!-- END DASHBOARD TAB -->
 
@@ -1319,6 +1197,67 @@
         <div class="tab-content" id="tasks-tab" style="display: none;">
             <h2 style="color: var(--primary); margin-bottom: 20px;">✅ Tasks & Deadlines</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">Manage all your tasks, deadlines, and errands in one place.</p>
+            
+            <!-- All Tasks Section -->
+            <div class="card">
+                <h2>📋 All Tasks</h2>
+                <div class="quick-add">
+                    <input type="text" id="quickTaskInput" placeholder="Quick add a task... (press Enter)" 
+                           onkeypress="if(event.key==='Enter') quickAddTask()">
+                    <button class="btn btn-primary" onclick="quickAddTask()">Add</button>
+                </div>
+                <div id="allTasks" class="task-list">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <p>No tasks yet! Use Quick Add or Brain Dump to get started.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deadlines Section -->
+            <div class="card">
+                <h2>📋 Deadlines</h2>
+                <div class="quick-add">
+                    <input type="text" id="quickDeadlineInput" placeholder="Quick add a deadline... (press Enter)" 
+                           onkeypress="if(event.key==='Enter') showAddDeadlineModal()">
+                    <button class="btn btn-primary" onclick="showAddDeadlineModal()">Add Deadline</button>
+                </div>
+                <div id="allDeadlines" class="task-list">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📅</div>
+                        <p>No deadlines yet!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Errands & Stops Section -->
+            <div class="card errands-section">
+                <h2>🏪 Errands & Stops</h2>
+                <p class="errands-hint" style="color: var(--text-light); margin-bottom: 15px;">
+                    Things to do when you're out and about (post office, grocery store, etc.)
+                </p>
+                
+                <div class="common-errands" style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">Quick add common errands:</h4>
+                    <div class="errand-buttons" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                        <button class="btn btn-secondary" onclick="quickAddErrand('Post office')" style="width: 100%;">📮 Post office</button>
+                        <button class="btn btn-secondary" onclick="quickAddErrand('Grocery store')" style="width: 100%;">🛒 Grocery</button>
+                        <button class="btn btn-secondary" onclick="quickAddErrand('Gas station')" style="width: 100%;">⛽ Gas</button>
+                        <button class="btn btn-secondary" onclick="quickAddErrand('Pharmacy')" style="width: 100%;">💊 Pharmacy</button>
+                    </div>
+                </div>
+                
+                <div id="errandTasks" class="task-list">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🏪</div>
+                        <p>No errands yet!</p>
+                    </div>
+                </div>
+                
+                <div class="commute-home-indicator" style="display: none; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px; border-radius: 10px; margin-top: 15px;" id="commuteHomeIndicator">
+                    🚗 You're driving home - good time to make stops!
+                </div>
+            </div>
         </div>
         <!-- END TASKS TAB -->
 
@@ -1326,6 +1265,44 @@
         <div class="tab-content" id="schedule-tab" style="display: none;">
             <h2 style="color: var(--primary); margin-bottom: 20px;">📅 Schedule & Planning</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">View your schedule and plan your week visually.</p>
+            
+            <!-- Full Schedule View -->
+            <div class="schedule-section">
+                <div class="schedule-header">
+                    <h2>📅 Today's Schedule</h2>
+                </div>
+                
+                <div id="currentBlock" class="current-block" style="display: none;">
+                    <h3>📍 YOU ARE HERE</h3>
+                    <p id="currentBlockText"></p>
+                    <p class="time-remaining" id="timeRemaining"></p>
+                </div>
+
+                <div id="scheduleView"></div>
+            </div>
+
+            <!-- Visual Time Block Planner -->
+            <div class="card">
+                <h2>📅 Visual Week Planner</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Drag tasks onto time blocks to plan your week
+                </p>
+                <div class="planner-controls" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="showCurrentWeek()">This Week</button>
+                    <button class="btn btn-secondary" onclick="showNextWeek()">Next Week</button>
+                </div>
+                
+                <div class="planner-grid" id="plannerGrid">
+                    <!-- Generated dynamically -->
+                </div>
+                
+                <div class="unscheduled-tasks" style="margin-top: 30px; padding: 20px; background: var(--bg-main); border-radius: 12px;">
+                    <h3 style="margin-bottom: 15px;">📋 Unscheduled Tasks</h3>
+                    <div id="unscheduledTasksList">
+                        <!-- Tasks that haven't been assigned to time blocks -->
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- END SCHEDULE TAB -->
 
@@ -1333,6 +1310,41 @@
         <div class="tab-content" id="templates-tab" style="display: none;">
             <h2 style="color: var(--primary); margin-bottom: 20px;">📋 Task Templates</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">Create and manage recurring task templates.</p>
+            
+            <!-- Templates Section -->
+            <div class="card">
+                <h2>📋 Weekly Task Templates</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Create all your weekly coursework with one click
+                </p>
+                <div class="template-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <!-- Bio template -->
+                    <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
+                        <h4 style="color: var(--primary); margin-bottom: 10px;">Bio Weekly Work</h4>
+                        <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                            4 tasks • Due Wednesdays 11:58pm
+                        </p>
+                        <button class="btn btn-primary" onclick="createTasksFromTemplate('bio-weekly')" style="width: 100%;">
+                            ✨ Create Tasks
+                        </button>
+                    </div>
+                    
+                    <!-- Beatles template -->
+                    <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border);">
+                        <h4 style="color: var(--primary); margin-bottom: 10px;">Beatles Weekly Work</h4>
+                        <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                            4 tasks • Due Sundays 11:58pm
+                        </p>
+                        <button class="btn btn-primary" onclick="createTasksFromTemplate('beatles-weekly')" style="width: 100%;">
+                            ✨ Create Tasks
+                        </button>
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary" onclick="showCreateTemplateModal()" style="width: 100%;">
+                    ➕ Create Custom Template
+                </button>
+            </div>
         </div>
         <!-- END TEMPLATES TAB -->
 
@@ -1340,6 +1352,52 @@
         <div class="tab-content" id="settings-tab" style="display: none;">
             <h2 style="color: var(--primary); margin-bottom: 20px;">⚙️ Settings & Configuration</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">Configure your API keys and preferences.</p>
+            
+            <!-- Settings Content -->
+            <div class="card">
+                <h2>🔧 API Configuration</h2>
+                
+                <div class="form-group">
+                    <label for="workerUrlInput">Cloudflare Worker URL</label>
+                    <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev/api/claude">
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                        Your Cloudflare Worker URL for API proxy. See SETUP-INSTRUCTIONS.md Part 1.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="clientIdInput">Google OAuth Client ID</label>
+                    <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                        Your Google OAuth Client ID for Drive sync. See SETUP-INSTRUCTIONS.md Part 2.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiKeyInput">Anthropic API Key (Optional)</label>
+                    <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                        Your API key enables AI features. Stored securely in Google Drive.
+                    </p>
+                </div>
+                
+                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+            </div>
+            
+            <!-- Preferences -->
+            <div class="card">
+                <h2>🎨 Preferences</h2>
+                
+                <div class="form-group">
+                    <label>Font Style</label>
+                    <button class="btn btn-secondary" onclick="toggleFont()" style="width: 100%;">
+                        🔤 Toggle Dyslexia-Friendly Font
+                    </button>
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                        Switches between standard and OpenDyslexic font for easier reading.
+                    </p>
+                </div>
+            </div>
         </div>
         <!-- END SETTINGS TAB -->
     </div>
@@ -3917,15 +3975,19 @@ Format as natural, encouraging text. Be brief and direct.`;
             document.getElementById('brainDumpText').focus();
         }
 
+        function openTab(tabName) {
+            const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (tabButton) {
+                tabButton.click();
+            }
+        }
+
         function showEditSchedule() {
-            alert('Schedule editing coming soon! For now, edit the defaultSchedule in the code.');
+            openTab('schedule');
         }
 
         function showSettings() {
-            document.getElementById('workerUrlInput').value = appData.settings.workerUrl || CLOUDFLARE_WORKER_URL;
-            document.getElementById('clientIdInput').value = appData.settings.clientId || GOOGLE_CLIENT_ID;
-            document.getElementById('apiKeyInput').value = appData.settings.apiKey || '';
-            document.getElementById('settingsModal').classList.add('active');
+            openTab('settings');
         }
 
         function saveSettings() {
