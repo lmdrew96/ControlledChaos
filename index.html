@@ -509,6 +509,35 @@
             font-size: 1.2em;
         }
 
+        /* Day Tabs for Daily Schedule */
+        .day-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .day-tab {
+            padding: 0.5rem 1rem;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .day-tab:hover {
+            background: #f0f4f8;
+            border-color: #4285f4;
+        }
+
+        .day-tab.active {
+            background: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+
         /* Task Cards */
         .card {
             background: var(--bg-card);
@@ -1297,13 +1326,24 @@
             <!-- Full Schedule View -->
             <div class="schedule-section">
                 <div class="schedule-header">
-                    <h2>📅 Today's Schedule</h2>
+                    <h2>📅 Daily Schedule</h2>
                 </div>
                 
                 <div id="currentBlock" class="current-block" style="display: none;">
                     <h3>📍 YOU ARE HERE</h3>
                     <p id="currentBlockText"></p>
                     <p class="time-remaining" id="timeRemaining"></p>
+                </div>
+
+                <!-- Day Tabs -->
+                <div class="day-tabs">
+                    <button class="day-tab" data-day="sunday">Sun</button>
+                    <button class="day-tab" data-day="monday">Mon</button>
+                    <button class="day-tab" data-day="tuesday">Tue</button>
+                    <button class="day-tab" data-day="wednesday">Wed</button>
+                    <button class="day-tab" data-day="thursday">Thu</button>
+                    <button class="day-tab" data-day="friday">Fri</button>
+                    <button class="day-tab" data-day="saturday">Sat</button>
                 </div>
 
                 <div id="scheduleView"></div>
@@ -3251,6 +3291,79 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
             return `${displayHour}:${minutes} ${ampm}`;
         }
 
+        // Initialize Daily Schedule with day tabs
+        function initializeDailySchedule() {
+            const daysArray = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const today = daysArray[new Date().getDay()];
+            
+            // Set today as active by default
+            const todayTab = document.querySelector(`[data-day="${today}"]`);
+            if (todayTab) {
+                todayTab.classList.add('active');
+            }
+            
+            // Render today's schedule
+            renderDailySchedule(today);
+            
+            // Add click handlers to day tabs
+            document.querySelectorAll('.day-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Update active state
+                    document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Render selected day's schedule
+                    const selectedDay = tab.dataset.day;
+                    renderDailySchedule(selectedDay);
+                    
+                    console.log(`📅 Switched to ${selectedDay} schedule`);
+                });
+            });
+        }
+
+        // Render schedule for selected day
+        function renderDailySchedule(day) {
+            const scheduleDisplay = document.getElementById('scheduleView');
+            
+            // Capitalize day name for display
+            const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+            const daySchedule = appData.schedule[dayName];
+            
+            if (!daySchedule || daySchedule.length === 0) {
+                scheduleDisplay.innerHTML = '<p style="color: var(--text-light); padding: 20px;">No schedule for this day</p>';
+                return;
+            }
+            
+            // Get current time info for highlighting
+            const now = getCurrentDateTime();
+            const currentDayName = days[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const isToday = currentDayName === dayName;
+            
+            // Use the same format as the original schedule display
+            let html = '<div class="schedule-day">';
+            html += `<h3>${dayName}</h3>`;
+            
+            daySchedule.forEach(block => {
+                const startMinutes = parseTime(block.startTime);
+                const endMinutes = parseTime(block.endTime);
+                const isCurrent = isToday && currentMinutes >= startMinutes && currentMinutes < endMinutes;
+                
+                html += `
+                    <div class="schedule-item ${block.type} ${isCurrent ? 'current' : ''}">
+                        <span>
+                            ${block.type === 'protected' ? '<span class="lock-icon">🔒</span> ' : ''}
+                            ${formatTime(block.startTime)} - ${formatTime(block.endTime)}
+                        </span>
+                        <span>${block.text}</span>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            scheduleDisplay.innerHTML = html;
+        }
+
         function getCurrentBlock() {
             const now = getCurrentDateTime();
             const dayName = days[now.getDay()];
@@ -4369,6 +4482,9 @@ Format as natural, encouraging text. Be brief and direct.`;
             
             // Initialize tab navigation
             initializeTabs();
+            
+            // Initialize daily schedule with day tabs
+            initializeDailySchedule();
             
             // Initialize Google API
             initGoogleAPI();
