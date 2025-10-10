@@ -509,6 +509,40 @@
             font-size: 1.2em;
         }
 
+        /* Week Navigation */
+        .week-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .week-navigation button {
+            padding: 0.5rem 1rem;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .week-navigation button:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(66, 133, 244, 0.3);
+        }
+
+        #weekLabel {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+
         /* Day Tabs for Daily Schedule */
         .day-tabs {
             display: flex;
@@ -1335,42 +1369,27 @@
                     <p class="time-remaining" id="timeRemaining"></p>
                 </div>
 
-                <!-- Day Tabs -->
+                <!-- Week Navigation -->
+                <div class="week-navigation">
+                    <button id="prevWeek">← Previous Week</button>
+                    <span id="weekLabel">Week of Oct 6, 2025</span>
+                    <button id="nextWeek">Next Week →</button>
+                </div>
+
+                <!-- Day Tabs with Dates -->
                 <div class="day-tabs">
-                    <button class="day-tab" data-day="sunday">Sun</button>
-                    <button class="day-tab" data-day="monday">Mon</button>
-                    <button class="day-tab" data-day="tuesday">Tue</button>
-                    <button class="day-tab" data-day="wednesday">Wed</button>
-                    <button class="day-tab" data-day="thursday">Thu</button>
-                    <button class="day-tab" data-day="friday">Fri</button>
-                    <button class="day-tab" data-day="saturday">Sat</button>
+                    <button class="day-tab" data-date="2025-10-06">Mon 10/6</button>
+                    <button class="day-tab" data-date="2025-10-07">Tue 10/7</button>
+                    <button class="day-tab" data-date="2025-10-08">Wed 10/8</button>
+                    <button class="day-tab" data-date="2025-10-09">Thu 10/9</button>
+                    <button class="day-tab active" data-date="2025-10-10">Fri 10/10</button>
+                    <button class="day-tab" data-date="2025-10-11">Sat 10/11</button>
+                    <button class="day-tab" data-date="2025-10-12">Sun 10/12</button>
                 </div>
 
                 <div id="scheduleView"></div>
             </div>
 
-            <!-- Visual Time Block Planner -->
-            <div class="card">
-                <h2>📅 Visual Week Planner</h2>
-                <p style="color: var(--text-light); margin-bottom: 15px;">
-                    Drag tasks onto time blocks to plan your week
-                </p>
-                <div class="planner-controls" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="showCurrentWeek()">This Week</button>
-                    <button class="btn btn-secondary" onclick="showNextWeek()">Next Week</button>
-                </div>
-                
-                <div class="planner-grid" id="plannerGrid">
-                    <!-- Generated dynamically -->
-                </div>
-                
-                <div class="unscheduled-tasks" style="margin-top: 30px; padding: 20px; background: var(--bg-main); border-radius: 12px;">
-                    <h3 style="margin-bottom: 15px;">📋 Unscheduled Tasks</h3>
-                    <div id="unscheduledTasksList">
-                        <!-- Tasks that haven't been assigned to time blocks -->
-                    </div>
-                </div>
-            </div>
         </div>
         <!-- END SCHEDULE TAB -->
 
@@ -1566,6 +1585,110 @@
             document.getElementById('currentDate').textContent = `${dayName}, ${monthName} ${dayNum}, ${year}`;
         }
 
+        // ===== CALENDAR DATE UTILITIES =====
+        let currentWeekStart = getWeekStart();
+
+        // Get the Monday of the current week
+        function getWeekStart(date = new Date()) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        // Format date as YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Get day name from date
+        function getDayName(date) {
+            const daysLower = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            return daysLower[date.getDay()];
+        }
+
+        // Get schedule for specific date (checks overrides first, then template)
+        function getScheduleForDate(dateStr) {
+            // Check if there's an override for this specific date
+            if (appData.scheduleOverrides && appData.scheduleOverrides[dateStr]) {
+                return appData.scheduleOverrides[dateStr];
+            }
+            
+            // Otherwise, use the recurring template
+            const date = new Date(dateStr);
+            const dayName = days[date.getDay()];
+            return appData.schedule[dayName] || [];
+        }
+
+        // Render calendar week with actual dates
+        function renderCalendarWeek() {
+            const weekStart = new Date(currentWeekStart);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            // Update week label
+            document.getElementById('weekLabel').textContent = 
+                `Week of ${weekStart.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}`;
+            
+            // Update day tabs with dates
+            const dayTabs = document.querySelectorAll('.day-tab');
+            dayTabs.forEach((tab, index) => {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + index);
+                const dateStr = formatDate(date);
+                const dayName = date.toLocaleDateString('en-US', {weekday: 'short'});
+                const monthDay = date.toLocaleDateString('en-US', {month: 'numeric', day: 'numeric'});
+                
+                tab.dataset.date = dateStr;
+                tab.textContent = `${dayName} ${monthDay}`;
+                
+                // Highlight today
+                const today = formatDate(new Date());
+                if (dateStr === today) {
+                    tab.classList.add('active');
+                    renderScheduleForDate(dateStr);
+                }
+            });
+        }
+
+        // Render schedule for specific date
+        function renderScheduleForDate(dateStr) {
+            const scheduleDisplay = document.getElementById('scheduleView');
+            const schedule = getScheduleForDate(dateStr);
+            
+            if (!schedule || schedule.length === 0) {
+                scheduleDisplay.innerHTML = '<p>No schedule for this day</p>';
+                return;
+            }
+            
+            const date = new Date(dateStr);
+            const dayName = date.toLocaleDateString('en-US', {weekday: 'long'});
+            
+            let html = `<div class="schedule-day"><h3>${dayName}</h3>`;
+            schedule.forEach(block => {
+                const protectedIcon = block.protected ? '🔒' : '';
+                const blockClass = block.protected ? 'protected' : block.type;
+                
+                html += `
+                    <div class="schedule-item ${blockClass}">
+                        <span>
+                            ${protectedIcon}
+                            ${formatTime(block.startTime)} - ${formatTime(block.endTime)}
+                        </span>
+                        <span>${block.text || block.activity}</span>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            scheduleDisplay.innerHTML = html;
+        }
+
         // ===== DEFAULT SCHEDULE =====
         const defaultSchedule = {
             'Monday': [
@@ -1650,6 +1773,7 @@
             tasks: [],
             deadlines: [],
             schedule: JSON.parse(JSON.stringify(defaultSchedule)),
+            scheduleOverrides: {}, // Date-specific schedule overrides (YYYY-MM-DD format)
             templates: [],
             settings: {
                 workerUrl: '',
@@ -3293,18 +3417,20 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
 
         // Initialize Daily Schedule with day tabs
         function initializeDailySchedule() {
-            const daysArray = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-            const today = daysArray[new Date().getDay()];
+            // Initialize calendar week
+            renderCalendarWeek();
             
-            // Set today as active by default
-            const todayTab = document.querySelector(`[data-day="${today}"]`);
-            if (todayTab) {
-                todayTab.classList.add('active');
-            }
-            
-            // Render today's schedule
-            renderDailySchedule(today);
-            
+            // Add week navigation event listeners
+            document.getElementById('prevWeek').addEventListener('click', () => {
+                currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+                renderCalendarWeek();
+            });
+
+            document.getElementById('nextWeek').addEventListener('click', () => {
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                renderCalendarWeek();
+            });
+
             // Add click handlers to day tabs
             document.querySelectorAll('.day-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -3312,11 +3438,11 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
                     document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     
-                    // Render selected day's schedule
-                    const selectedDay = tab.dataset.day;
-                    renderDailySchedule(selectedDay);
+                    // Render selected date's schedule
+                    const selectedDate = tab.dataset.date;
+                    renderScheduleForDate(selectedDate);
                     
-                    console.log(`📅 Switched to ${selectedDay} schedule`);
+                    console.log(`📅 Switched to ${selectedDate} schedule`);
                 });
             });
         }
