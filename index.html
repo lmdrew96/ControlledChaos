@@ -1624,9 +1624,12 @@
                 
                 // Add click handler
                 button.addEventListener('click', () => {
+                    const clickedDate = button.dataset.date;
+                    console.log('📅 Clicked tab for date:', clickedDate);
+                    
                     document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
                     button.classList.add('active');
-                    renderScheduleForDate(dateStr);
+                    renderScheduleForDate(clickedDate);
                 });
                 
                 dayTabsContainer.appendChild(button);
@@ -2337,7 +2340,7 @@
                             console.log('⚙️ [LOAD DATA] Client ID set to:', GOOGLE_CLIENT_ID);
                         }
                         if (loadedData.settings.apiKey) {
-                            console.log('⚙️ [LOAD DATA] API key loaded (length:', loadedData.settings.apiKey.length, ')');
+                            console.log('⚙️ [LOAD DATA] API key:', loadedData.settings.apiKey ? '✓ Present' : '✗ Missing');
                         }
                     }
                     
@@ -4248,7 +4251,7 @@ Format as natural, encouraging text. Be brief and direct.`;
             
             if (apiKeyInput && appData.settings?.apiKey) {
                 apiKeyInput.value = appData.settings.apiKey;
-                console.log('🔧 [SETTINGS] API key populated (length:', appData.settings.apiKey.length, ')');
+                console.log('🔧 [SETTINGS] API key:', appData.settings.apiKey ? '✓ Present' : '✗ Missing');
             }
         }
 
