@@ -69,6 +69,7 @@ function updateUI() {
     updateWhatNow();
     renderDeadlines();
     renderProjects();
+    renderTemplates();
     
     // Initialize planner if visible (with null check)
     const plannerGrid = document.getElementById('plannerGrid');
@@ -170,6 +171,50 @@ function renderErrandTasks() {
             </div>
         </div>
     `).join('');
+}
+
+// ===== TEMPLATE RENDERING =====
+function renderTemplates() {
+    const container = document.getElementById('templateCards');
+    if (!container) return; // Templates tab might not exist yet
+    
+    // Safety check: ensure templates array exists
+    if (!appData.templates) {
+        appData.templates = [];
+    }
+    
+    if (appData.templates.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <p>No templates yet!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = appData.templates.map((template, index) => {
+        const taskCount = template.tasks ? template.tasks.length : 0;
+        const protectedBadge = template.protected ? '<span style="background: var(--protected); color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75em; margin-left: 8px;">🔒 PROTECTED</span>' : '';
+        
+        return `
+            <div class="template-card" style="background: var(--bg-main); padding: 20px; border-radius: 10px; border: 2px solid var(--border); transition: all 0.2s;">
+                <h4 style="color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; flex-wrap: wrap;">
+                    ${template.name}
+                    ${protectedBadge}
+                </h4>
+                <p class="template-info" style="color: var(--text-light); font-size: 0.9em; margin-bottom: 10px;">
+                    ${template.description}
+                </p>
+                <p class="template-meta" style="color: var(--text-light); font-size: 0.85em; margin-bottom: 15px;">
+                    ${taskCount} task${taskCount !== 1 ? 's' : ''} • ${template.category} • ${template.recurringDay}
+                </p>
+                <button class="btn btn-primary" onclick="createTasksFromTemplate(${index})" style="width: 100%;">
+                    ✨ Create Tasks
+                </button>
+            </div>
+        `;
+    }).join('');
 }
 
 // ===== PROJECT RENDERING =====
