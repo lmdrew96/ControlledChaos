@@ -109,30 +109,31 @@ function initializeMoreMenu() {
 function handleMoreMenuClick(tabName) {
     const moreMenu = document.getElementById('moreMenu');
     
-    // Switch to the tab
-    if (typeof openTab === 'function') {
-        openTab(tabName);
-    } else {
-        // Fallback: manually switch tabs
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.style.display = 'none';
-        });
-        
-        const targetTab = document.getElementById(`${tabName}-tab`);
-        if (targetTab) {
-            targetTab.style.display = 'block';
-        }
-        
-        // Update active state on main tabs only
-        document.querySelectorAll('.tab-button:not(.more-menu-item)').forEach(btn => {
-            btn.classList.remove('active');
-        });
+    // Hide all tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    // Show the target tab
+    const targetTab = document.getElementById(`${tabName}-tab`);
+    if (targetTab) {
+        targetTab.style.display = 'block';
     }
+    
+    // Update active state - remove from all main tabs
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Save the active tab
+    localStorage.setItem('activeTab', tabName);
     
     // Close the More menu
     if (moreMenu) {
         moreMenu.classList.add('hidden');
     }
+    
+    console.log(`📑 Switched to ${tabName} tab via More menu`);
 }
 
 function handleAppearanceClick() {
