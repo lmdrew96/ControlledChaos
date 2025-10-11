@@ -11,6 +11,7 @@
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js"></script>
     
     <!-- App Styles -->
     <link rel="stylesheet" href="styles.css">
@@ -168,7 +169,12 @@
 
             <!-- Deadlines Section -->
             <div class="card">
-                <h2>📋 Deadlines</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin: 0;">📋 Deadlines</h2>
+                    <button class="btn btn-primary" onclick="showCalendarImportModal()">
+                        📅 Import Calendar
+                    </button>
+                </div>
                 <div class="quick-add">
                     <input type="text" id="quickDeadlineInput" placeholder="Quick add a deadline... (press Enter)" 
                            onkeypress="if(event.key==='Enter') showAddDeadlineModal()">
@@ -347,6 +353,22 @@
                     </p>
                 </div>
             </div>
+            
+            <!-- Calendar Import -->
+            <div class="card">
+                <h2>📅 Calendar Import</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Import your schedule and deadlines from Canvas, Google Calendar, or any calendar app.
+                </p>
+                <button class="btn btn-primary" onclick="showCalendarImportModal()">
+                    📥 Import from Calendar Feed
+                </button>
+                <p style="margin-top: 10px; font-size: 0.9em; color: var(--text-light);">
+                    <strong>Where to find your feed URL:</strong><br>
+                    Canvas: Calendar → Calendar Feed → Copy link<br>
+                    Google Calendar: Settings → Secret address in iCal format
+                </p>
+            </div>
         </div>
     </div>
 
@@ -388,5 +410,6 @@
     <script src="calendar.js"></script>
     <script src="ui.js"></script>
     <script src="app.js"></script>
+    <script src="calendar-import.js"></script>
 </body>
 </html>
