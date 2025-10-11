@@ -78,20 +78,21 @@
             <button class="tab-button" data-tab="tasks">✅ Tasks & Deadlines</button>
             <button class="tab-button" data-tab="projects">💻 Projects</button>
             <button class="tab-button" data-tab="schedule">📅 Schedule</button>
-            <button class="menu-button" id="moreMenuButton">⚙️ More ▾</button>
-        </div>
-
-        <!-- More Menu Dropdown -->
-        <div class="more-menu hidden" id="moreMenu">
-            <button class="more-menu-item" data-tab="templates" onclick="handleMoreMenuClick('templates')">
-                📋 Templates
-            </button>
-            <button class="more-menu-item" data-tab="settings" onclick="handleMoreMenuClick('settings')">
-                ⚙️ Settings
-            </button>
-            <button class="more-menu-item" id="appearanceButton" onclick="handleAppearanceClick()">
-                🔤 Toggle Dyslexia Font
-            </button>
+            <div style="position: relative; display: inline-block;">
+                <button class="menu-button" id="moreMenuButton">⚙️ More ▾</button>
+                <!-- More Menu Dropdown -->
+                <div class="more-menu hidden" id="moreMenu">
+                    <button class="more-menu-item" data-tab="templates" onclick="handleMoreMenuClick('templates')">
+                        📋 Templates
+                    </button>
+                    <button class="more-menu-item" data-tab="settings" onclick="handleMoreMenuClick('settings')">
+                        ⚙️ Settings
+                    </button>
+                    <button class="more-menu-item" id="appearanceButton" onclick="handleAppearanceClick()">
+                        🔤 Toggle Dyslexia Font
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- DASHBOARD TAB -->

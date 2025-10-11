@@ -1085,21 +1085,22 @@ h1 {
     color: var(--primary);
 }
 
-.more-menu-button {
+/* Make More button a positioning context */
+#moreMenuButton {
     position: relative;
 }
 
+/* Position dropdown relative to More button */
 .more-menu {
     position: absolute;
-    top: 100%; /* Position directly below the tab navigation bar */
-    right: 10px; /* Align to right side */
+    top: calc(100% + 5px); /* 5px gap below button */
+    right: 0; /* Align right edge with button's right edge */
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
     min-width: 200px;
-    margin-top: 5px; /* Small gap below tabs */
 }
 
 .more-menu.hidden {
