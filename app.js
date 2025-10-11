@@ -1282,7 +1282,6 @@ function saveSettings() {
     // Then save to Drive
     saveData();
     
-    closeModal('settingsModal');
     showToast('✅ Settings saved!');
 }
 
