@@ -161,6 +161,25 @@ function handleGoogleSignOut() {
     localStorage.removeItem('googleAccessToken');
     localStorage.removeItem('userEmail');
     
+    // SECURITY: Clear worker password from memory and localStorage
+    if (appData.settings) {
+        appData.settings.workerPassword = '';
+    }
+    
+    // Update localStorage to remove password
+    const localData = loadFromLocalStorage();
+    if (localData && localData.settings) {
+        localData.settings.workerPassword = '';
+        localStorage.setItem('controlledChaosData', JSON.stringify(localData));
+        console.log('🔒 [SIGN OUT] Worker password cleared from localStorage');
+    }
+    
+    // Clear password from UI
+    const workerPasswordInput = document.getElementById('workerPasswordInput');
+    if (workerPasswordInput) {
+        workerPasswordInput.value = '';
+    }
+    
     console.log('💾 [SIGN OUT] Credentials cleared from localStorage');
     
     // Update UI immediately
@@ -169,7 +188,7 @@ function handleGoogleSignOut() {
     console.log('✅ [SIGN OUT] UI updated');
     console.log('✅ [SIGN OUT] Completed');
     
-    showToast('👋 Signed out successfully');
+    showToast('👋 Signed out successfully - password cleared for security');
 }
 
 function updateSignInUI() {
