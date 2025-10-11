@@ -51,6 +51,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set default location
     setLocation('home');
     
+    // Set default energy if not already set
+    if (!appData.userEnergy) {
+        setUserEnergy('medium');
+    } else {
+        // Restore saved energy state
+        document.querySelectorAll('.energy-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.energy === appData.userEnergy);
+        });
+    }
+    
     // Check if configured
     if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude' ||
         !GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR-CLIENT-ID-HERE.apps.googleusercontent.com') {
@@ -1206,6 +1216,16 @@ function setLocation(location) {
     appData.currentLocation = location;
     document.querySelectorAll('.location-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.location === location);
+    });
+    updateWhatNow();
+    saveData();
+}
+
+// ===== ENERGY MANAGEMENT =====
+function setUserEnergy(energy) {
+    appData.userEnergy = energy;
+    document.querySelectorAll('.energy-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.energy === energy);
     });
     updateWhatNow();
     saveData();

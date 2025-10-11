@@ -403,7 +403,7 @@ function getCurrentEnergy() {
 
 function updateWhatNow() {
     const currentBlock = getCurrentBlock();
-    const currentEnergy = getCurrentEnergy();
+    const userEnergy = appData.userEnergy || 'medium'; // Get user's selected energy
     const location = appData.currentLocation;
     
     const contextInfo = document.getElementById('contextInfo');
@@ -411,7 +411,7 @@ function updateWhatNow() {
     const contextDetails = document.getElementById('contextDetails');
     
     contextInfo.style.display = 'block';
-    contextTitle.textContent = `📍 ${location.charAt(0).toUpperCase() + location.slice(1)} | ⚡ ${currentEnergy} energy`;
+    contextTitle.textContent = `📍 ${location.charAt(0).toUpperCase() + location.slice(1)} | ⚡ ${userEnergy} energy`;
     
     if (currentBlock) {
         if (currentBlock.type === 'protected') {
@@ -471,12 +471,18 @@ function updateWhatNow() {
         }
     }
     
-    // Find best task for other locations
-    const availableTasks = appData.tasks.filter(t => 
-        !t.completed && 
-        (t.location === 'anywhere' || t.location === location) &&
-        (t.energy === currentEnergy || t.energy === 'medium')
-    );
+    // Define energy hierarchy
+    const energyLevels = { low: 1, medium: 2, high: 3 };
+    const userEnergyLevel = energyLevels[userEnergy];
+    
+    // Filter tasks: show any task at or below user's current energy
+    const availableTasks = appData.tasks.filter(t => {
+        if (t.completed) return false;
+        if (t.location !== 'anywhere' && t.location !== location) return false;
+        
+        const taskEnergyLevel = energyLevels[t.energy] || 2;
+        return taskEnergyLevel <= userEnergyLevel;
+    });
     
     if (currentBlock && currentBlock.type === 'protected') {
         suggestionCard.innerHTML = `

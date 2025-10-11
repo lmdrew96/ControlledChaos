@@ -99,6 +99,18 @@
                     <button class="location-btn" data-location="commute" onclick="setLocation('commute')">🚗 Commute</button>
                 </div>
 
+                <div class="energy-picker" style="display: flex; gap: 10px; margin: 15px 0; justify-content: center; flex-wrap: wrap;">
+                    <button class="energy-btn" data-energy="low" onclick="setUserEnergy('low')">
+                        🔋 Low Energy
+                    </button>
+                    <button class="energy-btn" data-energy="medium" onclick="setUserEnergy('medium')">
+                        ⚡ Medium Energy
+                    </button>
+                    <button class="energy-btn" data-energy="high" onclick="setUserEnergy('high')">
+                        🚀 High Energy
+                    </button>
+                </div>
+
                 <div id="contextInfo" class="context-info" style="display: none;">
                     <h3 id="contextTitle">Loading...</h3>
                     <p id="contextDetails"></p>
