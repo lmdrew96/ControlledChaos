@@ -90,9 +90,19 @@ function initializeMoreMenu() {
     
     // Close More menu when clicking outside
     document.addEventListener('click', (e) => {
+        // Don't close if clicking inside the menu or on the button
         if (!moreMenu.contains(e.target) && e.target !== moreMenuButton) {
             moreMenu.classList.add('hidden');
         }
+    });
+    
+    // IMPORTANT: Prevent menu from closing when clicking menu items
+    moreMenu.addEventListener('click', (e) => {
+        // Allow the onclick handler to execute first
+        // Then close the menu after a brief delay
+        setTimeout(() => {
+            moreMenu.classList.add('hidden');
+        }, 100);
     });
 }
 
