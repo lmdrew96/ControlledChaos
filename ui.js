@@ -593,6 +593,13 @@ function showToast(message) {
 // ===== UTILITY FUNCTIONS =====
 function toggleFont() {
     document.body.classList.toggle('dyslexia-font');
+    
+    // Save preference
+    const isDyslexicFont = document.body.classList.contains('dyslexia-font');
+    localStorage.setItem('dyslexiaFont', isDyslexicFont);
+    
+    // Show feedback
+    showToast(isDyslexicFont ? '🔤 Dyslexia font enabled' : '🔤 Standard font enabled');
 }
 
 function isToday(date) {

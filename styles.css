@@ -25,20 +25,19 @@
 
 /* Default font */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     min-height: 100vh;
     padding: 20px;
     color: var(--text);
+    transition: font-family 0.3s ease;
 }
 
-/* Dyslexia-friendly font */
-body.dyslexia-font {
-    font-family: 'OpenDyslexic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-}
-
+/* Dyslexia-friendly font - OpenDyslexic has very distinctive letter shapes */
+body.dyslexia-font,
 body.dyslexia-font * {
     font-family: 'OpenDyslexic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    letter-spacing: 0.05em; /* Slightly wider spacing for readability */
 }
 
 .container {
@@ -1045,7 +1044,7 @@ h1 {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     margin-bottom: 20px;
     justify-content: flex-start;
-    position: relative;
+    position: relative; /* Required for absolute positioning of dropdown */
 }
 
 .tab-button {
@@ -1092,14 +1091,15 @@ h1 {
 
 .more-menu {
     position: absolute;
-    top: 60px;
-    right: 20px;
+    top: 100%; /* Position directly below the tab navigation bar */
+    right: 10px; /* Align to right side */
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
     min-width: 200px;
+    margin-top: 5px; /* Small gap below tabs */
 }
 
 .more-menu.hidden {
@@ -1116,10 +1116,21 @@ h1 {
     cursor: pointer;
     font-size: 0.95rem;
     transition: background 0.2s;
+    color: var(--text);
 }
 
 .more-menu-item:hover {
     background: var(--bg-main);
+}
+
+.more-menu-item:first-child {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.more-menu-item:last-child {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 .tab-content {

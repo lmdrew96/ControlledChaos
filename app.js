@@ -51,6 +51,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set default location
     setLocation('home');
     
+    // Restore font preference
+    if (localStorage.getItem('dyslexiaFont') === 'true') {
+        document.body.classList.add('dyslexia-font');
+    }
+    
     // Set default energy if not already set
     if (!appData.userEnergy) {
         setUserEnergy('medium');
