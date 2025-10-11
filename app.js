@@ -882,6 +882,14 @@ async function callClaudeAPI(messages, systemPrompt = '') {
         throw new Error('API key not configured');
     }
 
+    // Get worker password from settings
+    const workerPassword = appData.settings?.workerPassword || '';
+    if (!workerPassword) {
+        alert('Please configure your Worker Password in Settings first!');
+        showSettings();
+        throw new Error('Worker password not configured');
+    }
+
     const maxRetries = 3;
     const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
     
@@ -896,7 +904,8 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': apiKey
+                    'X-API-Key': apiKey,
+                    'Authorization': `Bearer ${workerPassword}`
                 },
                 body: JSON.stringify({
                     model: 'claude-sonnet-4-5-20250929',
@@ -1250,10 +1259,12 @@ function setUserEnergy(energy) {
 // ===== SETTINGS MANAGEMENT =====
 function saveSettings() {
     const workerUrl = document.getElementById('workerUrlInput').value.trim();
+    const workerPassword = document.getElementById('workerPasswordInput').value.trim();
     const clientId = document.getElementById('clientIdInput').value.trim();
     const apiKey = document.getElementById('apiKeyInput').value.trim();
     
     appData.settings.workerUrl = workerUrl;
+    appData.settings.workerPassword = workerPassword;
     appData.settings.clientId = clientId;
     appData.settings.apiKey = apiKey;
     

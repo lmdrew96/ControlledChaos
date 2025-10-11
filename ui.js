@@ -550,12 +550,18 @@ function populateSettingsInputs() {
     console.log('🔧 [SETTINGS] Populating settings input fields...');
     
     const workerUrlInput = document.getElementById('workerUrlInput');
+    const workerPasswordInput = document.getElementById('workerPasswordInput');
     const clientIdInput = document.getElementById('clientIdInput');
     const apiKeyInput = document.getElementById('apiKeyInput');
     
     if (workerUrlInput && appData.settings?.workerUrl) {
         workerUrlInput.value = appData.settings.workerUrl;
         console.log('🔧 [SETTINGS] Worker URL populated');
+    }
+    
+    if (workerPasswordInput && appData.settings?.workerPassword) {
+        workerPasswordInput.value = appData.settings.workerPassword;
+        console.log('🔧 [SETTINGS] Worker password populated');
     }
     
     if (clientIdInput && appData.settings?.clientId) {

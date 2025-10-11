@@ -27,6 +27,24 @@ export default {
       });
     }
 
+    // Password protection
+    const authHeader = request.headers.get("authorization");
+    const expectedAuth = `Bearer ${env.WORKER_PASSWORD}`;
+
+    if (!authHeader || authHeader !== expectedAuth) {
+      console.log("Unauthorized access attempt");
+      return new Response(JSON.stringify({
+        error: "Unauthorized",
+        details: "Invalid or missing worker password"
+      }), {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
+      });
+    }
+
     try {
       // Get API key from Cloudflare secret first, then fall back to header
       const apiKey = env.ANTHROPIC_API_KEY || 
