@@ -102,7 +102,7 @@ async function handleGoogleSignIn() {
         
         const client = google.accounts.oauth2.initTokenClient({
             client_id: GOOGLE_CLIENT_ID,
-            scope: 'https://www.googleapis.com/auth/drive.file',
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
             callback: async (response) => {
                 if (response.access_token) {
                     googleAccessToken = response.access_token;

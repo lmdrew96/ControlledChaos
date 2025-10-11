@@ -505,7 +505,7 @@ function updateWhatNow() {
                     ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
                 </div>
                 <p class="suggestion-reason">
-                    Perfect for your ${currentEnergy} energy at ${location}
+                    Perfect for your ${userEnergy} energy at ${location}
                 </p>
                 <button class="btn btn-success" onclick="toggleTask('${task.id}')" style="margin-top: 15px;">
                     ✅ Mark Complete
