@@ -136,7 +136,13 @@ async function handleGoogleSignIn() {
                     
                     // Load data from Drive
                     await loadDataFromDrive();
+                    
+                    // Explicitly populate settings inputs (including password)
+                    populateSettingsInputs();
+                    
                     updateUI();
+                    
+                    console.log('✅ [SIGN IN] Settings populated from Drive');
                 }
             }
         });
@@ -289,6 +295,12 @@ async function loadDataFromDrive() {
             // Now update appData
             appData = loadedData;
             appData.lastSync = new Date().toISOString();
+            
+            console.log('📥 [DRIVE] Loaded settings:', {
+                hasWorkerUrl: !!appData.settings?.workerUrl,
+                hasClientId: !!appData.settings?.clientId,
+                hasWorkerPassword: !!appData.settings?.workerPassword
+            });
             
             // Populate settings input fields after loading from Drive
             populateSettingsInputs();
