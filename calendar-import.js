@@ -26,9 +26,18 @@ async function importCalendarFeed() {
         // Step 1: Fetch the .ics file through the worker proxy
         console.log('📥 Fetching calendar from:', feedUrl);
         
-        // Get worker URL from settings
-        const workerUrl = localStorage.getItem('workerUrl') || 'https://controlled-chaos-api.lmdrew.workers.dev';
-        const proxyUrl = `${workerUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
+        // Get worker URL and password from settings
+        const workerUrl = appData.settings.workerUrl || CLOUDFLARE_WORKER_URL || 'https://controlled-chaos-api.lmdrew.workers.dev';
+        const workerPassword = appData.settings.workerPassword || '';
+        
+        if (!workerPassword) {
+            alert('Please configure your Worker Password in Settings first!');
+            importBtn.disabled = false;
+            importBtn.textContent = originalBtnText;
+            return;
+        }
+        
+        const proxyUrl = `${workerUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}&password=${encodeURIComponent(workerPassword)}`;
         
         console.log('📡 Using proxy:', proxyUrl);
         const response = await fetch(proxyUrl);
@@ -166,20 +175,83 @@ Return ONLY valid JSON array (one object per event):
         
         return categorizedEvents;
     } catch (error) {
-        console.error('❌ AI categorization error:', error);
-        // Fallback: basic categorization
-        return events.map(event => ({
-            ...event,
-            type: guessEventType(event.summary),
-            energy: 'medium',
-            shouldImport: true,
-            location: 'anywhere',
-            isProtected: false
-        }));
+        console.warn('⚠️ AI categorization failed, using basic categorization', error);
+        // FIX: Comprehensive fallback with basic categorization
+        return basicCategorizeEvents(events);
     }
 }
 
-// Fallback categorization if AI fails
+// Comprehensive fallback categorization if AI fails
+function basicCategorizeEvents(events) {
+    return events.map(event => {
+        const summary = event.summary;
+        const lower = summary.toLowerCase();
+        
+        // Determine type
+        let type = 'other';
+        let energy = 'medium';
+        let location = 'anywhere';
+        let shouldImport = true;
+        let isProtected = false;
+        
+        // Skip generic events
+        if (lower.includes('no class') || lower.includes('holiday') || 
+            lower.includes('break') || lower.includes('vacation')) {
+            shouldImport = false;
+        }
+        
+        // Classes: recurring events or things with "lecture", "class", etc.
+        if (event.isRecurring || lower.includes('lecture') || lower.includes('class')) {
+            type = 'class';
+            location = 'school';
+        }
+        // Exams and tests
+        else if (lower.includes('exam') || lower.includes('test') || lower.includes('final')) {
+            type = 'exam';
+            energy = 'high';
+            location = 'school';
+        }
+        // Quizzes
+        else if (lower.includes('quiz')) {
+            type = 'quiz';
+            energy = 'medium';
+            location = 'school';
+        }
+        // Labs
+        else if (lower.includes('lab')) {
+            type = 'lab';
+            energy = 'medium';
+            location = 'school';
+        }
+        // Assignments: assignments, quizzes, exams, due dates
+        else if (lower.includes('assignment') || lower.includes('due') || 
+                 lower.includes('project') || lower.includes('paper') ||
+                 lower.includes('homework') || lower.includes('essay')) {
+            type = 'assignment';
+            energy = 'high';
+            location = 'home';
+        }
+        // Personal appointments (protected)
+        else if (lower.includes('therapy') || lower.includes('doctor') || 
+                 lower.includes('appointment') || lower.includes('dentist') ||
+                 lower.includes('meeting') || lower.includes('interview')) {
+            type = 'personal';
+            isProtected = true;
+            energy = 'low';
+        }
+        
+        return {
+            ...event,
+            type,
+            energy,
+            shouldImport,
+            location,
+            isProtected
+        };
+    });
+}
+
+// Legacy fallback (kept for compatibility)
 function guessEventType(summary) {
     const lower = summary.toLowerCase();
     if (lower.includes('exam') || lower.includes('test') || lower.includes('final')) return 'exam';
@@ -208,7 +280,7 @@ function showImportPreview(events) {
         <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
             <div class="modal-header">
                 <h2>✨ Import Preview</h2>
-                <button class="close-modal" onclick="document.getElementById('importPreviewModal').remove()">&times;</button>
+                <button class="close-modal" id="closePreviewBtn">&times;</button>
             </div>
             
             <p style="margin-bottom: 20px; color: var(--text-light);">
@@ -295,10 +367,10 @@ function showImportPreview(events) {
             ` : ''}
             
             <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="executeCalendarImport(${JSON.stringify(classes)}, ${JSON.stringify(deadlines)}, ${JSON.stringify(oneTimeEvents)})">
+                <button class="btn btn-primary" id="importSelectedBtn">
                     ✅ Import Selected Items
                 </button>
-                <button class="btn btn-secondary" onclick="document.getElementById('importPreviewModal').remove()">
+                <button class="btn btn-secondary" id="cancelImportBtn">
                     Cancel
                 </button>
             </div>
@@ -306,6 +378,24 @@ function showImportPreview(events) {
     `;
     
     document.body.appendChild(modal);
+    
+    // FIX: Use proper event listeners with closures instead of inline onclick
+    // This gives the button access to classes, deadlines, and oneTimeEvents
+    const importBtn = document.getElementById('importSelectedBtn');
+    const cancelBtn = document.getElementById('cancelImportBtn');
+    const closeBtn = document.getElementById('closePreviewBtn');
+    
+    importBtn.addEventListener('click', () => {
+        executeCalendarImport(classes, deadlines, oneTimeEvents);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        document.getElementById('importPreviewModal').remove();
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        document.getElementById('importPreviewModal').remove();
+    });
 }
 
 // ===== TOGGLE IMPORT SECTION =====
