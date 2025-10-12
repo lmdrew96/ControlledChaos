@@ -1378,3 +1378,92 @@ function showCelebration() {
     `;
     document.body.appendChild(modal);
 }
+
+// ===== CLEAR ALL FUNCTIONS =====
+function clearAllDeadlines() {
+    if (!appData.deadlines || appData.deadlines.length === 0) {
+        showToast('No deadlines to clear!');
+        return;
+    }
+    
+    const count = appData.deadlines.length;
+    if (confirm(`⚠️ Clear ALL ${count} deadline${count !== 1 ? 's' : ''}? This will also delete all related tasks.\n\nThis cannot be undone.`)) {
+        // Get deadline IDs before clearing
+        const deadlineIds = appData.deadlines.map(d => d.id);
+        
+        // Clear deadlines
+        appData.deadlines = [];
+        
+        // Clear tasks related to these deadlines
+        appData.tasks = appData.tasks.filter(t => !deadlineIds.includes(t.parentDeadline));
+        
+        saveData();
+        renderDeadlines();
+        renderTasks();
+        showToast(`✅ Cleared ${count} deadline${count !== 1 ? 's' : ''}`);
+    }
+}
+
+function clearAllTasks() {
+    if (!appData.tasks || appData.tasks.length === 0) {
+        showToast('No tasks to clear!');
+        return;
+    }
+    
+    const count = appData.tasks.length;
+    if (confirm(`⚠️ Clear ALL ${count} task${count !== 1 ? 's' : ''}?\n\nThis cannot be undone.`)) {
+        appData.tasks = [];
+        saveData();
+        renderTasks();
+        updateWhatNow();
+        showToast(`✅ Cleared ${count} task${count !== 1 ? 's' : ''}`);
+    }
+}
+
+function clearAllProjects() {
+    if (!appData.projects || appData.projects.length === 0) {
+        showToast('No projects to clear!');
+        return;
+    }
+    
+    const count = appData.projects.length;
+    if (confirm(`⚠️ Clear ALL ${count} project${count !== 1 ? 's' : ''}?\n\nThis cannot be undone.`)) {
+        appData.projects = [];
+        saveData();
+        renderProjects();
+        showToast(`✅ Cleared ${count} project${count !== 1 ? 's' : ''}`);
+    }
+}
+
+function clearDailySchedule() {
+    if (!appData.schedule || Object.keys(appData.schedule).length === 0) {
+        showToast('Schedule is already empty!');
+        return;
+    }
+    
+    // Count total blocks
+    let totalBlocks = 0;
+    Object.values(appData.schedule).forEach(day => {
+        totalBlocks += day.length;
+    });
+    
+    if (totalBlocks === 0) {
+        showToast('Schedule is already empty!');
+        return;
+    }
+    
+    if (confirm(`⚠️ Clear your ENTIRE weekly schedule (${totalBlocks} time blocks)?\n\nThis cannot be undone.`)) {
+        appData.schedule = {
+            Monday: [],
+            Tuesday: [],
+            Wednesday: [],
+            Thursday: [],
+            Friday: [],
+            Saturday: [],
+            Sunday: []
+        };
+        saveData();
+        renderDailySchedule();
+        showToast(`✅ Cleared schedule (${totalBlocks} blocks removed)`);
+    }
+}

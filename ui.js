@@ -284,6 +284,30 @@ function renderDeadlines() {
     }
     
     const container = document.getElementById('allDeadlines');
+    
+    // Add Clear All button to header
+    const deadlinesSection = container.closest('.card');
+    if (deadlinesSection) {
+        let header = deadlinesSection.querySelector('.section-header');
+        if (!header) {
+            const h3 = deadlinesSection.querySelector('h3');
+            if (h3) {
+                header = document.createElement('div');
+                header.className = 'section-header';
+                header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;';
+                h3.parentNode.insertBefore(header, h3);
+                header.appendChild(h3);
+                
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'btn btn-danger btn-sm';
+                clearBtn.onclick = clearAllDeadlines;
+                clearBtn.title = 'Clear all deadlines';
+                clearBtn.innerHTML = '🗑️ Clear All';
+                header.appendChild(clearBtn);
+            }
+        }
+    }
+    
     const activeDeadlines = appData.deadlines.filter(d => !d.completed);
     
     if (activeDeadlines.length === 0) {

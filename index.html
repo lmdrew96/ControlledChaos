@@ -173,7 +173,12 @@
             
             <!-- All Tasks Section -->
             <div class="card">
-                <h2>📋 All Tasks</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">📋 All Tasks</h2>
+                    <button class="btn btn-danger btn-sm" onclick="clearAllTasks()" title="Clear all tasks">
+                        🗑️ Clear All
+                    </button>
+                </div>
                 <div class="quick-add">
                     <input type="text" id="quickTaskInput" placeholder="Quick add a task... (press Enter)" 
                            onkeypress="if(event.key==='Enter') quickAddTask()">
@@ -240,8 +245,15 @@
 
         <!-- PROJECTS TAB -->
         <div class="tab-content" id="projects-tab" style="display: none;">
-            <h2 style="color: var(--primary); margin-bottom: 20px;">💻 Projects</h2>
-            <p style="color: var(--text-light); margin-bottom: 20px;">Track your coding and personal projects with interactive task checklists.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h2 style="color: var(--primary); margin: 0;">💻 Projects</h2>
+                    <p style="color: var(--text-light); margin: 5px 0 0 0;">Track your coding and personal projects with interactive task checklists.</p>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="clearAllProjects()" title="Clear all projects">
+                    🗑️ Clear All
+                </button>
+            </div>
             
             <div id="projectsList" class="projects-grid">
                 <!-- Projects will be rendered here by JavaScript -->
@@ -255,8 +267,11 @@
             
             <!-- Full Schedule View -->
             <div class="schedule-section">
-                <div class="schedule-header">
-                    <h2>📅 Daily Schedule</h2>
+                <div class="schedule-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">📅 Daily Schedule</h2>
+                    <button class="btn btn-danger btn-sm" onclick="clearDailySchedule()" title="Clear entire schedule">
+                        🗑️ Clear All
+                    </button>
                 </div>
                 
                 <div id="currentBlock" class="current-block" style="display: none;">
