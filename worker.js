@@ -1,28 +1,72 @@
-// Cloudflare Worker - Anthropic API Proxy
-// This proxies requests from your app to the Anthropic API with CORS headers
+// Cloudflare Worker - Anthropic API Proxy & Calendar Proxy
+// This proxies requests from your app to the Anthropic API and calendar feeds with CORS headers
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    
+    // Define CORS headers for reuse
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-api-key, X-API-Key, authorization',
+    };
+    
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, x-api-key, X-API-Key',
+          ...corsHeaders,
           'Access-Control-Max-Age': '86400',
         },
       });
     }
+    
+    // ===== CALENDAR PROXY ROUTE =====
+    if (url.pathname === '/api/calendar-proxy') {
+      const canvasUrl = url.searchParams.get('url');
+      
+      if (!canvasUrl) {
+        return new Response('Missing calendar URL', { 
+          status: 400,
+          headers: corsHeaders 
+        });
+      }
 
-    // Only allow POST requests
+      try {
+        const response = await fetch(canvasUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch calendar: ${response.statusText}`);
+        }
+        
+        const icsData = await response.text();
+        
+        return new Response(icsData, {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/calendar; charset=utf-8',
+          }
+        });
+      } catch (error) {
+        return new Response(`Failed to fetch calendar: ${error.message}`, {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+    }
+    
+    // ===== CLAUDE API ROUTE =====
+
+    // Only allow POST requests for Claude API
     if (request.method !== 'POST') {
       console.log('Method not allowed:', request.method);
       return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
         status: 405,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
         }
       });
     }
@@ -40,7 +84,7 @@ export default {
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       });
     }
@@ -63,7 +107,7 @@ export default {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders,
           },
         });
       }
@@ -78,7 +122,7 @@ export default {
           status: 400,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders,
           },
         });
       }
@@ -112,7 +156,7 @@ export default {
           status: response.status,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders,
           },
         });
       }
@@ -139,7 +183,7 @@ export default {
         status: response.status,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
         },
       });
 
@@ -153,7 +197,7 @@ export default {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...corsHeaders,
         },
       });
     }

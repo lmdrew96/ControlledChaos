@@ -23,12 +23,19 @@ async function importCalendarFeed() {
     importBtn.textContent = '⏳ Fetching calendar...';
     
     try {
-        // Step 1: Fetch the .ics file
+        // Step 1: Fetch the .ics file through the worker proxy
         console.log('📥 Fetching calendar from:', feedUrl);
-        const response = await fetch(feedUrl);
+        
+        // Get worker URL from settings
+        const workerUrl = localStorage.getItem('workerUrl') || 'https://controlled-chaos-api.lmdrew.workers.dev';
+        const proxyUrl = `${workerUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
+        
+        console.log('📡 Using proxy:', proxyUrl);
+        const response = await fetch(proxyUrl);
         
         if (!response.ok) {
-            throw new Error(`Failed to fetch calendar: ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(errorText || `Failed to fetch calendar: ${response.statusText}`);
         }
         
         const icsData = await response.text();
