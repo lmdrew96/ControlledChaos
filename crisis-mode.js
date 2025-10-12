@@ -206,8 +206,13 @@ function generateDailyBreakdown(cluster) {
     availableBlocks.forEach((block, blockIndex) => {
         if (taskIndex >= sortedTasks.length) return;
         
-        // Start a new day if this is a different date
-        if (block.date !== currentDay) {
+        // Start a new day if this is a different date OR if we've maxed out current day
+        const MAX_MINUTES_PER_DAY = 90;
+        const shouldStartNewDay = (block.date !== currentDay) || 
+                                  (currentDayMinutes >= MAX_MINUTES_PER_DAY && taskIndex < sortedTasks.length);
+        
+        if (shouldStartNewDay) {
+            // Save previous day if it has tasks
             if (currentDay && currentDayTasks.length > 0) {
                 breakdown.push({
                     date: currentDay,
@@ -216,15 +221,28 @@ function generateDailyBreakdown(cluster) {
                     completed: false
                 });
             }
+            
+            // If we're maxing out same day, still move to next available block
+            if (block.date === currentDay && currentDayMinutes >= MAX_MINUTES_PER_DAY) {
+                return; // Skip to next block (this gets us to next day)
+            }
+            
             currentDay = block.date;
             currentDayTasks = [];
             currentDayMinutes = 0;
         }
         
         // Try to fit tasks into this block
-        while (taskIndex < sortedTasks.length && currentDayMinutes < block.duration) {
+        // Limit: 90 minutes per day (more realistic for ADHD brain)
+        
+        while (taskIndex < sortedTasks.length && currentDayMinutes < MAX_MINUTES_PER_DAY) {
             const task = sortedTasks[taskIndex];
             const taskTime = task.timeEstimate || 30;
+            
+            // Don't add task if it would exceed daily limit
+            if (currentDayMinutes + taskTime > MAX_MINUTES_PER_DAY) {
+                break;
+            }
             
             // Add task to current day
             currentDayTasks.push({
@@ -233,11 +251,6 @@ function generateDailyBreakdown(cluster) {
             });
             currentDayMinutes += taskTime;
             taskIndex++;
-            
-            // If we've filled this day's capacity, move to next day
-            if (currentDayMinutes >= 120) { // Max 2 hours per day chunk
-                break;
-            }
         }
     });
     

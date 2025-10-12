@@ -150,6 +150,7 @@ For each event, determine:
 Guidelines:
 - Classes, labs → type: "class"
 - Assignments, papers, projects DUE dates → type: "assignment" 
+- SmartBook assignments → type: "assignment" (they're tedious, energy: "high")
 - Exams, tests, finals → type: "exam"
 - Quizzes → type: "quiz"
 - Personal appointments (therapy, doctor) → type: "personal", isProtected: true
@@ -233,10 +234,11 @@ function basicCategorizeEvents(events) {
             energy = 'medium';
             location = 'school';
         }
-        // Assignments: assignments, quizzes, exams, due dates
+        // Assignments: assignments, quizzes, exams, due dates, SmartBooks
         else if (lower.includes('assignment') || lower.includes('due') || 
                  lower.includes('project') || lower.includes('paper') ||
-                 lower.includes('homework') || lower.includes('essay')) {
+                 lower.includes('homework') || lower.includes('essay') ||
+                 lower.includes('smartbook') || lower.includes('smart book')) {
             type = 'assignment';
             energy = 'high';
             location = 'home';
