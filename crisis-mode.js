@@ -64,10 +64,9 @@ function detectCrisisMode() {
         const availableTime = calculateAvailableTime({ dueDate: group.dueDate });
         const availableHours = availableTime.totalMinutes / 60;
         
-        // Crisis criteria
+        // Crisis criteria - MUCH more sensitive for ADHD brain
         const timeRatio = totalHoursNeeded / availableHours;
-        const isTight = timeRatio > 0.6;
-        const isUrgent = hoursUntilDeadline < 96; // Less than 4 days
+        const taskCount = group.tasks.length;
         
         // Check for procrastination patterns (tasks that have been around for a while)
         const hasOldTasks = group.tasks.some(task => {
@@ -81,10 +80,50 @@ function detectCrisisMode() {
             const title = task.title.toLowerCase();
             return title.includes('smartbook') || 
                    title.includes('bio') || 
+                   title.includes('exam') ||
                    title.includes('exam prep');
         });
         
-        if (isTight && isUrgent) {
+        // Check if this is an exam (exams are always higher priority)
+        const hasExam = group.tasks.some(task => {
+            const title = task.title.toLowerCase();
+            return title.includes('exam') && !title.includes('prep');
+        });
+        
+        // MULTIPLE CRISIS TRIGGERS (any of these = crisis):
+        
+        // 1. High time ratio (lowered from 0.6 to 0.35)
+        const isTight = timeRatio > 0.35;
+        
+        // 2. Many tasks clustering (6+ tasks for same deadline = crisis)
+        const isManyTasks = taskCount >= 6;
+        
+        // 3. Exam + other work (exam + 2+ tasks = crisis)
+        const isExamCluster = hasExam && taskCount >= 2;
+        
+        // 4. Difficult tasks with limited time (SmartBooks/Bio with <3 days)
+        const isDifficultAndUrgent = hasDifficultTasks && hoursUntilDeadline < 72;
+        
+        // 5. Procrastinated work coming due (old tasks + <4 days)
+        const isProcrastinationCrisis = hasOldTasks && hoursUntilDeadline < 96;
+        
+        // 6. Overloaded (4+ tasks + moderate time pressure)
+        const isOverloaded = taskCount >= 4 && timeRatio > 0.25;
+        
+        // Check if within time window (only show crises for next 4 days)
+        const isUrgent = hoursUntilDeadline < 96 && hoursUntilDeadline > 0;
+        
+        // TRIGGER CRISIS if ANY of the above conditions + urgent
+        const isCrisis = isUrgent && (
+            isTight || 
+            isManyTasks || 
+            isExamCluster || 
+            isDifficultAndUrgent || 
+            isProcrastinationCrisis ||
+            isOverloaded
+        );
+        
+        if (isCrisis) {
             clusters.push({
                 id: `crisis_${group.dueDate}`,
                 name: `${group.category} Work`,
