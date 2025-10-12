@@ -12,6 +12,8 @@ let crisisMode = {
 // ===== CRISIS DETECTION ALGORITHM =====
 function detectCrisisMode() {
     console.log('🔥 [CRISIS] Running crisis detection...');
+    console.log('🔥 [CRISIS] appData.tasks count:', appData.tasks?.length || 0);
+    console.log('🔥 [CRISIS] appData.deadlines count:', appData.deadlines?.length || 0);
     
     const now = new Date();
     const clusters = [];
@@ -20,10 +22,13 @@ function detectCrisisMode() {
     const deadlineGroups = {};
     
     // FIXED: Combine both tasks AND deadlines arrays for crisis detection
+    // Safety check: ensure arrays exist before spreading
     const allItems = [
-        ...appData.tasks.map(t => ({ ...t, source: 'task' })),
-        ...appData.deadlines.map(d => ({ ...d, source: 'deadline' }))
+        ...(appData.tasks || []).map(t => ({ ...t, source: 'task' })),
+        ...(appData.deadlines || []).map(d => ({ ...d, source: 'deadline' }))
     ];
+    
+    console.log('🔥 [CRISIS] Total items to check:', allItems.length);
     
     allItems.forEach(item => {
         if (item.completed || !item.dueDate) return;
