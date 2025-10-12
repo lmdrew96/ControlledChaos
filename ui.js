@@ -71,6 +71,11 @@ function updateUI() {
     renderProjects();
     renderTemplates();
     
+    // Check for crisis mode
+    if (typeof updateCrisisMode === 'function') {
+        updateCrisisMode();
+    }
+    
     // Initialize planner if visible (with null check)
     const plannerGrid = document.getElementById('plannerGrid');
     if (plannerGrid && plannerGrid.children.length === 0) {

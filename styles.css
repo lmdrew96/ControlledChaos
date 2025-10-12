@@ -1509,3 +1509,346 @@ h1 {
         width: 100%;
     }
 }
+
+/* ===== CRISIS MODE STYLES ===== */
+#crisisModeContainer {
+    margin-bottom: 30px;
+}
+
+.crisis-banner {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+    animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.crisis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.crisis-header h2 {
+    font-size: 1.8em;
+    margin: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.crisis-close-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 1.5em;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.crisis-close-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+
+.crisis-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.crisis-stat {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.crisis-stat-label {
+    display: block;
+    font-size: 0.85em;
+    opacity: 0.9;
+    margin-bottom: 5px;
+}
+
+.crisis-stat-value {
+    display: block;
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+.crisis-progress-bar {
+    height: 12px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.crisis-progress-fill {
+    height: 100%;
+    transition: width 0.5s ease;
+    border-radius: 6px;
+}
+
+.crisis-progress-text {
+    text-align: center;
+    font-size: 0.95em;
+    font-weight: 600;
+}
+
+.crisis-section {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.crisis-section h3 {
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.critical-section {
+    border-left: 4px solid var(--danger);
+    background: linear-gradient(to right, #fef2f2, white);
+}
+
+.critical-section h3 {
+    color: var(--danger);
+}
+
+.urgent-section {
+    border-left: 4px solid var(--warning);
+    background: linear-gradient(to right, #fffbeb, white);
+}
+
+.urgent-section h3 {
+    color: var(--warning);
+}
+
+.plan-section {
+    border-left: 4px solid var(--primary);
+}
+
+.plan-section h3 {
+    color: var(--primary);
+}
+
+.regular-section {
+    border-left: 4px solid var(--text-light);
+    opacity: 0.8;
+}
+
+.regular-section h3 {
+    color: var(--text-light);
+}
+
+.crisis-chunk-summary {
+    background: var(--bg-main);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text);
+}
+
+.crisis-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.crisis-task {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-main);
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+}
+
+.crisis-task:hover {
+    border-color: var(--primary);
+    transform: translateX(2px);
+}
+
+.crisis-task.critical-task {
+    border-color: var(--danger);
+    background: #fef2f2;
+}
+
+.crisis-task.regular-task {
+    opacity: 0.7;
+}
+
+.crisis-task-content {
+    flex: 1;
+}
+
+.crisis-task-title {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--text);
+}
+
+.crisis-task-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 0.85em;
+}
+
+.crisis-deadline {
+    background: var(--danger);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.crisis-time {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--primary);
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+.crisis-block {
+    background: var(--bg-main);
+    color: var(--text-light);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.9em;
+}
+
+.crisis-due {
+    background: var(--bg-main);
+    color: var(--text-light);
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+.crisis-complete-btn {
+    width: 100%;
+    margin-top: 15px;
+    padding: 15px;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.crisis-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.crisis-day {
+    background: var(--bg-main);
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+}
+
+.crisis-day.completed {
+    background: #f0fdf4;
+    border-color: var(--success);
+    opacity: 0.7;
+}
+
+.crisis-day.today {
+    border-color: var(--primary);
+    border-width: 3px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.crisis-day.past {
+    opacity: 0.6;
+}
+
+.crisis-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+}
+
+.crisis-day-date {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--text);
+}
+
+.crisis-day-time {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.crisis-day-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.crisis-day-task {
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    font-size: 0.9em;
+    color: var(--text);
+}
+
+/* Responsive Crisis Mode */
+@media (max-width: 768px) {
+    .crisis-banner {
+        padding: 20px;
+    }
+    
+    .crisis-header h2 {
+        font-size: 1.4em;
+    }
+    
+    .crisis-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .crisis-stat-value {
+        font-size: 1.3em;
+    }
+    
+    .crisis-section {
+        padding: 15px;
+    }
+    
+    .crisis-section h3 {
+        font-size: 1.1em;
+    }
+}
