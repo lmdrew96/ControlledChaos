@@ -40,7 +40,9 @@ async function importCalendarFeed() {
         // Step 1: Fetch the .ics file through the worker proxy
         console.log('📥 Fetching calendar from:', feedUrl);
         
-        const proxyUrl = `${baseWorkerUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
+        // Remove trailing slash from baseWorkerUrl to prevent double slash
+        const cleanBaseUrl = baseWorkerUrl.replace(/\/$/, '');
+        const proxyUrl = `${cleanBaseUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
         
         console.log('📡 Using proxy:', proxyUrl);
         const response = await fetch(proxyUrl, {
