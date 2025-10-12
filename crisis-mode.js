@@ -19,28 +19,34 @@ function detectCrisisMode() {
     // Group tasks by deadline
     const deadlineGroups = {};
     
-    appData.tasks.forEach(task => {
-        if (task.completed || !task.dueDate) return;
+    // FIXED: Combine both tasks AND deadlines arrays for crisis detection
+    const allItems = [
+        ...appData.tasks.map(t => ({ ...t, source: 'task' })),
+        ...appData.deadlines.map(d => ({ ...d, source: 'deadline' }))
+    ];
+    
+    allItems.forEach(item => {
+        if (item.completed || !item.dueDate) return;
         
-        const dueDate = new Date(task.dueDate);
+        const dueDate = new Date(item.dueDate);
         const hoursUntilDeadline = (dueDate - now) / (1000 * 60 * 60);
         const daysUntilDeadline = hoursUntilDeadline / 24;
         
         // Only consider deadlines within 4 days
         if (daysUntilDeadline > 4 || daysUntilDeadline < 0) return;
         
-        const deadlineKey = task.dueDate;
+        const deadlineKey = item.dueDate;
         if (!deadlineGroups[deadlineKey]) {
             deadlineGroups[deadlineKey] = {
-                dueDate: task.dueDate,
+                dueDate: item.dueDate,
                 tasks: [],
                 totalMinutes: 0,
-                category: task.category || 'General'
+                category: item.category || item.class || 'General'
             };
         }
         
-        deadlineGroups[deadlineKey].tasks.push(task);
-        deadlineGroups[deadlineKey].totalMinutes += task.timeEstimate || 30;
+        deadlineGroups[deadlineKey].tasks.push(item);
+        deadlineGroups[deadlineKey].totalMinutes += item.timeEstimate || 30;
     });
     
     // Analyze each deadline group for crisis conditions
@@ -235,10 +241,15 @@ function renderCrisisMode() {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     const todayChunk = breakdown.find(d => d.date === today);
     
-    // Get critical tasks (due within 24 hours)
-    const criticalTasks = appData.tasks.filter(task => {
-        if (task.completed || !task.dueDate) return false;
-        const dueDate = new Date(task.dueDate);
+    // Get critical tasks (due within 24 hours) - check BOTH tasks and deadlines
+    const allCriticalItems = [
+        ...appData.tasks,
+        ...appData.deadlines
+    ];
+    
+    const criticalTasks = allCriticalItems.filter(item => {
+        if (item.completed || !item.dueDate) return false;
+        const dueDate = new Date(item.dueDate);
         const hoursUntil = (dueDate - new Date()) / (1000 * 60 * 60);
         return hoursUntil > 0 && hoursUntil <= 24;
     });
