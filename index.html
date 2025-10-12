@@ -215,7 +215,12 @@
 
             <!-- Errands & Stops Section -->
             <div class="card errands-section">
-                <h2>🏪 Errands & Stops</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">🏪 Errands & Stops</h2>
+                    <button class="btn btn-danger btn-sm" onclick="clearAllErrands()" title="Clear all errands" style="padding: 6px 12px; font-size: 0.85em;">
+                        🗑️ Clear All
+                    </button>
+                </div>
                 <p class="errands-hint" style="color: var(--text-light); margin-bottom: 15px;">
                     Things to do when you're out and about (post office, grocery store, etc.)
                 </p>

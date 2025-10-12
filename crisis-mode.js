@@ -206,12 +206,8 @@ function generateDailyBreakdown(cluster) {
     availableBlocks.forEach((block, blockIndex) => {
         if (taskIndex >= sortedTasks.length) return;
         
-        // Start a new day if this is a different date OR if we've maxed out current day
-        const MAX_MINUTES_PER_DAY = 90;
-        const shouldStartNewDay = (block.date !== currentDay) || 
-                                  (currentDayMinutes >= MAX_MINUTES_PER_DAY && taskIndex < sortedTasks.length);
-        
-        if (shouldStartNewDay) {
+        // Start a new day only if the date actually changes
+        if (block.date !== currentDay) {
             // Save previous day if it has tasks
             if (currentDay && currentDayTasks.length > 0) {
                 breakdown.push({
@@ -221,15 +217,15 @@ function generateDailyBreakdown(cluster) {
                     completed: false
                 });
             }
-            
-            // If we're maxing out same day, still move to next available block
-            if (block.date === currentDay && currentDayMinutes >= MAX_MINUTES_PER_DAY) {
-                return; // Skip to next block (this gets us to next day)
-            }
-            
             currentDay = block.date;
             currentDayTasks = [];
             currentDayMinutes = 0;
+        }
+        
+        // Skip this block if we've already maxed out the day
+        const MAX_MINUTES_PER_DAY = 90;
+        if (currentDayMinutes >= MAX_MINUTES_PER_DAY) {
+            return; // Move to next block (which might be next day)
         }
         
         // Try to fit tasks into this block

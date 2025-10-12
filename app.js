@@ -1435,6 +1435,24 @@ function clearAllProjects() {
     }
 }
 
+function clearAllErrands() {
+    const errandTasks = appData.tasks.filter(t => t.location === 'errands');
+    
+    if (errandTasks.length === 0) {
+        showToast('No errands to clear!');
+        return;
+    }
+    
+    const count = errandTasks.length;
+    if (confirm(`⚠️ Clear ALL ${count} errand${count !== 1 ? 's' : ''}?\n\nThis cannot be undone.`)) {
+        appData.tasks = appData.tasks.filter(t => t.location !== 'errands');
+        saveData();
+        renderTasks();
+        updateWhatNow();
+        showToast(`✅ Cleared ${count} errand${count !== 1 ? 's' : ''}`);
+    }
+}
+
 function clearDailySchedule() {
     if (!appData.schedule || Object.keys(appData.schedule).length === 0) {
         showToast('Schedule is already empty!');
