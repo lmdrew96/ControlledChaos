@@ -890,6 +890,11 @@ async function callClaudeAPI(messages, systemPrompt = '') {
         throw new Error('Worker password not configured');
     }
 
+    // FIX: Ensure we're using the full API endpoint, not just the domain
+    const apiUrl = CLOUDFLARE_WORKER_URL.endsWith('/api/claude') 
+        ? CLOUDFLARE_WORKER_URL 
+        : `${CLOUDFLARE_WORKER_URL}/api/claude`;
+
     const maxRetries = 3;
     const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
     
@@ -900,7 +905,7 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
             }
             
-            const response = await fetch(CLOUDFLARE_WORKER_URL, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
