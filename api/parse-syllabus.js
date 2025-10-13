@@ -1,7 +1,7 @@
 // api/parse-syllabus.js - Vercel Edge Function for parsing syllabus PDFs and DOCX files
 
 export const config = {
-    runtime: 'edge'
+    runtime: 'nodejs'
 };
 
 export default async function handler(request) {

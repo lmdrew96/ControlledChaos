@@ -756,6 +756,12 @@ function showCourseMappingModal(unmappedCodes, callback) {
 
 // ===== SHOW CALENDAR IMPORT MODAL =====
 function showCalendarImportModal() {
+    // Remove any existing modal first
+    const existingModal = document.getElementById('calendarImportModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.id = 'calendarImportModal';
