@@ -89,25 +89,62 @@ async function parseWithClaude(text, fileName) {
         throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
-    const prompt = `Analyze this syllabus and extract assignment information.
+    const prompt = `Analyze this syllabus and extract assignment information with EXTREME ACCURACY.
 
 File: ${fileName}
 Content: ${text}
 
+CRITICAL INSTRUCTIONS FOR DATE ACCURACY:
+
+1. FIRST, identify the semester and year:
+   - Look for "Fall 2025", "Spring 2025", "Summer 2025", etc.
+   - Look for course start/end dates to determine the semester
+   - Fall courses typically run August-December
+   - Spring courses typically run January-May
+   - Summer courses typically run May-August
+
+2. FIND THE COURSE SCHEDULE SECTION:
+   - Usually titled "COURSE SCHEDULE", "SCHEDULE", "CALENDAR", or similar
+   - This section is typically at the END of the syllabus
+   - It contains the actual assignment dates
+
+3. EXTRACT DATES WITH PRECISION:
+   - Pay close attention to the EXACT dates in the schedule
+   - Look for patterns like "Tuesday 10/2", "Thursday 10/30", "9/16/2025"
+   - Use the semester/year context to infer the correct year if not explicitly stated
+   - DO NOT invent or assume dates that aren't in the schedule
+
+4. EXTRACT ONLY REAL ASSIGNMENTS:
+   - ONLY extract assignments that are explicitly listed in the schedule
+   - DO NOT invent or assume assignments (no "Paper 1" if only "Exam 1" exists)
+   - Use the EXACT assignment names from the schedule
+   - If you see "Exam #1", call it "Exam 1" (not "Midterm Exam")
+   - If you see "APS #1", call it "APS 1" (not "Paper 1")
+
+5. EXTRACT EVERY ASSIGNMENT:
+   - Don't skip assignments - get them ALL from the schedule
+   - Include exams, papers, quizzes, presentations, APS, projects, etc.
+   - Each line with a date and assignment type should become an entry
+
 Extract:
-1. Course code/number (e.g., BISC104, MUSC 199, POSC150)
+1. Course code/number (e.g., HIST104, BISC104, MUSC 199, POSC150)
 2. Course title if mentioned
-3. All assignments with names and due dates
+3. ALL assignments with their EXACT names and EXACT due dates from the schedule
 
 Return ONLY valid JSON in this exact format:
 {
-  "courseCode": "BISC104",
-  "courseTitle": "Introduction to Biology",
+  "courseCode": "HIST104",
+  "courseTitle": "World History II",
   "assignments": [
     {
       "name": "Exam 1",
-      "dueDate": "2025-09-18",
+      "dueDate": "2025-10-02",
       "description": "Covers chapters 1-5"
+    },
+    {
+      "name": "APS 1",
+      "dueDate": "2025-09-16",
+      "description": "Analysis of Primary Sources"
     }
   ]
 }
@@ -116,7 +153,9 @@ IMPORTANT:
 - Output ONLY valid JSON, no other text
 - If no course code found, use null
 - If no due date found for an assignment, use null
-- Parse dates in YYYY-MM-DD format`;
+- Parse dates in YYYY-MM-DD format
+- Use the semester context to ensure dates are in the correct year
+- DO NOT hallucinate assignments that don't exist in the schedule`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
