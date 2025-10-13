@@ -1874,3 +1874,78 @@ h1 {
 #dueSoonBanner {
     animation: pulse 2s infinite;
 }
+
+/* ===== ADMIN PANEL STYLES ===== */
+.user-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+}
+
+.user-item:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.user-email {
+    font-weight: 500;
+    flex: 1;
+    color: var(--text);
+}
+
+.user-badge {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--primary);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin: 0 10px;
+}
+
+.remove-btn {
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.remove-btn:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.remove-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--text-light);
+}
+
+/* Responsive admin panel */
+@media (max-width: 768px) {
+    .user-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .user-badge {
+        margin: 0;
+    }
+    
+    .remove-btn {
+        width: 100%;
+    }
+}

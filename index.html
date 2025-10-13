@@ -387,12 +387,57 @@
                     </p>
                 </div>
                 
-                <!-- API Test Button -->
-                <div class="form-group">
-                    <button class="btn btn-secondary" onclick="testAPIConnection()" id="testApiBtn" style="width: 100%;">
-                        🔧 Test API Connection
+                </div>
+            
+            <!-- Admin Panel (Owner Only) -->
+            <div class="card" id="admin-panel" style="display: none;">
+                <h2>🔐 Manage Access (Admin Only)</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Control who can use this app. Only authorized users can access AI features.
+                </p>
+                
+                <div class="admin-status" style="background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+                    <span style="font-weight: 600;">👥 Authorized Users: <span id="user-count">1</span>/4</span>
+                </div>
+                
+                <div class="allowed-users-list" id="allowed-users-list" style="background: var(--bg-main); border-radius: 8px; padding: 15px; margin-bottom: 15px; max-height: 300px; overflow-y: auto;">
+                    <!-- User list populated dynamically -->
+                </div>
+                
+                <div class="add-user-section" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input 
+                        type="email" 
+                        id="new-user-email" 
+                        placeholder="friend@gmail.com"
+                        class="user-email-input"
+                        style="flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 6px;"
+                    />
+                    <button onclick="addUser()" class="btn btn-primary">
+                        ➕ Add User
                     </button>
-                    <div id="apiTestResult" style="margin-top: 10px; padding: 10px; border-radius: 6px; display: none;"></div>
+                </div>
+                
+                <div class="admin-notes" style="background: rgba(102, 126, 234, 0.05); padding: 15px; border-radius: 8px;">
+                    <p style="font-weight: 600; margin-bottom: 10px;">💡 Tips:</p>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--text-light);">
+                        <li>Users must sign in with Google to access the app</li>
+                        <li>Changes take effect immediately</li>
+                        <li>You can't remove yourself (owner)</li>
+                        <li>Maximum 4 users total (including you)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- API Info Section (Replaces API Key Input) -->
+            <div class="card">
+                <h2>✨ AI Features</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    AI features are powered by a shared API key managed by the app owner. No setup needed!
+                </p>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 2em; margin-bottom: 10px;">🤖</div>
+                    <div style="font-weight: 600; margin-bottom: 5px;">Powered by Anthropic Claude</div>
+                    <div style="opacity: 0.9; font-size: 0.9em;">Ready to help organize your chaos!</div>
                 </div>
                 
                 <div class="form-group">
@@ -518,6 +563,7 @@
     <script src="data.js"></script>
     <script src="storage.js"></script>
     <script src="settings-sync.js"></script>
+    <script src="admin.js"></script>
     <script src="courses.js"></script>
     <script src="calendar.js"></script>
     <!-- Crisis Mode removed - replaced with simple Due Soon banner -->

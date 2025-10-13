@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Due Soon banner
     updateDueSoonBanner();
     
+    // Initialize admin panel (if user is owner)
+    await initializeAdminPanel();
+    
     console.log('✅ [INIT] Application ready');
 });
 
@@ -962,46 +965,33 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
 // ===== AI FEATURES =====
 async function callClaudeAPI(messages, systemPrompt = '') {
     console.log('🤖 [CLAUDE API] Starting API call...');
-    console.log('🤖 [CLAUDE API] Worker URL from settings:', appData.settings?.workerUrl);
-    console.log('🤖 [CLAUDE API] Global CLOUDFLARE_WORKER_URL:', CLOUDFLARE_WORKER_URL);
     
-    if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude') {
-        console.error('❌ [CLAUDE API] Worker URL not configured');
-        alert('Please configure your Cloudflare Worker URL in Settings!');
-        showSettings();
-        throw new Error('Worker URL not configured');
+    // Check if user is signed in to Google Drive
+    if (!isDriveAvailable() || !userEmail) {
+        console.error('❌ [CLAUDE API] Not signed in to Google Drive');
+        alert('Please sign in to Google Drive to use AI features!');
+        throw new Error('Not signed in to Google Drive');
     }
-
-    const apiKey = appData.settings.apiKey || '';
-    console.log('🤖 [CLAUDE API] API Key exists:', !!apiKey);
-    console.log('🤖 [CLAUDE API] API Key starts with sk-ant-:', apiKey.startsWith('sk-ant-'));
     
-    if (!apiKey) {
-        console.error('❌ [CLAUDE API] API key not found');
-        alert('Please add your Anthropic API key in Settings to use AI features!');
-        showSettings();
-        throw new Error('API key not configured');
+    console.log('🤖 [CLAUDE API] User email:', userEmail);
+    
+    // Get Google access token
+    const googleToken = gapi.auth.getToken()?.access_token;
+    if (!googleToken) {
+        console.error('❌ [CLAUDE API] No Google access token');
+        alert('Please sign in to Google Drive to use AI features!');
+        throw new Error('No Google access token');
     }
-
-    // Get worker password from settings
-    const workerPassword = appData.settings?.workerPassword || '';
-    console.log('🤖 [CLAUDE API] Worker password exists:', !!workerPassword);
-    console.log('🤖 [CLAUDE API] Worker password length:', appData.settings.workerPassword?.length || 0);
-    console.log('🤖 [CLAUDE API] Worker password first 3 chars:', appData.settings.workerPassword?.substring(0, 3) || 'MISSING');
     
-    if (!workerPassword) {
-        console.error('❌ [CLAUDE API] Worker password not found');
-        alert('Please configure your Worker Password in Settings first!');
-        showSettings();
-        throw new Error('Worker password not configured');
-    }
-
-    // FIX: Ensure we're using the full API endpoint, not just the domain
-    const apiUrl = CLOUDFLARE_WORKER_URL.endsWith('/api/claude') 
-        ? CLOUDFLARE_WORKER_URL 
-        : `${CLOUDFLARE_WORKER_URL}/api/claude`;
+    console.log('🤖 [CLAUDE API] Google token exists:', !!googleToken);
     
-    console.log('🤖 [CLAUDE API] Full API URL:', apiUrl);
+    // Load allowlist
+    const allowlist = await getAllowlist();
+    console.log('🤖 [CLAUDE API] Allowlist loaded:', allowlist);
+    
+    // Use Vercel edge function endpoint
+    const apiUrl = '/api/claude';
+    console.log('🤖 [CLAUDE API] API URL:', apiUrl);
 
     // Create the actual API call function to be queued
     const makeAPICall = async () => {
@@ -1018,6 +1008,9 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 }
                 
                 const requestBody = {
+                    userEmail: userEmail,
+                    googleToken: googleToken,
+                    allowlist: allowlist,
                     model: 'claude-sonnet-4-5-20250929',
                     max_tokens: 2000,
                     system: systemPrompt,
@@ -1025,24 +1018,19 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 };
                 
                 console.log('🤖 [CLAUDE API] Request body:', {
+                    userEmail: requestBody.userEmail,
+                    hasGoogleToken: !!requestBody.googleToken,
+                    hasAllowlist: !!requestBody.allowlist,
                     model: requestBody.model,
                     max_tokens: requestBody.max_tokens,
                     systemPromptLength: systemPrompt.length,
                     messagesCount: messages.length
                 });
                 
-                console.log('🤖 [CLAUDE API] Request payload:', JSON.stringify({
-                    model: requestBody.model,
-                    max_tokens: requestBody.max_tokens,
-                    messages: requestBody.messages
-                }, null, 2));
-                
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
-                        'Authorization': `Bearer ${workerPassword}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestBody)
                 });

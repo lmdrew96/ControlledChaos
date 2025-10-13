@@ -1,14 +1,17 @@
-// Vercel Edge Function - Anthropic API Proxy
+// Vercel Edge Function - Anthropic API Proxy with Multi-User Auth
 export const config = {
   runtime: 'edge',
 };
+
+// Hardcoded owner - can never be locked out
+const OWNER_EMAIL = 'lmdrew96@gmail.com';
 
 export default async function handler(request) {
   // CORS headers
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, x-api-key, X-API-Key, authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, authorization',
   };
   
   // Handle CORS preflight
@@ -33,36 +36,17 @@ export default async function handler(request) {
     });
   }
   
-  // Password protection
-  const authHeader = request.headers.get('authorization');
-  const expectedAuth = `Bearer ${process.env.WORKER_PASSWORD}`;
-  
-  if (!authHeader || authHeader !== expectedAuth) {
-    console.log('Unauthorized access attempt');
-    return new Response(JSON.stringify({
-      error: 'Unauthorized',
-      details: 'Invalid or missing worker password'
-    }), {
-      status: 401,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
-    });
-  }
-  
   try {
-    // Get API key from environment or header
-    const apiKey = process.env.ANTHROPIC_API_KEY || 
-                   request.headers.get('x-api-key') || 
-                   request.headers.get('X-API-Key');
+    // Get server-side API key from environment
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
     
-    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+    if (!ANTHROPIC_API_KEY || !ANTHROPIC_API_KEY.startsWith('sk-ant-')) {
+      console.error('Server API key not configured or invalid');
       return new Response(JSON.stringify({ 
-        error: 'Invalid API key format',
-        details: 'Anthropic API keys should start with "sk-ant-"'
+        error: 'Server configuration error',
+        details: 'API key not properly configured on server'
       }), {
-        status: 400,
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders,
@@ -70,10 +54,47 @@ export default async function handler(request) {
       });
     }
     
-    // Get request body
-    const body = await request.text();
+    // Parse request body
+    const requestBody = await request.json();
+    const { userEmail, googleToken, allowlist, ...aiRequestData } = requestBody;
     
-    // Forward to Anthropic with timeout
+    // Verify Google OAuth token and extract email
+    const verifiedEmail = await verifyGoogleToken(googleToken);
+    if (!verifiedEmail || verifiedEmail !== userEmail) {
+      console.log('Authentication failed:', { verifiedEmail, userEmail });
+      return new Response(JSON.stringify({ 
+        error: 'Authentication failed',
+        details: 'Please sign in with Google Drive'
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    
+    // Check authorization
+    const isOwner = verifiedEmail === OWNER_EMAIL;
+    const isAllowed = allowlist?.allowedUsers?.includes(verifiedEmail);
+    
+    if (!isOwner && !isAllowed) {
+      console.log('User not authorized:', verifiedEmail);
+      return new Response(JSON.stringify({ 
+        error: 'Access denied',
+        details: 'This app is invite-only. Contact the owner for access.'
+      }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    
+    console.log('User authorized:', verifiedEmail, isOwner ? '(owner)' : '(allowed)');
+    
+    // User is authorized - forward request to Anthropic with server key
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 55000);
     
@@ -81,10 +102,10 @@ export default async function handler(request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: body,
+      body: JSON.stringify(aiRequestData),
       signal: controller.signal,
     });
     
@@ -160,5 +181,31 @@ export default async function handler(request) {
         ...corsHeaders,
       },
     });
+  }
+}
+
+// Verify Google OAuth token
+async function verifyGoogleToken(token) {
+  if (!token) {
+    console.log('No token provided');
+    return null;
+  }
+  
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`
+    );
+    
+    if (!response.ok) {
+      console.log('Token verification failed:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('Token verified for:', data.email);
+    return data.email || null;
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return null;
   }
 }
