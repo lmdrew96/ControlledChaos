@@ -133,6 +133,11 @@ function handleMoreMenuClick(tabName) {
     // Save the active tab
     localStorage.setItem('activeTab', tabName);
     
+    // Populate settings if switching to settings tab
+    if (tabName === 'settings' && typeof populateSettingsInputs === 'function') {
+        populateSettingsInputs();
+    }
+    
     // Close the More menu
     if (moreMenu) {
         moreMenu.classList.add('hidden');
@@ -869,14 +874,23 @@ Respond ONLY with valid JSON in this exact format (no markdown, no backticks):
 
 // ===== AI FEATURES =====
 async function callClaudeAPI(messages, systemPrompt = '') {
+    console.log('🤖 [CLAUDE API] Starting API call...');
+    console.log('🤖 [CLAUDE API] Worker URL from settings:', appData.settings?.workerUrl);
+    console.log('🤖 [CLAUDE API] Global CLOUDFLARE_WORKER_URL:', CLOUDFLARE_WORKER_URL);
+    
     if (!CLOUDFLARE_WORKER_URL || CLOUDFLARE_WORKER_URL === 'YOUR-WORKER-URL-HERE/api/claude') {
+        console.error('❌ [CLAUDE API] Worker URL not configured');
         alert('Please configure your Cloudflare Worker URL in Settings!');
         showSettings();
         throw new Error('Worker URL not configured');
     }
 
     const apiKey = appData.settings.apiKey || '';
+    console.log('🤖 [CLAUDE API] API Key exists:', !!apiKey);
+    console.log('🤖 [CLAUDE API] API Key starts with sk-ant-:', apiKey.startsWith('sk-ant-'));
+    
     if (!apiKey) {
+        console.error('❌ [CLAUDE API] API key not found');
         alert('Please add your Anthropic API key in Settings to use AI features!');
         showSettings();
         throw new Error('API key not configured');
@@ -884,7 +898,10 @@ async function callClaudeAPI(messages, systemPrompt = '') {
 
     // Get worker password from settings
     const workerPassword = appData.settings?.workerPassword || '';
+    console.log('🤖 [CLAUDE API] Worker password exists:', !!workerPassword);
+    
     if (!workerPassword) {
+        console.error('❌ [CLAUDE API] Worker password not found');
         alert('Please configure your Worker Password in Settings first!');
         showSettings();
         throw new Error('Worker password not configured');
@@ -894,16 +911,34 @@ async function callClaudeAPI(messages, systemPrompt = '') {
     const apiUrl = CLOUDFLARE_WORKER_URL.endsWith('/api/claude') 
         ? CLOUDFLARE_WORKER_URL 
         : `${CLOUDFLARE_WORKER_URL}/api/claude`;
+    
+    console.log('🤖 [CLAUDE API] Full API URL:', apiUrl);
 
     const maxRetries = 3;
     const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
+            console.log(`🤖 [CLAUDE API] Attempt ${attempt + 1}/${maxRetries}`);
+            
             // Show retry message if not first attempt
             if (attempt > 0) {
                 showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
             }
+            
+            const requestBody = {
+                model: 'claude-sonnet-4-5-20250929',
+                max_tokens: 2000,
+                system: systemPrompt,
+                messages: messages
+            };
+            
+            console.log('🤖 [CLAUDE API] Request body:', {
+                model: requestBody.model,
+                max_tokens: requestBody.max_tokens,
+                systemPromptLength: systemPrompt.length,
+                messagesCount: messages.length
+            });
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -912,16 +947,15 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                     'X-API-Key': apiKey,
                     'Authorization': `Bearer ${workerPassword}`
                 },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-5-20250929',
-                    max_tokens: 2000,
-                    system: systemPrompt,
-                    messages: messages
-                })
+                body: JSON.stringify(requestBody)
             });
+
+            console.log('🤖 [CLAUDE API] Response status:', response.status);
+            console.log('🤖 [CLAUDE API] Response headers:', Object.fromEntries(response.headers.entries()));
 
             // Check for 503 Service Unavailable
             if (response.status === 503) {
+                console.warn('⚠️ [CLAUDE API] Service unavailable (503)');
                 // If this is the last attempt, throw error
                 if (attempt === maxRetries - 1) {
                     throw new Error('Service temporarily unavailable after multiple retries');
@@ -932,13 +966,18 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 continue; // Retry
             }
 
-            // For other errors, throw immediately
+            // For other errors, get the response text for better error messages
+            const responseText = await response.text();
+            console.log('🤖 [CLAUDE API] Response body:', responseText);
+            
             if (!response.ok) {
-                throw new Error(`API call failed: ${response.statusText}`);
+                console.error('❌ [CLAUDE API] Request failed:', response.status, responseText);
+                throw new Error(`API call failed (${response.status}): ${responseText}`);
             }
 
             // Success! Parse and return
-            const data = await response.json();
+            const data = JSON.parse(responseText);
+            console.log('✅ [CLAUDE API] Success! Response:', data);
             
             // Show success message if we had to retry
             if (attempt > 0) {
@@ -948,8 +987,11 @@ async function callClaudeAPI(messages, systemPrompt = '') {
             return data.content[0].text;
             
         } catch (error) {
+            console.error(`❌ [CLAUDE API] Attempt ${attempt + 1} failed:`, error);
+            
             // If this is the last attempt, throw the error
             if (attempt === maxRetries - 1) {
+                console.error('❌ [CLAUDE API] All retries exhausted');
                 throw error;
             }
             
@@ -1358,6 +1400,96 @@ function saveSettings() {
     saveData();
     
     showToast('✅ Settings saved!');
+}
+
+async function testAPIConnection() {
+    const btn = document.getElementById('testApiBtn');
+    const resultDiv = document.getElementById('apiTestResult');
+    
+    // Show loading
+    btn.disabled = true;
+    btn.textContent = '⏳ Testing...';
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = '#f0f9ff';
+    resultDiv.style.border = '1px solid #3b82f6';
+    resultDiv.style.color = '#1e40af';
+    resultDiv.innerHTML = 'Testing API connection...';
+    
+    try {
+        // Step 1: Check if settings exist
+        console.log('🔧 [API TEST] Step 1: Checking settings...');
+        console.log('🔧 [API TEST] Worker URL:', appData.settings?.workerUrl || 'NOT SET');
+        console.log('🔧 [API TEST] Worker Password exists:', !!appData.settings?.workerPassword);
+        console.log('🔧 [API TEST] API Key exists:', !!appData.settings?.apiKey);
+        console.log('🔧 [API TEST] API Key starts with sk-ant-:', appData.settings?.apiKey?.startsWith('sk-ant-'));
+        
+        if (!appData.settings?.workerUrl) {
+            throw new Error('Worker URL not configured');
+        }
+        
+        if (!appData.settings?.workerPassword) {
+            throw new Error('Worker Password not configured');
+        }
+        
+        if (!appData.settings?.apiKey) {
+            throw new Error('API Key not configured');
+        }
+        
+        if (!appData.settings.apiKey.startsWith('sk-ant-')) {
+            throw new Error('API Key format invalid (should start with sk-ant-)');
+        }
+        
+        resultDiv.innerHTML = '✅ Settings validated<br>🔄 Making test API call...';
+        
+        // Step 2: Make a simple test call
+        console.log('🔧 [API TEST] Step 2: Making test API call...');
+        
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: 'Reply with just the word "SUCCESS" and nothing else.'
+        }], 'You are a test bot. Reply with exactly the word SUCCESS.');
+        
+        console.log('🔧 [API TEST] Response:', response);
+        
+        // Step 3: Check response
+        if (response && response.toLowerCase().includes('success')) {
+            resultDiv.style.background = '#f0fdf4';
+            resultDiv.style.border = '1px solid #22c55e';
+            resultDiv.style.color = '#15803d';
+            resultDiv.innerHTML = `
+                ✅ <strong>API Connection Successful!</strong><br>
+                <small>Worker URL: ${appData.settings.workerUrl}</small><br>
+                <small>API Response: "${response}"</small>
+            `;
+            
+            showToast('✅ API connection working!');
+        } else {
+            throw new Error(`Unexpected response: ${response}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ [API TEST] Failed:', error);
+        
+        resultDiv.style.background = '#fef2f2';
+        resultDiv.style.border = '1px solid #ef4444';
+        resultDiv.style.color = '#991b1b';
+        resultDiv.innerHTML = `
+            ❌ <strong>API Test Failed</strong><br>
+            <small>${error.message}</small><br>
+            <small>Check console for details (F12)</small>
+        `;
+        
+        // Show detailed error info in console
+        console.log('🔧 [API TEST] Detailed Error Info:');
+        console.log('- Worker URL:', appData.settings?.workerUrl);
+        console.log('- Worker Password length:', appData.settings?.workerPassword?.length || 0);
+        console.log('- API Key prefix:', appData.settings?.apiKey?.substring(0, 10) || 'NOT SET');
+        console.log('- CLOUDFLARE_WORKER_URL global:', CLOUDFLARE_WORKER_URL);
+        console.log('- Error stack:', error.stack);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔧 Test API Connection';
+    }
 }
 
 // ===== DONE FOR TODAY FEATURE =====
