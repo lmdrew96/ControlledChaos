@@ -1087,7 +1087,7 @@ async function processBrainDump() {
                 templateContext += '\n' + customTemplates.map((t, i) => 
                     `${i + 4}. **${t.name}**: Custom template`
                 ).join('\n');
-            }
+        }
         }
 
         const systemPrompt = `You are an ADHD-friendly task organizer. Parse the user's brain dump into clear, actionable tasks.
@@ -1102,35 +1102,36 @@ ${templateContext}
    - NOT full sentences like "Go to grocery store" or "Pick up prescription"
    - These are stops to make while out
 
-2. **For Beatles-related tasks**:
-   - Mark with a flag so they can be added to Beatles template
-   - Include "beatles" in a tags field
+2. **For course-related tasks**, detect the course and include a courseId:
+   - Biology/Bio tasks: courseId: "bio"
+   - Beatles/Music tasks: courseId: "beatles"
+   - History/World History tasks: courseId: "history"
+   - Politics/US Politics tasks: courseId: "politics"
+   - If no course detected: courseId: null
 
-3. **For Bio-related tasks**:
-   - Mark with a flag so they can be added to Bio template
-   - Include "bio" in a tags field
-
-4. **For all other tasks**:
+3. **For all tasks**:
    - Create as individual tasks
    - Determine energy level (high/medium/low)
    - Determine location (home/school/work/anywhere)
    - Estimate time in minutes
+   - Include courseId if course-related
 
 **Examples:**
 
-Input: "buy groceries, pick up prescription, Beatles discussion post"
+Input: "buy groceries, pick up prescription, Beatles discussion post, study for bio exam"
 Output: 
-- Task 1: title: "grocery", location: "errands", energy: "medium", timeEstimate: 20
-- Task 2: title: "pharmacy", location: "errands", energy: "low", timeEstimate: 10
-- Task 3: title: "Discussion post", location: "anywhere", energy: "medium", timeEstimate: 20, tags: ["beatles"]
+- Task 1: title: "grocery", location: "errands", energy: "medium", timeEstimate: 20, courseId: null
+- Task 2: title: "pharmacy", location: "errands", energy: "low", timeEstimate: 10, courseId: null
+- Task 3: title: "Beatles discussion post", location: "anywhere", energy: "medium", timeEstimate: 20, courseId: "beatles"
+- Task 4: title: "Study for bio exam", location: "school", energy: "high", timeEstimate: 60, courseId: "bio"
 
-Input: "write essay for english, fill up gas tank"
+Input: "write essay for history, fill up gas tank"
 Output:
-- Task 1: title: "Write essay for english", location: "home", energy: "high", timeEstimate: 90
-- Task 2: title: "gas", location: "errands", energy: "low", timeEstimate: 10
+- Task 1: title: "Write essay for history", location: "home", energy: "high", timeEstimate: 90, courseId: "history"
+- Task 2: title: "gas", location: "errands", energy: "low", timeEstimate: 10, courseId: null
 
 Return ONLY valid JSON array of tasks, no other text:
-[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30, "tags": []}]`;
+[{"title": "...", "energy": "...", "location": "...", "timeEstimate": 30, "courseId": null}]`;
 
         const response = await callClaudeAPI([{
             role: 'user',
@@ -1140,24 +1141,18 @@ Return ONLY valid JSON array of tasks, no other text:
         const tasks = JSON.parse(response);
         
         let errandCount = 0;
-        let beatlesCount = 0;
-        let bioCount = 0;
+        let courseTaskCount = 0;
         let regularCount = 0;
         
         tasks.forEach(task => {
             // Track what type of task this is
             if (task.location === 'errands') {
                 errandCount++;
-            } else if (task.tags && task.tags.includes('beatles')) {
-                beatlesCount++;
-            } else if (task.tags && task.tags.includes('bio')) {
-                bioCount++;
+            } else if (task.courseId) {
+                courseTaskCount++;
             } else {
                 regularCount++;
             }
-            
-            // Remove tags field before adding (internal use only)
-            delete task.tags;
             
             addTask(task);
         });
@@ -1168,8 +1163,7 @@ Return ONLY valid JSON array of tasks, no other text:
         // Show summary of what was created
         let summary = `Created ${tasks.length} task${tasks.length !== 1 ? 's' : ''}:\n`;
         if (errandCount > 0) summary += `\n🏪 ${errandCount} errand${errandCount !== 1 ? 's' : ''}`;
-        if (beatlesCount > 0) summary += `\n🎵 ${beatlesCount} Beatles task${beatlesCount !== 1 ? 's' : ''}`;
-        if (bioCount > 0) summary += `\n🧬 ${bioCount} Bio task${bioCount !== 1 ? 's' : ''}`;
+        if (courseTaskCount > 0) summary += `\n🎓 ${courseTaskCount} course task${courseTaskCount !== 1 ? 's' : ''}`;
         if (regularCount > 0) summary += `\n📝 ${regularCount} other task${regularCount !== 1 ? 's' : ''}`;
         
         showToast(summary);

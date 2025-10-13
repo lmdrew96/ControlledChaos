@@ -71,6 +71,11 @@ function updateUI() {
     renderProjects();
     renderTemplates();
     
+    // Render course deadline view
+    if (typeof renderCourseDeadlineView === 'function') {
+        renderCourseDeadlineView();
+    }
+    
     // Check for crisis mode
     if (typeof updateCrisisMode === 'function') {
         updateCrisisMode();
@@ -98,23 +103,34 @@ function renderTasks() {
         return;
     }
 
-    container.innerHTML = incompleteTasks.map(task => `
-        <div class="task-item">
-            <input type="checkbox" class="task-checkbox" 
-                   onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
-            <div class="task-content">
-                <div class="task-title">${task.title}</div>
-                <div class="task-meta">
-                    <span class="energy-badge energy-${task.energy}">${task.energy}</span>
-                    <span class="location-badge">📍 ${task.location}</span>
-                    ${task.timeEstimate ? `<span class="time-estimate" onclick="editTaskTime('${task.id}')" style="cursor: pointer;" title="Click to edit time estimate">⏱️ <span id="time-${task.id}">${task.timeEstimate}</span>min</span>` : ''}
+    container.innerHTML = incompleteTasks.map(task => {
+        // Get course badge if task has courseId
+        let courseBadge = '';
+        if (task.courseId && typeof COURSES !== 'undefined' && COURSES[task.courseId]) {
+            const course = COURSES[task.courseId];
+            courseBadge = `<span style="background: ${course.color}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px;">${course.icon} ${course.shortName}</span>`;
+        }
+        
+        return `
+            <div class="task-item">
+                <input type="checkbox" class="task-checkbox" 
+                       onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
+                <div class="task-content">
+                    <div class="task-title">
+                        ${courseBadge}${task.title}
+                    </div>
+                    <div class="task-meta">
+                        <span class="energy-badge energy-${task.energy}">${task.energy}</span>
+                        <span class="location-badge">📍 ${task.location}</span>
+                        ${task.timeEstimate ? `<span class="time-estimate" onclick="editTaskTime('${task.id}')" style="cursor: pointer;" title="Click to edit time estimate">⏱️ <span id="time-${task.id}">${task.timeEstimate}</span>min</span>` : ''}
+                    </div>
+                </div>
+                <div class="task-actions">
+                    <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
                 </div>
             </div>
-            <div class="task-actions">
-                <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
     
     // Also render errand tasks
     renderErrandTasks();
