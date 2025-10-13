@@ -125,7 +125,12 @@ async function importCalendarFeed() {
     }
     
     // Show loading state
-    const importBtn = document.getElementById('importCalendarBtn');
+    const importBtn = document.querySelector('button[onclick="importCalendarFeed()"]');
+    if (!importBtn) {
+        console.error('Import button not found');
+        alert('Error: Import button not found. Please try again.');
+        return;
+    }
     const originalBtnText = importBtn.textContent;
     importBtn.disabled = true;
     importBtn.textContent = '⏳ Fetching calendar...';
