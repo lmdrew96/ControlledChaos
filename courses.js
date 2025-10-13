@@ -188,9 +188,18 @@ function renderCourseDeadlineView() {
     const container = document.getElementById('courseDeadlineView');
     if (!container) return;
     
-    const nextDeadlines = getNextDeadlinePerCourse();
+    // Get all unique courses from deadlines (DYNAMIC - no hardcoded COURSES)
+    const uniqueCourses = [...new Set(appData.deadlines
+        .filter(d => !d.completed)
+        .map(d => d.class || d.course)
+        .filter(c => c && c !== 'Personal')
+    )];
     
-    if (nextDeadlines.length === 0) {
+    // Generate color palette dynamically
+    const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#06b6d4', '#84cc16', '#f43f5e'];
+    const icons = ['📚', '🧬', '🎵', '🏛️', '💻', '🔬', '📐', '🎨'];
+    
+    if (uniqueCourses.length === 0 && appData.deadlines.filter(d => !d.completed).length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">🎉</div>
@@ -200,15 +209,39 @@ function renderCourseDeadlineView() {
         return;
     }
     
-    container.innerHTML = nextDeadlines.map(item => {
-        const { course, deadline, daysUntil, relatedTasks, urgency } = item;
+    let html = '';
+    
+    // Render section for each course found in the data
+    uniqueCourses.forEach((courseName, index) => {
+        const courseColor = colors[index % colors.length];
+        const courseIcon = icons[index % icons.length];
+        
+        // Get deadlines for this course
+        const courseDeadlines = appData.deadlines
+            .filter(d => !d.completed && (d.class === courseName || d.course === courseName))
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+        
+        if (courseDeadlines.length === 0) return;
+        
+        // Get the next (most urgent) deadline for this course
+        const nextDeadline = courseDeadlines[0];
+        const dueDate = new Date(nextDeadline.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        
+        const urgency = getUrgencyLevel(daysUntil);
         const urgencyColor = getUrgencyColor(urgency);
         const urgencyText = getUrgencyText(daysUntil);
-        const incompleteTasks = relatedTasks.filter(t => !t.completed);
         
-        return `
+        // Get related tasks
+        const relatedTasks = appData.tasks.filter(t => 
+            !t.completed && t.parentDeadline === nextDeadline.id
+        );
+        
+        html += `
             <div class="course-deadline-card" style="
-                border-left: 4px solid ${course.color};
+                border-left: 4px solid ${courseColor};
                 background: white;
                 padding: 20px;
                 border-radius: 10px;
@@ -217,12 +250,17 @@ function renderCourseDeadlineView() {
             ">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                     <div>
-                        <h3 style="margin: 0; color: ${course.color};">
-                            ${course.icon} ${course.name}
+                        <h3 style="margin: 0; color: ${courseColor};">
+                            ${courseIcon} ${courseName}
                         </h3>
                         <p style="margin: 5px 0; font-weight: 600; font-size: 1.1em;">
-                            ${deadline.title}
+                            ${nextDeadline.title}
                         </p>
+                        ${courseDeadlines.length > 1 ? `
+                            <p style="margin: 5px 0; font-size: 0.85em; color: var(--text-light);">
+                                +${courseDeadlines.length - 1} more deadline${courseDeadlines.length - 1 !== 1 ? 's' : ''}
+                            </p>
+                        ` : ''}
                     </div>
                     <span style="
                         background: ${urgencyColor};
@@ -238,27 +276,102 @@ function renderCourseDeadlineView() {
                 </div>
                 
                 <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
-                    ${incompleteTasks.length > 0 ? `
-                        <button class="btn btn-secondary btn-sm" onclick="showCourseTasksModal('${course.id}', '${deadline.id}')" style="flex: 1;">
-                            ☐ ${incompleteTasks.length} task${incompleteTasks.length !== 1 ? 's' : ''} to do
+                    ${relatedTasks.length > 0 ? `
+                        <button class="btn btn-secondary btn-sm" onclick="showCourseTasksModal('${courseName}', '${nextDeadline.id}')" style="flex: 1;">
+                            ☐ ${relatedTasks.length} task${relatedTasks.length !== 1 ? 's' : ''} to do
                         </button>
                     ` : `
                         <span style="color: var(--success); font-weight: 600; flex: 1;">
                             ✓ All tasks complete!
                         </span>
                     `}
-                    <button class="btn btn-primary btn-sm" onclick="addTaskForDeadline('${deadline.id}')" style="white-space: nowrap;">
+                    <button class="btn btn-primary btn-sm" onclick="addTaskForDeadline('${nextDeadline.id}')" style="white-space: nowrap;">
                         + Add task
                     </button>
                 </div>
             </div>
         `;
-    }).join('');
+    });
+    
+    // Add Personal/Uncategorized section if there are any
+    const personalDeadlines = appData.deadlines
+        .filter(d => !d.completed && (!d.class || d.class === 'Personal'))
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    
+    if (personalDeadlines.length > 0) {
+        const nextDeadline = personalDeadlines[0];
+        const dueDate = new Date(nextDeadline.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        
+        const urgency = getUrgencyLevel(daysUntil);
+        const urgencyColor = getUrgencyColor(urgency);
+        const urgencyText = getUrgencyText(daysUntil);
+        
+        const relatedTasks = appData.tasks.filter(t => 
+            !t.completed && t.parentDeadline === nextDeadline.id
+        );
+        
+        html += `
+            <div class="course-deadline-card" style="
+                border-left: 4px solid #ec4899;
+                background: white;
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                    <div>
+                        <h3 style="margin: 0; color: #ec4899;">
+                            ✨ Personal
+                        </h3>
+                        <p style="margin: 5px 0; font-weight: 600; font-size: 1.1em;">
+                            ${nextDeadline.title}
+                        </p>
+                        ${personalDeadlines.length > 1 ? `
+                            <p style="margin: 5px 0; font-size: 0.85em; color: var(--text-light);">
+                                +${personalDeadlines.length - 1} more deadline${personalDeadlines.length - 1 !== 1 ? 's' : ''}
+                            </p>
+                        ` : ''}
+                    </div>
+                    <span style="
+                        background: ${urgencyColor};
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 20px;
+                        font-size: 0.9em;
+                        font-weight: 600;
+                        white-space: nowrap;
+                    ">
+                        📅 ${urgencyText}
+                    </span>
+                </div>
+                
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                    ${relatedTasks.length > 0 ? `
+                        <button class="btn btn-secondary btn-sm" onclick="showCourseTasksModal('Personal', '${nextDeadline.id}')" style="flex: 1;">
+                            ☐ ${relatedTasks.length} task${relatedTasks.length !== 1 ? 's' : ''} to do
+                        </button>
+                    ` : `
+                        <span style="color: var(--success); font-weight: 600; flex: 1;">
+                            ✓ All tasks complete!
+                        </span>
+                    `}
+                    <button class="btn btn-primary btn-sm" onclick="addTaskForDeadline('${nextDeadline.id}')" style="white-space: nowrap;">
+                        + Add task
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
 }
 
 // ===== SHOW COURSE TASKS MODAL =====
-function showCourseTasksModal(courseId, deadlineId) {
-    const course = COURSES[courseId];
+function showCourseTasksModal(courseName, deadlineId) {
     const deadline = appData.deadlines.find(d => d.id === deadlineId);
     if (!deadline) return;
     
@@ -271,7 +384,7 @@ function showCourseTasksModal(courseId, deadlineId) {
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
-                <h2>${course.icon} ${deadline.title}</h2>
+                <h2>${deadline.title}</h2>
                 <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
             
