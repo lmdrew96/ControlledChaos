@@ -1863,3 +1863,14 @@ h1 {
         font-size: 1.1em;
     }
 }
+
+/* ===== DUE SOON BANNER ANIMATION ===== */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+#dueSoonBanner {
+    animation: pulse 2s infinite;
+}

@@ -34,6 +34,12 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Due Soon Warning Banner -->
+    <div id="dueSoonBanner" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        <div id="dueSoonContent" style="font-size: 1.1em; font-weight: bold;"></div>
+        <div id="countdownTimer" style="font-size: 2em; margin-top: 5px; font-family: monospace;"></div>
+    </div>
+    
     <div class="container">
         <header>
             <h1>🌀 Controlled Chaos v4</h1>
@@ -484,7 +490,7 @@
     <script src="data.js"></script>
     <script src="storage.js"></script>
     <script src="calendar.js"></script>
-    <script src="crisis-mode.js"></script>
+    <!-- Crisis Mode removed - replaced with simple Due Soon banner -->
     <script src="ui.js"></script>
     <script src="api-queue.js"></script>
     <script src="app.js"></script>

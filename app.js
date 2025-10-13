@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('configWarning').style.display = 'none';
     }
     
+    // Initialize Due Soon banner
+    updateDueSoonBanner();
+    
     console.log('✅ [INIT] Application ready');
 });
 
@@ -195,11 +198,12 @@ function addTask(task) {
     appData.tasks.push(task);
     saveData();
     renderTasks();
+    updateDueSoonBanner();
     
-    // Invalidate crisis cache when tasks change
-    if (typeof invalidateCrisisCache === 'function') {
-        invalidateCrisisCache();
-    }
+    // Crisis Mode removed - replaced with Due Soon banner
+    // if (typeof invalidateCrisisCache === 'function') {
+    //     invalidateCrisisCache();
+    // }
 }
 
 function toggleTask(taskId) {
@@ -235,11 +239,12 @@ function toggleTask(taskId) {
         saveData();
         renderTasks();
         updateWhatNow();
+        updateDueSoonBanner();
         
-        // Invalidate crisis cache when tasks change
-        if (typeof invalidateCrisisCache === 'function') {
-            invalidateCrisisCache();
-        }
+        // Crisis Mode removed - replaced with Due Soon banner
+        // if (typeof invalidateCrisisCache === 'function') {
+        //     invalidateCrisisCache();
+        // }
     }
 }
 
@@ -249,11 +254,12 @@ function deleteTask(taskId) {
         saveData();
         renderTasks();
         updateWhatNow();
+        updateDueSoonBanner();
         
-        // Invalidate crisis cache when tasks change
-        if (typeof invalidateCrisisCache === 'function') {
-            invalidateCrisisCache();
-        }
+        // Crisis Mode removed - replaced with Due Soon banner
+        // if (typeof invalidateCrisisCache === 'function') {
+        //     invalidateCrisisCache();
+        // }
     }
 }
 
@@ -521,11 +527,12 @@ function addDeadline(title, dueDate) {
     appData.deadlines.push(deadline);
     saveData();
     renderDeadlines();
+    updateDueSoonBanner();
     
-    // Invalidate crisis cache when deadlines change
-    if (typeof invalidateCrisisCache === 'function') {
-        invalidateCrisisCache();
-    }
+    // Crisis Mode removed - replaced with Due Soon banner
+    // if (typeof invalidateCrisisCache === 'function') {
+    //     invalidateCrisisCache();
+    // }
     
     // Show the "Create tasks?" modal
     afterDeadlineCreated(deadline);
@@ -554,6 +561,7 @@ function toggleDeadline(deadlineId) {
         saveData();
         renderDeadlines();
         renderTasks();
+        updateDueSoonBanner();
     }
 }
 
@@ -564,11 +572,12 @@ function deleteDeadline(deadlineId) {
         saveData();
         renderDeadlines();
         renderTasks();
+        updateDueSoonBanner();
         
-        // Invalidate crisis cache when deadlines change
-        if (typeof invalidateCrisisCache === 'function') {
-            invalidateCrisisCache();
-        }
+        // Crisis Mode removed - replaced with Due Soon banner
+        // if (typeof invalidateCrisisCache === 'function') {
+        //     invalidateCrisisCache();
+        // }
     }
 }
 
@@ -1356,11 +1365,12 @@ function editTaskTime(taskId) {
     }
     
     saveData();
+    updateDueSoonBanner();
     
-    // Re-run crisis mode to update the plan
-    if (typeof updateCrisisMode === 'function') {
-        updateCrisisMode();
-    }
+    // Crisis Mode removed - replaced with Due Soon banner
+    // if (typeof updateCrisisMode === 'function') {
+    //     updateCrisisMode();
+    // }
     
     showToast(`✅ Updated time estimate to ${timeNum} minutes`);
 }
@@ -1390,11 +1400,12 @@ function editDeadlineTime(deadlineId) {
     
     saveData();
     renderDeadlines();
+    updateDueSoonBanner();
     
-    // Re-run crisis mode to update the plan
-    if (typeof updateCrisisMode === 'function') {
-        updateCrisisMode();
-    }
+    // Crisis Mode removed - replaced with Due Soon banner
+    // if (typeof updateCrisisMode === 'function') {
+    //     updateCrisisMode();
+    // }
     
     showToast(`✅ Updated time estimate to ${timeNum} minutes`);
 }
@@ -1627,6 +1638,93 @@ function showCelebration() {
         </div>
     `;
     document.body.appendChild(modal);
+}
+
+// ===== DUE SOON BANNER SYSTEM =====
+let countdownInterval = null;
+
+function updateDueSoonBanner() {
+    const now = new Date();
+    const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    
+    // Find the most urgent item
+    let mostUrgent = null;
+    let shortestTime = Infinity;
+    
+    [...(appData.tasks || []), ...(appData.deadlines || [])]
+        .filter(item => !item.completed && item.dueDate)
+        .forEach(item => {
+            const dueDate = new Date(item.dueDate);
+            const timeUntil = dueDate - now;
+            
+            // Only show if due within 24 hours and not past due
+            if (timeUntil > 0 && timeUntil < 24 * 60 * 60 * 1000) {
+                if (timeUntil < shortestTime) {
+                    shortestTime = timeUntil;
+                    mostUrgent = {
+                        title: item.title,
+                        dueDate: dueDate,
+                        timeEstimate: item.timeEstimate || 30
+                    };
+                }
+            }
+        });
+    
+    const banner = document.getElementById('dueSoonBanner');
+    const content = document.getElementById('dueSoonContent');
+    const timer = document.getElementById('countdownTimer');
+    
+    if (mostUrgent) {
+        // Show banner
+        banner.style.display = 'block';
+        
+        // Set content
+        content.innerHTML = `⚠️ DUE SOON: ${mostUrgent.title} (${mostUrgent.timeEstimate} min estimated)`;
+        
+        // Clear old interval if exists
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+        
+        // Update countdown every second
+        const updateCountdown = () => {
+            const now = new Date();
+            const timeLeft = mostUrgent.dueDate - now;
+            
+            if (timeLeft <= 0) {
+                timer.textContent = "⏰ OVERDUE!";
+                timer.style.color = '#ff6b6b';
+                clearInterval(countdownInterval);
+                return;
+            }
+            
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+            
+            timer.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Change color based on urgency
+            if (hours < 1) {
+                timer.style.color = '#ff6b6b'; // Red when less than 1 hour
+            } else if (hours < 6) {
+                timer.style.color = '#ffd93d'; // Yellow when less than 6 hours
+            } else {
+                timer.style.color = 'white'; // White otherwise
+            }
+        };
+        
+        updateCountdown(); // Initial call
+        countdownInterval = setInterval(updateCountdown, 1000); // Update every second
+        
+    } else {
+        // Hide banner if nothing urgent
+        banner.style.display = 'none';
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+    }
 }
 
 // ===== CLEAR ALL FUNCTIONS =====
