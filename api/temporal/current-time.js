@@ -3,7 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs'
 };
 
 export default async function handler(request) {

@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/temporal/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
-}
