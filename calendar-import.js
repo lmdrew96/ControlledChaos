@@ -235,24 +235,31 @@ async function categorizeEventsWithAI(events) {
     const systemPrompt = `You are an ADHD-friendly calendar organizer. Categorize these calendar events into the appropriate types.
 
 For each event, determine:
-1. **type**: "class", "assignment", "exam", "lab", "quiz", "personal", or "other"
-2. **energy**: "low", "medium", or "high" (for tasks/assignments)
-3. **shouldImport**: true/false (skip things like "No Class" or generic events)
-4. **location**: "school", "work", "home", or "anywhere"
-5. **isProtected**: true/false (important things like therapy, social events that shouldn't be scheduled over)
+1. type: "class", "assignment", "exam", "lab", "quiz", "personal", or "other"
+2. energy: "low", "medium", or "high" (for tasks/assignments)
+3. shouldImport: true/false (skip things like "No Class" or generic events)
+4. location: "school", "work", "home", or "anywhere"
+5. isProtected: true/false (important things like therapy, social events that should not be scheduled over)
 
 Guidelines:
 - Classes, labs → type: "class"
 - Assignments, papers, projects DUE dates → type: "assignment" 
-- SmartBook assignments → type: "assignment" (they're tedious, energy: "high")
+- SmartBook assignments → type: "assignment" (they are tedious, energy: "high")
 - Exams, tests, finals → type: "exam"
 - Quizzes → type: "quiz"
 - Personal appointments (therapy, doctor) → type: "personal", isProtected: true
 - Recurring classes should be added to schedule, one-time events become tasks/deadlines
 - Skip generic "No Class", "Holiday", "Break" events (shouldImport: false)
 
-Return ONLY valid JSON array (one object per event):
-[{"index": 0, "type": "class", "energy": "medium", "shouldImport": true, "location": "school", "isProtected": false}]`;
+CRITICAL FORMATTING RULES:
+- Output ONLY valid JSON, no markdown code blocks
+- DO NOT include backticks, "json" labels, or any text outside the JSON array
+- Use compact JSON format (no pretty printing)
+- Escape all special characters in strings properly
+- DO NOT include any explanatory text before or after the JSON
+
+Return format (compact, no markdown):
+[{"index":0,"type":"class","energy":"medium","shouldImport":true,"location":"school","isProtected":false}]`;
 
     try {
         const response = await callClaudeAPI([{
@@ -260,7 +267,23 @@ Return ONLY valid JSON array (one object per event):
             content: `Categorize these calendar events:\n\n${eventSummaries}`
         }], systemPrompt);
         
-        const categorizations = JSON.parse(response);
+        let responseText = response;
+        
+        // CRITICAL: Strip markdown formatting
+        responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        // Log for debugging (first 200 chars)
+        console.log('🤖 Claude raw response (first 200 chars):', responseText.substring(0, 200));
+        
+        // Parse JSON
+        const categorizations = JSON.parse(responseText);
+        
+        // Validate it's an array
+        if (!Array.isArray(categorizations)) {
+            throw new Error('Response is not an array');
+        }
+        
+        console.log(`✅ Successfully parsed ${categorizations.length} categorizations`);
         
         // Merge categorizations with original events
         const categorizedEvents = events.map((event, index) => {
@@ -280,8 +303,18 @@ Return ONLY valid JSON array (one object per event):
         
         return categorizedEvents;
     } catch (error) {
-        console.warn('⚠️ AI categorization failed, using basic categorization', error);
-        // FIX: Comprehensive fallback with basic categorization
+        console.error('❌ AI categorization error:', error.message);
+        console.error('❌ Error details:', error);
+        
+        // Log the problematic response if available
+        if (error.message.includes('JSON')) {
+            console.error('❌ Response that failed to parse (first 500 chars):', 
+                response?.substring(0, 500) || 'No response available');
+        }
+        
+        console.warn('⚠️ Falling back to basic categorization');
+        
+        // Fall back to basic categorization
         return basicCategorizeEvents(events);
     }
 }
