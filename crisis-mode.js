@@ -166,7 +166,15 @@ function detectCrisisMode() {
     
     if (crisisMode.active && !crisisMode.currentCluster) {
         crisisMode.currentCluster = clusters[0];
-        generateDailyBreakdown(clusters[0]);
+        
+        // Generate breakdown with AI (async)
+        generateDailyBreakdown(clusters[0]).then(breakdown => {
+            // Re-render after AI finishes
+            renderCrisisMode();
+        }).catch(error => {
+            console.error('❌ Failed to generate breakdown:', error);
+            renderCrisisMode(); // Render with fallback
+        });
     }
     
     console.log(`🔥 [CRISIS] Detection complete. Active: ${crisisMode.active}, Clusters: ${clusters.length}`);
@@ -175,74 +183,174 @@ function detectCrisisMode() {
 }
 
 // ===== DAILY BREAKDOWN GENERATOR =====
-function generateDailyBreakdown(cluster) {
-    console.log('📋 [CRISIS] Generating daily breakdown for:', cluster.name);
+async function generateDailyBreakdown(cluster) {
+    console.log('📋 [CRISIS] Generating AI-powered daily breakdown for:', cluster.name);
     
     const now = new Date();
     const dueDate = new Date(cluster.dueDate);
-    const breakdown = [];
     
-    // Sort tasks by estimated difficulty (SmartBooks first, then assignments, then quizzes)
-    const sortedTasks = [...cluster.tasks].sort((a, b) => {
-        const getDifficulty = (task) => {
-            const title = task.title.toLowerCase();
-            if (title.includes('smartbook')) return 3;
-            if (title.includes('assignment')) return 2;
-            if (title.includes('lab')) return 2;
-            if (title.includes('exam')) return 4;
-            if (title.includes('quiz')) return 1;
-            return 1;
+    // Get available time blocks
+    const availableBlocks = cluster.availableBlocks || [];
+    
+    if (availableBlocks.length === 0) {
+        console.warn('⚠️ [CRISIS] No available blocks found');
+        return [];
+    }
+    
+    // Prepare task list for Claude
+    const tasksList = cluster.tasks.map(task => {
+        return {
+            title: task.title,
+            timeEstimate: task.timeEstimate || 75,
+            difficulty: task.title.toLowerCase().includes('smartbook') ? 'high' : 
+                       task.title.toLowerCase().includes('exam') ? 'very high' :
+                       task.title.toLowerCase().includes('lab') ? 'medium-high' : 'medium'
         };
-        return getDifficulty(b) - getDifficulty(a);
     });
     
-    console.log('📋 [CRISIS] Starting breakdown with', sortedTasks.length, 'tasks');
+    // Prepare available time blocks for Claude
+    const blocksText = availableBlocks.slice(0, 15).map(b => 
+        `${b.date}: ${b.time} (${b.duration} min at ${b.location})`
+    ).join('\n');
     
-    // Get all unique days from available blocks
-    const availableBlocks = cluster.availableBlocks || [];
-    const uniqueDays = [...new Set(availableBlocks.map(b => b.date))];
-    
-    console.log('📋 [CRISIS] Available days:', uniqueDays.length, uniqueDays);
-    
-    // Distribute tasks across days with max 90 minutes per day
-    const MAX_MINUTES_PER_DAY = 90;
+    const systemPrompt = `You are an ADHD-friendly productivity coach creating a realistic crisis management plan.
+
+**The Situation:**
+- Deadline: ${cluster.name}
+- Due: ${cluster.dueDate} (${cluster.daysUntilDeadline} days from now)
+- Total work needed: ${cluster.totalHours}h ${cluster.remainingMinutes}m
+- Available time: ${cluster.availableHours}h ${cluster.availableMinutes}m
+
+**Tasks to complete:**
+${tasksList.map(t => `- ${t.title} (${t.timeEstimate} min, ${t.difficulty} difficulty)`).join('\n')}
+
+**Available time blocks:**
+${blocksText}
+
+**CRITICAL ADHD-FRIENDLY RULES:**
+1. **Max 90 minutes of work per day** - ADHD brains need breaks
+2. **One high-difficulty task per day max** (SmartBooks, exams)
+3. **Start with hardest tasks first** (when brain is freshest)
+4. **Never cram multiple high-difficulty tasks in one day**
+5. **Build in buffer time** - things always take longer than expected
+6. **Spread work across ALL available days** - don't front-load
+7. **Leave the day before the deadline lighter** for final review
+
+**Your task:**
+Create a realistic daily breakdown that distributes tasks across the available days. Each day should feel achievable, not overwhelming.
+
+Return ONLY valid JSON (no markdown, no backticks):
+{
+  "breakdown": [
+    {
+      "date": "Mon, Oct 13",
+      "tasks": ["Task name 1", "Task name 2"],
+      "totalMinutes": 90,
+      "reasoning": "Starting with hardest task while brain is fresh"
+    }
+  ],
+  "advice": "One sentence of encouragement or strategy tip"
+}`;
+
+    try {
+        // Show loading state
+        const container = document.getElementById('crisisModeContainer');
+        if (container) {
+            const loadingMsg = container.querySelector('.crisis-loading');
+            if (loadingMsg) {
+                loadingMsg.textContent = '🧠 Claude is creating your plan...';
+            }
+        }
+        
+        const response = await callClaudeAPI([{
+            role: 'user',
+            content: `Create a realistic daily breakdown for these tasks. Remember: max 90 min per day, hardest tasks first, spread across all available time.`
+        }], systemPrompt);
+        
+        // Parse Claude's response
+        const data = JSON.parse(response);
+        
+        // Convert to our format
+        const breakdown = data.breakdown.map(day => {
+            // Match tasks from our task list
+            const matchedTasks = day.tasks.map(taskTitle => {
+                // Find the actual task object
+                const task = cluster.tasks.find(t => 
+                    t.title.toLowerCase().includes(taskTitle.toLowerCase()) ||
+                    taskTitle.toLowerCase().includes(t.title.toLowerCase().substring(0, 15))
+                );
+                
+                if (task) {
+                    return {
+                        ...task,
+                        suggestedBlock: day.reasoning
+                    };
+                }
+                
+                // If we can't find exact match, create a placeholder
+                return {
+                    id: Date.now().toString() + Math.random(),
+                    title: taskTitle,
+                    timeEstimate: 45,
+                    suggestedBlock: day.reasoning
+                };
+            }).filter(t => t); // Remove nulls
+            
+            return {
+                date: day.date,
+                tasks: matchedTasks,
+                totalMinutes: day.totalMinutes,
+                completed: false,
+                reasoning: day.reasoning
+            };
+        });
+        
+        crisisMode.dailyBreakdowns[cluster.id] = breakdown;
+        
+        // Store Claude's advice
+        crisisMode.advice = data.advice;
+        
+        console.log('📋 [CRISIS] AI generated breakdown with', breakdown.length, 'days');
+        console.log('💡 [CRISIS] Advice:', data.advice);
+        
+        return breakdown;
+        
+    } catch (error) {
+        console.error('❌ [CRISIS] Failed to generate AI breakdown:', error);
+        
+        // Fallback to simple distribution
+        console.log('📋 [CRISIS] Using fallback distribution');
+        return generateSimpleFallback(cluster);
+    }
+}
+
+// Simple fallback if AI fails
+function generateSimpleFallback(cluster) {
+    const breakdown = [];
+    const tasks = [...cluster.tasks];
     let taskIndex = 0;
+    const MAX_MINUTES_PER_DAY = 90;
+    
+    // Get unique days
+    const uniqueDays = [...new Set(cluster.availableBlocks.map(b => b.date))];
     
     for (const day of uniqueDays) {
-        if (taskIndex >= sortedTasks.length) break;
+        if (taskIndex >= tasks.length) break;
         
         const dayTasks = [];
         let dayMinutes = 0;
         
-        // Add tasks to this day until we hit the daily limit
-        while (taskIndex < sortedTasks.length) {
-            const task = sortedTasks[taskIndex];
+        while (taskIndex < tasks.length && dayMinutes < MAX_MINUTES_PER_DAY) {
+            const task = tasks[taskIndex];
             const taskTime = task.timeEstimate || 75;
             
-            // Check if adding this task would exceed the daily limit
-            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) {
-                break; // Move to next day
-            }
+            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) break;
             
-            // Find a time block for this day
-            const dayBlock = availableBlocks.find(b => b.date === day);
-            const suggestedBlock = dayBlock ? `${dayBlock.time} at ${dayBlock.location}` : 'When available';
-            
-            dayTasks.push({
-                ...task,
-                suggestedBlock: suggestedBlock
-            });
-            
+            dayTasks.push({ ...task, suggestedBlock: 'When available' });
             dayMinutes += taskTime;
             taskIndex++;
-            
-            // If we've hit the limit, move to next day
-            if (dayMinutes >= MAX_MINUTES_PER_DAY) {
-                break;
-            }
         }
         
-        // Add this day to the breakdown if it has tasks
         if (dayTasks.length > 0) {
             breakdown.push({
                 date: day,
@@ -252,56 +360,6 @@ function generateDailyBreakdown(cluster) {
             });
         }
     }
-    
-    // If we still have unassigned tasks, add more days
-    let extraDayCount = 0;
-    while (taskIndex < sortedTasks.length) {
-        const dayTasks = [];
-        let dayMinutes = 0;
-        
-        while (taskIndex < sortedTasks.length && dayMinutes < MAX_MINUTES_PER_DAY) {
-            const task = sortedTasks[taskIndex];
-            const taskTime = task.timeEstimate || 75;
-            
-            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) {
-                break;
-            }
-            
-            dayTasks.push({
-                ...task,
-                suggestedBlock: 'Fit in when possible'
-            });
-            
-            dayMinutes += taskTime;
-            taskIndex++;
-        }
-        
-        if (dayTasks.length > 0) {
-            // Create a generic future day
-            const futureDate = new Date(dueDate);
-            futureDate.setDate(futureDate.getDate() - (extraDayCount + 1));
-            const dayName = futureDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            
-            breakdown.push({
-                date: dayName,
-                tasks: dayTasks,
-                totalMinutes: dayMinutes,
-                completed: false
-            });
-            
-            extraDayCount++;
-        }
-        
-        // Safety: Don't create infinite loop
-        if (extraDayCount > 10) {
-            console.warn('⚠️ [CRISIS] Too many days created, stopping');
-            break;
-        }
-    }
-    
-    crisisMode.dailyBreakdowns[cluster.id] = breakdown;
-    console.log('📋 [CRISIS] Assigned', taskIndex, 'of', sortedTasks.length, 'tasks');
-    console.log('📋 [CRISIS] Created', breakdown.length, 'days');
     
     return breakdown;
 }
@@ -319,6 +377,17 @@ function renderCrisisMode() {
     
     const cluster = crisisMode.currentCluster || crisisMode.clusters[0];
     const breakdown = crisisMode.dailyBreakdowns[cluster.id] || [];
+    
+    // If breakdown is being generated, show loading
+    if (breakdown.length === 0 && cluster.tasks.length > 0) {
+        container.innerHTML = `
+            <div class="crisis-banner">
+                <h2>🔥 CRISIS MODE: ${cluster.name}</h2>
+                <p class="crisis-loading">🧠 Claude is analyzing your situation and creating a realistic plan...</p>
+            </div>
+        `;
+        return;
+    }
     
     // Determine progress bar color
     let progressColor = '#10b981'; // green
@@ -445,6 +514,11 @@ function renderCrisisMode() {
         html += `
             <div class="crisis-section plan-section">
                 <h3>📋 YOUR PLAN</h3>
+                ${crisisMode.advice ? `
+                    <div style="background: #f0f9ff; border-left: 4px solid var(--primary); padding: 15px; margin-bottom: 20px; border-radius: 8px;">
+                        <strong>💡 Strategy:</strong> ${crisisMode.advice}
+                    </div>
+                ` : ''}
                 <div class="crisis-breakdown">
                     ${breakdown.map((day, index) => {
                         const totalHours = Math.floor(day.totalMinutes / 60);
