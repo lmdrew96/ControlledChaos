@@ -509,19 +509,34 @@
                 </div>
             </div>
             
+            <!-- Course Mappings -->
+            <div class="card">
+                <h2>🎓 Course Mappings</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Map course codes to friendly names. These are used when importing from calendars and syllabi.
+                </p>
+                
+                <div id="courseMappingsList" style="margin-bottom: 15px;">
+                    <!-- Course mappings will be rendered here -->
+                </div>
+                
+                <button class="btn btn-secondary" onclick="showAddCourseMappingModal()" style="width: 100%;">
+                    ➕ Add Course Mapping
+                </button>
+            </div>
+            
             <!-- Calendar Import -->
             <div class="card">
-                <h2>📅 Calendar Import</h2>
+                <h2>📅 Calendar & Syllabus Import</h2>
                 <p style="color: var(--text-light); margin-bottom: 15px;">
-                    Import your schedule and deadlines from Canvas, Google Calendar, or any calendar app.
+                    Import your schedule and deadlines from Canvas, Google Calendar, or upload a syllabus PDF/DOCX.
                 </p>
-                <button class="btn btn-primary" onclick="showCalendarImportModal()">
-                    📥 Import from Calendar Feed
+                <button class="btn btn-primary" onclick="showCalendarImportModal()" style="width: 100%;">
+                    📥 Import Calendar or Syllabus
                 </button>
                 <p style="margin-top: 10px; font-size: 0.9em; color: var(--text-light);">
-                    <strong>Where to find your feed URL:</strong><br>
-                    Canvas: Calendar → Calendar Feed → Copy link<br>
-                    Google Calendar: Settings → Secret address in iCal format
+                    <strong>Calendar feeds:</strong> Canvas, Google Calendar, Outlook<br>
+                    <strong>Syllabus files:</strong> PDF or DOCX format
                 </p>
             </div>
         </div>

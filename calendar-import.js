@@ -1,8 +1,44 @@
-// calendar-import.js - Calendar import functionality for .ics feeds
+// calendar-import.js - Calendar import functionality for .ics feeds and syllabus uploads
+
+// ===== COURSE CODE EXTRACTION =====
+function extractCourseCode(text) {
+    if (!text) return null;
+    
+    // Pattern 1: Canvas format [SEMESTER-DEPT#-SECTION] e.g., [25F-BISC104-510]
+    const canvasMatch = text.match(/\[(?:\d+[A-Z]-)?([A-Z]+\d+)-\d+\]/i);
+    if (canvasMatch) {
+        const code = canvasMatch[1].toUpperCase();
+        console.log('📚 Extracted course code from Canvas format:', code);
+        return code;
+    }
+    
+    // Pattern 2: Standard format DEPT### or DEPT ###
+    const standardMatch = text.match(/\b([A-Z]{3,4})\s*(\d{3})\b/i);
+    if (standardMatch) {
+        const code = (standardMatch[1] + standardMatch[2]).toUpperCase();
+        console.log('📚 Extracted course code from standard format:', code);
+        return code;
+    }
+    
+    return null;
+}
 
 // ===== COURSE DETECTION FROM EVENT TITLE =====
 function detectCourseFromTitle(eventTitle) {
     if (!eventTitle) return null;
+    
+    // First try to extract course code
+    const courseCode = extractCourseCode(eventTitle);
+    if (courseCode) {
+        // Check if we have a mapping for this code
+        const mapping = getCourseMappingForCode(courseCode);
+        if (mapping) {
+            console.log('📚 Found mapping for', courseCode, '→', mapping);
+            return mapping;
+        }
+        // Store the unmapped code for later
+        return { needsMapping: true, code: courseCode };
+    }
     
     const lower = eventTitle.toLowerCase();
     
@@ -15,11 +51,11 @@ function detectCourseFromTitle(eventTitle) {
         console.log('📚 Detected course: History for event "' + eventTitle + '"');
         return 'History';
     }
-    if (lower.match(/\bpoli\d*\b/) || lower.match(/\bpols\d*\b/)) {
+    if (lower.match(/\bpoli\d*\b/) || lower.match(/\bpols\d*\b/) || lower.match(/\bposc\d*\b/)) {
         console.log('📚 Detected course: Politics for event "' + eventTitle + '"');
         return 'Politics';
     }
-    if (lower.match(/\bmus\d*\b/) || lower.match(/\bmusic\d*\b/)) {
+    if (lower.match(/\bmus\d*\b/) || lower.match(/\bmusc\d*\b/) || lower.match(/\bmusic\d*\b/)) {
         console.log('📚 Detected course: Beatles for event "' + eventTitle + '"');
         return 'Beatles';
     }
@@ -51,6 +87,25 @@ function detectCourseFromTitle(eventTitle) {
     // No match found - will default to personal
     console.log('📚 No course detected for event "' + eventTitle + '" - defaulting to personal');
     return null;
+}
+
+// ===== COURSE MAPPING FUNCTIONS =====
+function getCourseMappings() {
+    if (!appData.courseMappings) {
+        appData.courseMappings = {};
+    }
+    return appData.courseMappings;
+}
+
+function getCourseMappingForCode(code) {
+    const mappings = getCourseMappings();
+    const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return mappings[normalizedCode] || null;
+}
+
+function saveCourseMappings(mappings) {
+    appData.courseMappings = mappings;
+    saveData();
 }
 
 // ===== CALENDAR IMPORT MAIN FUNCTION =====
@@ -581,44 +636,58 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
     showToast(`✅ Imported ${importedCount} items from your calendar!`);
 }
 
-// ===== SHOW CALENDAR IMPORT MODAL =====
-function showCalendarImportModal() {
+// ===== SHOW COURSE MAPPING MODAL =====
+function showCourseMappingModal(unmappedCodes, callback) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
-    modal.id = 'calendarImportModal';
+    modal.id = 'courseMappingModal';
+    
+    // Get existing mappings
+    const existingMappings = getCourseMappings();
     
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
-                <h2>📅 Import Calendar</h2>
-                <button class="close-modal" onclick="closeModal('calendarImportModal')">&times;</button>
+                <h2>🎓 Name Your Courses</h2>
+                <button class="close-modal" id="closeMappingBtn">&times;</button>
             </div>
             
-            <p style="margin-bottom: 15px;">
-                Import your schedule, deadlines, and events from Canvas or any calendar app!
+            <p style="margin-bottom: 20px; color: var(--text-light);">
+                We found these course codes. Give them friendly names you'll recognize:
             </p>
             
-            <div class="form-group">
-                <label style="font-weight: 600; margin-bottom: 5px; display: block;">
-                    Calendar Feed URL (.ics link)
-                </label>
-                <input type="url" 
-                       id="calendarFeedUrl" 
-                       placeholder="https://school.instructure.com/feeds/calendars/user_XXXXX.ics"
-                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
-                <small style="color: var(--text-light);">
-                    <strong>Canvas:</strong> Calendar → Calendar Feed → Copy link<br>
-                    <strong>Google Calendar:</strong> Settings → Integrate calendar → Secret address in iCal format<br>
-                    <strong>Outlook:</strong> Calendar → Publish calendar → Get ICS link
-                </small>
+            <div id="courseMappingList" style="margin-bottom: 20px;">
+                ${unmappedCodes.map(code => {
+                    const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const existingMapping = existingMappings[normalizedCode] || '';
+                    return `
+                        <div style="margin-bottom: 15px; padding: 15px; background: var(--bg-main); border-radius: 8px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">
+                                ${code}
+                            </label>
+                            <input type="text" 
+                                   class="course-mapping-input" 
+                                   data-code="${normalizedCode}"
+                                   value="${existingMapping}"
+                                   placeholder="e.g., Biology, US Politics, Beatles"
+                                   style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                        </div>
+                    `;
+                }).join('')}
             </div>
             
-            <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                <button class="btn btn-primary" id="importCalendarBtn" onclick="importCalendarFeed()">
-                    📥 Import Calendar
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 0.9em; color: var(--text-light);">
+                    ℹ️ You can edit these anytime in Settings → Course Mappings
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="saveMappingsBtn">
+                    💾 Save & Import
                 </button>
-                <button class="btn btn-secondary" onclick="closeModal('calendarImportModal')">
-                    Cancel
+                <button class="btn btn-secondary" id="skipMappingsBtn">
+                    Skip for now
                 </button>
             </div>
         </div>
@@ -626,7 +695,150 @@ function showCalendarImportModal() {
     
     document.body.appendChild(modal);
     
-    // Focus the input
+    // Event listeners
+    const saveBtn = document.getElementById('saveMappingsBtn');
+    const skipBtn = document.getElementById('skipMappingsBtn');
+    const closeBtn = document.getElementById('closeMappingBtn');
+    
+    saveBtn.addEventListener('click', () => {
+        const newMappings = {};
+        document.querySelectorAll('.course-mapping-input').forEach(input => {
+            const code = input.dataset.code;
+            const name = input.value.trim();
+            if (name) {
+                newMappings[code] = name;
+            }
+        });
+        
+        // Merge with existing mappings
+        const allMappings = { ...existingMappings, ...newMappings };
+        saveCourseMappings(allMappings);
+        
+        modal.remove();
+        showToast('✅ Course mappings saved!');
+        
+        if (callback) callback(allMappings);
+    });
+    
+    skipBtn.addEventListener('click', () => {
+        modal.remove();
+        if (callback) callback(existingMappings);
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+        if (callback) callback(existingMappings);
+    });
+    
+    // Focus first input
+    setTimeout(() => {
+        const firstInput = document.querySelector('.course-mapping-input');
+        if (firstInput) firstInput.focus();
+    }, 100);
+}
+
+// ===== SHOW CALENDAR IMPORT MODAL =====
+function showCalendarImportModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'calendarImportModal';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📅 Import Calendar or Syllabus</h2>
+                <button class="close-modal" onclick="closeModal('calendarImportModal')">&times;</button>
+            </div>
+            
+            <p style="margin-bottom: 20px; color: var(--text-light);">
+                Import your schedule and deadlines from Canvas, Google Calendar, or upload a syllabus PDF/DOCX.
+            </p>
+            
+            <!-- Calendar Feed Section -->
+            <div class="form-group" style="margin-bottom: 30px;">
+                <h3 style="margin-bottom: 10px;">📅 Calendar Feed (.ics)</h3>
+                <input type="url" 
+                       id="calendarFeedUrl" 
+                       placeholder="https://school.instructure.com/feeds/calendars/user_XXXXX.ics"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                <small style="color: var(--text-light); display: block; margin-bottom: 10px;">
+                    <strong>Canvas:</strong> Calendar → Calendar Feed → Copy link<br>
+                    <strong>Google Calendar:</strong> Settings → Secret address in iCal format
+                </small>
+                <button class="btn btn-primary" onclick="importCalendarFeed()" style="width: 100%;">
+                    📥 Import Calendar Feed
+                </button>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: var(--text-light); font-weight: 600;">
+                — OR —
+            </div>
+            
+            <!-- Syllabus Upload Section -->
+            <div class="form-group">
+                <h3 style="margin-bottom: 10px;">📄 Upload Syllabus</h3>
+                <div id="syllabusDropZone" style="
+                    border: 2px dashed var(--border);
+                    border-radius: 10px;
+                    padding: 40px 20px;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    background: var(--bg-main);
+                ">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📄</div>
+                    <p style="margin: 0; font-weight: 600;">Drop PDF or DOCX here</p>
+                    <p style="margin: 5px 0 0 0; font-size: 0.9em; color: var(--text-light);">or click to browse</p>
+                </div>
+                <input type="file" 
+                       id="syllabusFileInput" 
+                       accept=".pdf,.docx,.doc"
+                       style="display: none;">
+            </div>
+            
+            <button class="btn btn-secondary" onclick="closeModal('calendarImportModal')" style="width: 100%; margin-top: 20px;">
+                Cancel
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Set up file upload handlers
+    const dropZone = document.getElementById('syllabusDropZone');
+    const fileInput = document.getElementById('syllabusFileInput');
+    
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--primary)';
+        dropZone.style.background = 'rgba(102, 126, 234, 0.1)';
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = 'var(--border)';
+        dropZone.style.background = 'var(--bg-main)';
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--border)';
+        dropZone.style.background = 'var(--bg-main)';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleSyllabusUpload(files[0]);
+        }
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleSyllabusUpload(e.target.files[0]);
+        }
+    });
+    
+    // Focus the calendar URL input
     setTimeout(() => document.getElementById('calendarFeedUrl').focus(), 100);
     
     // Close modal on backdrop click
@@ -635,4 +847,240 @@ function showCalendarImportModal() {
             closeModal('calendarImportModal');
         }
     });
+}
+
+// ===== HANDLE SYLLABUS UPLOAD =====
+async function handleSyllabusUpload(file) {
+    // Validate file type
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please upload a PDF or DOCX file.');
+        return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File is too large. Please upload a file smaller than 10MB.');
+        return;
+    }
+    
+    closeModal('calendarImportModal');
+    
+    // Show loading modal
+    const loadingModal = document.createElement('div');
+    loadingModal.className = 'modal active';
+    loadingModal.id = 'syllabusLoadingModal';
+    loadingModal.innerHTML = `
+        <div class="modal-content">
+            <h2>📄 Processing Syllabus...</h2>
+            <p>Extracting assignments and due dates from ${file.name}...</p>
+            <div style="text-align: center; margin: 20px 0;">
+                <div style="display: inline-block; width: 50px; height: 50px; border: 5px solid var(--bg-main); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingModal);
+    
+    try {
+        // Read file as base64
+        const reader = new FileReader();
+        const fileData = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        
+        // Call API to parse syllabus
+        const response = await fetch('/api/parse-syllabus', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fileName: file.name,
+                fileData: fileData,
+                fileType: file.type
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to parse syllabus');
+        }
+        
+        const result = await response.json();
+        
+        loadingModal.remove();
+        
+        // Check for unmapped course codes
+        const courseCode = result.courseCode;
+        if (courseCode) {
+            const mapping = getCourseMappingForCode(courseCode);
+            if (!mapping) {
+                // Show mapping modal first
+                showCourseMappingModal([courseCode], (mappings) => {
+                    // Apply mapping and show preview
+                    result.courseName = mappings[courseCode.toUpperCase().replace(/[^A-Z0-9]/g, '')] || result.courseTitle || 'Unknown Course';
+                    showSyllabusImportPreview(result);
+                });
+                return;
+            } else {
+                result.courseName = mapping;
+            }
+        }
+        
+        // Show import preview
+        showSyllabusImportPreview(result);
+        
+    } catch (error) {
+        console.error('❌ Syllabus upload error:', error);
+        loadingModal.remove();
+        alert(`Failed to process syllabus: ${error.message}\n\nPlease try again or import manually.`);
+    }
+}
+
+// ===== SHOW SYLLABUS IMPORT PREVIEW =====
+function showSyllabusImportPreview(result) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'syllabusPreviewModal';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>📄 Syllabus Import Preview</h2>
+                <button class="close-modal" id="closeSyllabusPreviewBtn">&times;</button>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 5px 0;">${result.courseName || result.courseTitle || 'Course'}</h3>
+                ${result.courseCode ? `<p style="margin: 0; opacity: 0.9;">Code: ${result.courseCode}</p>` : ''}
+            </div>
+            
+            <p style="margin-bottom: 20px; color: var(--text-light);">
+                Found ${result.assignments.length} assignment${result.assignments.length !== 1 ? 's' : ''}. Review and uncheck anything you don't want to import.
+            </p>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600; margin-bottom: 10px;">
+                    <input type="checkbox" id="selectAllSyllabusItems" checked onchange="toggleAllSyllabusItems(this.checked)">
+                    <span style="margin-left: 10px;">Select All</span>
+                </label>
+                
+                ${result.assignments.map((assignment, i) => `
+                    <div style="padding: 12px; background: var(--bg-main); margin: 8px 0; border-radius: 8px;">
+                        <label style="display: flex; align-items: start; cursor: pointer;">
+                            <input type="checkbox" class="syllabus-item-checkbox" data-index="${i}" checked style="margin-top: 4px;">
+                            <div style="margin-left: 10px; flex: 1;">
+                                <div style="font-weight: 600; margin-bottom: 5px;">${assignment.name}</div>
+                                <div style="font-size: 0.9em; color: var(--text-light);">
+                                    📅 Due: ${assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No date specified'}
+                                    ${assignment.description ? `<br>📝 ${assignment.description}` : ''}
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="importSyllabusBtn">
+                    ✅ Import Selected (${result.assignments.length})
+                </button>
+                <button class="btn btn-secondary" id="cancelSyllabusBtn">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    const importBtn = document.getElementById('importSyllabusBtn');
+    const cancelBtn = document.getElementById('cancelSyllabusBtn');
+    const closeBtn = document.getElementById('closeSyllabusPreviewBtn');
+    
+    importBtn.addEventListener('click', () => {
+        executeSyllabusImport(result);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+}
+
+// ===== TOGGLE ALL SYLLABUS ITEMS =====
+function toggleAllSyllabusItems(checked) {
+    document.querySelectorAll('.syllabus-item-checkbox').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    
+    // Update button text
+    const importBtn = document.getElementById('importSyllabusBtn');
+    if (importBtn) {
+        const count = checked ? document.querySelectorAll('.syllabus-item-checkbox').length : 0;
+        importBtn.textContent = `✅ Import Selected (${count})`;
+    }
+}
+
+// Update count when individual checkboxes change
+document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('syllabus-item-checkbox')) {
+        const importBtn = document.getElementById('importSyllabusBtn');
+        if (importBtn) {
+            const count = document.querySelectorAll('.syllabus-item-checkbox:checked').length;
+            importBtn.textContent = `✅ Import Selected (${count})`;
+        }
+    }
+});
+
+// ===== EXECUTE SYLLABUS IMPORT =====
+function executeSyllabusImport(result) {
+    const selectedAssignments = result.assignments.filter((_, i) => {
+        const checkbox = document.querySelector(`.syllabus-item-checkbox[data-index="${i}"]`);
+        return checkbox && checkbox.checked;
+    });
+    
+    if (selectedAssignments.length === 0) {
+        alert('Please select at least one assignment to import.');
+        return;
+    }
+    
+    let importedCount = 0;
+    
+    selectedAssignments.forEach(assignment => {
+        const deadline = {
+            id: Date.now().toString() + Math.random(),
+            title: assignment.name,
+            dueDate: assignment.dueDate || new Date().toISOString().split('T')[0],
+            createdAt: new Date().toISOString(),
+            completed: false,
+            timeEstimate: 45, // Default estimate
+            class: result.courseName || null,
+            description: assignment.description || ''
+        };
+        
+        appData.deadlines.push(deadline);
+        importedCount++;
+    });
+    
+    // Save everything
+    saveData();
+    updateUI();
+    
+    // Close modal
+    document.getElementById('syllabusPreviewModal').remove();
+    
+    // Show success
+    confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 }
+    });
+    
+    showToast(`✅ Imported ${importedCount} assignment${importedCount !== 1 ? 's' : ''} from syllabus!`);
 }

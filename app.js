@@ -140,8 +140,13 @@ function handleMoreMenuClick(tabName) {
     localStorage.setItem('activeTab', tabName);
     
     // Populate settings if switching to settings tab
-    if (tabName === 'settings' && typeof populateSettingsInputs === 'function') {
-        populateSettingsInputs();
+    if (tabName === 'settings') {
+        if (typeof populateSettingsInputs === 'function') {
+            populateSettingsInputs();
+        }
+        if (typeof renderCourseMappings === 'function') {
+            renderCourseMappings();
+        }
     }
     
     // Close the More menu

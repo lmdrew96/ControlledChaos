@@ -684,3 +684,139 @@ function isToday(date) {
            date.getMonth() === today.getMonth() &&
            date.getFullYear() === today.getFullYear();
 }
+
+// ===== COURSE MAPPINGS UI =====
+function renderCourseMappings() {
+    const container = document.getElementById('courseMappingsList');
+    if (!container) return;
+    
+    const mappings = getCourseMappings();
+    const mappingEntries = Object.entries(mappings);
+    
+    if (mappingEntries.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: var(--text-light); background: var(--bg-main); border-radius: 8px;">
+                <p>No course mappings yet. Add one to get started!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = mappingEntries.map(([code, name]) => `
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-main); border-radius: 8px; margin-bottom: 10px;">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--primary);">${code}</div>
+                <div style="font-size: 0.9em; color: var(--text-light);">${name}</div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteCourseMappingConfirm('${code}')" title="Delete mapping">
+                🗑️
+            </button>
+        </div>
+    `).join('');
+}
+
+function showAddCourseMappingModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'addCourseMappingModal';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Add Course Mapping</h2>
+                <button class="close-modal" id="closeAddMappingBtn">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="courseMappingCode">Course Code</label>
+                <input type="text" 
+                       id="courseMappingCode" 
+                       placeholder="e.g., BISC104, MUSC199, POSC150"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; text-transform: uppercase;">
+                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                    Enter the course code as it appears in your calendar or syllabus
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="courseMappingName">Friendly Name</label>
+                <input type="text" 
+                       id="courseMappingName" 
+                       placeholder="e.g., Biology, US Politics, Beatles"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                    Choose a name you'll recognize easily
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="saveCourseMappingBtn">
+                    💾 Save Mapping
+                </button>
+                <button class="btn btn-secondary" id="cancelCourseMappingBtn">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    const saveBtn = document.getElementById('saveCourseMappingBtn');
+    const cancelBtn = document.getElementById('cancelCourseMappingBtn');
+    const closeBtn = document.getElementById('closeAddMappingBtn');
+    const codeInput = document.getElementById('courseMappingCode');
+    
+    // Auto-uppercase the code input
+    codeInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.toUpperCase();
+    });
+    
+    saveBtn.addEventListener('click', () => {
+        const code = codeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const name = document.getElementById('courseMappingName').value.trim();
+        
+        if (!code) {
+            alert('Please enter a course code');
+            return;
+        }
+        
+        if (!name) {
+            alert('Please enter a friendly name');
+            return;
+        }
+        
+        // Get existing mappings
+        const mappings = getCourseMappings();
+        mappings[code] = name;
+        saveCourseMappings(mappings);
+        
+        modal.remove();
+        renderCourseMappings();
+        showToast(`✅ Added mapping: ${code} → ${name}`);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    // Focus first input
+    setTimeout(() => codeInput.focus(), 100);
+}
+
+function deleteCourseMappingConfirm(code) {
+    const mappings = getCourseMappings();
+    const name = mappings[code];
+    
+    if (confirm(`Delete mapping for ${code} (${name})?`)) {
+        delete mappings[code];
+        saveCourseMappings(mappings);
+        renderCourseMappings();
+        showToast(`🗑️ Deleted mapping: ${code}`);
+    }
+}
