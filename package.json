@@ -1,0 +1,17 @@
+{
+  "name": "controlled-chaos",
+  "version": "1.0.0",
+  "description": "Controlled Chaos - Personal productivity app",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
