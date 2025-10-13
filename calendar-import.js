@@ -76,33 +76,14 @@ async function importCalendarFeed() {
     importBtn.textContent = '⏳ Fetching calendar...';
     
     try {
-        // Get worker settings
-        const workerUrl = appData.settings.workerUrl || CLOUDFLARE_WORKER_URL || 'https://controlled-chaos-api.lmdrew.workers.dev';
-        const workerPassword = appData.settings.workerPassword || '';
-        
-        if (!workerPassword) {
-            alert('Please configure your Worker Password in Settings first!');
-            importBtn.disabled = false;
-            importBtn.textContent = originalBtnText;
-            return;
-        }
-        
-        // Strip /api/claude from workerUrl if present (we need base URL for calendar proxy)
-        const baseWorkerUrl = workerUrl.replace(/\/api\/claude$/, '');
-        
-        // Step 1: Fetch the .ics file through the worker proxy
+        // Step 1: Fetch the .ics file through the Vercel calendar proxy
         console.log('📥 Fetching calendar from:', feedUrl);
         
-        // Remove trailing slash from baseWorkerUrl to prevent double slash
-        const cleanBaseUrl = baseWorkerUrl.replace(/\/$/, '');
-        const proxyUrl = `${cleanBaseUrl}/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
+        const proxyUrl = `/api/calendar-proxy?url=${encodeURIComponent(feedUrl)}`;
         
         console.log('📡 Using proxy:', proxyUrl);
         const response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${workerPassword}`
-            }
+            method: 'GET'
         });
         
         if (!response.ok) {
