@@ -899,6 +899,8 @@ async function callClaudeAPI(messages, systemPrompt = '') {
     // Get worker password from settings
     const workerPassword = appData.settings?.workerPassword || '';
     console.log('🤖 [CLAUDE API] Worker password exists:', !!workerPassword);
+    console.log('🤖 [CLAUDE API] Worker password length:', appData.settings.workerPassword?.length || 0);
+    console.log('🤖 [CLAUDE API] Worker password first 3 chars:', appData.settings.workerPassword?.substring(0, 3) || 'MISSING');
     
     if (!workerPassword) {
         console.error('❌ [CLAUDE API] Worker password not found');
