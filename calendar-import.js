@@ -221,12 +221,14 @@ function basicCategorizeEvents(events) {
             type = 'exam';
             energy = 'high';
             location = 'school';
+            event.defaultTimeEstimate = 120; // Study time for exams
         }
         // Quizzes
         else if (lower.includes('quiz')) {
             type = 'quiz';
             energy = 'medium';
             location = 'school';
+            event.defaultTimeEstimate = 30; // Quizzes are shorter
         }
         // Labs
         else if (lower.includes('lab')) {
@@ -242,6 +244,17 @@ function basicCategorizeEvents(events) {
             type = 'assignment';
             energy = 'high';
             location = 'home';
+            
+            // Set realistic time estimates based on type
+            if (lower.includes('smartbook') || lower.includes('smart book')) {
+                event.defaultTimeEstimate = 75; // SmartBooks take 60-90 min
+            } else if (lower.includes('lab')) {
+                event.defaultTimeEstimate = 90; // Labs are long
+            } else if (lower.includes('essay') || lower.includes('paper')) {
+                event.defaultTimeEstimate = 120; // Writing takes time
+            } else {
+                event.defaultTimeEstimate = 45; // Regular assignments
+            }
         }
         // Personal appointments (protected)
         else if (lower.includes('therapy') || lower.includes('doctor') || 
@@ -465,9 +478,17 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
         }
     });
     
-    // Import deadlines
+    // Import deadlines with time estimates
     selectedDeadlines.forEach(event => {
-        addDeadline(event.summary, event.startDate.toISOString().split('T')[0]);
+        const deadline = {
+            id: Date.now().toString() + Math.random(),
+            title: event.summary,
+            dueDate: event.startDate.toISOString().split('T')[0],
+            createdAt: new Date().toISOString(),
+            completed: false,
+            timeEstimate: event.defaultTimeEstimate || 45 // Use smart default
+        };
+        appData.deadlines.push(deadline);
         importedCount++;
     });
     

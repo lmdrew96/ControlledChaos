@@ -107,7 +107,7 @@ function renderTasks() {
                 <div class="task-meta">
                     <span class="energy-badge energy-${task.energy}">${task.energy}</span>
                     <span class="location-badge">📍 ${task.location}</span>
-                    ${task.timeEstimate ? `<span class="time-estimate">⏱️ ${task.timeEstimate}min</span>` : ''}
+                    ${task.timeEstimate ? `<span class="time-estimate" onclick="editTaskTime('${task.id}')" style="cursor: pointer;" title="Click to edit time estimate">⏱️ <span id="time-${task.id}">${task.timeEstimate}</span>min</span>` : ''}
                 </div>
             </div>
             <div class="task-actions">
@@ -371,6 +371,11 @@ function renderDeadlines() {
                             <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
                                 📅 ${urgencyText}
                             </span>
+                            ${deadline.timeEstimate ? `
+                                <span class="deadline-time" onclick="editDeadlineTime('${deadline.id}')" style="cursor: pointer; background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;" title="Click to edit time estimate">
+                                    ⏱️ <span id="deadline-time-${deadline.id}">${deadline.timeEstimate}</span>min
+                                </span>
+                            ` : ''}
                             ${relatedTasks.length > 0 ? `
                                 <span style="background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;">
                                     ${completedTasks}/${relatedTasks.length} tasks done

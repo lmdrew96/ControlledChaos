@@ -1241,6 +1241,74 @@ function createTasksFromTemplate(templateIndex) {
     showToast(`✅ Created ${createdCount} tasks from ${template.name}!`);
 }
 
+// ===== TIME ESTIMATE EDITING =====
+function editTaskTime(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const currentTime = task.timeEstimate || 30;
+    const newTime = prompt(`How long will "${task.title}" take? (in minutes)`, currentTime);
+    
+    if (newTime === null) return; // User cancelled
+    
+    const timeNum = parseInt(newTime);
+    if (isNaN(timeNum) || timeNum <= 0) {
+        alert('Please enter a valid number of minutes (greater than 0)');
+        return;
+    }
+    
+    task.timeEstimate = timeNum;
+    
+    // Update the display
+    const timeSpan = document.getElementById(`time-${taskId}`);
+    if (timeSpan) {
+        timeSpan.textContent = timeNum;
+    }
+    
+    saveData();
+    
+    // Re-run crisis mode to update the plan
+    if (typeof updateCrisisMode === 'function') {
+        updateCrisisMode();
+    }
+    
+    showToast(`✅ Updated time estimate to ${timeNum} minutes`);
+}
+
+function editDeadlineTime(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    const currentTime = deadline.timeEstimate || 45;
+    const newTime = prompt(`How long will "${deadline.title}" take? (in minutes)`, currentTime);
+    
+    if (newTime === null) return; // User cancelled
+    
+    const timeNum = parseInt(newTime);
+    if (isNaN(timeNum) || timeNum <= 0) {
+        alert('Please enter a valid number of minutes (greater than 0)');
+        return;
+    }
+    
+    deadline.timeEstimate = timeNum;
+    
+    // Update the display
+    const timeSpan = document.getElementById(`deadline-time-${deadlineId}`);
+    if (timeSpan) {
+        timeSpan.textContent = timeNum;
+    }
+    
+    saveData();
+    renderDeadlines();
+    
+    // Re-run crisis mode to update the plan
+    if (typeof updateCrisisMode === 'function') {
+        updateCrisisMode();
+    }
+    
+    showToast(`✅ Updated time estimate to ${timeNum} minutes`);
+}
+
 // ===== LOCATION MANAGEMENT =====
 function setLocation(location) {
     appData.currentLocation = location;

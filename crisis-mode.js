@@ -51,7 +51,9 @@ function detectCrisisMode() {
         }
         
         deadlineGroups[deadlineKey].tasks.push(item);
-        deadlineGroups[deadlineKey].totalMinutes += item.timeEstimate || 30;
+        // Use task's time estimate, or deadline's time estimate, or default to 45
+        const timeEstimate = item.timeEstimate || 45;
+        deadlineGroups[deadlineKey].totalMinutes += timeEstimate;
     });
     
     // Analyze each deadline group for crisis conditions
