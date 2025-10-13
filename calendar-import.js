@@ -810,12 +810,12 @@ function showCalendarImportModal() {
                     background: var(--bg-main);
                 ">
                     <div style="font-size: 3em; margin-bottom: 10px;">📄</div>
-                    <p style="margin: 0; font-weight: 600;">Drop PDF or DOCX here</p>
+                    <p style="margin: 0; font-weight: 600;">Drop PDF here</p>
                     <p style="margin: 5px 0 0 0; font-size: 0.9em; color: var(--text-light);">or click to browse</p>
                 </div>
                 <input type="file" 
                        id="syllabusFileInput" 
-                       accept=".pdf,.docx,.doc"
+                       accept=".pdf"
                        style="display: none;">
             </div>
             
@@ -875,9 +875,9 @@ function showCalendarImportModal() {
 // ===== HANDLE SYLLABUS UPLOAD =====
 async function handleSyllabusUpload(file) {
     // Validate file type
-    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    const validTypes = ['application/pdf'];
     if (!validTypes.includes(file.type)) {
-        alert('Please upload a PDF or DOCX file.');
+        alert('Please upload a PDF file.');
         return;
     }
     
