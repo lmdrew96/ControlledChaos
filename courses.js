@@ -71,9 +71,34 @@ function getDeadlinesByCourse() {
         if (deadline.completed) return;
         
         // Match deadline to course based on class field
-        const courseId = Object.keys(COURSES).find(id => 
-            COURSES[id].class === deadline.class
-        );
+        // Try multiple matching strategies:
+        // 1. Exact match with COURSES[id].class
+        // 2. Exact match with COURSES[id].name
+        // 3. Exact match with COURSES[id].shortName
+        // 4. Case-insensitive partial match
+        const courseId = Object.keys(COURSES).find(id => {
+            const course = COURSES[id];
+            const deadlineClass = (deadline.class || '').toLowerCase();
+            
+            // Skip if no class assigned
+            if (!deadline.class) return false;
+            
+            // Try exact matches first
+            if (course.class === deadline.class) return true;
+            if (course.name === deadline.class) return true;
+            if (course.shortName === deadline.class) return true;
+            
+            // Try case-insensitive matches
+            if (course.class && course.class.toLowerCase() === deadlineClass) return true;
+            if (course.name.toLowerCase() === deadlineClass) return true;
+            if (course.shortName.toLowerCase() === deadlineClass) return true;
+            
+            // Try partial matches (e.g., "Biology" contains "Bio")
+            if (deadlineClass.includes(course.shortName.toLowerCase())) return true;
+            if (course.shortName.toLowerCase().includes(deadlineClass)) return true;
+            
+            return false;
+        });
         
         if (courseId) {
             courseDeadlines[courseId].push(deadline);
