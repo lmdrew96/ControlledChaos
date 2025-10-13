@@ -942,6 +942,12 @@ async function callClaudeAPI(messages, systemPrompt = '') {
                 messagesCount: messages.length
             });
             
+            console.log('🤖 [CLAUDE API] Request payload:', JSON.stringify({
+                model: requestBody.model,
+                max_tokens: requestBody.max_tokens,
+                messages: requestBody.messages
+            }, null, 2));
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -970,6 +976,12 @@ async function callClaudeAPI(messages, systemPrompt = '') {
 
             // For other errors, get the response text for better error messages
             const responseText = await response.text();
+            console.log('🤖 [CLAUDE API] Response headers:', {
+                'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
+                'x-ratelimit-limit': response.headers.get('x-ratelimit-limit'),
+                'x-ratelimit-reset': response.headers.get('x-ratelimit-reset'),
+                'retry-after': response.headers.get('retry-after')
+            });
             console.log('🤖 [CLAUDE API] Response body:', responseText);
             
             if (!response.ok) {
