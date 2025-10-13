@@ -70,8 +70,7 @@ export default async function handler(request) {
   
   try {
     // Get request body
-    const body = await request.json();
-    const { seconds, style } = body;
+    const { seconds, style } = request.body || {};
     
     if (seconds === undefined) {
       return new Response(JSON.stringify({ 

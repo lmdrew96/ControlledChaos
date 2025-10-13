@@ -35,8 +35,7 @@ export default async function handler(request) {
   
   try {
     // Get timezone from query parameter (optional)
-    const url = new URL(request.url);
-    const timezone = url.searchParams.get('timezone') || 'America/New_York';
+    const timezone = request.query?.timezone || 'America/New_York';
     
     // Get current date/time in specified timezone
     const now = new Date();

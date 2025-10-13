@@ -68,8 +68,7 @@ export default async function handler(request) {
   
   try {
     // Get request body
-    const body = await request.json();
-    const { timestamp1, timestamp2, unit, timezone } = body;
+    const { timestamp1, timestamp2, unit, timezone } = request.body || {};
     
     if (!timestamp1 || !timestamp2) {
       return new Response(JSON.stringify({ 
