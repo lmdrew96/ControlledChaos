@@ -9,6 +9,30 @@ let crisisMode = {
     completedChunks: {}
 };
 
+// Helper to parse "Mon, Oct 13" format to Date object
+function parseDateFromString(dateStr) {
+    if (!dateStr) return null;
+    
+    try {
+        const currentYear = new Date().getFullYear();
+        const dateParts = dateStr.split(',')[1]; // Get "Oct 13" part
+        if (!dateParts) return null;
+        
+        const fullDateStr = `${dateParts.trim()}, ${currentYear}`;
+        const parsed = new Date(fullDateStr);
+        
+        if (isNaN(parsed.getTime())) {
+            console.warn(`Could not parse date: ${dateStr}`);
+            return null;
+        }
+        
+        return parsed;
+    } catch (e) {
+        console.error('Date parse error:', e);
+        return null;
+    }
+}
+
 // ===== CRISIS DETECTION ALGORITHM =====
 function detectCrisisMode() {
     console.log('🔥 [CRISIS] Running crisis detection...');
@@ -332,6 +356,42 @@ Return ONLY valid JSON (no markdown, no backticks):
         
         // Parse Claude's response
         const data = JSON.parse(response);
+        
+        // Validate Claude didn't schedule past deadline
+        const dueDate = new Date(cluster.dueDate);
+        dueDate.setHours(23, 59, 59, 999);
+
+        const hasInvalidDays = data.breakdown.some(day => {
+            const dayDate = parseDateFromString(day.date);
+            if (!dayDate) return true;
+            
+            const isAfterDeadline = dayDate > dueDate;
+            if (isAfterDeadline) {
+                console.warn(`❌ Claude scheduled work after deadline: ${day.date}`);
+            }
+            return isAfterDeadline;
+        });
+
+        if (hasInvalidDays) {
+            console.warn('⚠️ Using fallback plan - Claude generated invalid dates');
+            
+            const fallbackPlan = generateSimpleFallback(cluster);
+            crisisMode.dailyBreakdowns[cluster.id] = fallbackPlan;
+            crisisMode.advice = "Focus on one task at a time. You've got this!";
+            
+            // Cache the fallback
+            const cacheData = {
+                breakdown: fallbackPlan,
+                advice: crisisMode.advice,
+                taskCount: cluster.tasks.length,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            
+            return fallbackPlan;
+        }
+
+        // If we get here, Claude's plan is valid - continue with existing code
         
         // Convert to our format
         const breakdown = data.breakdown.map(day => {
