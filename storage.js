@@ -34,13 +34,20 @@ const DRIVE_FILE_NAME = 'controlled-chaos-data.json';
 
 // ===== CHECK IF DRIVE IS AVAILABLE =====
 function isDriveAvailable() {
-    if (!gapi || !gapi.client || !gapi.client.drive) {
+    // Primary check: Do we have an access token?
+    // This is what actually matters for Drive API calls via fetch()
+    if (!googleAccessToken) {
         return false;
     }
     
-    // Check if we have a valid access token
-    const token = gapi.auth2?.getAuthInstance()?.currentUser?.get()?.getAuthResponse()?.access_token;
-    return !!token && !!googleAccessToken;
+    // Secondary check: Is gapi available? (optional, for gapi.client.drive calls)
+    // If gapi timed out, we can still use fetch() with the token
+    if (!gapi || !gapi.client) {
+        console.log('ℹ️ [DRIVE] GAPI not fully initialized, but token available - using fetch fallback');
+        return true; // Token is enough for fetch-based API calls
+    }
+    
+    return true;
 }
 
 // ===== LOCALSTORAGE FUNCTIONS =====

@@ -3,24 +3,69 @@
 ## Problem
 The app showed "Please sign in to Google Drive first!" even when the user WAS signed in to Google Drive (email: lmdrew96@gmail.com visible).
 
-## Root Cause
-The `settings-sync.js` file had proper auth checks using `isDriveAvailable()` and `userEmail`, which are the SAME checks used by `storage.js`. The auth detection was actually working correctly.
+Console showed:
+```
+[GAPI] Initialization timeout - proceeding anyway
+❌ [FORCE RESYNC] Drive not available
+```
 
-The real issue was that the error messages weren't clear enough about WHAT was failing, making it seem like an auth problem when it might have been something else.
+## Root Cause
+**Two issues were found:**
+
+1. **Error messages weren't specific enough** - The generic "Please sign in" message didn't explain WHAT was failing
+2. **GAPI initialization timeout** - The `isDriveAvailable()` function checked for `gapi.client.drive`, but GAPI initialization was timing out. However, `storage.js` worked anyway because it uses `fetch()` API calls with `googleAccessToken`, not `gapi.client.drive`.
+
+The key insight: **You don't need GAPI to be fully initialized to use Drive API** - you just need the `googleAccessToken` and can make direct `fetch()` calls to the Drive API endpoints.
 
 ## Changes Made
 
-### 1. Enhanced Error Logging in `settings-sync.js`
+### 1. Fixed `isDriveAvailable()` in `storage.js` (PRIMARY FIX)
+**Before:**
+```javascript
+function isDriveAvailable() {
+    if (!gapi || !gapi.client || !gapi.client.drive) {
+        return false;  // Failed when GAPI timed out
+    }
+    const token = gapi.auth2?.getAuthInstance()?.currentUser?.get()?.getAuthResponse()?.access_token;
+    return !!token && !!googleAccessToken;
+}
+```
+
+**After:**
+```javascript
+function isDriveAvailable() {
+    // Primary check: Do we have an access token?
+    if (!googleAccessToken) {
+        return false;
+    }
+    
+    // Secondary check: Is gapi available? (optional)
+    // If gapi timed out, we can still use fetch() with the token
+    if (!gapi || !gapi.client) {
+        console.log('ℹ️ [DRIVE] GAPI not fully initialized, but token available - using fetch fallback');
+        return true; // Token is enough for fetch-based API calls
+    }
+    
+    return true;
+}
+```
+
+**Why this works:**
+- `storage.js` uses `fetch()` with `Authorization: Bearer ${googleAccessToken}` for Drive API calls
+- GAPI is only needed for `gapi.client.drive.files.list()` calls, but those can also be done with `fetch()`
+- The token is what actually matters, not whether GAPI finished initializing
+
+### 2. Enhanced Error Logging in `settings-sync.js`
 - Added detailed console logging to `forceResyncSettings()` to show exactly which auth check is failing
 - Split the auth checks into two separate conditions with specific error messages
 - Added success log when auth checks pass
 
-### 2. Improved Error Messages
+### 3. Improved Error Messages
 - Changed generic "Please sign in to Google Drive first!" to more specific messages:
   - "Google Drive is not available. Please check your connection and try again." (when `isDriveAvailable()` fails)
   - "Please sign in to Google Drive first! Click the 'Sign in with Google' button in Settings." (when `userEmail` is missing)
 
-### 3. Better Code Documentation
+### 4. Better Code Documentation
 - Added clarifying comment to `updateSyncIndicator()` explaining it's only for active sync operations
 - The main sync indicator state is managed by `updateSignInUI()` in `storage.js`
 
@@ -97,10 +142,10 @@ The real issue was that the error messages weren't clear enough about WHAT was f
 ```
 
 ## Files Modified
-- `settings-sync.js` - Enhanced error logging and messages
+1. **`storage.js`** - Fixed `isDriveAvailable()` to work with GAPI timeout (PRIMARY FIX)
+2. **`settings-sync.js`** - Enhanced error logging and messages
 
 ## Files NOT Modified (But Related)
-- `storage.js` - Contains the core auth system (no changes needed)
 - `app.js` - Contains `saveSettings()` function (no changes needed)
 
 ## Success Criteria
