@@ -1,5 +1,58 @@
 // calendar-import.js - Calendar import functionality for .ics feeds
 
+// ===== COURSE DETECTION FROM EVENT TITLE =====
+function detectCourseFromTitle(eventTitle) {
+    if (!eventTitle) return null;
+    
+    const lower = eventTitle.toLowerCase();
+    
+    // Priority 1: Exact course code matches (highest priority)
+    if (lower.match(/\bbisc\d*\b/) || lower.match(/\bbio\d*\b/)) {
+        console.log('📚 Detected course: Biology for event "' + eventTitle + '"');
+        return 'Bio';
+    }
+    if (lower.match(/\bhist\d*\b/)) {
+        console.log('📚 Detected course: History for event "' + eventTitle + '"');
+        return 'History';
+    }
+    if (lower.match(/\bpoli\d*\b/) || lower.match(/\bpols\d*\b/)) {
+        console.log('📚 Detected course: Politics for event "' + eventTitle + '"');
+        return 'Politics';
+    }
+    if (lower.match(/\bmus\d*\b/) || lower.match(/\bmusic\d*\b/)) {
+        console.log('📚 Detected course: Beatles for event "' + eventTitle + '"');
+        return 'Beatles';
+    }
+    
+    // Priority 2: Keyword matches (case-insensitive)
+    if (lower.includes('biology') || lower.includes('bio ') || lower.includes(' bio')) {
+        console.log('📚 Detected course: Biology for event "' + eventTitle + '"');
+        return 'Bio';
+    }
+    if (lower.includes('history')) {
+        console.log('📚 Detected course: History for event "' + eventTitle + '"');
+        return 'History';
+    }
+    if (lower.includes('politics') || lower.includes('political') || lower.includes('government')) {
+        console.log('📚 Detected course: Politics for event "' + eventTitle + '"');
+        return 'Politics';
+    }
+    if (lower.includes('beatles') || lower.includes('music')) {
+        console.log('📚 Detected course: Beatles for event "' + eventTitle + '"');
+        return 'Beatles';
+    }
+    
+    // Priority 3: Check if explicitly marked as personal
+    if (lower.includes('personal:') || lower.includes('personal ')) {
+        console.log('📚 Detected: Personal event "' + eventTitle + '"');
+        return null; // Will default to personal
+    }
+    
+    // No match found - will default to personal
+    console.log('📚 No course detected for event "' + eventTitle + '" - defaulting to personal');
+    return null;
+}
+
 // ===== CALENDAR IMPORT MAIN FUNCTION =====
 async function importCalendarFeed() {
     const urlInput = document.getElementById('calendarFeedUrl');
@@ -478,7 +531,7 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
         }
     });
     
-    // Import deadlines with proper time estimates
+    // Import deadlines with proper time estimates AND course detection
     selectedDeadlines.forEach(event => {
         // Determine time estimate based on event type
         let timeEstimate = 45; // Default
@@ -498,16 +551,20 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
             timeEstimate = event.defaultTimeEstimate;
         }
         
+        // Detect course from event title
+        const detectedCourse = detectCourseFromTitle(event.summary);
+        
         const deadline = {
             id: Date.now().toString() + Math.random(),
             title: event.summary,
             dueDate: event.startDate.toISOString().split('T')[0],
             createdAt: new Date().toISOString(),
             completed: false,
-            timeEstimate: timeEstimate
+            timeEstimate: timeEstimate,
+            class: detectedCourse // Assign detected course (or null for personal)
         };
         
-        console.log(`📥 Importing deadline: ${event.summary} with ${timeEstimate}min estimate`);
+        console.log(`📥 Importing deadline: ${event.summary} with ${timeEstimate}min estimate, course: ${detectedCourse || 'personal'}`);
         appData.deadlines.push(deadline);
         importedCount++;
     });
