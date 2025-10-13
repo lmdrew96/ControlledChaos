@@ -166,9 +166,9 @@ async function importCalendarFeed() {
             return;
         }
         
-        // Step 3: Categorize events with AI
-        importBtn.textContent = '🧠 Categorizing with AI...';
-        const categorizedEvents = await categorizeEventsWithAI(events);
+        // Step 3: Categorize events with pattern matching
+        importBtn.textContent = '🔍 Categorizing events...';
+        const categorizedEvents = categorizeEvents(events);
         console.log('✅ Events categorized');
         
         // Step 4: Show preview modal
@@ -224,181 +224,138 @@ function parseICSData(icsText) {
     }
 }
 
-// ===== CATEGORIZE EVENTS WITH AI =====
-async function categorizeEventsWithAI(events) {
-    // Group events by type for better processing
-    const eventSummaries = events.slice(0, 100).map((e, i) => {
-        const duration = Math.round((e.endDate - e.startDate) / (1000 * 60));
-        return `${i}. "${e.summary}" on ${e.startDate.toLocaleDateString()} at ${e.startDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} (${duration}min)${e.isRecurring ? ' [RECURRING]' : ''}`;
-    }).join('\n');
-    
-    const systemPrompt = `You are an ADHD-friendly calendar organizer. Categorize these calendar events into the appropriate types.
-
-For each event, determine:
-1. type: "class", "assignment", "exam", "lab", "quiz", "personal", or "other"
-2. energy: "low", "medium", or "high" (for tasks/assignments)
-3. shouldImport: true/false (skip things like "No Class" or generic events)
-4. location: "school", "work", "home", or "anywhere"
-5. isProtected: true/false (important things like therapy, social events that should not be scheduled over)
-
-Guidelines:
-- Classes, labs → type: "class"
-- Assignments, papers, projects DUE dates → type: "assignment" 
-- SmartBook assignments → type: "assignment" (they are tedious, energy: "high")
-- Exams, tests, finals → type: "exam"
-- Quizzes → type: "quiz"
-- Personal appointments (therapy, doctor) → type: "personal", isProtected: true
-- Recurring classes should be added to schedule, one-time events become tasks/deadlines
-- Skip generic "No Class", "Holiday", "Break" events (shouldImport: false)
-
-CRITICAL FORMATTING RULES:
-- Output ONLY valid JSON, no markdown code blocks
-- DO NOT include backticks, "json" labels, or any text outside the JSON array
-- Use compact JSON format (no pretty printing)
-- Escape all special characters in strings properly
-- DO NOT include any explanatory text before or after the JSON
-
-Return format (compact, no markdown):
-[{"index":0,"type":"class","energy":"medium","shouldImport":true,"location":"school","isProtected":false}]`;
-
-    try {
-        const response = await callClaudeAPI([{
-            role: 'user',
-            content: `Categorize these calendar events:\n\n${eventSummaries}`
-        }], systemPrompt);
+// ===== CATEGORIZE EVENTS WITH PATTERN MATCHING =====
+function categorizeEvents(events) {
+    return events.map(event => {
+        const title = event.summary.toLowerCase();
+        const description = (event.description || '').toLowerCase();
+        const hasCourseBracket = /\[[\w-]+\]/.test(event.summary);
         
-        let responseText = response;
-        
-        // CRITICAL: Strip markdown formatting
-        responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        
-        // Log for debugging (first 200 chars)
-        console.log('🤖 Claude raw response (first 200 chars):', responseText.substring(0, 200));
-        
-        // Parse JSON
-        const categorizations = JSON.parse(responseText);
-        
-        // Validate it's an array
-        if (!Array.isArray(categorizations)) {
-            throw new Error('Response is not an array');
-        }
-        
-        console.log(`✅ Successfully parsed ${categorizations.length} categorizations`);
-        
-        // Merge categorizations with original events
-        const categorizedEvents = events.map((event, index) => {
-            const category = categorizations.find(c => c.index === index) || {
+        // Skip generic events
+        if (title.includes('no class') || title.includes('holiday') || 
+            title.includes('break') || title.includes('vacation')) {
+            return {
+                ...event,
                 type: 'other',
                 energy: 'medium',
-                shouldImport: true,
+                shouldImport: false,
                 location: 'anywhere',
                 isProtected: false
             };
-            
-            return {
-                ...event,
-                ...category
-            };
-        });
-        
-        return categorizedEvents;
-    } catch (error) {
-        console.error('❌ AI categorization error:', error.message);
-        console.error('❌ Error details:', error);
-        
-        // Log the problematic response if available
-        if (error.message.includes('JSON')) {
-            console.error('❌ Response that failed to parse (first 500 chars):', 
-                response?.substring(0, 500) || 'No response available');
         }
         
-        console.warn('⚠️ Falling back to basic categorization');
+        // ASSIGNMENTS/EXAMS (high priority)
+        if (title.includes('exam') || title.includes('test') || title.includes('quiz')) {
+            return { 
+                ...event, 
+                type: 'exam', 
+                energy: 'high',
+                shouldImport: true,
+                location: 'school',
+                isProtected: false,
+                defaultTimeEstimate: title.includes('quiz') ? 30 : 120
+            };
+        }
         
-        // Fall back to basic categorization
-        return basicCategorizeEvents(events);
-    }
-}
-
-// Comprehensive fallback categorization if AI fails
-function basicCategorizeEvents(events) {
-    return events.map(event => {
-        const summary = event.summary;
-        const lower = summary.toLowerCase();
+        if (title.includes('assignment') || title.includes('homework') || 
+            title.includes('project') || title.includes('lab') || 
+            title.includes('paper') || title.includes('essay') ||
+            title.includes('smartbook') || title.includes('chapter')) {
+            
+            // Set realistic time estimates based on type
+            let timeEstimate = 45;
+            if (title.includes('smartbook')) {
+                timeEstimate = 75;
+            } else if (title.includes('lab')) {
+                timeEstimate = 90;
+            } else if (title.includes('essay') || title.includes('paper')) {
+                timeEstimate = 120;
+            }
+            
+            return { 
+                ...event, 
+                type: 'assignment', 
+                energy: 'high',
+                shouldImport: true,
+                location: 'home',
+                isProtected: false,
+                defaultTimeEstimate: timeEstimate
+            };
+        }
         
-        // Determine type
-        let type = 'other';
-        let energy = 'medium';
-        let location = 'anywhere';
-        let shouldImport = true;
-        let isProtected = false;
-        
-        // Skip generic events
-        if (lower.includes('no class') || lower.includes('holiday') || 
-            lower.includes('break') || lower.includes('vacation')) {
-            shouldImport = false;
+        // CLASSES (recurring with course codes)
+        if (hasCourseBracket && (title.includes('lecture') || title.includes('class') || 
+            title.includes('discussion') || title.includes('lab session'))) {
+            return { 
+                ...event, 
+                type: 'class', 
+                energy: 'medium',
+                shouldImport: true,
+                location: 'school',
+                isProtected: false
+            };
         }
         
         // Classes: recurring events or things with "lecture", "class", etc.
-        if (event.isRecurring || lower.includes('lecture') || lower.includes('class')) {
-            type = 'class';
-            location = 'school';
-        }
-        // Exams and tests
-        else if (lower.includes('exam') || lower.includes('test') || lower.includes('final')) {
-            type = 'exam';
-            energy = 'high';
-            location = 'school';
-            event.defaultTimeEstimate = 120; // Study time for exams
-        }
-        // Quizzes
-        else if (lower.includes('quiz')) {
-            type = 'quiz';
-            energy = 'medium';
-            location = 'school';
-            event.defaultTimeEstimate = 30; // Quizzes are shorter
-        }
-        // Labs
-        else if (lower.includes('lab')) {
-            type = 'lab';
-            energy = 'medium';
-            location = 'school';
-        }
-        // Assignments: assignments, quizzes, exams, due dates, SmartBooks
-        else if (lower.includes('assignment') || lower.includes('due') || 
-                 lower.includes('project') || lower.includes('paper') ||
-                 lower.includes('homework') || lower.includes('essay') ||
-                 lower.includes('smartbook') || lower.includes('smart book')) {
-            type = 'assignment';
-            energy = 'high';
-            location = 'home';
-            
-            // Set realistic time estimates based on type
-            if (lower.includes('smartbook') || lower.includes('smart book')) {
-                event.defaultTimeEstimate = 75; // SmartBooks take 60-90 min
-            } else if (lower.includes('lab')) {
-                event.defaultTimeEstimate = 90; // Labs are long
-            } else if (lower.includes('essay') || lower.includes('paper')) {
-                event.defaultTimeEstimate = 120; // Writing takes time
-            } else {
-                event.defaultTimeEstimate = 45; // Regular assignments
-            }
-        }
-        // Personal appointments (protected)
-        else if (lower.includes('therapy') || lower.includes('doctor') || 
-                 lower.includes('appointment') || lower.includes('dentist') ||
-                 lower.includes('meeting') || lower.includes('interview')) {
-            type = 'personal';
-            isProtected = true;
-            energy = 'low';
+        if (event.isRecurring || title.includes('lecture') || title.includes('class')) {
+            return {
+                ...event,
+                type: 'class',
+                energy: 'medium',
+                shouldImport: true,
+                location: 'school',
+                isProtected: false
+            };
         }
         
-        return {
-            ...event,
-            type,
-            energy,
-            shouldImport,
-            location,
-            isProtected
+        // CAREER/CAMPUS EVENTS
+        if (title.includes('career') || title.includes('fair') || 
+            title.includes('networking') || title.includes('workshop')) {
+            return { 
+                ...event, 
+                type: 'event', 
+                energy: 'medium',
+                shouldImport: true,
+                location: 'school',
+                isProtected: false
+            };
+        }
+        
+        // Personal appointments (protected)
+        if (title.includes('therapy') || title.includes('doctor') || 
+            title.includes('appointment') || title.includes('dentist') ||
+            title.includes('meeting') || title.includes('interview')) {
+            return {
+                ...event,
+                type: 'personal',
+                energy: 'low',
+                shouldImport: true,
+                location: 'anywhere',
+                isProtected: true
+            };
+        }
+        
+        // DEFAULT: If it has a course bracket, it's probably an assignment
+        if (hasCourseBracket) {
+            return { 
+                ...event, 
+                type: 'assignment', 
+                energy: 'medium',
+                shouldImport: true,
+                location: 'home',
+                isProtected: false,
+                defaultTimeEstimate: 45
+            };
+        }
+        
+        // Everything else is personal
+        return { 
+            ...event, 
+            type: 'event', 
+            energy: 'medium',
+            shouldImport: true,
+            location: 'anywhere',
+            isProtected: false
         };
     });
 }
