@@ -164,8 +164,14 @@ async function decryptSettings(encryptedSettings, userEmail) {
  * Save settings to Google Drive with encryption
  */
 async function saveSettingsToDrive() {
-    if (!isDriveAvailable() || !userEmail) {
-        console.log('ℹ️ [SETTINGS SYNC] Drive not available or not signed in');
+    // Check if Drive is available using the same check as storage.js
+    if (!isDriveAvailable()) {
+        console.log('ℹ️ [SETTINGS SYNC] Drive not available');
+        return false;
+    }
+    
+    if (!userEmail) {
+        console.log('ℹ️ [SETTINGS SYNC] User email not available');
         return false;
     }
     
@@ -239,8 +245,14 @@ async function saveSettingsToDrive() {
  * Load settings from Google Drive with decryption
  */
 async function loadSettingsFromDrive() {
-    if (!isDriveAvailable() || !userEmail) {
-        console.log('ℹ️ [SETTINGS SYNC] Drive not available or not signed in');
+    // Check if Drive is available using the same check as storage.js
+    if (!isDriveAvailable()) {
+        console.log('ℹ️ [SETTINGS SYNC] Drive not available');
+        return null;
+    }
+    
+    if (!userEmail) {
+        console.log('ℹ️ [SETTINGS SYNC] User email not available');
         return null;
     }
     
@@ -288,6 +300,8 @@ async function loadSettingsFromDrive() {
 
 /**
  * Update sync indicator UI
+ * NOTE: This function is used ONLY during active sync operations.
+ * The main sync indicator state is managed by updateSignInUI() in storage.js
  */
 function updateSyncIndicator(status) {
     const syncIndicator = document.getElementById('syncIndicator');
@@ -329,10 +343,20 @@ function updateSyncIndicator(status) {
  * Force re-sync settings (for troubleshooting)
  */
 async function forceResyncSettings() {
-    if (!isDriveAvailable() || !userEmail) {
-        alert('Please sign in to Google Drive first!');
+    // Check if Drive is available using the same check as storage.js
+    if (!isDriveAvailable()) {
+        console.log('❌ [FORCE RESYNC] Drive not available');
+        alert('Google Drive is not available. Please check your connection and try again.');
         return;
     }
+    
+    if (!userEmail) {
+        console.log('❌ [FORCE RESYNC] User not signed in');
+        alert('Please sign in to Google Drive first! Click the "Sign in with Google" button in Settings.');
+        return;
+    }
+    
+    console.log('✅ [FORCE RESYNC] Auth checks passed - userEmail:', userEmail);
     
     updateSyncIndicator('syncing');
     
