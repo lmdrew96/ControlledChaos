@@ -172,11 +172,32 @@ async function importCalendarFeed() {
         const categorizedEvents = categorizeEvents(events);
         console.log('✅ Events categorized');
         
-        // Step 4: Show preview modal
-        showImportPreview(categorizedEvents);
+        // Step 4: Check for unmapped course codes
+        importBtn.textContent = '🔍 Checking course codes...';
+        const unmappedCodes = [...new Set(
+            categorizedEvents
+                .map(e => extractCourseCode(e.summary))
+                .filter(code => code && !getCourseMappingForCode(code))
+        )];
         
-        // Close the URL input modal
-        closeModal('calendarImportModal');
+        console.log('📚 Found unmapped course codes:', unmappedCodes);
+        
+        // Step 5: If there are unmapped codes, show mapping modal first
+        if (unmappedCodes.length > 0) {
+            console.log('🎓 Showing course mapping modal for:', unmappedCodes);
+            closeModal('calendarImportModal');
+            
+            showCourseMappingModal(unmappedCodes, (mappings) => {
+                console.log('✅ Course mappings saved, proceeding with import');
+                // After mapping is complete, show the import preview
+                showImportPreview(categorizedEvents);
+            });
+        } else {
+            // No unmapped codes, proceed directly to preview
+            console.log('✅ All courses mapped, showing preview');
+            showImportPreview(categorizedEvents);
+            closeModal('calendarImportModal');
+        }
         
     } catch (error) {
         console.error('❌ Calendar import error:', error);
