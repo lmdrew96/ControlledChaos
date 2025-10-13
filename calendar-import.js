@@ -36,8 +36,9 @@ function detectCourseFromTitle(eventTitle) {
             console.log('📚 Found mapping for', courseCode, '→', mapping);
             return mapping;
         }
-        // Store the unmapped code for later
-        return { needsMapping: true, code: courseCode };
+        // If no mapping exists, return the course code itself as a fallback
+        console.log('📚 No mapping found for', courseCode, '- using code as course name');
+        return courseCode;
     }
     
     const lower = eventTitle.toLowerCase();
