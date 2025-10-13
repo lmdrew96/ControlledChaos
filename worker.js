@@ -131,17 +131,46 @@ export default {
       const body = await request.text();
       console.log('Request body length:', body.length);
 
-      // Forward to Anthropic API
+      // Forward to Anthropic API with timeout handling
       console.log('Forwarding request to Anthropic API...');
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: body,
-      });
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000); // 55 second timeout (Cloudflare limit is 60s)
+
+      let response;
+      try {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: body,
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error.name === 'AbortError') {
+          console.error('Request timed out after 55 seconds');
+          return new Response(JSON.stringify({ 
+            error: 'Request timeout',
+            details: 'The request to Anthropic took too long'
+          }), {
+            status: 504,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
+          });
+        }
+        
+        throw error;
+      }
 
       console.log('Anthropic API response status:', response.status);
 
