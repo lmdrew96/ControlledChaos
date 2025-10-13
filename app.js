@@ -916,111 +916,118 @@ async function callClaudeAPI(messages, systemPrompt = '') {
     
     console.log('🤖 [CLAUDE API] Full API URL:', apiUrl);
 
-    const maxRetries = 3;
-    const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            console.log(`🤖 [CLAUDE API] Attempt ${attempt + 1}/${maxRetries}`);
-            
-            // Show retry message if not first attempt
-            if (attempt > 0) {
-                showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
-            }
-            
-            const requestBody = {
-                model: 'claude-sonnet-4-5-20250929',
-                max_tokens: 2000,
-                system: systemPrompt,
-                messages: messages
-            };
-            
-            console.log('🤖 [CLAUDE API] Request body:', {
-                model: requestBody.model,
-                max_tokens: requestBody.max_tokens,
-                systemPromptLength: systemPrompt.length,
-                messagesCount: messages.length
-            });
-            
-            console.log('🤖 [CLAUDE API] Request payload:', JSON.stringify({
-                model: requestBody.model,
-                max_tokens: requestBody.max_tokens,
-                messages: requestBody.messages
-            }, null, 2));
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': apiKey,
-                    'Authorization': `Bearer ${workerPassword}`
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            console.log('🤖 [CLAUDE API] Response status:', response.status);
-            console.log('🤖 [CLAUDE API] Response headers:', Object.fromEntries(response.headers.entries()));
-
-            // Check for 503 Service Unavailable
-            if (response.status === 503) {
-                console.warn('⚠️ [CLAUDE API] Service unavailable (503)');
-                const errorBody = await response.clone().text();
-                console.log('🔴 [CLAUDE API] 503 Error body:', errorBody);
-                // If this is the last attempt, throw error
-                if (attempt === maxRetries - 1) {
-                    throw new Error('Service temporarily unavailable after multiple retries');
+    // Create the actual API call function to be queued
+    const makeAPICall = async () => {
+        const maxRetries = 3;
+        const delays = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                console.log(`🤖 [CLAUDE API] Attempt ${attempt + 1}/${maxRetries}`);
+                
+                // Show retry message if not first attempt
+                if (attempt > 0) {
+                    showToast(`Hmm, Claude is thinking slowly... retrying (${attempt}/${maxRetries})...`);
                 }
                 
-                // Wait before retrying with exponential backoff
-                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-                continue; // Retry
-            }
+                const requestBody = {
+                    model: 'claude-sonnet-4-5-20250929',
+                    max_tokens: 2000,
+                    system: systemPrompt,
+                    messages: messages
+                };
+                
+                console.log('🤖 [CLAUDE API] Request body:', {
+                    model: requestBody.model,
+                    max_tokens: requestBody.max_tokens,
+                    systemPromptLength: systemPrompt.length,
+                    messagesCount: messages.length
+                });
+                
+                console.log('🤖 [CLAUDE API] Request payload:', JSON.stringify({
+                    model: requestBody.model,
+                    max_tokens: requestBody.max_tokens,
+                    messages: requestBody.messages
+                }, null, 2));
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey,
+                        'Authorization': `Bearer ${workerPassword}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
 
-            // For other errors, get the response text for better error messages
-            const responseText = await response.text();
-            console.log('🤖 [CLAUDE API] Response headers:', {
-                'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
-                'x-ratelimit-limit': response.headers.get('x-ratelimit-limit'),
-                'x-ratelimit-reset': response.headers.get('x-ratelimit-reset'),
-                'retry-after': response.headers.get('retry-after')
-            });
-            console.log('🤖 [CLAUDE API] Response body:', responseText);
-            
-            if (!response.ok) {
-                console.error('❌ [CLAUDE API] Request failed:', response.status, responseText);
-                throw new Error(`API call failed (${response.status}): ${responseText}`);
-            }
+                console.log('🤖 [CLAUDE API] Response status:', response.status);
+                console.log('🤖 [CLAUDE API] Response headers:', Object.fromEntries(response.headers.entries()));
 
-            // Success! Parse and return
-            const data = JSON.parse(responseText);
-            console.log('✅ [CLAUDE API] Success! Response:', data);
-            
-            // Show success message if we had to retry
-            if (attempt > 0) {
-                showToast('✅ Got it! Claude responded successfully.');
-            }
-            
-            return data.content[0].text;
-            
-        } catch (error) {
-            console.error(`❌ [CLAUDE API] Attempt ${attempt + 1} failed:`, error);
-            
-            // If this is the last attempt, throw the error
-            if (attempt === maxRetries - 1) {
-                console.error('❌ [CLAUDE API] All retries exhausted');
+                // Check for 503 Service Unavailable
+                if (response.status === 503) {
+                    console.warn('⚠️ [CLAUDE API] Service unavailable (503)');
+                    const errorBody = await response.clone().text();
+                    console.log('🔴 [CLAUDE API] 503 Error body:', errorBody);
+                    // If this is the last attempt, throw error
+                    if (attempt === maxRetries - 1) {
+                        throw new Error('Service temporarily unavailable after multiple retries');
+                    }
+                    
+                    // Wait before retrying with exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                    continue; // Retry
+                }
+
+                // For other errors, get the response text for better error messages
+                const responseText = await response.text();
+                console.log('🤖 [CLAUDE API] Response headers:', {
+                    'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
+                    'x-ratelimit-limit': response.headers.get('x-ratelimit-limit'),
+                    'x-ratelimit-reset': response.headers.get('x-ratelimit-reset'),
+                    'retry-after': response.headers.get('retry-after')
+                });
+                console.log('🤖 [CLAUDE API] Response body:', responseText);
+                
+                if (!response.ok) {
+                    console.error('❌ [CLAUDE API] Request failed:', response.status, responseText);
+                    throw new Error(`API call failed (${response.status}): ${responseText}`);
+                }
+
+                // Success! Parse and return
+                const data = JSON.parse(responseText);
+                console.log('✅ [CLAUDE API] Success! Response:', data);
+                
+                // Show success message if we had to retry
+                if (attempt > 0) {
+                    showToast('✅ Got it! Claude responded successfully.');
+                }
+                
+                return data.content[0].text;
+                
+            } catch (error) {
+                console.error(`❌ [CLAUDE API] Attempt ${attempt + 1} failed:`, error);
+                
+                // If this is the last attempt, throw the error
+                if (attempt === maxRetries - 1) {
+                    console.error('❌ [CLAUDE API] All retries exhausted');
+                    throw error;
+                }
+                
+                // For network errors or 503s, wait and retry
+                if (error.message.includes('503') || error.message.includes('fetch')) {
+                    await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+                    continue;
+                }
+                
+                // For other errors, throw immediately
                 throw error;
             }
-            
-            // For network errors or 503s, wait and retry
-            if (error.message.includes('503') || error.message.includes('fetch')) {
-                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-                continue;
-            }
-            
-            // For other errors, throw immediately
-            throw error;
         }
-    }
+    };
+
+    // Queue the request instead of calling directly
+    const description = messages[0]?.content?.substring(0, 50) + '...' || 'API Request';
+    return await apiQueue.queueRequest(makeAPICall, description);
 }
 
 async function processBrainDump() {
