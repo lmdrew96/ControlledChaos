@@ -164,18 +164,21 @@ export default {
       // Parse the successful response
       const parsedData = JSON.parse(data);
       
-      // Strip markdown code blocks if present in the response text
-      if (parsedData.content && parsedData.content[0] && parsedData.content[0].text) {
-        const responseText = parsedData.content[0].text;
+      // Quick markdown stripping without heavy regex
+      if (parsedData.content?.[0]?.text) {
+        let text = parsedData.content[0].text;
         
-        // Strip markdown code fences (```json ... ``` or ``` ... ```)
-        const cleanedText = responseText.trim()
-          .replace(/^```json\s*/i, '')
-          .replace(/^```\s*/i, '')
-          .replace(/\s*```$/i, '');
+        // Simple trim of markdown fences
+        if (text.startsWith('```')) {
+          const firstNewline = text.indexOf('\n');
+          text = text.substring(firstNewline + 1);
+        }
+        if (text.endsWith('```')) {
+          const lastBackticks = text.lastIndexOf('```');
+          text = text.substring(0, lastBackticks);
+        }
         
-        // Update the response with cleaned text
-        parsedData.content[0].text = cleanedText;
+        parsedData.content[0].text = text.trim();
       }
       
       // Return the cleaned response with CORS headers
