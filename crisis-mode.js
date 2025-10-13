@@ -217,7 +217,6 @@ async function generateDailyBreakdown(cluster) {
     console.log('📋 [CRISIS] No valid cache, generating new AI plan...');
     
     const now = new Date();
-    const dueDate = new Date(cluster.dueDate);
     
     // Get user's max daily work preference
     const maxDailyMinutes = appData.settings?.maxDailyWorkMinutes || 90;
@@ -231,6 +230,23 @@ async function generateDailyBreakdown(cluster) {
         return [];
     }
     
+    // CRITICAL: Only include blocks on or before the deadline
+    const dueDate = new Date(cluster.dueDate);
+    dueDate.setHours(23, 59, 59, 999); // End of deadline day
+    
+    const validBlocks = availableBlocks.filter(block => {
+        // Parse the block's date (format: "Mon, Oct 13")
+        const blockDate = new Date(block.date + ', 2025'); // Add year
+        return blockDate <= dueDate;
+    });
+    
+    if (validBlocks.length === 0) {
+        console.warn('⚠️ [CRISIS] No available blocks before deadline');
+        return generateSimpleFallback(cluster);
+    }
+    
+    console.log(`📋 [CRISIS] Filtered to ${validBlocks.length} blocks before deadline (from ${availableBlocks.length} total)`);
+    
     // Prepare task list for Claude
     const tasksList = cluster.tasks.map(task => {
         return {
@@ -243,7 +259,7 @@ async function generateDailyBreakdown(cluster) {
     });
     
     // Prepare available time blocks for Claude
-    const blocksText = availableBlocks.slice(0, 15).map(b => 
+    const blocksText = validBlocks.slice(0, 15).map(b =>
         `${b.date}: ${b.time} (${b.duration} min at ${b.location})`
     ).join('\n');
     
