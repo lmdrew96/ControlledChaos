@@ -1335,11 +1335,13 @@ function saveSettings() {
     const workerPassword = document.getElementById('workerPasswordInput').value.trim();
     const clientId = document.getElementById('clientIdInput').value.trim();
     const apiKey = document.getElementById('apiKeyInput').value.trim();
+    const maxWorkMinutes = parseInt(document.getElementById('maxWorkInput').value) || 90;
     
     appData.settings.workerUrl = workerUrl;
     appData.settings.workerPassword = workerPassword;
     appData.settings.clientId = clientId;
     appData.settings.apiKey = apiKey;
+    appData.settings.maxDailyWorkMinutes = maxWorkMinutes;
     
     if (workerUrl) CLOUDFLARE_WORKER_URL = workerUrl;
     if (clientId) GOOGLE_CLIENT_ID = clientId;

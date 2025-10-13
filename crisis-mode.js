@@ -189,6 +189,10 @@ async function generateDailyBreakdown(cluster) {
     const now = new Date();
     const dueDate = new Date(cluster.dueDate);
     
+    // Get user's max daily work preference
+    const maxDailyMinutes = appData.settings?.maxDailyWorkMinutes || 90;
+    console.log('📋 [CRISIS] User max daily work time:', maxDailyMinutes, 'minutes');
+    
     // Get available time blocks
     const availableBlocks = cluster.availableBlocks || [];
     
@@ -228,7 +232,7 @@ ${tasksList.map(t => `- ${t.title} (${t.timeEstimate} min, ${t.difficulty} diffi
 ${blocksText}
 
 **CRITICAL ADHD-FRIENDLY RULES:**
-1. **Max 90 minutes of work per day** - ADHD brains need breaks
+1. **Max ${maxDailyMinutes} minutes of work per day** - User's sustainable limit
 2. **One high-difficulty task per day max** (SmartBooks, exams)
 3. **Start with hardest tasks first** (when brain is freshest)
 4. **Never cram multiple high-difficulty tasks in one day**
@@ -237,7 +241,7 @@ ${blocksText}
 7. **Leave the day before the deadline lighter** for final review
 
 **Your task:**
-Create a realistic daily breakdown that distributes tasks across the available days. Each day should feel achievable, not overwhelming.
+Create a realistic daily breakdown that distributes tasks across the available days. Each day should feel achievable, not overwhelming. Respect the user's ${maxDailyMinutes}-minute daily limit.
 
 Return ONLY valid JSON (no markdown, no backticks):
 {
@@ -245,7 +249,7 @@ Return ONLY valid JSON (no markdown, no backticks):
     {
       "date": "Mon, Oct 13",
       "tasks": ["Task name 1", "Task name 2"],
-      "totalMinutes": 90,
+      "totalMinutes": ${maxDailyMinutes},
       "reasoning": "Starting with hardest task while brain is fresh"
     }
   ],
@@ -329,7 +333,9 @@ function generateSimpleFallback(cluster) {
     const breakdown = [];
     const tasks = [...cluster.tasks];
     let taskIndex = 0;
-    const MAX_MINUTES_PER_DAY = 90;
+    const maxMinutesPerDay = appData.settings?.maxDailyWorkMinutes || 90;
+    
+    console.log('📋 [CRISIS] Fallback using max daily time:', maxMinutesPerDay);
     
     // Get unique days
     const uniqueDays = [...new Set(cluster.availableBlocks.map(b => b.date))];
@@ -340,11 +346,11 @@ function generateSimpleFallback(cluster) {
         const dayTasks = [];
         let dayMinutes = 0;
         
-        while (taskIndex < tasks.length && dayMinutes < MAX_MINUTES_PER_DAY) {
+        while (taskIndex < tasks.length && dayMinutes < maxMinutesPerDay) {
             const task = tasks[taskIndex];
             const taskTime = task.timeEstimate || 75;
             
-            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) break;
+            if (dayMinutes + taskTime > maxMinutesPerDay && dayTasks.length > 0) break;
             
             dayTasks.push({ ...task, suggestedBlock: 'When available' });
             dayMinutes += taskTime;

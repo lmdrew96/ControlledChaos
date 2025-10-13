@@ -12,7 +12,8 @@ let appData = {
     settings: {
         workerUrl: '',
         clientId: '',
-        apiKey: ''
+        apiKey: '',
+        maxDailyWorkMinutes: 90  // Default to 90 minutes
     },
     currentLocation: 'home',
     lastSync: null,

@@ -380,8 +380,28 @@
                     <label for="apiKeyInput">Anthropic API Key (Optional)</label>
                     <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
                     <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Your API key enables AI features. Stored securely in Google Drive.
+                        Optional: For AI features like Brain Dump and "I'm Stuck" help
                     </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maxWorkInput">
+                        <strong>Max Daily Work Time</strong>
+                        <span style="color: var(--text-light); font-size: 0.9em; display: block; margin-top: 5px;">
+                            Maximum minutes of crisis work per day (Crisis Mode uses this for planning)
+                        </span>
+                    </label>
+                    <input 
+                        type="number" 
+                        id="maxWorkInput" 
+                        min="30" 
+                        max="300" 
+                        step="15"
+                        placeholder="90"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <small style="color: var(--text-light); margin-top: 5px; display: block;">
+                        Recommended: 60-120 minutes. Be realistic about what you can sustain.
+                    </small>
                 </div>
                 
                 <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>

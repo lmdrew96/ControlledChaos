@@ -602,6 +602,12 @@ function populateSettingsInputs() {
         apiKeyInput.value = appData.settings.apiKey;
         console.log('🔧 [SETTINGS] API key saved:', appData.settings.apiKey ? '✓ Present' : '✗ Missing');
     }
+    
+    const maxWorkInput = document.getElementById('maxWorkInput');
+    if (maxWorkInput && appData.settings?.maxDailyWorkMinutes) {
+        maxWorkInput.value = appData.settings.maxDailyWorkMinutes;
+        console.log('🔧 [SETTINGS] Max work time populated:', appData.settings.maxDailyWorkMinutes);
+    }
 }
 
 // ===== TOAST NOTIFICATION =====
