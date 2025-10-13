@@ -103,8 +103,30 @@ export default async function handler(request) {
       });
     }
     
-    // Return success
-    return new Response(data, {
+    // Parse and clean the response
+    const parsedData = JSON.parse(data);
+    
+    // Strip markdown code fences if present
+    if (parsedData.content?.[0]?.text) {
+      let text = parsedData.content[0].text;
+      
+      // Remove markdown code fences using simple string operations
+      if (text.startsWith('```')) {
+        const firstNewline = text.indexOf('\n');
+        if (firstNewline > -1) {
+          text = text.substring(firstNewline + 1);
+        }
+      }
+      if (text.endsWith('```')) {
+        const lastBackticks = text.lastIndexOf('```');
+        text = text.substring(0, lastBackticks);
+      }
+      
+      parsedData.content[0].text = text.trim();
+    }
+    
+    // Return the cleaned response
+    return new Response(JSON.stringify(parsedData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
