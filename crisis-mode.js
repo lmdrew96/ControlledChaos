@@ -176,7 +176,8 @@ function detectCrisisMode() {
 
 // ===== DAILY BREAKDOWN GENERATOR =====
 function generateDailyBreakdown(cluster) {
-    console.log('📋 [CRISIS] Generating daily breakdown for:', cluster.name);
+    console.log('📋 [CRISIS] Starting breakdown with', cluster.tasks.length, 'tasks');
+    console.log('📋 [CRISIS] Available blocks:', cluster.availableBlocks.length);
     
     const now = new Date();
     const dueDate = new Date(cluster.dueDate);
@@ -209,8 +210,12 @@ function generateDailyBreakdown(cluster) {
     let currentDayTasks = [];
     let currentDayMinutes = 0;
     
-    availableBlocks.forEach((block, blockIndex) => {
-        if (taskIndex >= sortedTasks.length) return;
+    // Use regular for loop instead of forEach so we can properly skip blocks
+    for (let blockIndex = 0; blockIndex < availableBlocks.length; blockIndex++) {
+        const block = availableBlocks[blockIndex];
+        
+        // Stop if we've assigned all tasks
+        if (taskIndex >= sortedTasks.length) break;
         
         // Start a new day only if the date actually changes
         if (block.date !== currentDay) {
@@ -228,22 +233,20 @@ function generateDailyBreakdown(cluster) {
             currentDayMinutes = 0;
         }
         
-        // Skip this block if we've already maxed out the day
+        // Skip this block if we've already maxed out current day
         const MAX_MINUTES_PER_DAY = 90;
         if (currentDayMinutes >= MAX_MINUTES_PER_DAY) {
-            return; // Move to next block (which might be next day)
+            continue; // ✅ Skip to next block (might be next day)
         }
         
         // Try to fit tasks into this block
-        // Limit: 90 minutes per day (more realistic for ADHD brain)
-        
         while (taskIndex < sortedTasks.length && currentDayMinutes < MAX_MINUTES_PER_DAY) {
             const task = sortedTasks[taskIndex];
-            const taskTime = task.timeEstimate || 30;
+            const taskTime = task.timeEstimate || 75; // Use better default
             
             // Don't add task if it would exceed daily limit
             if (currentDayMinutes + taskTime > MAX_MINUTES_PER_DAY) {
-                break;
+                break; // Move to next day
             }
             
             // Add task to current day
@@ -254,7 +257,7 @@ function generateDailyBreakdown(cluster) {
             currentDayMinutes += taskTime;
             taskIndex++;
         }
-    });
+    }
     
     // Add the last day
     if (currentDay && currentDayTasks.length > 0) {
@@ -266,8 +269,10 @@ function generateDailyBreakdown(cluster) {
         });
     }
     
+    console.log('📋 [CRISIS] Assigned', taskIndex, 'of', sortedTasks.length, 'tasks');
+    console.log('📋 [CRISIS] Created', breakdown.length, 'days');
+    
     crisisMode.dailyBreakdowns[cluster.id] = breakdown;
-    console.log('📋 [CRISIS] Generated breakdown with', breakdown.length, 'days');
     
     return breakdown;
 }

@@ -278,6 +278,8 @@ function renderProjects() {
 
 // ===== DEADLINE RENDERING =====
 function renderDeadlines() {
+    console.log('📋 Rendering deadlines section');
+    
     // Safety check: ensure deadlines array exists
     if (!appData.deadlines) {
         appData.deadlines = [];
@@ -304,8 +306,13 @@ function renderDeadlines() {
                 clearBtn.title = 'Clear all deadlines';
                 clearBtn.innerHTML = '🗑️ Clear All';
                 header.appendChild(clearBtn);
+                console.log('✅ Clear All button added to deadlines section');
             }
+        } else {
+            console.log('ℹ️ Clear All button already exists in header');
         }
+    } else {
+        console.warn('⚠️ Could not find deadlines section card');
     }
     
     const activeDeadlines = appData.deadlines.filter(d => !d.completed);
