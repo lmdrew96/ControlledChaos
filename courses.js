@@ -195,9 +195,24 @@ function renderCourseDeadlineView() {
         .filter(c => c && c !== 'Personal')
     )];
     
-    // Generate color palette dynamically
-    const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#06b6d4', '#84cc16', '#f43f5e'];
-    const icons = ['📚', '🧬', '🎵', '🏛️', '💻', '🔬', '📐', '🎨'];
+    // Get emoji and color from COURSES if it matches
+    function getCourseIcon(courseName) {
+        const matchedCourse = Object.values(COURSES).find(c => 
+            c.name === courseName || 
+            c.shortName === courseName || 
+            c.class === courseName
+        );
+        return matchedCourse ? matchedCourse.icon : '📚';
+    }
+
+    function getCourseColor(courseName) {
+        const matchedCourse = Object.values(COURSES).find(c => 
+            c.name === courseName || 
+            c.shortName === courseName || 
+            c.class === courseName
+        );
+        return matchedCourse ? matchedCourse.color : '#8b5cf6';
+    }
     
     if (uniqueCourses.length === 0 && appData.deadlines.filter(d => !d.completed).length === 0) {
         container.innerHTML = `
@@ -212,9 +227,9 @@ function renderCourseDeadlineView() {
     let html = '';
     
     // Render section for each course found in the data
-    uniqueCourses.forEach((courseName, index) => {
-        const courseColor = colors[index % colors.length];
-        const courseIcon = icons[index % icons.length];
+    uniqueCourses.forEach((courseName) => {
+        const courseIcon = getCourseIcon(courseName);
+        const courseColor = getCourseColor(courseName);
         
         // Get deadlines for this course
         const courseDeadlines = appData.deadlines
