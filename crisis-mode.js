@@ -247,6 +247,10 @@ async function generateDailyBreakdown(cluster) {
     
     console.log(`📋 [CRISIS] Filtered to ${validBlocks.length} blocks before deadline (from ${availableBlocks.length} total)`);
     
+    // Extract unique dates from valid blocks
+    const availableDates = [...new Set(validBlocks.map(b => b.date))];
+    console.log(`📋 [CRISIS] Available dates: ${availableDates.join(', ')}`);
+    
     // Prepare task list for Claude
     const tasksList = cluster.tasks.map(task => {
         return {
@@ -277,21 +281,26 @@ ${tasksList.map(t => `- ${t.title} (${t.timeEstimate} min, ${t.difficulty} diffi
 **Available time blocks:**
 ${blocksText}
 
-**CRITICAL ADHD-FRIENDLY RULES:**
-1. **Max ${maxDailyMinutes} minutes of work per day** - User's sustainable limit
-2. **One high-difficulty task per day max** (SmartBooks, exams)
-3. **Start with hardest tasks first** (when brain is freshest)
-4. **Never cram multiple high-difficulty tasks in one day**
-5. **Build in buffer time** - things take longer than expected
-6. **Spread work across ALL ${cluster.daysUntilDeadline} available days** - don't front-load
-7. **You CAN schedule work on the deadline day** - just leave time for submission/final review
+**CRITICAL CONSTRAINTS:**
+1. **ONLY use these exact dates in your breakdown: ${availableDates.join(', ')}**
+2. **DO NOT create any other dates - these are the ONLY days available**
+3. **Max ${maxDailyMinutes} minutes of work per day** - User's sustainable limit
+4. **Deadline is ${cluster.dueDate} - nothing can be scheduled after this**
+
+**ADHD-FRIENDLY RULES:**
+1. **One high-difficulty task per day max** (SmartBooks, exams)
+2. **Start with hardest tasks first** (when brain is freshest)
+3. **Never cram multiple high-difficulty tasks in one day**
+4. **Build in buffer time** - things take longer than expected
 
 **Your task:**
-Create a realistic daily breakdown that uses all ${cluster.daysUntilDeadline} days effectively. The breakdown should:
-- Distribute tasks across ${cluster.daysUntilDeadline} days (including the deadline day)
+Create a realistic daily breakdown using ONLY these dates: ${availableDates.join(', ')}
+
+The breakdown MUST:
+- Use ONLY the dates listed above (${availableDates.length} days total)
+- Each day in your breakdown must be one of: ${availableDates.join(', ')}
 - Respect the ${maxDailyMinutes}-minute daily limit
 - Feel achievable, not overwhelming
-- On the deadline day, schedule lighter work that finishes with time to spare
 
 Return ONLY valid JSON (no markdown, no backticks):
 {
