@@ -367,36 +367,23 @@
             <!-- Settings Content -->
             <div class="card">
                 <h2>🔧 API Configuration</h2>
-                
-                <div class="form-group">
-                    <label for="workerUrlInput">Cloudflare Worker URL</label>
-                    <input type="text" id="workerUrlInput" placeholder="https://your-worker.workers.dev/api/claude">
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Your Cloudflare Worker URL for API proxy. See SETUP-INSTRUCTIONS.md Part 1.
-                    </p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="workerPasswordInput">Worker Password</label>
-                    <input type="password" id="workerPasswordInput" placeholder="Your worker password">
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Password to access your Cloudflare Worker. Share this with friends who should have access.
-                    </p>
-                </div>
+                <p style="color: #666; margin-bottom: 1.5rem;">
+                    <strong>Note:</strong> The app now uses Vercel Edge Functions instead of Cloudflare Workers. API calls go through <code>/api/claude.js</code>.
+                </p>
                 
                 <div class="form-group">
                     <label for="clientIdInput">Google OAuth Client ID</label>
                     <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
                     <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Your Google OAuth Client ID for Drive sync. See SETUP-INSTRUCTIONS.md Part 2.
+                        Your Google OAuth Client ID for Drive sync. Required for cross-device settings sync.
                     </p>
                 </div>
                 
                 <div class="form-group">
-                    <label for="apiKeyInput">Anthropic API Key (Optional)</label>
+                    <label for="apiKeyInput">Anthropic API Key</label>
                     <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
                     <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Optional: For AI features like Brain Dump and "I'm Stuck" help
+                        <strong>🔒 Encrypted:</strong> Your API key is encrypted before syncing to Google Drive using your account as the encryption key.
                     </p>
                 </div>
                 
@@ -412,7 +399,7 @@
                     <label for="maxWorkInput">
                         <strong>Max Daily Work Time</strong>
                         <span style="color: var(--text-light); font-size: 0.9em; display: block; margin-top: 5px;">
-                            Maximum minutes of crisis work per day (Crisis Mode uses this for planning)
+                            Maximum minutes of focused work per day
                         </span>
                     </label>
                     <input 
@@ -428,7 +415,24 @@
                     </small>
                 </div>
                 
-                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="saveSettings()" style="flex: 1;">
+                        💾 Save Settings
+                    </button>
+                    <button class="btn btn-secondary" onclick="forceResyncSettings()" style="flex: 1;">
+                        🔄 Force Re-Sync
+                    </button>
+                </div>
+                
+                <div style="margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #4285f4;">
+                    <strong style="color: #1967d2;">🔒 Security & Privacy</strong>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; color: #666; font-size: 0.9em;">
+                        <li>API keys are encrypted before syncing to Drive</li>
+                        <li>Encryption uses your Google account as the key</li>
+                        <li>Settings sync automatically when you save</li>
+                        <li>Works across all your devices</li>
+                    </ul>
+                </div>
             </div>
             
             <!-- Preferences -->
@@ -442,6 +446,20 @@
                     </button>
                     <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
                         Switches between standard and OpenDyslexic font for easier reading.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Advanced Settings -->
+            <div class="card">
+                <h2>⚙️ Advanced</h2>
+                
+                <div class="form-group">
+                    <button class="btn btn-danger" onclick="resetAllSettings()" style="width: 100%;">
+                        🗑️ Reset All Settings
+                    </button>
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                        Clear all API keys, credentials, and preferences. This cannot be undone.
                     </p>
                 </div>
             </div>
@@ -499,6 +517,7 @@
     <script src="mood-tracker.js"></script>
     <script src="data.js"></script>
     <script src="storage.js"></script>
+    <script src="settings-sync.js"></script>
     <script src="courses.js"></script>
     <script src="calendar.js"></script>
     <!-- Crisis Mode removed - replaced with simple Due Soon banner -->

@@ -135,15 +135,28 @@ async function handleGoogleSignIn() {
                     // Show toast notification
                     showToast(`✅ Signed in as ${userEmail}`);
                     
-                    // Load data from Drive
+                    // Load encrypted settings from Drive FIRST
+                    console.log('🔓 [SIGN IN] Loading encrypted settings from Drive...');
+                    const driveSettings = await loadSettingsFromDrive();
+                    if (driveSettings) {
+                        // Merge Drive settings with local settings
+                        appData.settings = { ...appData.settings, ...driveSettings };
+                        
+                        // Update global variables
+                        if (driveSettings.clientId) GOOGLE_CLIENT_ID = driveSettings.clientId;
+                        
+                        console.log('✅ [SIGN IN] Settings loaded and decrypted from Drive');
+                    }
+                    
+                    // Load data from Drive (tasks, deadlines, etc.)
                     await loadDataFromDrive();
                     
-                    // Explicitly populate settings inputs (including password)
+                    // Explicitly populate settings inputs
                     populateSettingsInputs();
                     
                     updateUI();
                     
-                    console.log('✅ [SIGN IN] Settings populated from Drive');
+                    console.log('✅ [SIGN IN] Complete - settings and data loaded');
                 }
             }
         });
@@ -164,28 +177,10 @@ function handleGoogleSignOut() {
     // Clear stored credentials
     googleAccessToken = null;
     driveFileId = null;
+    settingsFileId = null;
     userEmail = null;
     localStorage.removeItem('googleAccessToken');
     localStorage.removeItem('userEmail');
-    
-    // SECURITY: Clear worker password from memory and localStorage
-    if (appData.settings) {
-        appData.settings.workerPassword = '';
-    }
-    
-    // Update localStorage to remove password
-    const localData = loadFromLocalStorage();
-    if (localData && localData.settings) {
-        localData.settings.workerPassword = '';
-        localStorage.setItem('controlledChaosData', JSON.stringify(localData));
-        console.log('🔒 [SIGN OUT] Worker password cleared from localStorage');
-    }
-    
-    // Clear password from UI
-    const workerPasswordInput = document.getElementById('workerPasswordInput');
-    if (workerPasswordInput) {
-        workerPasswordInput.value = '';
-    }
     
     console.log('💾 [SIGN OUT] Credentials cleared from localStorage');
     
@@ -195,7 +190,7 @@ function handleGoogleSignOut() {
     console.log('✅ [SIGN OUT] UI updated');
     console.log('✅ [SIGN OUT] Completed');
     
-    showToast('👋 Signed out successfully - password cleared for security');
+    showToast('👋 Signed out - settings remain in localStorage');
 }
 
 function updateSignInUI() {
@@ -484,9 +479,6 @@ async function restoreSession() {
         
         // Apply settings from localStorage
         if (localData.settings) {
-            if (localData.settings.workerUrl) {
-                CLOUDFLARE_WORKER_URL = localData.settings.workerUrl;
-            }
             if (localData.settings.clientId) {
                 GOOGLE_CLIENT_ID = localData.settings.clientId;
             }
@@ -524,8 +516,6 @@ async function restoreSession() {
         appData.googleAccessToken = savedToken;
         
         console.log('🔄 [RESTORE SESSION] Token and email restored from localStorage');
-        console.log('🔄 [RESTORE SESSION] userEmail is now:', userEmail);
-        console.log('🔄 [RESTORE SESSION] appData.userEmail is now:', appData.userEmail);
         
         // Update UI to show signed-in state immediately
         updateSignInUI();
@@ -539,7 +529,27 @@ async function restoreSession() {
         gapi.client.setToken({ access_token: googleAccessToken });
         console.log('🔄 [RESTORE SESSION] Token set for gapi client');
         
-        // STEP 4: Try to load from Drive (in background, may update if newer)
+        // STEP 4: Try to load encrypted settings from Drive
+        try {
+            console.log('🔓 [RESTORE SESSION] Loading encrypted settings from Drive...');
+            const driveSettings = await loadSettingsFromDrive();
+            if (driveSettings) {
+                // Merge Drive settings with local settings (Drive takes precedence)
+                appData.settings = { ...appData.settings, ...driveSettings };
+                
+                // Update global variables
+                if (driveSettings.clientId) GOOGLE_CLIENT_ID = driveSettings.clientId;
+                
+                // Populate settings inputs with decrypted values
+                populateSettingsInputs();
+                
+                console.log('✅ [RESTORE SESSION] Settings loaded and decrypted from Drive');
+            }
+        } catch (error) {
+            console.error('❌ [RESTORE SESSION] Failed to load settings from Drive:', error);
+        }
+        
+        // STEP 5: Try to load data from Drive (tasks, deadlines, etc.)
         try {
             console.log('🔄 [RESTORE SESSION] Attempting to load data from Drive...');
             await loadDataFromDrive();

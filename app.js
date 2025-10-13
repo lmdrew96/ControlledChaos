@@ -1537,34 +1537,62 @@ function setUserEnergy(energy) {
 }
 
 // ===== SETTINGS MANAGEMENT =====
-function saveSettings() {
-    const workerUrl = document.getElementById('workerUrlInput').value.trim().replace(/\/+$/, '');
-    const workerPassword = document.getElementById('workerPasswordInput').value.trim();
+async function saveSettings() {
     const clientId = document.getElementById('clientIdInput').value.trim();
     const apiKey = document.getElementById('apiKeyInput').value.trim();
     const maxWorkMinutes = parseInt(document.getElementById('maxWorkInput').value) || 90;
     
-    appData.settings.workerUrl = workerUrl;
-    appData.settings.workerPassword = workerPassword;
+    // Update appData.settings
     appData.settings.clientId = clientId;
     appData.settings.apiKey = apiKey;
     appData.settings.maxDailyWorkMinutes = maxWorkMinutes;
     
-    if (workerUrl) CLOUDFLARE_WORKER_URL = workerUrl;
+    // Update global variables
     if (clientId) GOOGLE_CLIENT_ID = clientId;
     
     // Hide warning if configured
-    if (workerUrl && clientId) {
+    if (clientId && apiKey) {
         document.getElementById('configWarning').style.display = 'none';
     }
     
     // IMMEDIATE save to localStorage when settings change
     saveToLocalStorage();
     
-    // Then save to Drive
-    saveData();
+    // Show syncing indicator
+    updateSyncIndicator('syncing');
     
-    showToast('✅ Settings saved!');
+    // Save encrypted settings to Drive if signed in
+    if (isDriveAvailable() && userEmail) {
+        try {
+            const success = await saveSettingsToDrive();
+            if (success) {
+                showToast('⚡ Settings saved and synced!');
+                
+                // Show confetti for first-time setup
+                if (!localStorage.getItem('firstSyncComplete')) {
+                    confetti({
+                        particleCount: 150,
+                        spread: 100,
+                        origin: { y: 0.6 }
+                    });
+                    localStorage.setItem('firstSyncComplete', 'true');
+                }
+            } else {
+                updateSyncIndicator('local');
+                showToast('💾 Settings saved locally (Drive sync failed)');
+            }
+        } catch (error) {
+            console.error('❌ Failed to sync settings:', error);
+            updateSyncIndicator('local');
+            showToast('💾 Settings saved locally only');
+        }
+    } else {
+        updateSyncIndicator('local');
+        showToast('💾 Settings saved locally (sign in to sync)');
+    }
+    
+    // Also save full data to Drive (tasks, deadlines, etc.)
+    saveData();
 }
 
 async function testAPIConnection() {
