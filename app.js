@@ -219,6 +219,24 @@ function toggleTask(taskId) {
                 origin: { y: 0.6 }
             });
             
+            // Check if this is a subtask - if so, check if all subtasks are complete
+            if (task.parentTaskId) {
+                const parentTask = appData.tasks.find(t => t.id === task.parentTaskId);
+                if (parentTask && parentTask.subtaskIds) {
+                    const allSubtasksComplete = parentTask.subtaskIds.every(id => {
+                        const subtask = appData.tasks.find(t => t.id === id);
+                        return subtask && subtask.completed;
+                    });
+                    
+                    if (allSubtasksComplete) {
+                        // Show celebration for completing all subtasks
+                        setTimeout(() => {
+                            showSubtaskCompletionCelebration(parentTask);
+                        }, 500);
+                    }
+                }
+            }
+            
             // Check if this is the "Wake up & take meds" task
             if (task.title && task.title.toLowerCase().includes('wake up') && task.title.toLowerCase().includes('meds')) {
                 // Show morning check-in after a brief delay
@@ -246,6 +264,41 @@ function toggleTask(taskId) {
         //     invalidateCrisisCache();
         // }
     }
+}
+
+function showSubtaskCompletionCelebration(parentTask) {
+    // Extra confetti for completing all subtasks!
+    confetti({
+        particleCount: 200,
+        spread: 120,
+        origin: { y: 0.6 },
+        colors: ['#667eea', '#764ba2', '#f093fb', '#4facfe']
+    });
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎉 All Subtasks Complete!</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <p style="font-size: 1.1em; margin-bottom: 20px;">
+                You finished all ${parentTask.subtaskIds.length} mini-tasks for:<br>
+                <strong style="color: var(--primary);">${parentTask.title}</strong>
+            </p>
+            <p style="margin-bottom: 20px;">Would you like to mark the parent task as complete too?</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="toggleTask('${parentTask.id}'); this.closest('.modal').remove();">
+                    ✅ Yes, mark it done!
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                    Not yet
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
 
 function deleteTask(taskId) {
@@ -1234,23 +1287,30 @@ Location needed: ${task.location}
 
 ${scheduleContext}
 
-Break this down into the TINIEST possible first step to overcome starting paralysis. Then suggest 2-3 follow-up micro-steps.
-
-Each step should be:
-- Completable in under 10 minutes
+Break this down into 2-4 TINY, actionable subtasks. Each step should be:
+- Completable in under 15 minutes
 - Require zero decision-making
 - Be physically actionable
-- Build momentum
+- Build momentum toward completing the parent task
 
-${nextBlock.available ? `Reminder: User can work on this ${nextBlock.day} ${nextBlock.time}. Acknowledge this in your response.` : ''}
+Return ONLY valid JSON array, no other text:
+[{"title": "specific action step", "timeEstimate": 10, "energy": "low"}]
 
-Format as natural, encouraging text. Be brief and direct.`;
+Example for "Write essay":
+[
+  {"title": "Open document and write thesis sentence", "timeEstimate": 5, "energy": "low"},
+  {"title": "Write 3 bullet points for intro", "timeEstimate": 10, "energy": "medium"},
+  {"title": "Expand bullets into full paragraphs", "timeEstimate": 15, "energy": "medium"}
+]`;
 
         const response = await callClaudeAPI([{
             role: 'user',
             content: `I'm stuck on: ${task.title}`
         }], systemPrompt);
 
+        // Parse the JSON response
+        const subtasks = JSON.parse(response);
+        
         let scheduleInfo = '';
         if (nextBlock.available) {
             scheduleInfo = `
@@ -1262,18 +1322,29 @@ Format as natural, encouraging text. Be brief and direct.`;
             `;
         }
 
+        // Display the breakdown with option to create tasks
         content.innerHTML = `
             <h3>${task.title}</h3>
             ${scheduleInfo}
             <div style="background: var(--bg-main); padding: 20px; border-radius: 10px; margin: 20px 0;">
-                ${response.replace(/\n/g, '<br>')}
+                <h4 style="margin-bottom: 15px;">🎯 Here's your breakdown:</h4>
+                ${subtasks.map((subtask, i) => `
+                    <div style="padding: 12px; background: white; border-radius: 8px; margin: 10px 0; border-left: 4px solid var(--primary);">
+                        <div style="font-weight: 600; margin-bottom: 5px;">
+                            ${i + 1}. ${subtask.title}
+                        </div>
+                        <div style="font-size: 0.85em; color: var(--text-light);">
+                            ⏱️ ${subtask.timeEstimate} min | ⚡ ${subtask.energy} energy
+                        </div>
+                    </div>
+                `).join('')}
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-success" onclick="toggleTask('${task.id}')">
-                    ✅ Got it! Mark as done
+                <button class="btn btn-success" onclick="createSubtasksFromBreakdown('${task.id}', ${JSON.stringify(subtasks).replace(/"/g, '&quot;')})">
+                    ✨ Create These Subtasks
                 </button>
                 <button class="btn btn-secondary" onclick="closeModal('stuckModal')">
-                    Close
+                    Not now
                 </button>
             </div>
         `;
@@ -1285,6 +1356,47 @@ Format as natural, encouraging text. Be brief and direct.`;
             <button class="btn btn-secondary" onclick="closeModal('stuckModal')">Close</button>
         `;
     }
+}
+
+function createSubtasksFromBreakdown(parentTaskId, subtasks) {
+    const parentTask = appData.tasks.find(t => t.id === parentTaskId);
+    if (!parentTask) return;
+    
+    // Mark parent task as broken down
+    parentTask.brokenDown = true;
+    parentTask.subtaskIds = [];
+    
+    // Create each subtask
+    subtasks.forEach((subtask, index) => {
+        const newTask = {
+            title: subtask.title,
+            energy: subtask.energy || 'low',
+            location: parentTask.location,
+            timeEstimate: subtask.timeEstimate || 10,
+            parentTaskId: parentTaskId,
+            parentTaskTitle: parentTask.title,
+            subtaskIndex: index + 1,
+            subtaskTotal: subtasks.length,
+            courseId: parentTask.courseId || null,
+            dueDate: parentTask.dueDate || null
+        };
+        
+        addTask(newTask);
+        parentTask.subtaskIds.push(newTask.id);
+    });
+    
+    saveData();
+    renderTasks();
+    closeModal('stuckModal');
+    
+    // Show success message
+    confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+    });
+    
+    showToast(`✅ Created ${subtasks.length} subtasks! Check them off as you go.`);
 }
 
 // ===== TEMPLATE MANAGEMENT =====

@@ -111,14 +111,33 @@ function renderTasks() {
             courseBadge = `<span style="background: ${course.color}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em; margin-right: 5px;">${course.icon} ${course.shortName}</span>`;
         }
         
+        // Check if this is a subtask
+        let subtaskBadge = '';
+        let parentInfo = '';
+        if (task.parentTaskId) {
+            subtaskBadge = `<span style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75em; margin-right: 5px;">🔨 ${task.subtaskIndex}/${task.subtaskTotal}</span>`;
+            parentInfo = `<div style="font-size: 0.85em; color: var(--text-light); margin-top: 5px;">↳ Part of: ${task.parentTaskTitle}</div>`;
+        }
+        
+        // Check if this task has been broken down into subtasks
+        let brokenDownBadge = '';
+        if (task.brokenDown && task.subtaskIds) {
+            const completedSubtasks = task.subtaskIds.filter(id => {
+                const subtask = appData.tasks.find(t => t.id === id);
+                return subtask && subtask.completed;
+            }).length;
+            brokenDownBadge = `<span style="background: var(--success); color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75em; margin-left: 5px;">✅ ${completedSubtasks}/${task.subtaskIds.length} subtasks done</span>`;
+        }
+        
         return `
-            <div class="task-item">
+            <div class="task-item" style="${task.parentTaskId ? 'border-left: 4px solid #667eea; background: linear-gradient(to right, #f5f3ff, white);' : ''}">
                 <input type="checkbox" class="task-checkbox" 
                        onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
                 <div class="task-content">
                     <div class="task-title">
-                        ${courseBadge}${task.title}
+                        ${subtaskBadge}${courseBadge}${task.title}${brokenDownBadge}
                     </div>
+                    ${parentInfo}
                     <div class="task-meta">
                         <span class="energy-badge energy-${task.energy}">${task.energy}</span>
                         <span class="location-badge">📍 ${task.location}</span>
