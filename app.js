@@ -1373,7 +1373,7 @@ function setUserEnergy(energy) {
 
 // ===== SETTINGS MANAGEMENT =====
 function saveSettings() {
-    const workerUrl = document.getElementById('workerUrlInput').value.trim();
+    const workerUrl = document.getElementById('workerUrlInput').value.trim().replace(/\/+$/, '');
     const workerPassword = document.getElementById('workerPasswordInput').value.trim();
     const clientId = document.getElementById('clientIdInput').value.trim();
     const apiKey = document.getElementById('apiKeyInput').value.trim();
