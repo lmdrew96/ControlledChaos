@@ -1,10 +1,42 @@
-// Vercel Edge Function - Format Duration via MCP
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-
+// Vercel Serverless Function - Format Duration
 export const config = {
   runtime: 'nodejs'
 };
+
+function formatDuration(seconds, style = 'full') {
+  const absSeconds = Math.abs(seconds);
+  const isNegative = seconds < 0;
+  
+  const days = Math.floor(absSeconds / 86400);
+  const hours = Math.floor((absSeconds % 86400) / 3600);
+  const minutes = Math.floor((absSeconds % 3600) / 60);
+  const secs = Math.floor(absSeconds % 60);
+  
+  let result = '';
+  
+  if (style === 'full') {
+    const parts = [];
+    if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs} second${secs !== 1 ? 's' : ''}`);
+    result = parts.join(', ');
+  } else if (style === 'compact') {
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+    result = parts.join(' ');
+  } else if (style === 'minimal') {
+    const h = String(days * 24 + hours).padStart(2, '0');
+    const m = String(minutes).padStart(2, '0');
+    const s = String(secs).padStart(2, '0');
+    result = `${h}:${m}:${s}`;
+  }
+  
+  return isNegative ? `-${result}` : result;
+}
 
 export default async function handler(request) {
   // CORS headers
@@ -53,34 +85,15 @@ export default async function handler(request) {
       });
     }
     
-    // Create MCP client
-    const transport = new SSEClientTransport(
-      new URL('https://passage-of-time-mcp-9u8l.onrender.com/sse')
-    );
-    const client = new Client({
-      name: 'controlled-chaos-temporal-client',
-      version: '1.0.0',
-    }, {
-      capabilities: {}
-    });
-    
-    // Connect to MCP server
-    await client.connect(transport);
-    
-    // Call the format_duration tool
-    const result = await client.callTool({
-      name: 'format_duration',
-      arguments: { 
-        seconds,
-        style: style || 'long'
-      }
-    });
-    
-    // Close the connection
-    await client.close();
+    const formatted = formatDuration(seconds, style || 'full');
     
     // Return the result
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      content: [{
+        type: 'text',
+        text: formatted
+      }]
+    }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

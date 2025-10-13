@@ -1,7 +1,4 @@
-// Vercel Edge Function - Get Current Time via MCP
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-
+// Vercel Serverless Function - Get Current Time
 export const config = {
   runtime: 'nodejs'
 };
@@ -39,33 +36,40 @@ export default async function handler(request) {
   try {
     // Get timezone from query parameter (optional)
     const url = new URL(request.url);
-    const timezone = url.searchParams.get('timezone') || 'UTC';
+    const timezone = url.searchParams.get('timezone') || 'America/New_York';
     
-    // Create MCP client
-    const transport = new SSEClientTransport(
-      new URL('https://passage-of-time-mcp-9u8l.onrender.com/sse')
-    );
-    const client = new Client({
-      name: 'controlled-chaos-temporal-client',
-      version: '1.0.0',
-    }, {
-      capabilities: {}
+    // Get current date/time in specified timezone
+    const now = new Date();
+    
+    // Format: YYYY-MM-DD HH:MM:SS TZ
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
     });
     
-    // Connect to MCP server
-    await client.connect(transport);
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    const hour = parts.find(p => p.type === 'hour').value;
+    const minute = parts.find(p => p.type === 'minute').value;
+    const second = parts.find(p => p.type === 'second').value;
     
-    // Call the get_current_time tool
-    const result = await client.callTool({
-      name: 'get_current_time',
-      arguments: { timezone }
-    });
-    
-    // Close the connection
-    await client.close();
+    const formatted = `${year}-${month}-${day} ${hour}:${minute}:${second} ${timezone}`;
     
     // Return the result
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      content: [{
+        type: 'text',
+        text: formatted
+      }]
+    }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
