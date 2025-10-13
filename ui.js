@@ -286,33 +286,9 @@ function renderDeadlines() {
     }
     
     const container = document.getElementById('allDeadlines');
-    
-    // Add Clear All button to header
-    const deadlinesSection = container.closest('.card');
-    if (deadlinesSection) {
-        let header = deadlinesSection.querySelector('.section-header');
-        if (!header) {
-            const h3 = deadlinesSection.querySelector('h3');
-            if (h3) {
-                header = document.createElement('div');
-                header.className = 'section-header';
-                header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;';
-                h3.parentNode.insertBefore(header, h3);
-                header.appendChild(h3);
-                
-                const clearBtn = document.createElement('button');
-                clearBtn.className = 'btn btn-danger btn-sm';
-                clearBtn.onclick = clearAllDeadlines;
-                clearBtn.title = 'Clear all deadlines';
-                clearBtn.innerHTML = '🗑️ Clear All';
-                header.appendChild(clearBtn);
-                console.log('✅ Clear All button added to deadlines section');
-            }
-        } else {
-            console.log('ℹ️ Clear All button already exists in header');
-        }
-    } else {
-        console.warn('⚠️ Could not find deadlines section card');
+    if (!container) {
+        console.error('❌ Deadlines container not found');
+        return;
     }
     
     const activeDeadlines = appData.deadlines.filter(d => !d.completed);
@@ -330,7 +306,16 @@ function renderDeadlines() {
     // Sort by due date
     activeDeadlines.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
     
-    container.innerHTML = activeDeadlines.map(deadline => {
+    // Build the HTML with Clear All button at the top
+    let html = `
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+            <button class="btn btn-danger btn-sm" onclick="clearAllDeadlines()" title="Clear all deadlines" style="padding: 8px 16px; font-size: 0.9em;">
+                🗑️ Clear All
+            </button>
+        </div>
+    `;
+    
+    html += activeDeadlines.map(deadline => {
         const dueDate = new Date(deadline.dueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -432,6 +417,9 @@ function renderDeadlines() {
             </div>
         `;
     }).join('');
+    
+    container.innerHTML = html;
+    console.log('✅ Clear All button rendered with', activeDeadlines.length, 'deadlines');
 }
 
 // ===== WHAT NOW LOGIC =====

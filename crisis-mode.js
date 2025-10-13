@@ -176,20 +176,11 @@ function detectCrisisMode() {
 
 // ===== DAILY BREAKDOWN GENERATOR =====
 function generateDailyBreakdown(cluster) {
-    console.log('📋 [CRISIS] Starting breakdown with', cluster.tasks.length, 'tasks');
-    console.log('📋 [CRISIS] Available blocks:', cluster.availableBlocks.length);
+    console.log('📋 [CRISIS] Generating daily breakdown for:', cluster.name);
     
     const now = new Date();
     const dueDate = new Date(cluster.dueDate);
     const breakdown = [];
-    
-    // Get available blocks
-    const availableBlocks = cluster.availableBlocks;
-    
-    if (availableBlocks.length === 0) {
-        console.warn('⚠️ [CRISIS] No available blocks found');
-        return [];
-    }
     
     // Sort tasks by estimated difficulty (SmartBooks first, then assignments, then quizzes)
     const sortedTasks = [...cluster.tasks].sort((a, b) => {
@@ -198,81 +189,119 @@ function generateDailyBreakdown(cluster) {
             if (title.includes('smartbook')) return 3;
             if (title.includes('assignment')) return 2;
             if (title.includes('lab')) return 2;
+            if (title.includes('exam')) return 4;
             if (title.includes('quiz')) return 1;
             return 1;
         };
         return getDifficulty(b) - getDifficulty(a);
     });
     
-    // Distribute tasks across available days
-    let taskIndex = 0;
-    let currentDay = null;
-    let currentDayTasks = [];
-    let currentDayMinutes = 0;
+    console.log('📋 [CRISIS] Starting breakdown with', sortedTasks.length, 'tasks');
     
-    // Use regular for loop instead of forEach so we can properly skip blocks
-    for (let blockIndex = 0; blockIndex < availableBlocks.length; blockIndex++) {
-        const block = availableBlocks[blockIndex];
-        
-        // Stop if we've assigned all tasks
+    // Get all unique days from available blocks
+    const availableBlocks = cluster.availableBlocks || [];
+    const uniqueDays = [...new Set(availableBlocks.map(b => b.date))];
+    
+    console.log('📋 [CRISIS] Available days:', uniqueDays.length, uniqueDays);
+    
+    // Distribute tasks across days with max 90 minutes per day
+    const MAX_MINUTES_PER_DAY = 90;
+    let taskIndex = 0;
+    
+    for (const day of uniqueDays) {
         if (taskIndex >= sortedTasks.length) break;
         
-        // Start a new day only if the date actually changes
-        if (block.date !== currentDay) {
-            // Save previous day if it has tasks
-            if (currentDay && currentDayTasks.length > 0) {
-                breakdown.push({
-                    date: currentDay,
-                    tasks: [...currentDayTasks],
-                    totalMinutes: currentDayMinutes,
-                    completed: false
-                });
-            }
-            currentDay = block.date;
-            currentDayTasks = [];
-            currentDayMinutes = 0;
-        }
+        const dayTasks = [];
+        let dayMinutes = 0;
         
-        // Skip this block if we've already maxed out current day
-        const MAX_MINUTES_PER_DAY = 90;
-        if (currentDayMinutes >= MAX_MINUTES_PER_DAY) {
-            continue; // ✅ Skip to next block (might be next day)
-        }
-        
-        // Try to fit tasks into this block
-        while (taskIndex < sortedTasks.length && currentDayMinutes < MAX_MINUTES_PER_DAY) {
+        // Add tasks to this day until we hit the daily limit
+        while (taskIndex < sortedTasks.length) {
             const task = sortedTasks[taskIndex];
-            const taskTime = task.timeEstimate || 75; // Use better default
+            const taskTime = task.timeEstimate || 75;
             
-            // Don't add task if it would exceed daily limit
-            if (currentDayMinutes + taskTime > MAX_MINUTES_PER_DAY) {
+            // Check if adding this task would exceed the daily limit
+            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) {
                 break; // Move to next day
             }
             
-            // Add task to current day
-            currentDayTasks.push({
+            // Find a time block for this day
+            const dayBlock = availableBlocks.find(b => b.date === day);
+            const suggestedBlock = dayBlock ? `${dayBlock.time} at ${dayBlock.location}` : 'When available';
+            
+            dayTasks.push({
                 ...task,
-                suggestedBlock: `${block.time} at ${block.location}`
+                suggestedBlock: suggestedBlock
             });
-            currentDayMinutes += taskTime;
+            
+            dayMinutes += taskTime;
             taskIndex++;
+            
+            // If we've hit the limit, move to next day
+            if (dayMinutes >= MAX_MINUTES_PER_DAY) {
+                break;
+            }
+        }
+        
+        // Add this day to the breakdown if it has tasks
+        if (dayTasks.length > 0) {
+            breakdown.push({
+                date: day,
+                tasks: dayTasks,
+                totalMinutes: dayMinutes,
+                completed: false
+            });
         }
     }
     
-    // Add the last day
-    if (currentDay && currentDayTasks.length > 0) {
-        breakdown.push({
-            date: currentDay,
-            tasks: currentDayTasks,
-            totalMinutes: currentDayMinutes,
-            completed: false
-        });
+    // If we still have unassigned tasks, add more days
+    let extraDayCount = 0;
+    while (taskIndex < sortedTasks.length) {
+        const dayTasks = [];
+        let dayMinutes = 0;
+        
+        while (taskIndex < sortedTasks.length && dayMinutes < MAX_MINUTES_PER_DAY) {
+            const task = sortedTasks[taskIndex];
+            const taskTime = task.timeEstimate || 75;
+            
+            if (dayMinutes + taskTime > MAX_MINUTES_PER_DAY && dayTasks.length > 0) {
+                break;
+            }
+            
+            dayTasks.push({
+                ...task,
+                suggestedBlock: 'Fit in when possible'
+            });
+            
+            dayMinutes += taskTime;
+            taskIndex++;
+        }
+        
+        if (dayTasks.length > 0) {
+            // Create a generic future day
+            const futureDate = new Date(dueDate);
+            futureDate.setDate(futureDate.getDate() - (extraDayCount + 1));
+            const dayName = futureDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            
+            breakdown.push({
+                date: dayName,
+                tasks: dayTasks,
+                totalMinutes: dayMinutes,
+                completed: false
+            });
+            
+            extraDayCount++;
+        }
+        
+        // Safety: Don't create infinite loop
+        if (extraDayCount > 10) {
+            console.warn('⚠️ [CRISIS] Too many days created, stopping');
+            break;
+        }
     }
     
+    crisisMode.dailyBreakdowns[cluster.id] = breakdown;
     console.log('📋 [CRISIS] Assigned', taskIndex, 'of', sortedTasks.length, 'tasks');
     console.log('📋 [CRISIS] Created', breakdown.length, 'days');
-    
-    crisisMode.dailyBreakdowns[cluster.id] = breakdown;
     
     return breakdown;
 }
