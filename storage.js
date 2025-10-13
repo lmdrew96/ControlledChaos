@@ -266,24 +266,49 @@ async function loadDataFromDrive() {
             syncIndicator.textContent = '⏳ Loading from Drive...';
         }
         
-        // Search for existing file
-        const response = await gapi.client.drive.files.list({
+        // Search for existing file using fetch API (works even when GAPI times out)
+        const searchParams = new URLSearchParams({
             q: `name='${DRIVE_FILE_NAME}' and trashed=false`,
             spaces: 'drive',
             fields: 'files(id, name)'
         });
+        
+        const searchResponse = await fetch(
+            `https://www.googleapis.com/drive/v3/files?${searchParams}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${googleAccessToken}`
+                }
+            }
+        );
+        
+        if (!searchResponse.ok) {
+            throw new Error(`Drive API error: ${searchResponse.status}`);
+        }
+        
+        const searchResult = await searchResponse.json();
 
-        if (response.result.files && response.result.files.length > 0) {
-            driveFileId = response.result.files[0].id;
+        if (searchResult.files && searchResult.files.length > 0) {
+            driveFileId = searchResult.files[0].id;
             
-            // Download file content
-            const fileResponse = await gapi.client.drive.files.get({
-                fileId: driveFileId,
-                alt: 'media'
-            });
+            // Download file content using fetch API
+            const fileResponse = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${googleAccessToken}`
+                    }
+                }
+            );
+            
+            if (!fileResponse.ok) {
+                throw new Error(`Drive download error: ${fileResponse.status}`);
+            }
+            
+            const fileContent = await fileResponse.text();
             
             // Parse and load data
-            const loadedData = JSON.parse(fileResponse.body);
+            const loadedData = JSON.parse(fileContent);
             
             // CRITICAL: Apply settings FIRST before updating appData
             if (loadedData.settings) {
