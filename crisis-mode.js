@@ -266,20 +266,24 @@ ${blocksText}
 2. **One high-difficulty task per day max** (SmartBooks, exams)
 3. **Start with hardest tasks first** (when brain is freshest)
 4. **Never cram multiple high-difficulty tasks in one day**
-5. **Build in buffer time** - things always take longer than expected
-6. **Spread work across ALL available days** - don't front-load
-7. **Leave the day before the deadline lighter** for final review
+5. **Build in buffer time** - things take longer than expected
+6. **Spread work across ALL ${cluster.daysUntilDeadline} available days** - don't front-load
+7. **You CAN schedule work on the deadline day** - just leave time for submission/final review
 
 **Your task:**
-Create a realistic daily breakdown that distributes tasks across the available days. Each day should feel achievable, not overwhelming. Respect the user's ${maxDailyMinutes}-minute daily limit.
+Create a realistic daily breakdown that uses all ${cluster.daysUntilDeadline} days effectively. The breakdown should:
+- Distribute tasks across ${cluster.daysUntilDeadline} days (including the deadline day)
+- Respect the ${maxDailyMinutes}-minute daily limit
+- Feel achievable, not overwhelming
+- On the deadline day, schedule lighter work that finishes with time to spare
 
 Return ONLY valid JSON (no markdown, no backticks):
 {
   "breakdown": [
     {
       "date": "Mon, Oct 13",
-      "tasks": ["Task name 1", "Task name 2"],
-      "totalMinutes": ${maxDailyMinutes},
+      "tasks": ["Task name 1"],
+      "totalMinutes": 90,
       "reasoning": "Starting with hardest task while brain is fresh"
     }
   ],
