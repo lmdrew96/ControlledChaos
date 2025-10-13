@@ -29,6 +29,7 @@ function detectCrisisMode() {
     ];
     
     console.log('🔥 [CRISIS] Total items to check:', allItems.length);
+    console.log('🔥 [CRISIS] All items:', allItems.map(i => `${i.title} (due: ${i.dueDate}, time: ${i.timeEstimate}min, source: ${i.source})`));
     
     allItems.forEach(item => {
         if (item.completed || !item.dueDate) return;
@@ -39,6 +40,8 @@ function detectCrisisMode() {
         
         // Only consider deadlines within 4 days
         if (daysUntilDeadline > 4 || daysUntilDeadline < 0) return;
+        
+        console.log(`🔥 [CRISIS] Including item: ${item.title} (due in ${daysUntilDeadline.toFixed(1)} days, ${item.timeEstimate || 'NO TIME'}min)`);
         
         const deadlineKey = item.dueDate;
         if (!deadlineGroups[deadlineKey]) {
@@ -51,9 +54,10 @@ function detectCrisisMode() {
         }
         
         deadlineGroups[deadlineKey].tasks.push(item);
-        // Use task's time estimate, or deadline's time estimate, or default to 45
-        const timeEstimate = item.timeEstimate || 45;
+        // For deadlines, use their timeEstimate; for tasks, use their timeEstimate or default
+        const timeEstimate = item.source === 'deadline' ? (item.timeEstimate || 75) : (item.timeEstimate || 45);
         deadlineGroups[deadlineKey].totalMinutes += timeEstimate;
+        console.log(`🔥 [CRISIS] Added ${item.title}: ${timeEstimate}min (source: ${item.source})`);
     });
     
     // Analyze each deadline group for crisis conditions

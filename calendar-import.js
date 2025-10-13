@@ -478,16 +478,36 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
         }
     });
     
-    // Import deadlines with time estimates
+    // Import deadlines with proper time estimates
     selectedDeadlines.forEach(event => {
+        // Determine time estimate based on event type
+        let timeEstimate = 45; // Default
+        const lower = event.summary.toLowerCase();
+        
+        if (lower.includes('smartbook') || lower.includes('smart book')) {
+            timeEstimate = 75;
+        } else if (lower.includes('lab')) {
+            timeEstimate = 90;
+        } else if (lower.includes('exam') && !lower.includes('prep')) {
+            timeEstimate = 120;
+        } else if (lower.includes('quiz')) {
+            timeEstimate = 30;
+        } else if (lower.includes('essay') || lower.includes('paper')) {
+            timeEstimate = 120;
+        } else if (event.defaultTimeEstimate) {
+            timeEstimate = event.defaultTimeEstimate;
+        }
+        
         const deadline = {
             id: Date.now().toString() + Math.random(),
             title: event.summary,
             dueDate: event.startDate.toISOString().split('T')[0],
             createdAt: new Date().toISOString(),
             completed: false,
-            timeEstimate: event.defaultTimeEstimate || 45 // Use smart default
+            timeEstimate: timeEstimate
         };
+        
+        console.log(`📥 Importing deadline: ${event.summary} with ${timeEstimate}min estimate`);
         appData.deadlines.push(deadline);
         importedCount++;
     });
