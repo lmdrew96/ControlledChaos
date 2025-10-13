@@ -964,6 +964,8 @@ async function callClaudeAPI(messages, systemPrompt = '') {
             // Check for 503 Service Unavailable
             if (response.status === 503) {
                 console.warn('⚠️ [CLAUDE API] Service unavailable (503)');
+                const errorBody = await response.clone().text();
+                console.log('🔴 [CLAUDE API] 503 Error body:', errorBody);
                 // If this is the last attempt, throw error
                 if (attempt === maxRetries - 1) {
                     throw new Error('Service temporarily unavailable after multiple retries');
