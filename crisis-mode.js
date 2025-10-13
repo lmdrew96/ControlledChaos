@@ -186,6 +186,36 @@ function detectCrisisMode() {
 async function generateDailyBreakdown(cluster) {
     console.log('📋 [CRISIS] Generating AI-powered daily breakdown for:', cluster.name);
     
+    // Check if we have a valid cached plan
+    const cacheKey = `crisis_plan_${cluster.id}`;
+    const cachedPlan = localStorage.getItem(cacheKey);
+    
+    if (cachedPlan) {
+        try {
+            const cached = JSON.parse(cachedPlan);
+            const cacheAge = Date.now() - cached.timestamp;
+            const cacheMaxAge = 24 * 60 * 60 * 1000; // 24 hours
+            
+            // Use cache if:
+            // 1. Less than 24 hours old
+            // 2. Task count matches (nothing added/removed)
+            if (cacheAge < cacheMaxAge && cached.taskCount === cluster.tasks.length) {
+                console.log('📋 [CRISIS] Using cached plan (age: ' + Math.round(cacheAge / 1000 / 60) + ' minutes)');
+                
+                crisisMode.dailyBreakdowns[cluster.id] = cached.breakdown;
+                crisisMode.advice = cached.advice;
+                
+                return cached.breakdown;
+            } else {
+                console.log('📋 [CRISIS] Cache invalid - regenerating (age: ' + Math.round(cacheAge / 1000 / 60) + ' min, tasks changed: ' + (cached.taskCount !== cluster.tasks.length) + ')');
+            }
+        } catch (e) {
+            console.warn('⚠️ [CRISIS] Failed to parse cached plan:', e);
+        }
+    }
+    
+    console.log('📋 [CRISIS] No valid cache, generating new AI plan...');
+    
     const now = new Date();
     const dueDate = new Date(cluster.dueDate);
     
@@ -316,6 +346,21 @@ Return ONLY valid JSON (no markdown, no backticks):
         
         console.log('📋 [CRISIS] AI generated breakdown with', breakdown.length, 'days');
         console.log('💡 [CRISIS] Advice:', data.advice);
+        
+        // Cache the generated plan
+        const cacheData = {
+            breakdown: breakdown,
+            advice: data.advice,
+            taskCount: cluster.tasks.length,
+            timestamp: Date.now()
+        };
+        
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+            console.log('💾 [CRISIS] Cached plan for future use');
+        } catch (e) {
+            console.warn('⚠️ [CRISIS] Failed to cache plan:', e);
+        }
         
         return breakdown;
         
@@ -657,6 +702,17 @@ function dismissCrisisMode() {
     showToast('Crisis Mode dismissed (will reappear if still critical)');
 }
 
+// ===== CACHE INVALIDATION =====
+function invalidateCrisisCache() {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+        if (key.startsWith('crisis_plan_')) {
+            localStorage.removeItem(key);
+        }
+    });
+    console.log('🗑️ [CRISIS] Cache invalidated');
+}
+
 // ===== INTEGRATION WITH EXISTING SYSTEM =====
 // Call this whenever tasks or deadlines are updated
 function updateCrisisMode() {
@@ -672,4 +728,5 @@ if (typeof window !== 'undefined') {
     window.updateCrisisMode = updateCrisisMode;
     window.completeTodayChunk = completeTodayChunk;
     window.dismissCrisisMode = dismissCrisisMode;
+    window.invalidateCrisisCache = invalidateCrisisCache;
 }

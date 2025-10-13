@@ -195,6 +195,11 @@ function addTask(task) {
     appData.tasks.push(task);
     saveData();
     renderTasks();
+    
+    // Invalidate crisis cache when tasks change
+    if (typeof invalidateCrisisCache === 'function') {
+        invalidateCrisisCache();
+    }
 }
 
 function toggleTask(taskId) {
@@ -230,6 +235,11 @@ function toggleTask(taskId) {
         saveData();
         renderTasks();
         updateWhatNow();
+        
+        // Invalidate crisis cache when tasks change
+        if (typeof invalidateCrisisCache === 'function') {
+            invalidateCrisisCache();
+        }
     }
 }
 
@@ -239,6 +249,11 @@ function deleteTask(taskId) {
         saveData();
         renderTasks();
         updateWhatNow();
+        
+        // Invalidate crisis cache when tasks change
+        if (typeof invalidateCrisisCache === 'function') {
+            invalidateCrisisCache();
+        }
     }
 }
 
@@ -507,6 +522,11 @@ function addDeadline(title, dueDate) {
     saveData();
     renderDeadlines();
     
+    // Invalidate crisis cache when deadlines change
+    if (typeof invalidateCrisisCache === 'function') {
+        invalidateCrisisCache();
+    }
+    
     // Show the "Create tasks?" modal
     afterDeadlineCreated(deadline);
 }
@@ -544,6 +564,11 @@ function deleteDeadline(deadlineId) {
         saveData();
         renderDeadlines();
         renderTasks();
+        
+        // Invalidate crisis cache when deadlines change
+        if (typeof invalidateCrisisCache === 'function') {
+            invalidateCrisisCache();
+        }
     }
 }
 
