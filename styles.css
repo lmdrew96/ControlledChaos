@@ -1178,14 +1178,29 @@ h1 {
     }
     
     /* Fix More dropdown positioning on mobile */
-    .tab-navigation > div {
-        position: static;
+    .tab-navigation {
+        position: relative; /* Make tab nav a positioning context */
     }
     
+    /* Make More button's wrapper a positioning context */
+    .tab-navigation > div:last-child {
+        position: relative;
+    }
+    
+    /* Position dropdown correctly on mobile */
     .more-menu {
-        position: fixed;
+        position: fixed !important; /* Override desktop positioning */
+        bottom: 80px; /* Above the bottom nav */
         right: 10px;
+        left: auto;
         top: auto;
+        z-index: 10000 !important; /* Make sure it's on top */
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3); /* Shadow going UP */
+    }
+    
+    /* Make sure dropdown is visible when shown */
+    .more-menu:not(.hidden) {
+        display: block !important;
     }
     
     .tab-button {
