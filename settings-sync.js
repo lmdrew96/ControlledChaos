@@ -518,16 +518,36 @@ async function manualTriggerAutoImport() {
     showToast('🔄 Checking for new assignments...');
     
     try {
-        // Use the existing importCalendarFeed function
-        // But first, temporarily set the calendar URL input
-        const urlInput = document.getElementById('calendarFeedUrl');
-        const originalValue = urlInput.value;
-        urlInput.value = settings.autoImportCalendarUrl;
+        const calendarUrl = settings.autoImportCalendarUrl;
         
-        await importCalendarFeed();
+        // Fetch the calendar directly
+        const proxyUrl = `/api/calendar-proxy?url=${encodeURIComponent(calendarUrl)}`;
+        const response = await fetch(proxyUrl);
         
-        // Restore original value
-        urlInput.value = originalValue;
+        if (!response.ok) {
+            throw new Error('Failed to fetch calendar');
+        }
+        
+        const icsData = await response.text();
+        
+        // Parse and import
+        const events = parseICSData(icsData);
+        const categorizedEvents = categorizeEvents(events);
+        
+        // Check for unmapped course codes
+        const unmappedCodes = [...new Set(
+            categorizedEvents
+                .map(e => extractCourseCode(e.summary))
+                .filter(code => code && !getCourseMappingForCode(code))
+        )];
+        
+        if (unmappedCodes.length > 0) {
+            showCourseMappingModal(unmappedCodes, (mappings) => {
+                showImportPreview(categorizedEvents);
+            });
+        } else {
+            showImportPreview(categorizedEvents);
+        }
         
         console.log('✅ [AUTO-IMPORT] Manual trigger completed');
     } catch (error) {
