@@ -257,12 +257,30 @@ function renderTasks() {
                        onchange="toggleTask('${task.id}')" ${task.completed ? 'checked' : ''}>
                 <div class="task-content">
                     <div class="task-title">
-                        ${subtaskBadge}${courseBadge}${task.title}${brokenDownBadge}
+                        ${subtaskBadge}${courseBadge}
+                        <span contenteditable="true"
+                              onblur="editTaskTitle('${task.id}', this.textContent)"
+                              onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                              style="cursor: text;"
+                              title="Click to edit title">
+                            ${task.title}
+                        </span>
+                        ${brokenDownBadge}
                     </div>
                     ${parentInfo}
                     <div class="task-meta">
-                        <span class="energy-badge energy-${task.energy}">${task.energy}</span>
-                        <span class="location-badge">📍 ${task.location}</span>
+                        <span class="energy-badge energy-${task.energy}" 
+                              onclick="cycleTaskEnergy('${task.id}')"
+                              style="cursor: pointer;"
+                              title="Click to change energy level">
+                            ${task.energy}
+                        </span>
+                        <span class="location-badge"
+                              onclick="cycleTaskLocation('${task.id}')"
+                              style="cursor: pointer;"
+                              title="Click to change location">
+                            📍 ${task.location}
+                        </span>
                         ${task.timeEstimate ? `<span class="time-estimate" onclick="editTaskTime('${task.id}')" style="cursor: pointer;" title="Click to edit time estimate">⏱️ <span id="time-${task.id}">${task.timeEstimate}</span>min</span>` : ''}
                     </div>
                 </div>
@@ -780,11 +798,23 @@ function renderDeadlines() {
                 <input type="checkbox" class="task-checkbox" 
                        onchange="toggleDeadline('${deadline.id}')" ${deadline.completed ? 'checked' : ''}>
                 <div class="task-content" style="flex: 1;">
-                    <div class="task-title">${deadline.title}</div>
+                    <div class="task-title" 
+                         contenteditable="true"
+                         onblur="editDeadlineTitle('${deadline.id}', this.textContent)"
+                         onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
+                         style="cursor: text;"
+                         title="Click to edit title">
+                        ${deadline.title}
+                    </div>
                     <div class="task-meta" style="flex-direction: column; gap: 8px; align-items: flex-start;">
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <span style="background: ${urgencyColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">
                                 📅 ${urgencyText}
+                            </span>
+                            <span onclick="editDeadlineDateTime('${deadline.id}')" 
+                                  style="cursor: pointer; background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;"
+                                  title="Click to edit due date/time">
+                                📅 Due: ${formatDeadlineDate(dueDateStr)}
                             </span>
                             ${deadline.timeEstimate ? `
                                 <span class="deadline-time" onclick="editDeadlineTime('${deadline.id}')" style="cursor: pointer; background: var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.85em;" title="Click to edit time estimate">
@@ -830,11 +860,9 @@ function renderDeadlines() {
                     </div>
                 </div>
                 <div class="task-actions">
-                    ${daysUntil > 3 ? `
-                        <button class="task-btn" onclick="breakDownDeadline('${deadline.id}')" title="Break down into smaller tasks">
-                            🔨 Break Down
-                        </button>
-                    ` : ''}
+                    <button class="task-btn" onclick="breakDownDeadline('${deadline.id}')" title="Break down into smaller tasks">
+                        🔨 Break Down
+                    </button>
                     <button class="task-btn" onclick="deleteDeadline('${deadline.id}')">🗑️</button>
                 </div>
             </div>

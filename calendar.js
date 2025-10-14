@@ -157,17 +157,25 @@ function renderScheduleForDate(dateStr) {
     console.log('📅 [RENDER SCHEDULE] Calculated day name:', dayName);
     
     let html = `<div class="schedule-day"><h3>${dayName}</h3>`;
-    schedule.forEach(block => {
+    schedule.forEach((block, index) => {
         const protectedIcon = block.protected ? '🔒' : '';
         const blockClass = block.protected ? 'protected' : block.type;
         
         html += `
-            <div class="schedule-item ${blockClass}">
-                <span>
+            <div class="schedule-item ${blockClass}" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
                     ${protectedIcon}
                     ${formatTime(block.startTime)} - ${formatTime(block.endTime)}
-                </span>
-                <span>${block.text || block.activity}</span>
+                    <span style="margin-left: 10px;">${block.text || block.activity}</span>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="task-btn" onclick="editScheduleBlock('${dayName}', ${index})" title="Edit block" style="padding: 4px 8px; font-size: 0.8em;">
+                        ✏️
+                    </button>
+                    <button class="task-btn" onclick="deleteScheduleBlock('${dayName}', ${index})" title="Delete block" style="padding: 4px 8px; font-size: 0.8em;">
+                        🗑️
+                    </button>
+                </div>
             </div>
         `;
     });
@@ -462,4 +470,52 @@ function findNextAvailableBlock(task) {
     }
     
     return { available: false };
+}
+
+// ===== SCHEDULE EDITING =====
+function editScheduleBlock(day, blockIndex) {
+    const block = appData.schedule[day][blockIndex];
+    if (!block) return;
+    
+    // Prompt for new values
+    const newText = prompt('Block name:', block.text);
+    if (!newText) return;
+    
+    const newStartTime = prompt('Start time (HH:MM, 24-hour format):', block.startTime);
+    if (!newStartTime) return;
+    
+    const newEndTime = prompt('End time (HH:MM, 24-hour format):', block.endTime);
+    if (!newEndTime) return;
+    
+    const newLocation = prompt('Location (home/school/work/commute/anywhere):', block.location);
+    if (!newLocation) return;
+    
+    const newType = prompt('Type (free/class/protected):', block.type);
+    if (!newType) return;
+    
+    // Update block
+    block.text = newText.trim();
+    block.startTime = newStartTime.trim();
+    block.endTime = newEndTime.trim();
+    block.location = newLocation.trim();
+    block.type = newType.trim();
+    
+    saveData();
+    renderDailySchedule();
+    showToast('✏️ Schedule block updated');
+}
+
+function deleteScheduleBlock(day, blockIndex) {
+    if (!confirm('Delete this schedule block?')) return;
+    
+    appData.schedule[day].splice(blockIndex, 1);
+    saveData();
+    renderDailySchedule();
+    showToast('🗑️ Schedule block deleted');
+}
+
+// Helper function to re-render the daily schedule
+function renderDailySchedule() {
+    const today = formatDate(new Date());
+    renderScheduleForDate(today);
 }

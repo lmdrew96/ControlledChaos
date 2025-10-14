@@ -240,14 +240,36 @@ function renderCourseDeadlineView() {
         
         // Get the next (most urgent) deadline for this course
         const nextDeadline = courseDeadlines[0];
-        const dueDate = new Date(nextDeadline.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
-        const urgency = getUrgencyLevel(daysUntil);
-        const urgencyColor = getUrgencyColor(urgency);
-        const urgencyText = getUrgencyText(daysUntil);
+        // Use same progressive logic as main deadlines
+        let dueDateStr = nextDeadline.dueDate;
+        if (!dueDateStr.includes('T')) {
+            dueDateStr = dueDateStr + 'T23:59:00';
+        }
+        
+        const dueDate = new Date(dueDateStr);
+        const now = new Date();
+        const msUntil = dueDate - now;
+        const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
+        const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let urgencyText;
+        let urgencyColor;
+        
+        if (msUntil < 0) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = 'OVERDUE';
+        } else if (hoursUntil < 24) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = `${hoursUntil}h ${minutesUntil}m`;
+        } else if (hoursUntil < 72) {
+            urgencyColor = 'var(--warning)';
+            urgencyText = `${hoursUntil} hours`;
+        } else {
+            const daysUntil = Math.ceil(hoursUntil / 24);
+            urgencyColor = 'var(--success)';
+            urgencyText = `${daysUntil} days`;
+        }
         
         // Get related tasks
         const relatedTasks = appData.tasks.filter(t => 
@@ -315,14 +337,36 @@ function renderCourseDeadlineView() {
     
     if (personalDeadlines.length > 0) {
         const nextDeadline = personalDeadlines[0];
-        const dueDate = new Date(nextDeadline.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
-        const urgency = getUrgencyLevel(daysUntil);
-        const urgencyColor = getUrgencyColor(urgency);
-        const urgencyText = getUrgencyText(daysUntil);
+        // Use same progressive logic as main deadlines
+        let dueDateStr = nextDeadline.dueDate;
+        if (!dueDateStr.includes('T')) {
+            dueDateStr = dueDateStr + 'T23:59:00';
+        }
+        
+        const dueDate = new Date(dueDateStr);
+        const now = new Date();
+        const msUntil = dueDate - now;
+        const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
+        const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let urgencyText;
+        let urgencyColor;
+        
+        if (msUntil < 0) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = 'OVERDUE';
+        } else if (hoursUntil < 24) {
+            urgencyColor = 'var(--danger)';
+            urgencyText = `${hoursUntil}h ${minutesUntil}m`;
+        } else if (hoursUntil < 72) {
+            urgencyColor = 'var(--warning)';
+            urgencyText = `${hoursUntil} hours`;
+        } else {
+            const daysUntil = Math.ceil(hoursUntil / 24);
+            urgencyColor = 'var(--success)';
+            urgencyText = `${daysUntil} days`;
+        }
         
         const relatedTasks = appData.tasks.filter(t => 
             !t.completed && t.parentDeadline === nextDeadline.id

@@ -1594,6 +1594,87 @@ function editDeadlineTime(deadlineId) {
     showToast(`✅ Updated time estimate to ${timeNum} minutes`);
 }
 
+function editDeadlineTitle(deadlineId, newTitle) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline || !newTitle.trim()) return;
+    
+    deadline.title = newTitle.trim();
+    saveData();
+    renderDeadlines();
+    showToast('✏️ Deadline title updated');
+}
+
+function editDeadlineDateTime(deadlineId) {
+    const deadline = appData.deadlines.find(d => d.id === deadlineId);
+    if (!deadline) return;
+    
+    // Parse current date/time
+    const currentDate = new Date(deadline.dueDate);
+    const dateStr = currentDate.toISOString().split('T')[0];
+    const timeStr = currentDate.toTimeString().slice(0, 5);
+    
+    // Prompt for new date
+    const newDateStr = prompt('Due date (YYYY-MM-DD):', dateStr);
+    if (!newDateStr) return;
+    
+    // Prompt for new time
+    const newTimeStr = prompt('Due time (HH:MM, 24-hour format):', timeStr);
+    if (!newTimeStr) return;
+    
+    // Update deadline
+    deadline.dueDate = `${newDateStr}T${newTimeStr}:00`;
+    saveData();
+    renderDeadlines();
+    updateDueSoonBanner();
+    showToast('📅 Deadline date/time updated');
+}
+
+function formatDeadlineDate(dueDateStr) {
+    const date = new Date(dueDateStr);
+    const dateFormatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const timeFormatted = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `${dateFormatted} at ${timeFormatted}`;
+}
+
+function editTaskTitle(taskId, newTitle) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task || !newTitle.trim()) return;
+    
+    task.title = newTitle.trim();
+    saveData();
+    renderTasks();
+    showToast('✏️ Task title updated');
+}
+
+function cycleTaskEnergy(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const energyLevels = ['low', 'medium', 'high'];
+    const currentIndex = energyLevels.indexOf(task.energy);
+    const nextIndex = (currentIndex + 1) % energyLevels.length;
+    
+    task.energy = energyLevels[nextIndex];
+    saveData();
+    renderTasks();
+    showToast(`⚡ Energy: ${task.energy}`);
+}
+
+function cycleTaskLocation(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const locations = ['anywhere', 'home', 'school', 'work', 'errands'];
+    const currentIndex = locations.indexOf(task.location);
+    const nextIndex = (currentIndex + 1) % locations.length;
+    
+    task.location = locations[nextIndex];
+    saveData();
+    renderTasks();
+    updateWhatNow();
+    showToast(`📍 Location: ${task.location}`);
+}
+
 // ===== LOCATION MANAGEMENT =====
 function setLocation(location) {
     appData.currentLocation = location;
@@ -2048,5 +2129,111 @@ function clearDailySchedule() {
         saveData();
         renderDailySchedule();
         showToast(`✅ Cleared schedule (${totalBlocks} blocks removed)`);
+    }
+}
+
+// ===== CREATE PROJECT MODAL =====
+function showCreateProjectModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'createProjectModal';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Create New Project</h2>
+                <button class="close-modal" onclick="closeCreateProjectModal()">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="projectName">Project Name *</label>
+                <input type="text" id="projectName" placeholder="e.g., Portfolio Website" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="projectDescription">Description *</label>
+                <textarea id="projectDescription" placeholder="What is this project about?" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; min-height: 80px;"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="projectCategory">Category *</label>
+                <input type="text" id="projectCategory" placeholder="e.g., Personal, School, Work" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="projectStatus">Status *</label>
+                <select id="projectStatus" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <option value="planning">Planning</option>
+                    <option value="active" selected>Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="createProjectFromModal()">
+                    💾 Create Project
+                </button>
+                <button class="btn btn-secondary" onclick="closeCreateProjectModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    setTimeout(() => document.getElementById('projectName').focus(), 100);
+}
+
+function createProjectFromModal() {
+    const name = document.getElementById('projectName').value.trim();
+    const description = document.getElementById('projectDescription').value.trim();
+    const category = document.getElementById('projectCategory').value.trim();
+    const status = document.getElementById('projectStatus').value;
+    
+    if (!name) {
+        alert('Please enter a project name');
+        return;
+    }
+    
+    if (!description) {
+        alert('Please enter a description');
+        return;
+    }
+    
+    if (!category) {
+        alert('Please enter a category');
+        return;
+    }
+    
+    const newProject = {
+        id: Date.now(),
+        name: name,
+        description: description,
+        category: category,
+        status: status,
+        progress: 0,
+        tasks: [],
+        createdAt: new Date().toISOString()
+    };
+    
+    appData.projects.push(newProject);
+    saveData();
+    renderProjects();
+    closeCreateProjectModal();
+    
+    confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+    });
+    
+    showToast(`✅ Created project: ${name}`);
+}
+
+function closeCreateProjectModal() {
+    const modal = document.getElementById('createProjectModal');
+    if (modal) {
+        modal.remove();
     }
 }
