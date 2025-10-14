@@ -32,6 +32,7 @@
     
     <!-- App Styles -->
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="mood-tracker/styles.css">
 </head>
 <body>
     <!-- Session Expired Banner (hidden by default) -->
@@ -125,6 +126,10 @@
                 <button class="btn btn-secondary" onclick="showStuck()" data-tooltip="I'm Stuck">
                     <span class="btn-icon">🤔</span>
                     <span class="btn-text">I'm Stuck</span>
+                </button>
+                <button class="btn btn-secondary" onclick="QuickCheck.showWidget()" data-tooltip="Quick Mood">
+                    <span class="btn-icon">💜</span>
+                    <span class="btn-text">Quick Mood</span>
                 </button>
                 <button class="btn btn-secondary" onclick="MoodTracker.showVisualization()" data-tooltip="Mood Patterns">
                     <span class="btn-icon">📊</span>
@@ -659,7 +664,15 @@
     <div class="saving-indicator"></div>
 
     <!-- App Scripts (ORDER MATTERS!) -->
-    <script src="mood-tracker.js"></script>
+    <!-- Mood Tracker Files (modular) -->
+    <script src="mood-tracker/core.js"></script>
+    <script src="mood-tracker/storage.js"></script>
+    <script src="mood-tracker/ui-helpers.js"></script>
+    <script src="mood-tracker/quick-check.js"></script>
+    <script src="mood-tracker/check-ins.js"></script>
+    <script src="mood-tracker/patterns.js"></script>
+    <script src="mood-tracker/visualizations.js"></script>
+    
     <script src="data.js"></script>
     <script src="storage.js"></script>
     <script src="settings-sync.js"></script>

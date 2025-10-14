@@ -1,0 +1,414 @@
+/* ===== MOOD TRACKER STYLES ===== */
+
+/* Quick Mood Widget */
+.quick-mood-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 1500;
+    animation: slideInUp 0.3s ease-out;
+    color: white;
+}
+
+.quick-mood-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.quick-mood-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.quick-mood-emojis {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.quick-mood-btn {
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.3);
+    font-size: 2em;
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-mood-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+
+.quick-mood-streak {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.2);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.streak-icon {
+    font-size: 1.5em;
+}
+
+.streak-count {
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+.streak-label {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.quick-mood-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--success);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 2000;
+    animation: slideDown 0.3s ease-out;
+    font-weight: 600;
+}
+
+.quick-mood-toast.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+
+/* Simplified Modal Styles */
+.mood-modal-content {
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.mood-selector {
+    margin: 20px 0;
+}
+
+.mood-selector-emojis {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.mood-emoji-btn {
+    background: white;
+    border: 3px solid var(--border);
+    font-size: 2.5em;
+    width: 70px;
+    height: 70px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mood-emoji-btn:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+.mood-emoji-btn.selected {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.1);
+}
+
+.energy-selector {
+    margin: 20px 0;
+}
+
+.energy-slider {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--border);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.energy-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+}
+
+.energy-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: none;
+}
+
+.energy-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.energy-label {
+    font-size: 1.5em;
+    opacity: 0.3;
+    transition: all 0.2s;
+}
+
+.energy-label.active {
+    opacity: 1;
+    transform: scale(1.3);
+}
+
+/* Morning Check-In Styles */
+.checkbox-large {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+    background: var(--bg-main);
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.checkbox-large input[type="checkbox"] {
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.checkbox-large span {
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.sleep-quick {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.sleep-btn {
+    background: white;
+    border: 3px solid var(--border);
+    padding: 15px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.5em;
+    line-height: 1.2;
+    transition: all 0.2s;
+}
+
+.sleep-btn small {
+    font-size: 0.5em;
+    color: var(--text-light);
+}
+
+.sleep-btn:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.sleep-btn.selected {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+/* Edit/Delete Action Buttons */
+.check-in-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.btn-icon {
+    background: var(--bg-main);
+    border: 2px solid var(--border);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    border-color: var(--primary);
+    transform: scale(1.05);
+}
+
+.btn-icon.btn-danger:hover {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Visualization Styles */
+.mood-viz-content {
+    max-width: 900px;
+    max-height: 90vh;
+}
+
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-icon {
+    font-size: 2em;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 2em;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.viz-actions {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.viz-actions .btn {
+    flex: 1;
+    min-width: 150px;
+}
+
+.viz-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.viz-tab {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    color: var(--text-light);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.viz-tab:hover {
+    color: var(--primary);
+}
+
+.viz-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+/* Animations */
+@keyframes slideInUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translate(-50%, -100px);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .quick-mood-widget {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        padding: 15px;
+    }
+    
+    .quick-mood-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5em;
+    }
+    
+    .mood-emoji-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 2em;
+    }
+    
+    .sleep-quick {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .viz-actions {
+        flex-direction: column;
+    }
+    
+    .viz-actions .btn {
+        width: 100%;
+    }
+}
