@@ -664,6 +664,8 @@ function renderProjects() {
 }
 
 // ===== DEADLINE RENDERING =====
+let deadlineRefreshInterval = null;
+
 function renderDeadlines() {
     console.log('📋 Rendering deadlines section');
     
@@ -687,11 +689,33 @@ function renderDeadlines() {
                 <p>No deadlines yet!</p>
             </div>
         `;
+        // Clear refresh interval if no deadlines
+        if (deadlineRefreshInterval) {
+            clearInterval(deadlineRefreshInterval);
+            deadlineRefreshInterval = null;
+        }
         return;
     }
     
     // Sort by due date
     activeDeadlines.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    
+    // Check if any deadline is <24 hours away for live updates
+    const hasUrgentDeadline = activeDeadlines.some(d => {
+        const dueDateStr = d.dueDate.includes('T') ? d.dueDate : d.dueDate + 'T23:59:00';
+        const msUntil = new Date(dueDateStr) - new Date();
+        return msUntil > 0 && msUntil < 24 * 60 * 60 * 1000;
+    });
+    
+    // Set up live refresh for urgent deadlines
+    if (hasUrgentDeadline && !deadlineRefreshInterval) {
+        deadlineRefreshInterval = setInterval(() => {
+            renderDeadlines();
+        }, 60000); // Refresh every minute
+    } else if (!hasUrgentDeadline && deadlineRefreshInterval) {
+        clearInterval(deadlineRefreshInterval);
+        deadlineRefreshInterval = null;
+    }
     
     // Build the HTML with Clear All button at the top
     let html = `
@@ -712,39 +736,27 @@ function renderDeadlines() {
         const dueDate = new Date(dueDateStr);
         const now = new Date();
         const msUntil = dueDate - now;
-        const hoursUntil = msUntil / (1000 * 60 * 60);
-        const daysUntil = Math.ceil(hoursUntil / 24);
+        const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
+        const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
         
-        // Format the due time for display
-        const dueTime = dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        const dueDay = dueDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+        let urgencyText;
+        let urgencyColor;
         
-        let urgencyColor = 'var(--success)';
-        let urgencyText = `${daysUntil} days`;
-        
-        // More accurate time display logic
-        if (hoursUntil < 0) {
+        if (msUntil < 0) {
             urgencyColor = 'var(--danger)';
             urgencyText = 'OVERDUE';
         } else if (hoursUntil < 24) {
-            // Less than 24 hours away - show actual hours or "Today at TIME"
+            // Less than 24 hours: Show "X hours Y min"
             urgencyColor = 'var(--danger)';
-            const hours = Math.floor(hoursUntil);
-            if (hours < 1) {
-                urgencyText = '< 1 hour';
-            } else {
-                urgencyText = `Today at ${dueTime}`;
-            }
-        } else if (hoursUntil < 48) {
-            // 24-48 hours away - show "Tomorrow at TIME"
+            urgencyText = `${hoursUntil}h ${minutesUntil}m`;
+        } else if (hoursUntil < 72) {
+            // 24-72 hours: Show "X hours"
             urgencyColor = 'var(--warning)';
-            urgencyText = `Tomorrow at ${dueTime}`;
-        } else if (daysUntil <= 3) {
-            // 2-3 days away - show day name and time
-            urgencyColor = 'var(--warning)';
-            urgencyText = `${dueDay} at ${dueTime}`;
+            urgencyText = `${hoursUntil} hours`;
         } else {
-            // More than 3 days - show days count
+            // More than 72 hours: Show "X days"
+            const daysUntil = Math.ceil(hoursUntil / 24);
+            urgencyColor = 'var(--success)';
             urgencyText = `${daysUntil} days`;
         }
         

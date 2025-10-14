@@ -620,11 +620,6 @@ function addDeadline(title, dueDate, dueTime = '23:59') {
     renderDeadlines();
     updateDueSoonBanner();
     
-    // Crisis Mode removed - replaced with Due Soon banner
-    // if (typeof invalidateCrisisCache === 'function') {
-    //     invalidateCrisisCache();
-    // }
-    
     // Show the "Create tasks?" modal
     afterDeadlineCreated(deadline);
 }
