@@ -14,19 +14,26 @@ function setupSyncIndicatorClick() {
 
 // ===== MORE MENU DROPDOWN =====
 function initializeMoreMenu() {
+    console.log('🔍 Initializing more menu...');
     const moreButton = document.getElementById('moreMenuButton');
     const moreMenu = document.getElementById('moreMenu');
     
+    console.log('📱 More button found:', !!moreButton);
+    console.log('📋 More menu found:', !!moreMenu);
+    
     if (!moreButton || !moreMenu) {
-        console.warn('⚠️ More menu elements not found');
+        console.error('❌ More menu elements missing!');
         return;
     }
     
     // Toggle dropdown when clicking the More button
     moreButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent immediate close from document click
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ More button clicked!');
+        console.log('📋 Menu hidden before toggle:', moreMenu.classList.contains('hidden'));
         moreMenu.classList.toggle('hidden');
-        console.log('📱 More menu toggled:', !moreMenu.classList.contains('hidden') ? 'open' : 'closed');
+        console.log('📋 Menu hidden after toggle:', moreMenu.classList.contains('hidden'));
     });
     
     // Close dropdown when clicking outside
