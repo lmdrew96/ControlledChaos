@@ -20,126 +20,75 @@ function initializeMoreMenu() {
     const bottomSheetOverlay = document.getElementById('bottomSheetOverlay');
     
     if (!moreButton) {
-        console.error('❌ More menu button not found');
+        console.error('More button not found');
         return;
     }
     
-    // Detect if mobile
     const isMobile = () => window.innerWidth <= 768;
     
-    // More button click handler
+    // More button click
     moreButton.addEventListener('click', (e) => {
-        e.preventDefault();
         e.stopPropagation();
         
         if (isMobile()) {
-            // Show bottom sheet on mobile
+            // Mobile: show bottom sheet
             if (bottomSheet && bottomSheetOverlay) {
                 bottomSheet.classList.add('active');
                 bottomSheetOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden'; // Prevent scroll
             }
         } else {
-            // Show dropdown on desktop
+            // Desktop: toggle dropdown
             if (moreMenu) {
-                moreMenu.classList.toggle('active');
+                moreMenu.classList.toggle('hidden');
             }
         }
     });
     
-    // Close bottom sheet when clicking overlay
+    // Close bottom sheet on overlay click
     if (bottomSheetOverlay) {
         bottomSheetOverlay.addEventListener('click', () => {
-            closeBottomSheet();
-        });
-    }
-    
-    // Handle bottom sheet item clicks
-    if (bottomSheet) {
-        const bottomSheetItems = bottomSheet.querySelectorAll('.bottom-sheet-item');
-        bottomSheetItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const action = item.dataset.action;
-                closeBottomSheet();
-                handleMenuAction(action);
-            });
-        });
-        
-        // Swipe to dismiss
-        let startY = 0;
-        let currentY = 0;
-        
-        bottomSheet.addEventListener('touchstart', (e) => {
-            startY = e.touches[0].clientY;
-        });
-        
-        bottomSheet.addEventListener('touchmove', (e) => {
-            currentY = e.touches[0].clientY;
-            const diff = currentY - startY;
-            
-            // Only allow downward swipe
-            if (diff > 0) {
-                bottomSheet.style.transform = `translateY(${diff}px)`;
-            }
-        });
-        
-        bottomSheet.addEventListener('touchend', () => {
-            const diff = currentY - startY;
-            
-            // If swiped down more than 100px, close it
-            if (diff > 100) {
-                closeBottomSheet();
-            } else {
-                // Snap back to open position
-                bottomSheet.style.transform = 'translateY(0)';
-            }
-            
-            startY = 0;
-            currentY = 0;
-        });
-    }
-    
-    // Desktop dropdown: Close when clicking outside
-    if (moreMenu) {
-        document.addEventListener('click', (e) => {
-            if (!isMobile() && !moreButton.contains(e.target) && !moreMenu.contains(e.target)) {
-                moreMenu.classList.remove('active');
-            }
-        });
-        
-        // Handle desktop dropdown item clicks
-        const dropdownItems = moreMenu.querySelectorAll('.more-menu-item');
-        dropdownItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const action = item.dataset.action;
-                moreMenu.classList.remove('active');
-                handleMenuAction(action);
-            });
-        });
-    }
-    
-    function closeBottomSheet() {
-        if (bottomSheet && bottomSheetOverlay) {
             bottomSheet.classList.remove('active');
             bottomSheetOverlay.classList.remove('active');
-            document.body.style.overflow = ''; // Restore scroll
-            bottomSheet.style.transform = ''; // Reset transform
-        }
+        });
     }
     
-    function handleMenuAction(action) {
-        switch(action) {
-            case 'settings':
-                document.querySelector('[data-tab="settings"]')?.click();
-                break;
-            case 'templates':
-                document.querySelector('[data-tab="templates"]')?.click();
-                break;
-            case 'appearance':
-                toggleFont();
-                break;
-            default:
-                console.log('Unknown action:', action);
+    // Bottom sheet item clicks
+    if (bottomSheet) {
+        bottomSheet.querySelectorAll('.bottom-sheet-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                bottomSheet.classList.remove('active');
+                bottomSheetOverlay.classList.remove('active');
+                handleAction(action);
+            });
+        });
+    }
+    
+    // Desktop dropdown item clicks
+    if (moreMenu) {
+        moreMenu.querySelectorAll('.more-menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                moreMenu.classList.add('hidden');
+                handleAction(action);
+            });
+        });
+        
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!isMobile() && !moreButton.contains(e.target) && !moreMenu.contains(e.target)) {
+                moreMenu.classList.add('hidden');
+            }
+        });
+    }
+    
+    function handleAction(action) {
+        if (action === 'settings') {
+            document.querySelector('[data-tab="settings"]')?.click();
+        } else if (action === 'templates') {
+            document.querySelector('[data-tab="templates"]')?.click();
+        } else if (action === 'appearance') {
+            toggleFont();
         }
     }
 }
