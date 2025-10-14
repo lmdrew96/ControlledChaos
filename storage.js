@@ -32,6 +32,85 @@ let driveAuthError = false;
 
 const DRIVE_FILE_NAME = 'controlled-chaos-data.json';
 
+// ===== TOKEN EXPIRATION HANDLING =====
+
+// Show session expired banner
+function showSessionExpiredBanner() {
+    const banner = document.getElementById('sessionExpiredBanner');
+    if (banner) {
+        banner.style.display = 'block';
+        // Push content down so banner doesn't overlap
+        document.body.style.paddingTop = '80px';
+    }
+}
+
+// Hide session expired banner
+function hideSessionExpiredBanner() {
+    const banner = document.getElementById('sessionExpiredBanner');
+    if (banner) {
+        banner.style.display = 'none';
+        document.body.style.paddingTop = '0';
+    }
+}
+
+// Handle token expiration
+function handleTokenExpiration() {
+    console.log('🔴 [AUTH] Token expired - signing user out');
+    
+    // Clear auth data
+    googleAccessToken = null;
+    userEmail = null;
+    
+    // Save cleared state
+    saveData();
+    
+    // Update UI
+    updateSignInUI();
+    
+    // Show banner
+    showSessionExpiredBanner();
+    
+    // Show toast
+    showToast('⚠️ Google Drive session expired. Please sign in again.');
+}
+
+// Check if error is token expiration
+function isTokenExpiredError(error) {
+    if (!error) return false;
+    
+    const errorString = error.toString().toLowerCase();
+    const errorMessage = error.message ? error.message.toLowerCase() : '';
+    
+    return errorString.includes('401') || 
+           errorString.includes('unauthorized') ||
+           errorString.includes('invalid_grant') ||
+           errorString.includes('token') && errorString.includes('expired') ||
+           errorMessage.includes('401') ||
+           errorMessage.includes('unauthorized');
+}
+
+// Sign in from the expired session banner
+function signInFromBanner() {
+    // Hide the banner
+    hideSessionExpiredBanner();
+    
+    // Switch to Settings tab
+    const settingsTab = document.querySelector('[data-tab="settings"]');
+    if (settingsTab) {
+        settingsTab.click();
+    }
+    
+    // Scroll to sign-in section
+    setTimeout(() => {
+        const signInSection = document.querySelector('.card');
+        if (signInSection) {
+            signInSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 300);
+    
+    showToast('👇 Please sign in with Google below');
+}
+
 // ===== CHECK IF DRIVE IS AVAILABLE =====
 function isDriveAvailable() {
     // Primary check: Do we have an access token?
@@ -133,6 +212,9 @@ async function handleGoogleSignIn() {
                     localStorage.setItem('userEmail', userEmail);
                     
                     console.log('💾 [SIGN IN] Email and token saved to localStorage and appData');
+                    
+                    // Hide session expired banner if it was showing
+                    hideSessionExpiredBanner();
                     
                     // Update UI immediately - don't wait for page refresh
                     updateSignInUI();
@@ -283,6 +365,11 @@ async function loadDataFromDrive() {
         );
         
         if (!searchResponse.ok) {
+            // Check for token expiration
+            if (searchResponse.status === 401 || searchResponse.status === 403) {
+                handleTokenExpiration();
+                throw new Error('Token expired');
+            }
             throw new Error(`Drive API error: ${searchResponse.status}`);
         }
         
@@ -302,6 +389,11 @@ async function loadDataFromDrive() {
             );
             
             if (!fileResponse.ok) {
+                // Check for token expiration
+                if (fileResponse.status === 401 || fileResponse.status === 403) {
+                    handleTokenExpiration();
+                    throw new Error('Token expired');
+                }
                 throw new Error(`Drive download error: ${fileResponse.status}`);
             }
             
@@ -403,6 +495,15 @@ async function saveDataToDrive() {
             body: form
         });
 
+        if (!response.ok) {
+            // Check for token expiration
+            if (response.status === 401 || response.status === 403) {
+                handleTokenExpiration();
+                throw new Error('Token expired');
+            }
+            throw new Error(`Drive API error: ${response.status}`);
+        }
+
         const result = await response.json();
         
         if (result.id) {
@@ -419,15 +520,9 @@ async function saveDataToDrive() {
             hideSavingIndicator(false);
         }
     } catch (error) {
-        if (error.status === 401) {
-            console.log('⚠️ [DRIVE] Token expired - please re-authenticate');
-            driveAuthError = true;
-            const syncIndicator = document.getElementById('syncIndicator');
-            if (syncIndicator) {
-                syncIndicator.textContent = '💾 Local Only';
-                syncIndicator.style.color = '#fbbc04';
-                syncIndicator.title = 'Drive sync disconnected - click Settings to re-authenticate';
-            }
+        // Check if error is token expiration
+        if (isTokenExpiredError(error)) {
+            handleTokenExpiration();
         } else {
             console.error('❌ [DRIVE] Save error:', error);
         }
