@@ -20,10 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('❌ Sync indicator element not found');
     }
     
-    // Initialize More menu functionality
-    initializeMoreMenu();
-    
-    // Initialize tab navigation
+    // Initialize tab navigation (which also initializes More menu)
     initializeTabs();
     
     // Initialize daily schedule with day tabs
