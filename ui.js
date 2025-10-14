@@ -335,6 +335,236 @@ function renderErrandTasks() {
     `).join('');
 }
 
+// ===== CREATE TEMPLATE MODAL =====
+function showCreateTemplateModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'createTemplateModal';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>➕ Create Custom Template</h2>
+                <button class="close-modal" id="closeTemplateModalBtn">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="templateName">Template Name *</label>
+                <input type="text" 
+                       id="templateName" 
+                       placeholder="e.g., Weekly Coursework, Study Routine"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="templateDescription">Description *</label>
+                <input type="text" 
+                       id="templateDescription" 
+                       placeholder="What is this template for?"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="templateCategory">Category *</label>
+                <input type="text" 
+                       id="templateCategory" 
+                       placeholder="e.g., coursework, personal, work"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="templateRecurringDay">Recurring Day *</label>
+                <select id="templateRecurringDay" 
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                    <option value="Weekdays">Weekdays</option>
+                    <option value="Weekend">Weekend</option>
+                    <option value="varies">Varies</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Tasks * <small style="color: var(--text-light);">(at least one required)</small></label>
+                <div id="templateTasksList" style="margin-bottom: 10px;">
+                    <!-- Task fields will be added here -->
+                </div>
+                <button class="btn btn-secondary btn-sm" id="addTaskBtn" type="button">
+                    ➕ Add Task
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="templateProtected" style="width: auto;">
+                    <span>Protected Template (cannot be deleted)</span>
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="saveTemplateBtn">
+                    💾 Create Template
+                </button>
+                <button class="btn btn-secondary" id="cancelTemplateBtn">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Task counter for unique IDs
+    let taskCounter = 0;
+    
+    // Function to add a task field
+    function addTaskField(title = '', energy = 'medium', location = 'anywhere', timeEstimate = '') {
+        const taskId = `task-${taskCounter++}`;
+        const tasksList = document.getElementById('templateTasksList');
+        
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'template-task-field';
+        taskDiv.id = taskId;
+        taskDiv.style.cssText = 'background: var(--bg-main); padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border);';
+        
+        taskDiv.innerHTML = `
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: var(--primary);">Task ${taskCounter}</strong>
+                <button class="btn btn-danger btn-sm" onclick="document.getElementById('${taskId}').remove()" type="button" style="margin-left: auto;">
+                    🗑️
+                </button>
+            </div>
+            <div style="margin-bottom: 8px;">
+                <input type="text" 
+                       class="task-title" 
+                       placeholder="Task title *" 
+                       value="${title}"
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <select class="task-energy" style="padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="low" ${energy === 'low' ? 'selected' : ''}>Low Energy</option>
+                    <option value="medium" ${energy === 'medium' ? 'selected' : ''}>Medium Energy</option>
+                    <option value="high" ${energy === 'high' ? 'selected' : ''}>High Energy</option>
+                </select>
+                <select class="task-location" style="padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    <option value="anywhere" ${location === 'anywhere' ? 'selected' : ''}>Anywhere</option>
+                    <option value="home" ${location === 'home' ? 'selected' : ''}>Home</option>
+                    <option value="school" ${location === 'school' ? 'selected' : ''}>School</option>
+                    <option value="work" ${location === 'work' ? 'selected' : ''}>Work</option>
+                    <option value="commute" ${location === 'commute' ? 'selected' : ''}>Commute</option>
+                    <option value="errands" ${location === 'errands' ? 'selected' : ''}>Errands</option>
+                </select>
+            </div>
+            <div style="margin-top: 8px;">
+                <input type="number" 
+                       class="task-time" 
+                       placeholder="Time estimate (minutes)" 
+                       value="${timeEstimate}"
+                       min="1"
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+            </div>
+        `;
+        
+        tasksList.appendChild(taskDiv);
+    }
+    
+    // Add first task field by default
+    addTaskField();
+    
+    // Event listeners
+    const saveBtn = document.getElementById('saveTemplateBtn');
+    const cancelBtn = document.getElementById('cancelTemplateBtn');
+    const closeBtn = document.getElementById('closeTemplateModalBtn');
+    const addTaskBtn = document.getElementById('addTaskBtn');
+    
+    addTaskBtn.addEventListener('click', () => addTaskField());
+    
+    saveBtn.addEventListener('click', () => {
+        const name = document.getElementById('templateName').value.trim();
+        const description = document.getElementById('templateDescription').value.trim();
+        const category = document.getElementById('templateCategory').value.trim();
+        const recurringDay = document.getElementById('templateRecurringDay').value;
+        const isProtected = document.getElementById('templateProtected').checked;
+        
+        // Validation
+        if (!name) {
+            alert('Please enter a template name');
+            return;
+        }
+        
+        if (!description) {
+            alert('Please enter a description');
+            return;
+        }
+        
+        if (!category) {
+            alert('Please enter a category');
+            return;
+        }
+        
+        // Collect tasks
+        const taskFields = document.querySelectorAll('.template-task-field');
+        const tasks = [];
+        
+        for (const field of taskFields) {
+            const title = field.querySelector('.task-title').value.trim();
+            const energy = field.querySelector('.task-energy').value;
+            const location = field.querySelector('.task-location').value;
+            const timeEstimate = field.querySelector('.task-time').value;
+            
+            if (title) {
+                tasks.push({
+                    title,
+                    energy,
+                    location,
+                    timeEstimate: timeEstimate ? parseInt(timeEstimate) : null
+                });
+            }
+        }
+        
+        if (tasks.length === 0) {
+            alert('Please add at least one task with a title');
+            return;
+        }
+        
+        // Create template object
+        const newTemplate = {
+            name,
+            description,
+            category,
+            recurringDay,
+            tasks,
+            protected: isProtected
+        };
+        
+        // Add to appData
+        appData.templates.push(newTemplate);
+        saveData();
+        
+        // Close modal and refresh
+        modal.remove();
+        renderTemplates();
+        showToast(`✅ Template "${name}" created!`);
+    });
+    
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    // Focus first input
+    setTimeout(() => document.getElementById('templateName').focus(), 100);
+}
+
 // ===== TEMPLATE RENDERING =====
 function renderTemplates() {
     const container = document.getElementById('templateCards');
