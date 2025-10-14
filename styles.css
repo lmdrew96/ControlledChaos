@@ -1168,12 +1168,24 @@ h1 {
     
     .tab-navigation {
         overflow-x: auto;
+        overflow-y: visible;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
     }
     
     .tab-navigation::-webkit-scrollbar {
         display: none;
+    }
+    
+    /* Fix More dropdown positioning on mobile */
+    .tab-navigation > div {
+        position: static;
+    }
+    
+    .more-menu {
+        position: fixed;
+        right: 10px;
+        top: auto;
     }
     
     .tab-button {
