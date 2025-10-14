@@ -429,3 +429,116 @@ function resetAllSettings() {
     updateSyncIndicator('local');
     showToast('✅ All settings reset');
 }
+
+// ===== AUTO-IMPORT CALENDAR FEATURE =====
+
+// Initialize auto-import UI
+function initializeAutoImportUI() {
+    const checkbox = document.getElementById('autoImportEnabled');
+    const urlSection = document.getElementById('autoImportUrlSection');
+    const urlInput = document.getElementById('autoImportCalendarUrl');
+    
+    if (!checkbox || !urlSection || !urlInput) {
+        console.log('⚠️ [AUTO-IMPORT] UI elements not found, skipping initialization');
+        return;
+    }
+    
+    // Load saved settings
+    const settings = appData.settings || {};
+    if (settings.autoImportEnabled) {
+        checkbox.checked = true;
+        urlSection.style.display = 'block';
+        urlInput.value = settings.autoImportCalendarUrl || '';
+    }
+    
+    // Toggle URL section when checkbox changes
+    checkbox.addEventListener('change', () => {
+        urlSection.style.display = checkbox.checked ? 'block' : 'none';
+        if (!checkbox.checked) {
+            urlInput.value = '';
+        }
+    });
+    
+    console.log('✅ [AUTO-IMPORT] UI initialized');
+}
+
+// Save auto-import settings
+function saveAutoImportSettings() {
+    const checkbox = document.getElementById('autoImportEnabled');
+    const urlInput = document.getElementById('autoImportCalendarUrl');
+    
+    if (!checkbox || !urlInput) {
+        console.log('⚠️ [AUTO-IMPORT] UI elements not found, skipping save');
+        return;
+    }
+    
+    if (!appData.settings) {
+        appData.settings = {};
+    }
+    
+    const wasEnabled = appData.settings.autoImportEnabled || false;
+    const isEnabled = checkbox.checked;
+    const calendarUrl = urlInput.value.trim();
+    
+    // Validate URL if enabled
+    if (isEnabled && !calendarUrl) {
+        alert('Please enter a calendar feed URL!');
+        checkbox.checked = false;
+        return;
+    }
+    
+    if (isEnabled && !calendarUrl.includes('.ics')) {
+        alert('Please enter a valid .ics calendar feed URL!');
+        return;
+    }
+    
+    appData.settings.autoImportEnabled = isEnabled;
+    appData.settings.autoImportCalendarUrl = isEnabled ? calendarUrl : '';
+    
+    // Show feedback
+    if (isEnabled && !wasEnabled) {
+        console.log('✅ [AUTO-IMPORT] Auto-import enabled for:', calendarUrl);
+        showToast('🤖 Auto-import enabled! Calendar will update daily at 6 AM.');
+    } else if (!isEnabled && wasEnabled) {
+        console.log('📴 [AUTO-IMPORT] Auto-import disabled');
+        showToast('📴 Auto-import disabled');
+    }
+}
+
+// Manual trigger for auto-import (for testing)
+async function manualTriggerAutoImport() {
+    const settings = appData.settings || {};
+    
+    if (!settings.autoImportEnabled || !settings.autoImportCalendarUrl) {
+        alert('Auto-import is not enabled. Please enable it in Settings first.');
+        return;
+    }
+    
+    console.log('🔄 [AUTO-IMPORT] Manually triggering auto-import...');
+    showToast('🔄 Checking for new assignments...');
+    
+    try {
+        // Use the existing importCalendarFeed function
+        // But first, temporarily set the calendar URL input
+        const urlInput = document.getElementById('calendarFeedUrl');
+        const originalValue = urlInput.value;
+        urlInput.value = settings.autoImportCalendarUrl;
+        
+        await importCalendarFeed();
+        
+        // Restore original value
+        urlInput.value = originalValue;
+        
+        console.log('✅ [AUTO-IMPORT] Manual trigger completed');
+    } catch (error) {
+        console.error('❌ [AUTO-IMPORT] Manual trigger failed:', error);
+        showToast('❌ Auto-import failed. Please try again.');
+    }
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAutoImportUI);
+} else {
+    initializeAutoImportUI();
+}

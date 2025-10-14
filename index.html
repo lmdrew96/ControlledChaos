@@ -528,6 +528,36 @@
                 <p style="color: var(--text-light); margin-bottom: 15px;">
                     Import your schedule and deadlines from Canvas, Google Calendar, or upload a syllabus PDF/DOCX.
                 </p>
+                
+                <div class="form-group" style="margin-bottom: 20px; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                    <h3 style="margin-bottom: 10px;">🤖 Automated Calendar Import</h3>
+                    <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                        Automatically check your calendar for new assignments every day at 6 AM.
+                    </p>
+                    
+                    <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
+                        <input type="checkbox" id="autoImportEnabled" style="margin-right: 10px;">
+                        <span style="font-weight: 600;">Enable daily auto-import</span>
+                    </label>
+                    
+                    <div id="autoImportUrlSection" style="display: none; margin-top: 15px;">
+                        <label for="autoImportCalendarUrl" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                            Calendar Feed URL
+                        </label>
+                        <input type="url" 
+                               id="autoImportCalendarUrl" 
+                               placeholder="https://school.instructure.com/feeds/calendars/user_XXXXX.ics"
+                               style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                        <small style="color: var(--text-light); display: block;">
+                            This URL will be encrypted and stored securely in your Google Drive.
+                        </small>
+                        
+                        <button class="btn btn-secondary" onclick="manualTriggerAutoImport()" style="margin-top: 10px;">
+                            🧪 Test Auto-Import Now
+                        </button>
+                    </div>
+                </div>
+                
                 <button class="btn btn-primary" onclick="showCalendarImportModal()" style="width: 100%;">
                     📥 Import Calendar or Syllabus
                 </button>

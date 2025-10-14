@@ -81,7 +81,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initializeAdminPanel();
     
     console.log('✅ [INIT] Application ready');
+    
+    // Check for auto-import after a short delay
+    setTimeout(checkAutoImport, 2000);
 });
+
+// ===== AUTO-IMPORT CHECK =====
+// Check if auto-import should run
+async function checkAutoImport() {
+    const settings = appData.settings || {};
+    
+    if (!settings.autoImportEnabled || !settings.autoImportCalendarUrl) {
+        return; // Auto-import not enabled
+    }
+    
+    // Check last import time
+    const lastImport = localStorage.getItem('lastAutoImport');
+    const now = new Date();
+    const lastImportDate = lastImport ? new Date(lastImport) : null;
+    
+    // Only auto-import once per day
+    if (lastImportDate) {
+        const hoursSinceLastImport = (now - lastImportDate) / (1000 * 60 * 60);
+        if (hoursSinceLastImport < 23) {
+            console.log('⏭️ [AUTO-IMPORT] Skipping - last import was', Math.round(hoursSinceLastImport), 'hours ago');
+            return;
+        }
+    }
+    
+    console.log('🤖 [AUTO-IMPORT] Running automatic calendar import...');
+    
+    try {
+        // Temporarily set the calendar URL
+        const urlInput = document.getElementById('calendarFeedUrl');
+        if (!urlInput) return;
+        
+        const originalValue = urlInput.value;
+        urlInput.value = settings.autoImportCalendarUrl;
+        
+        // Run import silently (don't show confetti)
+        await importCalendarFeed();
+        
+        // Update last import time
+        localStorage.setItem('lastAutoImport', now.toISOString());
+        
+        // Restore original value
+        urlInput.value = originalValue;
+        
+        console.log('✅ [AUTO-IMPORT] Completed successfully');
+        showToast('🤖 Calendar automatically updated with new assignments!');
+    } catch (error) {
+        console.error('❌ [AUTO-IMPORT] Failed:', error);
+    }
+}
 
 // ===== MORE MENU FUNCTIONALITY =====
 function initializeMoreMenu() {
@@ -1539,6 +1591,11 @@ async function saveSettings() {
     appData.settings.clientId = clientId;
     appData.settings.apiKey = apiKey;
     appData.settings.maxDailyWorkMinutes = maxWorkMinutes;
+    
+    // Save auto-import settings
+    if (typeof saveAutoImportSettings === 'function') {
+        saveAutoImportSettings();
+    }
     
     // Update global variables
     if (clientId) GOOGLE_CLIENT_ID = clientId;

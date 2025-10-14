@@ -1,0 +1,40 @@
+name: Auto-Import Calendar
+
+on:
+  schedule:
+    # Run daily at 6 AM EST (10 AM UTC during standard time, 11 AM UTC during DST)
+    - cron: '0 10 * * *'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  trigger-auto-import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Calendar Auto-Import
+        run: |
+          echo "🤖 Triggering calendar auto-import at $(date)"
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            https://controlled-chaos-zeta.vercel.app/api/auto-import-trigger \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Auto-import trigger successful!"
+          else
+            echo "❌ Auto-import trigger failed with status $http_code"
+            exit 1
+          fi
+      
+      - name: Summary
+        run: |
+          echo "### 🤖 Auto-Import Trigger Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Triggered at: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: Success ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Users with auto-import enabled will be updated on their next app load" >> $GITHUB_STEP_SUMMARY
