@@ -14,65 +14,134 @@ function setupSyncIndicatorClick() {
 
 // ===== MORE MENU DROPDOWN =====
 function initializeMoreMenu() {
-    console.log('🔍 Initializing more menu...');
     const moreButton = document.getElementById('moreMenuButton');
     const moreMenu = document.getElementById('moreMenu');
+    const bottomSheet = document.getElementById('bottomSheet');
+    const bottomSheetOverlay = document.getElementById('bottomSheetOverlay');
     
-    console.log('📱 More button found:', !!moreButton);
-    console.log('📋 More menu found:', !!moreMenu);
-    
-    if (!moreButton || !moreMenu) {
-        console.error('❌ More menu elements missing!');
+    if (!moreButton) {
+        console.error('❌ More menu button not found');
         return;
     }
     
-    // Toggle dropdown when clicking the More button
+    // Detect if mobile
+    const isMobile = () => window.innerWidth <= 768;
+    
+    // More button click handler
     moreButton.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('🖱️ More button clicked!');
-        console.log('📋 Menu hidden before toggle:', moreMenu.classList.contains('hidden'));
-        moreMenu.classList.toggle('hidden');
-        console.log('📋 Menu hidden after toggle:', moreMenu.classList.contains('hidden'));
-    });
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!moreMenu.classList.contains('hidden')) {
-            // Check if click is outside both button and menu
-            if (!moreButton.contains(e.target) && !moreMenu.contains(e.target)) {
-                moreMenu.classList.add('hidden');
-                console.log('📱 More menu closed (outside click)');
+        
+        if (isMobile()) {
+            // Show bottom sheet on mobile
+            if (bottomSheet && bottomSheetOverlay) {
+                bottomSheet.classList.add('active');
+                bottomSheetOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevent scroll
+            }
+        } else {
+            // Show dropdown on desktop
+            if (moreMenu) {
+                moreMenu.classList.toggle('active');
             }
         }
     });
     
-    console.log('✅ More menu initialized');
-}
-
-// Handle menu item clicks
-function handleMoreMenuClick(tabName) {
-    // Close the dropdown
-    const moreMenu = document.getElementById('moreMenu');
-    if (moreMenu) {
-        moreMenu.classList.add('hidden');
+    // Close bottom sheet when clicking overlay
+    if (bottomSheetOverlay) {
+        bottomSheetOverlay.addEventListener('click', () => {
+            closeBottomSheet();
+        });
     }
     
-    // Switch to the tab
-    openTab(tabName);
-    console.log(`📑 Switched to ${tabName} from More menu`);
-}
-
-// Handle appearance toggle from menu
-function handleAppearanceClick() {
-    // Close the dropdown
-    const moreMenu = document.getElementById('moreMenu');
-    if (moreMenu) {
-        moreMenu.classList.add('hidden');
+    // Handle bottom sheet item clicks
+    if (bottomSheet) {
+        const bottomSheetItems = bottomSheet.querySelectorAll('.bottom-sheet-item');
+        bottomSheetItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                closeBottomSheet();
+                handleMenuAction(action);
+            });
+        });
+        
+        // Swipe to dismiss
+        let startY = 0;
+        let currentY = 0;
+        
+        bottomSheet.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        });
+        
+        bottomSheet.addEventListener('touchmove', (e) => {
+            currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+            
+            // Only allow downward swipe
+            if (diff > 0) {
+                bottomSheet.style.transform = `translateY(${diff}px)`;
+            }
+        });
+        
+        bottomSheet.addEventListener('touchend', () => {
+            const diff = currentY - startY;
+            
+            // If swiped down more than 100px, close it
+            if (diff > 100) {
+                closeBottomSheet();
+            } else {
+                // Snap back to open position
+                bottomSheet.style.transform = 'translateY(0)';
+            }
+            
+            startY = 0;
+            currentY = 0;
+        });
     }
     
-    // Toggle the font
-    toggleFont();
+    // Desktop dropdown: Close when clicking outside
+    if (moreMenu) {
+        document.addEventListener('click', (e) => {
+            if (!isMobile() && !moreButton.contains(e.target) && !moreMenu.contains(e.target)) {
+                moreMenu.classList.remove('active');
+            }
+        });
+        
+        // Handle desktop dropdown item clicks
+        const dropdownItems = moreMenu.querySelectorAll('.more-menu-item');
+        dropdownItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                moreMenu.classList.remove('active');
+                handleMenuAction(action);
+            });
+        });
+    }
+    
+    function closeBottomSheet() {
+        if (bottomSheet && bottomSheetOverlay) {
+            bottomSheet.classList.remove('active');
+            bottomSheetOverlay.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scroll
+            bottomSheet.style.transform = ''; // Reset transform
+        }
+    }
+    
+    function handleMenuAction(action) {
+        switch(action) {
+            case 'settings':
+                document.querySelector('[data-tab="settings"]')?.click();
+                break;
+            case 'templates':
+                document.querySelector('[data-tab="templates"]')?.click();
+                break;
+            case 'appearance':
+                toggleFont();
+                break;
+            default:
+                console.log('Unknown action:', action);
+        }
+    }
 }
 
 // ===== TAB NAVIGATION =====

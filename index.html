@@ -147,17 +147,34 @@
             <div style="position: relative; display: inline-block;">
                 <button class="menu-button" id="moreMenuButton">⚙️ More ▾</button>
                 <!-- More Menu Dropdown -->
-                <div class="more-menu hidden" id="moreMenu">
-                    <button class="more-menu-item" data-tab="templates" onclick="handleMoreMenuClick('templates')">
-                        📋 Templates
-                    </button>
-                    <button class="more-menu-item" data-tab="settings" onclick="handleMoreMenuClick('settings')">
-                        ⚙️ Settings
-                    </button>
-                    <button class="more-menu-item" id="appearanceButton" onclick="handleAppearanceClick()">
-                        🔤 Toggle Dyslexia Font
-                    </button>
+                <div class="more-menu" id="moreMenu">
+                    <button class="more-menu-item" data-action="settings">⚙️ Settings</button>
+                    <button class="more-menu-item" data-action="templates">📋 Task Templates</button>
+                    <button class="more-menu-item" data-action="appearance">🎨 Appearance</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Bottom Sheet (Mobile Only) -->
+        <div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="bottom-sheet-handle"></div>
+            <div class="bottom-sheet-header">
+                <h3 class="bottom-sheet-title">Menu</h3>
+            </div>
+            <div class="bottom-sheet-menu">
+                <button class="bottom-sheet-item" data-action="settings">
+                    <span class="bottom-sheet-item-icon">⚙️</span>
+                    <span class="bottom-sheet-item-text">Settings</span>
+                </button>
+                <button class="bottom-sheet-item" data-action="templates">
+                    <span class="bottom-sheet-item-icon">📋</span>
+                    <span class="bottom-sheet-item-text">Task Templates</span>
+                </button>
+                <button class="bottom-sheet-item" data-action="appearance">
+                    <span class="bottom-sheet-item-icon">🎨</span>
+                    <span class="bottom-sheet-item-text">Appearance</span>
+                </button>
             </div>
         </div>
 

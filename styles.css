@@ -1102,21 +1102,22 @@ h1 {
     position: relative;
 }
 
-/* Position dropdown relative to More button */
+/* ===== MORE MENU - DESKTOP DROPDOWN ===== */
 .more-menu {
     position: absolute;
-    top: calc(100% + 5px); /* 5px gap below button */
-    right: 0; /* Align right edge with button's right edge */
+    top: calc(100% + 5px);
+    right: 0;
     background: white;
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 9999; /* High z-index to appear above everything */
+    z-index: 9999;
     min-width: 200px;
+    display: none;
 }
 
-.more-menu.hidden {
-    display: none;
+.more-menu.active {
+    display: block;
 }
 
 .more-menu-item {
@@ -1144,6 +1145,113 @@ h1 {
 .more-menu-item:last-child {
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
+}
+
+/* ===== BOTTOM SHEET - MOBILE ONLY ===== */
+@media (max-width: 768px) {
+    /* Hide dropdown, show bottom sheet */
+    .more-menu {
+        display: none !important;
+    }
+    
+    /* Bottom sheet overlay */
+    .bottom-sheet-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    .bottom-sheet-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    /* Bottom sheet container */
+    .bottom-sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        z-index: 9999;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+        max-height: 60vh;
+        overflow-y: auto;
+        display: none;
+    }
+    
+    .bottom-sheet.active {
+        display: block;
+        transform: translateY(0);
+    }
+    
+    /* Drag handle */
+    .bottom-sheet-handle {
+        width: 40px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 12px auto;
+    }
+    
+    /* Bottom sheet header */
+    .bottom-sheet-header {
+        padding: 0 20px 15px 20px;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .bottom-sheet-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text);
+        margin: 0;
+    }
+    
+    /* Bottom sheet menu items */
+    .bottom-sheet-menu {
+        padding: 10px 0;
+    }
+    
+    .bottom-sheet-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+        padding: 18px 20px;
+        border: none;
+        background: none;
+        text-align: left;
+        font-size: 1rem;
+        color: var(--text);
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .bottom-sheet-item:active {
+        background: var(--bg-main);
+    }
+    
+    .bottom-sheet-item-icon {
+        font-size: 1.3em;
+        width: 24px;
+        text-align: center;
+    }
+    
+    .bottom-sheet-item-text {
+        flex: 1;
+        font-weight: 500;
+    }
 }
 
 .tab-content {
