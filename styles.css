@@ -1102,7 +1102,7 @@ h1 {
     position: relative;
 }
 
-/* Desktop Dropdown - default hidden */
+/* Desktop Dropdown */
 .more-menu {
     position: absolute;
     top: calc(100% + 5px);
@@ -1113,10 +1113,11 @@ h1 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 9999;
     min-width: 200px;
+    display: block; /* CHANGED from display: none */
 }
 
 .more-menu.hidden {
-    display: none;
+    display: none !important; /* Add this rule */
 }
 
 .more-menu-item {
