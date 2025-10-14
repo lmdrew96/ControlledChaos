@@ -40,6 +40,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Now restore session
     await restoreSession();
     
+    // Initialize auto-import UI after data is loaded
+    if (typeof initializeAutoImportUI === 'function') {
+        initializeAutoImportUI();
+    }
+    
     // Run safety migration for phone -> errands
     migratePhoneToErrands();
     

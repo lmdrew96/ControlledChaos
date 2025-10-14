@@ -555,10 +555,3 @@ async function manualTriggerAutoImport() {
         showToast('❌ Auto-import failed. Please try again.');
     }
 }
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeAutoImportUI);
-} else {
-    initializeAutoImportUI();
-}
