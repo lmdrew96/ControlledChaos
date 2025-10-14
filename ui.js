@@ -738,6 +738,7 @@ function renderDeadlines() {
         const msUntil = dueDate - now;
         const hoursUntil = Math.floor(msUntil / (1000 * 60 * 60));
         const minutesUntil = Math.floor((msUntil % (1000 * 60 * 60)) / (1000 * 60));
+        const daysUntil = Math.ceil(hoursUntil / 24);
         
         let urgencyText;
         let urgencyColor;
@@ -755,7 +756,6 @@ function renderDeadlines() {
             urgencyText = `${hoursUntil} hours`;
         } else {
             // More than 72 hours: Show "X days"
-            const daysUntil = Math.ceil(hoursUntil / 24);
             urgencyColor = 'var(--success)';
             urgencyText = `${daysUntil} days`;
         }
