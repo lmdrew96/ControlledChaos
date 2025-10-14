@@ -695,16 +695,31 @@
     <script src="mood-tracker/patterns.js"></script>
     <script src="mood-tracker/visualizations.js"></script>
     
+    <!-- Data and storage -->
     <script src="data.js"></script>
     <script src="storage.js"></script>
-    <script src="settings-sync.js"></script>
-    <script src="admin.js"></script>
-    <script src="courses.js"></script>
-    <script src="calendar.js"></script>
-    <!-- Crisis Mode removed - replaced with simple Due Soon banner -->
+    
+    <!-- Feature modules (NEW MODULAR FILES) -->
+    <script src="tasks.js"></script>
+    <script src="deadlines.js"></script>
+    <script src="projects.js"></script>
+    <script src="ai-features.js"></script>
+    <script src="templates.js"></script>
+    <script src="misc.js"></script>
+    
+    <!-- UI and calendar -->
     <script src="ui.js"></script>
-    <script src="api-queue.js"></script>
-    <script src="app.js"></script>
+    <script src="calendar.js"></script>
+    <script src="courses.js"></script>
+    <script src="temporal.js"></script>
+    
+    <!-- Specialized features -->
     <script src="calendar-import.js"></script>
+    <script src="settings-sync.js"></script>
+    <script src="api-queue.js"></script>
+    <script src="admin.js"></script>
+    
+    <!-- Main app initialization (loads LAST) -->
+    <script src="app.js"></script>
 </body>
 </html>
