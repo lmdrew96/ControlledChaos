@@ -83,10 +83,27 @@ function initializeMoreMenu() {
     }
     
     function handleAction(action) {
-        if (action === 'settings') {
-            document.querySelector('[data-tab="settings"]')?.click();
-        } else if (action === 'templates') {
-            document.querySelector('[data-tab="templates"]')?.click();
+        if (action === 'settings' || action === 'templates') {
+            // Manually switch tabs since these don't have tab buttons
+            const tabContents = document.querySelectorAll('.tab-content');
+            const tabButtons = document.querySelectorAll('.tab-button');
+            
+            // Hide all tab content
+            tabContents.forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Remove active class from all tab buttons
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Show the target tab
+            const targetTabId = action === 'settings' ? 'settings-tab' : 'templates-tab';
+            const targetTab = document.getElementById(targetTabId);
+            if (targetTab) {
+                targetTab.style.display = 'block';
+                localStorage.setItem('activeTab', action);
+                console.log(`📑 Switched to ${action} tab`);
+            }
         } else if (action === 'appearance') {
             toggleFont();
         }
@@ -142,6 +159,27 @@ function openTab(tabName) {
     const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
     if (tabButton) {
         tabButton.click();
+    } else if (tabName === 'settings' || tabName === 'templates') {
+        // Handle tabs without buttons (settings, templates)
+        const tabContents = document.querySelectorAll('.tab-content');
+        const tabButtons = document.querySelectorAll('.tab-button');
+        
+        // Hide all tab content
+        tabContents.forEach(content => {
+            content.style.display = 'none';
+        });
+        
+        // Remove active class from all tab buttons
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Show the target tab
+        const targetTabId = `${tabName}-tab`;
+        const targetTab = document.getElementById(targetTabId);
+        if (targetTab) {
+            targetTab.style.display = 'block';
+            localStorage.setItem('activeTab', tabName);
+            console.log(`📑 Switched to ${tabName} tab`);
+        }
     }
 }
 
