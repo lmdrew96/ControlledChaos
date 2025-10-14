@@ -597,11 +597,20 @@ function closeProjectModal() {
 }
 
 // ===== DEADLINE MANAGEMENT =====
-function addDeadline(title, dueDate) {
+function addDeadline(title, dueDate, dueTime = '23:59') {
+    // If dueDate already includes time (ISO format), use it as-is
+    // Otherwise, append the time to create full datetime
+    let fullDueDate;
+    if (dueDate.includes('T')) {
+        fullDueDate = dueDate; // Already has time
+    } else {
+        fullDueDate = dueDate + 'T' + dueTime + ':00'; // Add time
+    }
+    
     const deadline = {
         id: Date.now().toString(),
         title: title,
-        dueDate: dueDate,
+        dueDate: fullDueDate,
         createdAt: new Date().toISOString(),
         completed: false
     };
@@ -667,26 +676,86 @@ function showAddDeadlineModal() {
     const quickInput = document.getElementById('quickDeadlineInput');
     const quickText = quickInput.value.trim();
     
-    // Create a simple prompt modal
-    const title = quickText || prompt('What\'s the deadline for?');
-    if (!title) return;
+    // Create a modal with date AND time inputs
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'addDeadlineModal';
     
-    const dateStr = prompt('When is it due? (YYYY-MM-DD or MM/DD)');
-    if (!dateStr) return;
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Add Deadline</h2>
+                <button class="close-modal" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="deadlineTitle">What's the deadline for? *</label>
+                <input type="text" 
+                       id="deadlineTitle" 
+                       value="${quickText}"
+                       placeholder="e.g., Biology Lab Report"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="deadlineDate">Due Date *</label>
+                <input type="date" 
+                       id="deadlineDate" 
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="deadlineTime">Due Time</label>
+                <input type="time" 
+                       id="deadlineTime" 
+                       value="23:59"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                    Defaults to 11:59 PM if not specified
+                </small>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" id="saveDeadlineBtn">
+                    ✅ Add Deadline
+                </button>
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove();">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
     
-    // Parse date
-    let dueDate;
-    if (dateStr.includes('-')) {
-        dueDate = dateStr; // Already in YYYY-MM-DD format
-    } else {
-        // Convert MM/DD to YYYY-MM-DD
-        const [month, day] = dateStr.split('/');
-        const year = new Date().getFullYear();
-        dueDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
+    document.body.appendChild(modal);
     
-    addDeadline(title, dueDate);
-    quickInput.value = '';
+    // Event listeners
+    const saveBtn = document.getElementById('saveDeadlineBtn');
+    const titleInput = document.getElementById('deadlineTitle');
+    const dateInput = document.getElementById('deadlineDate');
+    const timeInput = document.getElementById('deadlineTime');
+    
+    saveBtn.addEventListener('click', () => {
+        const title = titleInput.value.trim();
+        const date = dateInput.value;
+        const time = timeInput.value || '23:59';
+        
+        if (!title) {
+            alert('Please enter a title for the deadline');
+            return;
+        }
+        
+        if (!date) {
+            alert('Please select a due date');
+            return;
+        }
+        
+        addDeadline(title, date, time);
+        modal.remove();
+        if (quickInput) quickInput.value = '';
+    });
+    
+    // Focus title input
+    setTimeout(() => titleInput.focus(), 100);
 }
 
 function afterDeadlineCreated(deadline) {

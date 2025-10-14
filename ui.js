@@ -703,25 +703,49 @@ function renderDeadlines() {
     `;
     
     html += activeDeadlines.map(deadline => {
-        const dueDate = new Date(deadline.dueDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        // BACKWARD COMPATIBILITY: If dueDate doesn't include time (old format), append 11:59 PM
+        let dueDateStr = deadline.dueDate;
+        if (!dueDateStr.includes('T')) {
+            dueDateStr = dueDateStr + 'T23:59:00';
+        }
+        
+        const dueDate = new Date(dueDateStr);
+        const now = new Date();
+        const msUntil = dueDate - now;
+        const hoursUntil = msUntil / (1000 * 60 * 60);
+        const daysUntil = Math.ceil(hoursUntil / 24);
+        
+        // Format the due time for display
+        const dueTime = dueDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        const dueDay = dueDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
         
         let urgencyColor = 'var(--success)';
         let urgencyText = `${daysUntil} days`;
         
-        if (daysUntil < 0) {
+        // More accurate time display logic
+        if (hoursUntil < 0) {
             urgencyColor = 'var(--danger)';
             urgencyText = 'OVERDUE';
-        } else if (daysUntil === 0) {
+        } else if (hoursUntil < 24) {
+            // Less than 24 hours away - show actual hours or "Today at TIME"
             urgencyColor = 'var(--danger)';
-            urgencyText = 'TODAY';
-        } else if (daysUntil === 1) {
+            const hours = Math.floor(hoursUntil);
+            if (hours < 1) {
+                urgencyText = '< 1 hour';
+            } else {
+                urgencyText = `Today at ${dueTime}`;
+            }
+        } else if (hoursUntil < 48) {
+            // 24-48 hours away - show "Tomorrow at TIME"
             urgencyColor = 'var(--warning)';
-            urgencyText = 'Tomorrow';
+            urgencyText = `Tomorrow at ${dueTime}`;
         } else if (daysUntil <= 3) {
+            // 2-3 days away - show day name and time
             urgencyColor = 'var(--warning)';
+            urgencyText = `${dueDay} at ${dueTime}`;
+        } else {
+            // More than 3 days - show days count
+            urgencyText = `${daysUntil} days`;
         }
         
         const relatedTasks = appData.tasks.filter(t => t.parentDeadline === deadline.id);

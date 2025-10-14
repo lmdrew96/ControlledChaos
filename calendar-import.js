@@ -607,10 +607,11 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
         // Detect course from event title
         const detectedCourse = detectCourseFromTitle(event.summary);
         
+        // PRESERVE ACTUAL DUE TIME from calendar (not just date!)
         const deadline = {
             id: Date.now().toString() + Math.random(),
             title: event.summary,
-            dueDate: event.startDate.toISOString().split('T')[0],
+            dueDate: event.startDate.toISOString(), // Full ISO datetime with time!
             createdAt: new Date().toISOString(),
             completed: false,
             timeEstimate: timeEstimate,
