@@ -140,39 +140,6 @@ async function checkAutoImport() {
     }
 }
 
-// ===== MORE MENU FUNCTIONALITY =====
-function initializeMoreMenu() {
-    const moreMenuButton = document.getElementById('moreMenuButton');
-    const moreMenu = document.getElementById('moreMenu');
-    
-    if (!moreMenuButton || !moreMenu) {
-        console.error('More menu elements not found');
-        return;
-    }
-    
-    // Toggle More menu on button click
-    moreMenuButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        moreMenu.classList.toggle('hidden');
-    });
-    
-    // Close More menu when clicking outside
-    document.addEventListener('click', (e) => {
-        // Don't close if clicking inside the menu or on the button
-        if (!moreMenu.contains(e.target) && e.target !== moreMenuButton) {
-            moreMenu.classList.add('hidden');
-        }
-    });
-    
-    // IMPORTANT: Prevent menu from closing when clicking menu items
-    moreMenu.addEventListener('click', (e) => {
-        // Allow the onclick handler to execute first
-        // Then close the menu after a brief delay
-        setTimeout(() => {
-            moreMenu.classList.add('hidden');
-        }, 100);
-    });
-}
 
 function handleMoreMenuClick(tabName) {
     const moreMenu = document.getElementById('moreMenu');
