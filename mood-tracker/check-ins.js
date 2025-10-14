@@ -30,6 +30,11 @@ Object.assign(MoodTracker, {
                 </div>
             </div>
             
+            <div class="form-group">
+                <label>Energy level right now:</label>
+                ${MoodUI.energySelector('morningEnergy')}
+            </div>
+            
             <div style="display: flex; gap: 10px; margin-top: 20px;">
                 <button class="btn btn-secondary" onclick="MoodTracker.skipMorningCheckIn()">Skip</button>
                 <button class="btn btn-primary" onclick="MoodTracker.saveMorningCheckIn()" style="flex: 1;">Save</button>
@@ -51,6 +56,7 @@ Object.assign(MoodTracker, {
         const medicationTaken = document.getElementById('morningMeds').checked;
         const selectedSleep = document.querySelector('.sleep-btn.selected');
         const sleepHours = selectedSleep ? parseFloat(selectedSleep.dataset.hours) : 7;
+        const energyLevel = parseInt(document.getElementById('morningEnergy').value);
         
         // Determine quality based on hours
         let sleepQuality = 'okay';
@@ -63,7 +69,8 @@ Object.assign(MoodTracker, {
             checkInType: 'morning',
             medicationTaken,
             sleepHours,
-            sleepQuality
+            sleepQuality,
+            energyLevel
         };
         
         this.checkIns.push(checkIn);

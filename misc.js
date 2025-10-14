@@ -108,6 +108,61 @@ function showCelebration() {
     document.body.appendChild(modal);
 }
 
+// ===== MOOD TRACKER TOGGLE =====
+function toggleMoodTracker() {
+    const checkbox = document.getElementById('moodTrackerEnabled');
+    const isEnabled = checkbox.checked;
+    
+    // Save preference to localStorage
+    localStorage.setItem('moodTrackerEnabled', isEnabled ? 'true' : 'false');
+    
+    // Get mood tracker buttons
+    const quickMoodBtn = Array.from(document.querySelectorAll('.header-buttons .btn')).find(btn => 
+        btn.getAttribute('onclick')?.includes('QuickCheck.showWidget')
+    );
+    const moodPatternsBtn = Array.from(document.querySelectorAll('.header-buttons .btn')).find(btn => 
+        btn.getAttribute('onclick')?.includes('MoodTracker.showVisualization')
+    );
+    
+    // Show or hide buttons
+    if (quickMoodBtn) {
+        quickMoodBtn.style.display = isEnabled ? '' : 'none';
+    }
+    if (moodPatternsBtn) {
+        moodPatternsBtn.style.display = isEnabled ? '' : 'none';
+    }
+    
+    // Show toast notification
+    showToast(isEnabled ? '💜 Mood Tracker enabled' : '💜 Mood Tracker disabled');
+}
+
+function initializeMoodTrackerToggle() {
+    // Check localStorage for saved preference (default to enabled)
+    const isEnabled = localStorage.getItem('moodTrackerEnabled') !== 'false';
+    
+    // Set checkbox state
+    const checkbox = document.getElementById('moodTrackerEnabled');
+    if (checkbox) {
+        checkbox.checked = isEnabled;
+    }
+    
+    // Get mood tracker buttons
+    const quickMoodBtn = Array.from(document.querySelectorAll('.header-buttons .btn')).find(btn => 
+        btn.getAttribute('onclick')?.includes('QuickCheck.showWidget')
+    );
+    const moodPatternsBtn = Array.from(document.querySelectorAll('.header-buttons .btn')).find(btn => 
+        btn.getAttribute('onclick')?.includes('MoodTracker.showVisualization')
+    );
+    
+    // Show or hide buttons based on preference
+    if (quickMoodBtn) {
+        quickMoodBtn.style.display = isEnabled ? '' : 'none';
+    }
+    if (moodPatternsBtn) {
+        moodPatternsBtn.style.display = isEnabled ? '' : 'none';
+    }
+}
+
 // ===== SETTINGS =====
 async function saveSettings() {
     const clientId = document.getElementById('clientIdInput').value.trim();

@@ -1499,6 +1499,7 @@ h1 {
     margin: 15px 0;
     cursor: pointer;
     transition: all 0.2s;
+    position: relative; /* Fix: Constrain absolutely positioned text */
 }
 
 .project-progress-container:hover {

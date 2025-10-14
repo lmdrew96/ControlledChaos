@@ -79,8 +79,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Due Soon banner
     updateDueSoonBanner();
     
-    // Initialize admin panel (if user is owner)
+    // Initialize admin panel
     await initializeAdminPanel();
+    
+    // Initialize Mood Tracker toggle
+    initializeMoodTrackerToggle();
     
     console.log('✅ [INIT] Application ready');
     
