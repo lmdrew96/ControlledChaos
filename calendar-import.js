@@ -617,9 +617,20 @@ function executeCalendarImport(classes, deadlines, oneTimeEvents) {
             class: detectedCourse // Assign detected course (or null for personal)
         };
         
-        console.log(`📥 Importing deadline: ${event.summary} with ${timeEstimate}min estimate, course: ${detectedCourse || 'personal'}`);
-        appData.deadlines.push(deadline);
-        importedCount++;
+        // CHECK FOR DUPLICATES before adding
+        const isDuplicate = appData.deadlines.some(existing => 
+            existing.title === deadline.title && 
+            existing.dueDate === deadline.dueDate &&
+            !existing.completed
+        );
+        
+        if (!isDuplicate) {
+            console.log(`📥 Importing deadline: ${event.summary} with ${timeEstimate}min estimate, course: ${detectedCourse || 'personal'}`);
+            appData.deadlines.push(deadline);
+            importedCount++;
+        } else {
+            console.log(`⏭️ Skipping duplicate: ${event.summary} (${deadline.dueDate})`);
+        }
     });
     
     // Import one-time events as tasks
