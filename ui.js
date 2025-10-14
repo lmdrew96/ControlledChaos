@@ -12,6 +12,62 @@ function setupSyncIndicatorClick() {
     }
 }
 
+// ===== MORE MENU DROPDOWN =====
+function initializeMoreMenu() {
+    const moreButton = document.getElementById('moreMenuButton');
+    const moreMenu = document.getElementById('moreMenu');
+    
+    if (!moreButton || !moreMenu) {
+        console.warn('⚠️ More menu elements not found');
+        return;
+    }
+    
+    // Toggle dropdown when clicking the More button
+    moreButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent immediate close from document click
+        moreMenu.classList.toggle('hidden');
+        console.log('📱 More menu toggled:', !moreMenu.classList.contains('hidden') ? 'open' : 'closed');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!moreMenu.classList.contains('hidden')) {
+            // Check if click is outside both button and menu
+            if (!moreButton.contains(e.target) && !moreMenu.contains(e.target)) {
+                moreMenu.classList.add('hidden');
+                console.log('📱 More menu closed (outside click)');
+            }
+        }
+    });
+    
+    console.log('✅ More menu initialized');
+}
+
+// Handle menu item clicks
+function handleMoreMenuClick(tabName) {
+    // Close the dropdown
+    const moreMenu = document.getElementById('moreMenu');
+    if (moreMenu) {
+        moreMenu.classList.add('hidden');
+    }
+    
+    // Switch to the tab
+    openTab(tabName);
+    console.log(`📑 Switched to ${tabName} from More menu`);
+}
+
+// Handle appearance toggle from menu
+function handleAppearanceClick() {
+    // Close the dropdown
+    const moreMenu = document.getElementById('moreMenu');
+    if (moreMenu) {
+        moreMenu.classList.add('hidden');
+    }
+    
+    // Toggle the font
+    toggleFont();
+}
+
 // ===== TAB NAVIGATION =====
 function initializeTabs() {
     const tabButtons = document.querySelectorAll('.tab-button');
@@ -19,6 +75,9 @@ function initializeTabs() {
     
     // Setup sync indicator click handler
     setupSyncIndicatorClick();
+    
+    // Initialize More menu dropdown
+    initializeMoreMenu();
     
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {

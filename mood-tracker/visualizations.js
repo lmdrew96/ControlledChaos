@@ -139,14 +139,235 @@ Object.assign(MoodTracker, {
             `;
         }
         
+        // Sort check-ins by timestamp (newest first)
+        const sortedCheckIns = [...last30Days].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        
         return `
             <div class="insights-view">
-                <h3 style="margin-bottom: 20px;">Last 30 Days Insights</h3>
-                <div style="background: var(--bg-main); padding: 20px; border-radius: 10px;">
-                    <p>Total check-ins: ${last30Days.length}</p>
+                <h3 style="margin-bottom: 20px;">Recent Check-Ins</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${sortedCheckIns.map(checkIn => {
+                        const date = new Date(checkIn.timestamp);
+                        const dateStr = date.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                        });
+                        
+                        const mood = checkIn.mood || checkIn.moodOverall || '-';
+                        const energy = checkIn.energyLevel || checkIn.energyOverall || '-';
+                        const moodEmoji = mood !== '-' ? ['😔', '😐', '😊', '😃', '🤩'][mood - 1] : '';
+                        const energyEmoji = energy !== '-' ? ['💤', '😴', '😐', '⚡', '🚀'][energy - 1] : '';
+                        
+                        return `
+                            <div style="background: var(--bg-main); padding: 15px; border-radius: 10px; border: 2px solid var(--border); transition: all 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--text);">${checkIn.checkInType || 'Check-in'}</div>
+                                        <div style="font-size: 0.85em; color: var(--text-light);">${dateStr}</div>
+                                    </div>
+                                    <button class="btn btn-secondary btn-sm" onclick="MoodTracker.showEditCheckInModal('${checkIn.id}')" style="padding: 6px 12px;">
+                                        ✏️ Edit
+                                    </button>
+                                </div>
+                                ${mood !== '-' ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: var(--text-light); font-size: 0.9em;">Mood:</span>
+                                        <span style="margin-left: 8px; font-weight: 600;">${moodEmoji} ${mood}/5</span>
+                                    </div>
+                                ` : ''}
+                                ${energy !== '-' ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: var(--text-light); font-size: 0.9em;">Energy:</span>
+                                        <span style="margin-left: 8px; font-weight: 600;">${energyEmoji} ${energy}/5</span>
+                                    </div>
+                                ` : ''}
+                                ${checkIn.note ? `
+                                    <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px; font-size: 0.9em; color: var(--text);">
+                                        ${checkIn.note}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
+    },
+    
+    // Show edit modal for a check-in
+    showEditCheckInModal(checkInId) {
+        console.log('✏️ Editing check-in:', checkInId);
+        
+        const checkIn = this.checkIns.find(c => c.id === checkInId);
+        if (!checkIn) {
+            this.showToast('❌ Check-in not found');
+            return;
+        }
+        
+        const date = new Date(checkIn.timestamp);
+        const dateTimeValue = date.toISOString().slice(0, 16); // Format for datetime-local input
+        
+        const hasMood = checkIn.mood !== undefined || checkIn.moodOverall !== undefined;
+        const hasEnergy = checkIn.energyLevel !== undefined || checkIn.energyOverall !== undefined;
+        const hasNote = checkIn.note !== undefined;
+        
+        const currentMood = checkIn.mood || checkIn.moodOverall || 3;
+        const currentEnergy = checkIn.energyLevel || checkIn.energyOverall || 3;
+        const currentNote = checkIn.note || '';
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal active mood-check-in-modal';
+        modal.id = 'editCheckInModal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>✏️ Edit Check-In</h2>
+                    <button class="close-modal" onclick="this.closest('.modal').remove()">×</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>Date & Time:</label>
+                    <input type="datetime-local" id="editTimestamp" value="${dateTimeValue}" 
+                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                </div>
+                
+                ${hasMood ? `
+                    <div class="form-group">
+                        <label>Mood: <span id="editMoodEmoji" style="font-size: 1.5em; margin-left: 10px;">${['😔', '😐', '😊', '😃', '🤩'][currentMood - 1]}</span></label>
+                        <input type="range" id="editMood" min="1" max="5" value="${currentMood}" 
+                               oninput="document.getElementById('editMoodEmoji').textContent = ['😔', '😐', '😊', '😃', '🤩'][this.value - 1]"
+                               style="width: 100%;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: var(--text-light); margin-top: 5px;">
+                            <span>😔 Very Low</span>
+                            <span>🤩 Very High</span>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${hasEnergy ? `
+                    <div class="form-group">
+                        <label>Energy: <span id="editEnergyEmoji" style="font-size: 1.5em; margin-left: 10px;">${['💤', '😴', '😐', '⚡', '🚀'][currentEnergy - 1]}</span></label>
+                        <input type="range" id="editEnergy" min="1" max="5" value="${currentEnergy}"
+                               oninput="document.getElementById('editEnergyEmoji').textContent = ['💤', '😴', '😐', '⚡', '🚀'][this.value - 1]"
+                               style="width: 100%;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: var(--text-light); margin-top: 5px;">
+                            <span>💤 Exhausted</span>
+                            <span>🚀 Energized</span>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${hasNote ? `
+                    <div class="form-group">
+                        <label>Note:</label>
+                        <textarea id="editNote" rows="4" 
+                                  style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;">${currentNote}</textarea>
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-danger" onclick="MoodTracker.deleteCheckIn('${checkInId}')" style="flex: 1;">
+                        🗑️ Delete
+                    </button>
+                    <button class="btn btn-primary" onclick="MoodTracker.saveEditedCheckIn('${checkInId}')" style="flex: 2;">
+                        💾 Save Changes
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    },
+    
+    // Save edited check-in
+    saveEditedCheckIn(checkInId) {
+        console.log('💾 Saving edited check-in:', checkInId);
+        
+        const checkIn = this.checkIns.find(c => c.id === checkInId);
+        if (!checkIn) {
+            this.showToast('❌ Check-in not found');
+            return;
+        }
+        
+        // Get new values from form
+        const newTimestamp = document.getElementById('editTimestamp')?.value;
+        const newMood = document.getElementById('editMood')?.value;
+        const newEnergy = document.getElementById('editEnergy')?.value;
+        const newNote = document.getElementById('editNote')?.value;
+        
+        // Update check-in object
+        if (newTimestamp) {
+            checkIn.timestamp = new Date(newTimestamp).toISOString();
+        }
+        
+        if (newMood) {
+            if (checkIn.mood !== undefined) {
+                checkIn.mood = parseInt(newMood);
+            } else if (checkIn.moodOverall !== undefined) {
+                checkIn.moodOverall = parseInt(newMood);
+            }
+        }
+        
+        if (newEnergy) {
+            if (checkIn.energyLevel !== undefined) {
+                checkIn.energyLevel = parseInt(newEnergy);
+            } else if (checkIn.energyOverall !== undefined) {
+                checkIn.energyOverall = parseInt(newEnergy);
+            }
+        }
+        
+        if (newNote !== undefined) {
+            checkIn.note = newNote;
+        }
+        
+        // Save to storage
+        this.save();
+        
+        // Re-detect patterns with updated data
+        this.detectPatterns();
+        
+        // Close modal
+        document.getElementById('editCheckInModal')?.remove();
+        
+        // Refresh the insights view
+        const vizContent = document.getElementById('vizContent');
+        if (vizContent) {
+            vizContent.innerHTML = this.renderInsightsView();
+        }
+        
+        this.showToast('✅ Check-in updated!');
+        console.log('✅ Check-in saved successfully');
+    },
+    
+    // Delete check-in
+    deleteCheckIn(checkInId) {
+        console.log('🗑️ Deleting check-in:', checkInId);
+        
+        if (!confirm('Are you sure you want to delete this check-in? This cannot be undone.')) {
+            return;
+        }
+        
+        // Remove from array
+        this.checkIns = this.checkIns.filter(c => c.id !== checkInId);
+        
+        // Save to storage
+        this.save();
+        
+        // Close any open modals
+        document.getElementById('editCheckInModal')?.remove();
+        
+        // Refresh the insights view
+        const vizContent = document.getElementById('vizContent');
+        if (vizContent) {
+            vizContent.innerHTML = this.renderInsightsView();
+        }
+        
+        this.showToast('🗑️ Check-in deleted');
+        console.log('✅ Check-in deleted successfully');
     },
     
     // Export modal
