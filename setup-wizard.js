@@ -349,11 +349,200 @@ const SetupWizard = {
     },
     
     showAddScheduleBlock() {
-        alert('Schedule block creation coming in next step! For now, you can skip this and add blocks later in the Schedule tab.');
+        // Create a mini-modal inside the wizard for adding schedule blocks
+        const blockForm = document.createElement('div');
+        blockForm.id = 'scheduleBlockForm';
+        blockForm.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10001; max-width: 400px; width: 90%;';
+        
+        blockForm.innerHTML = `
+            <h3 style="margin-bottom: 15px;">Add Schedule Block</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Day:</label>
+                <select id="blockDay" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Title:</label>
+                <input type="text" id="blockTitle" placeholder="e.g., Biology 101" 
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Start:</label>
+                    <input type="time" id="blockStart" value="09:00"
+                           style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">End:</label>
+                    <input type="time" id="blockEnd" value="10:00"
+                           style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('scheduleBlockForm').remove()" style="flex: 1;">
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="SetupWizard.saveScheduleBlock()" style="flex: 1;">
+                    Add Block
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(blockForm);
+    },
+    
+    saveScheduleBlock() {
+        const day = document.getElementById('blockDay').value;
+        const title = document.getElementById('blockTitle').value.trim();
+        const start = document.getElementById('blockStart').value;
+        const end = document.getElementById('blockEnd').value;
+        
+        if (!title) {
+            alert('Please enter a title for the schedule block');
+            return;
+        }
+        
+        // Add to wizard data
+        this.data.scheduleBlocks.push({
+            day,
+            title,
+            start,
+            end
+        });
+        
+        // Close form
+        document.getElementById('scheduleBlockForm').remove();
+        
+        // Update the schedule list
+        this.updateScheduleList();
+    },
+    
+    updateScheduleList() {
+        const list = document.getElementById('setupScheduleList');
+        if (!list) return;
+        
+        if (this.data.scheduleBlocks.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 20px;">No schedule blocks added yet</p>';
+            return;
+        }
+        
+        list.innerHTML = this.data.scheduleBlocks.map((block, index) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px;">
+                <div>
+                    <div style="font-weight: 600;">${block.title}</div>
+                    <div style="font-size: 0.85em; color: var(--text-light);">
+                        ${block.day} ${block.start} - ${block.end}
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="SetupWizard.removeScheduleBlock(${index})">Remove</button>
+            </div>
+        `).join('');
+    },
+    
+    removeScheduleBlock(index) {
+        this.data.scheduleBlocks.splice(index, 1);
+        this.updateScheduleList();
     },
     
     showAddTemplate() {
-        alert('Template creation coming in next step! For now, you can skip this and create templates later in Settings.');
+        const templateForm = document.createElement('div');
+        templateForm.id = 'templateForm';
+        templateForm.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10001; max-width: 400px; width: 90%;';
+        
+        templateForm.innerHTML = `
+            <h3 style="margin-bottom: 15px;">Create Template</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Template Name:</label>
+                <input type="text" id="templateName" placeholder="e.g., Weekly Readings" 
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tasks (one per line):</label>
+                <textarea id="templateTasks" rows="5" placeholder="Read Chapter 3&#10;Complete problem set&#10;Submit assignment"
+                          style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('templateForm').remove()" style="flex: 1;">
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="SetupWizard.saveTemplate()" style="flex: 1;">
+                    Create
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(templateForm);
+    },
+    
+    saveTemplate() {
+        const name = document.getElementById('templateName').value.trim();
+        const tasksText = document.getElementById('templateTasks').value.trim();
+        
+        if (!name) {
+            alert('Please enter a template name');
+            return;
+        }
+        
+        if (!tasksText) {
+            alert('Please enter at least one task');
+            return;
+        }
+        
+        // Split tasks by line
+        const tasks = tasksText.split('\n').filter(t => t.trim() !== '').map(t => t.trim());
+        
+        // Add to wizard data
+        this.data.templates.push({
+            name,
+            tasks
+        });
+        
+        // Close form
+        document.getElementById('templateForm').remove();
+        
+        // Update the template list
+        this.updateTemplatesList();
+    },
+    
+    updateTemplatesList() {
+        const list = document.getElementById('setupTemplatesList');
+        if (!list) return;
+        
+        if (this.data.templates.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 20px;">No templates created yet</p>';
+            return;
+        }
+        
+        list.innerHTML = this.data.templates.map((template, index) => `
+            <div style="padding: 12px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 600;">${template.name}</div>
+                    <button class="btn btn-secondary btn-sm" onclick="SetupWizard.removeTemplate(${index})">Remove</button>
+                </div>
+                <div style="font-size: 0.85em; color: var(--text-light);">
+                    ${template.tasks.length} task${template.tasks.length !== 1 ? 's' : ''}
+                </div>
+            </div>
+        `).join('');
+    },
+    
+    removeTemplate(index) {
+        this.data.templates.splice(index, 1);
+        this.updateTemplatesList();
     },
     
     nextStep() {
@@ -395,7 +584,7 @@ const SetupWizard = {
     complete() {
         // Apply all settings (without duplicating existing data)
         
-        // Courses - only add if they don't exist
+        // 1. Courses - only add if they don't exist
         if (this.data.courses.length > 0) {
             const existingCourses = loadData().courses || [];
             const existingNames = existingCourses.map(c => c.name.toLowerCase());
@@ -414,13 +603,63 @@ const SetupWizard = {
             saveData(data);
         }
         
-        // Mood tracker
+        // 2. Schedule blocks - only add if they don't exist
+        if (this.data.scheduleBlocks.length > 0) {
+            const data = loadData();
+            const existingSchedule = data.schedule || [];
+            
+            this.data.scheduleBlocks.forEach(block => {
+                // Check if this exact block already exists
+                const exists = existingSchedule.some(s => 
+                    s.day === block.day && 
+                    s.title === block.title && 
+                    s.start === block.start &&
+                    s.end === block.end
+                );
+                
+                if (!exists) {
+                    existingSchedule.push({
+                        id: Date.now().toString() + Math.random(),
+                        day: block.day,
+                        title: block.title,
+                        start: block.start,
+                        end: block.end,
+                        recurring: true
+                    });
+                }
+            });
+            
+            data.schedule = existingSchedule;
+            saveData(data);
+        }
+        
+        // 3. Templates - only add if they don't exist
+        if (this.data.templates.length > 0) {
+            const data = loadData();
+            const existingTemplates = data.templates || [];
+            const existingNames = existingTemplates.map(t => t.name.toLowerCase());
+            
+            this.data.templates.forEach(template => {
+                if (!existingNames.includes(template.name.toLowerCase())) {
+                    existingTemplates.push({
+                        id: Date.now().toString() + Math.random(),
+                        name: template.name,
+                        tasks: template.tasks
+                    });
+                }
+            });
+            
+            data.templates = existingTemplates;
+            saveData(data);
+        }
+        
+        // 4. Mood tracker & preferences
         const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
         settings.moodTrackerEnabled = this.data.enableMoodTracker;
         settings.maxWorkTime = this.data.maxWorkTime;
         localStorage.setItem('appSettings', JSON.stringify(settings));
         
-        // Apply dyslexic font if selected
+        // 5. Apply dyslexic font if selected
         if (this.data.useDyslexicFont) {
             document.body.classList.add('dyslexic-font');
         }
