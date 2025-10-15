@@ -765,3 +765,94 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
     isOnline = false;
 });
+
+// ===== RESET ALL APP DATA =====
+// Reset ALL app data except API configuration
+function confirmResetAllAppData() {
+    // First confirmation
+    const firstConfirm = confirm(
+        "⚠️ RESET ALL APP DATA?\n\n" +
+        "This will permanently delete:\n" +
+        "• All tasks, deadlines, and errands\n" +
+        "• All projects\n" +
+        "• Your entire schedule\n" +
+        "• All mood tracker data\n" +
+        "• Course mappings\n" +
+        "• Task templates\n\n" +
+        "Your API keys and account settings will be preserved.\n\n" +
+        "This CANNOT be undone!\n\n" +
+        "Click OK to continue, Cancel to keep your data."
+    );
+    
+    if (!firstConfirm) {
+        return;
+    }
+    
+    // Second confirmation - make them type
+    const typedConfirmation = prompt(
+        "⚠️ FINAL WARNING ⚠️\n\n" +
+        "Type exactly: RESET EVERYTHING\n\n" +
+        "This will delete all your productivity data."
+    );
+    
+    if (typedConfirmation !== "RESET EVERYTHING") {
+        if (typedConfirmation !== null) {
+            alert("❌ Reset cancelled. Text didn't match.");
+        }
+        return;
+    }
+    
+    try {
+        // Preserve API configuration
+        const apiKey = localStorage.getItem('apiKey');
+        const clientId = localStorage.getItem('clientId');
+        const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+        const preservedSettings = {
+            apiKey: apiKey,
+            clientId: clientId,
+            moodTrackerEnabled: appSettings.moodTrackerEnabled
+        };
+        
+        // Clear main app data
+        const emptyData = {
+            tasks: [],
+            deadlines: [],
+            projects: [],
+            schedule: [],
+            courses: [],
+            courseMappings: [],
+            templates: []
+        };
+        saveData(emptyData);
+        
+        // Clear mood tracker
+        if (typeof MoodTracker !== 'undefined') {
+            MoodTracker.checkIns = [];
+            MoodTracker.lastPatternAlert = null;
+            MoodTracker.save();
+        }
+        
+        // Restore API settings
+        if (preservedSettings.apiKey) {
+            localStorage.setItem('apiKey', preservedSettings.apiKey);
+        }
+        if (preservedSettings.clientId) {
+            localStorage.setItem('clientId', preservedSettings.clientId);
+        }
+        localStorage.setItem('appSettings', JSON.stringify(preservedSettings));
+        
+        alert(
+            "✅ All App Data Reset\n\n" +
+            "All productivity data has been deleted.\n" +
+            "Your API keys and settings are preserved.\n\n" +
+            "The app will now reload."
+        );
+        
+        // Reload page
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('Error resetting app data:', error);
+        alert("❌ Error resetting data. Please try again.");
+    }
+}
