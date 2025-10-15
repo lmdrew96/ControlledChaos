@@ -8,6 +8,7 @@ const SetupWizard = {
         'courses',
         'schedule',
         'templates',
+        'projects',
         'mood-tracker',
         'preferences',
         'complete'
@@ -17,6 +18,7 @@ const SetupWizard = {
         courses: [],
         scheduleBlocks: [],
         templates: [],
+        projects: [],
         enableMoodTracker: true,
         maxWorkTime: 90,
         useDyslexicFont: false
@@ -27,10 +29,24 @@ const SetupWizard = {
         this.showStep('welcome');
     },
     
+    close() {
+        document.getElementById('setupWizardModal')?.remove();
+        document.getElementById('scheduleBlockForm')?.remove();
+        document.getElementById('templateForm')?.remove();
+        document.getElementById('projectForm')?.remove();
+    },
+    
     showStep(stepName) {
         const modal = document.createElement('div');
         modal.className = 'modal active';
         modal.id = 'setupWizardModal';
+        
+        // Add click handler to close on background click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.close();
+            }
+        });
         
         let content = '';
         
@@ -46,6 +62,9 @@ const SetupWizard = {
                 break;
             case 'templates':
                 content = this.renderTemplatesStep();
+                break;
+            case 'projects':
+                content = this.renderProjectsStep();
                 break;
             case 'mood-tracker':
                 content = this.renderMoodTrackerStep();
@@ -83,13 +102,14 @@ const SetupWizard = {
                         <li style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1);">📚 Your courses</li>
                         <li style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1);">📅 Your weekly schedule</li>
                         <li style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1);">📝 Task templates</li>
+                        <li style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1);">💻 Your projects</li>
                         <li style="padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1);">💜 Mood tracking (optional)</li>
                         <li style="padding: 8px 0;">🎨 Your preferences</li>
                     </ul>
                 </div>
                 
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('setupWizardModal').remove()" style="flex: 1;">
+                    <button class="btn btn-secondary" onclick="SetupWizard.close()" style="flex: 1;">
                         Maybe Later
                     </button>
                     <button class="btn btn-primary" onclick="SetupWizard.nextStep()" style="flex: 2;">
@@ -102,9 +122,10 @@ const SetupWizard = {
     
     renderCoursesStep() {
         return `
-            <div class="modal-header">
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
                 <h2>📚 Step 1: Your Courses</h2>
-                <div style="color: var(--text-light); font-size: 0.9em;">Step 1 of 5</div>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 1 of 6</div>
             </div>
             
             <p style="color: var(--text-light); margin-bottom: 20px;">
@@ -140,9 +161,10 @@ const SetupWizard = {
     
     renderScheduleStep() {
         return `
-            <div class="modal-header">
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
                 <h2>📅 Step 2: Weekly Schedule</h2>
-                <div style="color: var(--text-light); font-size: 0.9em;">Step 2 of 5</div>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 2 of 6</div>
             </div>
             
             <p style="color: var(--text-light); margin-bottom: 20px;">
@@ -174,9 +196,10 @@ const SetupWizard = {
     
     renderTemplatesStep() {
         return `
-            <div class="modal-header">
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
                 <h2>📝 Step 3: Task Templates</h2>
-                <div style="color: var(--text-light); font-size: 0.9em;">Step 3 of 5</div>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 3 of 6</div>
             </div>
             
             <p style="color: var(--text-light); margin-bottom: 20px;">
@@ -200,7 +223,7 @@ const SetupWizard = {
                     ← Back
                 </button>
                 <button class="btn btn-primary" onclick="SetupWizard.nextStep()" style="flex: 1;">
-                    Next: Mood Tracking →
+                    Next: Projects →
                 </button>
             </div>
             
@@ -210,11 +233,47 @@ const SetupWizard = {
         `;
     },
     
+    renderProjectsStep() {
+        return `
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
+                <h2>💻 Step 4: Projects</h2>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 4 of 6</div>
+            </div>
+            
+            <p style="color: var(--text-light); margin-bottom: 20px;">
+                Set up your coding or personal projects. Each project can have its own task checklist.
+            </p>
+            
+            <div id="setupProjectsList" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+                <!-- Projects will be added here -->
+            </div>
+            
+            <button class="btn btn-secondary" onclick="SetupWizard.showAddProject()" style="width: 100%; margin-bottom: 20px;">
+                ➕ Add Project
+            </button>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="SetupWizard.prevStep()">
+                    ← Back
+                </button>
+                <button class="btn btn-primary" onclick="SetupWizard.nextStep()" style="flex: 1;">
+                    Next: Mood Tracking →
+                </button>
+            </div>
+            
+            <p style="text-align: center; margin-top: 15px; color: var(--text-light); font-size: 0.85em;">
+                Skip for now - you can add projects anytime in the Projects tab
+            </p>
+        `;
+    },
+    
     renderMoodTrackerStep() {
         return `
-            <div class="modal-header">
-                <h2>💜 Step 4: Mood Tracking</h2>
-                <div style="color: var(--text-light); font-size: 0.9em;">Step 4 of 5</div>
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
+                <h2>💜 Step 5: Mood Tracking</h2>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 5 of 6</div>
             </div>
             
             <p style="color: var(--text-light); margin-bottom: 20px;">
@@ -250,9 +309,10 @@ const SetupWizard = {
     
     renderPreferencesStep() {
         return `
-            <div class="modal-header">
-                <h2>🎨 Step 5: Preferences</h2>
-                <div style="color: var(--text-light); font-size: 0.9em;">Step 5 of 5</div>
+            <div class="modal-header" style="position: relative;">
+                <button onclick="SetupWizard.close()" style="position: absolute; top: 0; right: 0; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-light); padding: 5px 10px;">&times;</button>
+                <h2>🎨 Step 6: Preferences</h2>
+                <div style="color: var(--text-light); font-size: 0.9em;">Step 6 of 6</div>
             </div>
             
             <p style="color: var(--text-light); margin-bottom: 20px;">
@@ -349,7 +409,6 @@ const SetupWizard = {
     },
     
     showAddScheduleBlock() {
-        // Create a mini-modal inside the wizard for adding schedule blocks
         const blockForm = document.createElement('div');
         blockForm.id = 'scheduleBlockForm';
         blockForm.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10001; max-width: 400px; width: 90%;';
@@ -413,7 +472,6 @@ const SetupWizard = {
             return;
         }
         
-        // Add to wizard data
         this.data.scheduleBlocks.push({
             day,
             title,
@@ -421,10 +479,7 @@ const SetupWizard = {
             end
         });
         
-        // Close form
         document.getElementById('scheduleBlockForm').remove();
-        
-        // Update the schedule list
         this.updateScheduleList();
     },
     
@@ -502,19 +557,14 @@ const SetupWizard = {
             return;
         }
         
-        // Split tasks by line
         const tasks = tasksText.split('\n').filter(t => t.trim() !== '').map(t => t.trim());
         
-        // Add to wizard data
         this.data.templates.push({
             name,
             tasks
         });
         
-        // Close form
         document.getElementById('templateForm').remove();
-        
-        // Update the template list
         this.updateTemplatesList();
     },
     
@@ -545,17 +595,103 @@ const SetupWizard = {
         this.updateTemplatesList();
     },
     
+    showAddProject() {
+        const projectForm = document.createElement('div');
+        projectForm.id = 'projectForm';
+        projectForm.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); z-index: 10001; max-width: 400px; width: 90%;';
+        
+        projectForm.innerHTML = `
+            <h3 style="margin-bottom: 15px;">Add Project</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Project Name:</label>
+                <input type="text" id="projectName" placeholder="e.g., Portfolio Website" 
+                       style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Description (optional):</label>
+                <textarea id="projectDescription" rows="3" placeholder="Brief description of the project"
+                          style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;"></textarea>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Initial Tasks (optional, one per line):</label>
+                <textarea id="projectTasks" rows="4" placeholder="Set up repository&#10;Design mockups&#10;Build homepage"
+                          style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; resize: vertical;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="document.getElementById('projectForm').remove()" style="flex: 1;">
+                    Cancel
+                </button>
+                <button class="btn btn-primary" onclick="SetupWizard.saveProject()" style="flex: 1;">
+                    Add Project
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(projectForm);
+    },
+    
+    saveProject() {
+        const name = document.getElementById('projectName').value.trim();
+        const description = document.getElementById('projectDescription').value.trim();
+        const tasksText = document.getElementById('projectTasks').value.trim();
+        
+        if (!name) {
+            alert('Please enter a project name');
+            return;
+        }
+        
+        const tasks = tasksText ? tasksText.split('\n').filter(t => t.trim() !== '').map(t => t.trim()) : [];
+        
+        this.data.projects.push({
+            name,
+            description,
+            tasks
+        });
+        
+        document.getElementById('projectForm').remove();
+        this.updateProjectsList();
+    },
+    
+    updateProjectsList() {
+        const list = document.getElementById('setupProjectsList');
+        if (!list) return;
+        
+        if (this.data.projects.length === 0) {
+            list.innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 20px;">No projects created yet</p>';
+            return;
+        }
+        
+        list.innerHTML = this.data.projects.map((project, index) => `
+            <div style="padding: 12px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-weight: 600;">${project.name}</div>
+                    <button class="btn btn-secondary btn-sm" onclick="SetupWizard.removeProject(${index})">Remove</button>
+                </div>
+                ${project.description ? `<div style="font-size: 0.85em; color: var(--text-light); margin-bottom: 5px;">${project.description}</div>` : ''}
+                <div style="font-size: 0.85em; color: var(--text-light);">
+                    ${project.tasks.length} task${project.tasks.length !== 1 ? 's' : ''}
+                </div>
+            </div>
+        `).join('');
+    },
+    
+    removeProject(index) {
+        this.data.projects.splice(index, 1);
+        this.updateProjectsList();
+    },
+    
     nextStep() {
-        // Save current step data
         this.saveCurrentStep();
         
-        // Move to next step
         this.currentStep++;
         if (this.currentStep >= this.steps.length) {
             this.currentStep = this.steps.length - 1;
         }
         
-        // Close current modal and show next
         document.getElementById('setupWizardModal')?.remove();
         this.showStep(this.steps[this.currentStep]);
     },
@@ -582,104 +718,147 @@ const SetupWizard = {
     },
     
     complete() {
-        // Apply all settings (without duplicating existing data)
+        console.log('SetupWizard.complete() called');
+        console.log('Wizard data:', this.data);
         
-        // 1. Courses - only add if they don't exist
-        if (this.data.courses.length > 0) {
-            const existingCourses = loadData().courses || [];
-            const existingNames = existingCourses.map(c => c.name.toLowerCase());
-            
-            this.data.courses.forEach(courseName => {
-                if (!existingNames.includes(courseName.toLowerCase())) {
-                    existingCourses.push({
-                        id: Date.now().toString() + Math.random(),
-                        name: courseName
-                    });
-                }
-            });
-            
-            const data = loadData();
-            data.courses = existingCourses;
-            saveData(data);
-        }
-        
-        // 2. Schedule blocks - only add if they don't exist
-        if (this.data.scheduleBlocks.length > 0) {
-            const data = loadData();
-            const existingSchedule = data.schedule || [];
-            
-            this.data.scheduleBlocks.forEach(block => {
-                // Check if this exact block already exists
-                const exists = existingSchedule.some(s => 
-                    s.day === block.day && 
-                    s.title === block.title && 
-                    s.start === block.start &&
-                    s.end === block.end
-                );
+        try {
+            // 1. Courses - only add if they don't exist
+            if (this.data.courses.length > 0) {
+                console.log('Saving courses:', this.data.courses);
+                const data = loadData();
+                const existingCourses = data.courses || [];
+                const existingNames = existingCourses.map(c => c.name.toLowerCase());
                 
-                if (!exists) {
-                    existingSchedule.push({
-                        id: Date.now().toString() + Math.random(),
-                        day: block.day,
-                        title: block.title,
-                        start: block.start,
-                        end: block.end,
-                        recurring: true
-                    });
-                }
-            });
+                this.data.courses.forEach(courseName => {
+                    if (!existingNames.includes(courseName.toLowerCase())) {
+                        existingCourses.push({
+                            id: Date.now().toString() + Math.random(),
+                            name: courseName
+                        });
+                    }
+                });
+                
+                data.courses = existingCourses;
+                saveData(data);
+                console.log('Courses saved successfully');
+            }
             
-            data.schedule = existingSchedule;
-            saveData(data);
-        }
-        
-        // 3. Templates - only add if they don't exist
-        if (this.data.templates.length > 0) {
-            const data = loadData();
-            const existingTemplates = data.templates || [];
-            const existingNames = existingTemplates.map(t => t.name.toLowerCase());
+            // 2. Schedule blocks - only add if they don't exist
+            if (this.data.scheduleBlocks.length > 0) {
+                console.log('Saving schedule blocks:', this.data.scheduleBlocks);
+                const data = loadData();
+                const existingSchedule = data.schedule || [];
+                
+                this.data.scheduleBlocks.forEach(block => {
+                    const exists = existingSchedule.some(s => 
+                        s.day === block.day && 
+                        s.title === block.title && 
+                        s.start === block.start &&
+                        s.end === block.end
+                    );
+                    
+                    if (!exists) {
+                        existingSchedule.push({
+                            id: Date.now().toString() + Math.random(),
+                            day: block.day,
+                            title: block.title,
+                            start: block.start,
+                            end: block.end,
+                            recurring: true
+                        });
+                    }
+                });
+                
+                data.schedule = existingSchedule;
+                saveData(data);
+                console.log('Schedule blocks saved successfully');
+            }
             
-            this.data.templates.forEach(template => {
-                if (!existingNames.includes(template.name.toLowerCase())) {
-                    existingTemplates.push({
-                        id: Date.now().toString() + Math.random(),
-                        name: template.name,
-                        tasks: template.tasks
-                    });
-                }
-            });
+            // 3. Templates - only add if they don't exist
+            if (this.data.templates.length > 0) {
+                console.log('Saving templates:', this.data.templates);
+                const data = loadData();
+                const existingTemplates = data.templates || [];
+                const existingNames = existingTemplates.map(t => t.name.toLowerCase());
+                
+                this.data.templates.forEach(template => {
+                    if (!existingNames.includes(template.name.toLowerCase())) {
+                        existingTemplates.push({
+                            id: Date.now().toString() + Math.random(),
+                            name: template.name,
+                            tasks: template.tasks
+                        });
+                    }
+                });
+                
+                data.templates = existingTemplates;
+                saveData(data);
+                console.log('Templates saved successfully');
+            }
             
-            data.templates = existingTemplates;
-            saveData(data);
+            // 4. Projects - only add if they don't exist
+            if (this.data.projects.length > 0) {
+                console.log('Saving projects:', this.data.projects);
+                const data = loadData();
+                const existingProjects = data.projects || [];
+                const existingNames = existingProjects.map(p => p.name.toLowerCase());
+                
+                this.data.projects.forEach(project => {
+                    if (!existingNames.includes(project.name.toLowerCase())) {
+                        existingProjects.push({
+                            id: Date.now().toString() + Math.random(),
+                            name: project.name,
+                            description: project.description || '',
+                            tasks: project.tasks.map(taskText => ({
+                                id: Date.now().toString() + Math.random(),
+                                text: taskText,
+                                completed: false
+                            }))
+                        });
+                    }
+                });
+                
+                data.projects = existingProjects;
+                saveData(data);
+                console.log('Projects saved successfully');
+            }
+            
+            // 5. Mood tracker & preferences
+            console.log('Saving preferences');
+            const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+            settings.moodTrackerEnabled = this.data.enableMoodTracker;
+            settings.maxWorkTime = this.data.maxWorkTime;
+            localStorage.setItem('appSettings', JSON.stringify(settings));
+            console.log('Preferences saved successfully');
+            
+            // 6. Apply dyslexic font if selected
+            if (this.data.useDyslexicFont) {
+                document.body.classList.add('dyslexic-font');
+            }
+            
+            // Show confetti
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+            
+            // Close modal
+            this.close();
+            
+            console.log('Setup complete! Reloading page...');
+            
+            // Reload page to apply changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error in SetupWizard.complete():', error);
+            alert('There was an error saving your setup. Please try again or check the console for details.');
         }
-        
-        // 4. Mood tracker & preferences
-        const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
-        settings.moodTrackerEnabled = this.data.enableMoodTracker;
-        settings.maxWorkTime = this.data.maxWorkTime;
-        localStorage.setItem('appSettings', JSON.stringify(settings));
-        
-        // 5. Apply dyslexic font if selected
-        if (this.data.useDyslexicFont) {
-            document.body.classList.add('dyslexic-font');
-        }
-        
-        // Close modal
-        document.getElementById('setupWizardModal')?.remove();
-        
-        // Show success message
-        if (typeof confetti === 'function') {
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
-        }
-        
-        // Reload page to apply changes
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
     }
 };
 
