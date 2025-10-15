@@ -768,7 +768,7 @@ window.addEventListener('offline', () => {
 
 // ===== RESET ALL APP DATA =====
 // Reset ALL app data except API configuration
-function confirmResetAllAppData() {
+async function confirmResetAllAppData() {
     // First confirmation
     const firstConfirm = confirm(
         "⚠️ RESET ALL APP DATA?\n\n" +
@@ -803,27 +803,40 @@ function confirmResetAllAppData() {
     }
     
     try {
-        // Preserve API configuration
-        const apiKey = localStorage.getItem('apiKey');
-        const clientId = localStorage.getItem('clientId');
-        const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
-        const preservedSettings = {
-            apiKey: apiKey,
-            clientId: clientId,
-            moodTrackerEnabled: appSettings.moodTrackerEnabled
-        };
+        // Preserve API configuration and Google auth
+        const preservedSettings = appData.settings ? { ...appData.settings } : {};
+        const preservedEmail = userEmail;
+        const preservedToken = googleAccessToken;
         
         // Clear main app data
-        const emptyData = {
+        appData = {
             tasks: [],
             deadlines: [],
+            errandTasks: [],
             projects: [],
-            schedule: [],
-            courses: [],
-            courseMappings: [],
-            templates: []
+            schedule: JSON.parse(JSON.stringify(defaultSchedule)),
+            scheduleOverrides: {},
+            templates: [],
+            settings: preservedSettings,
+            currentLocation: 'home',
+            lastSync: null,
+            userEmail: preservedEmail,
+            googleAccessToken: preservedToken
         };
-        saveData(emptyData);
+        
+        // Save empty data to localStorage
+        saveToLocalStorage();
+        
+        // CRITICAL: Sync empty data to Google Drive BEFORE reloading
+        if (isDriveAvailable()) {
+            console.log('🔄 [RESET] Syncing empty data to Google Drive...');
+            showToast('🔄 Clearing Google Drive data...');
+            
+            // Wait for Drive sync to complete
+            await saveDataToDrive();
+            
+            console.log('✅ [RESET] Empty data synced to Drive');
+        }
         
         // Clear mood tracker
         if (typeof MoodTracker !== 'undefined') {
@@ -832,18 +845,9 @@ function confirmResetAllAppData() {
             MoodTracker.save();
         }
         
-        // Restore API settings
-        if (preservedSettings.apiKey) {
-            localStorage.setItem('apiKey', preservedSettings.apiKey);
-        }
-        if (preservedSettings.clientId) {
-            localStorage.setItem('clientId', preservedSettings.clientId);
-        }
-        localStorage.setItem('appSettings', JSON.stringify(preservedSettings));
-        
         alert(
             "✅ All App Data Reset\n\n" +
-            "All productivity data has been deleted.\n" +
+            "All productivity data has been deleted from both local storage and Google Drive.\n" +
             "Your API keys and settings are preserved.\n\n" +
             "The app will now reload."
         );
