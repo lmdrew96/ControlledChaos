@@ -144,3 +144,58 @@ const MoodStorage = {
         input.click();
     }
 };
+
+// Reset all mood tracker data with confirmation
+function confirmResetMoodTracker() {
+    // First confirmation
+    const firstConfirm = confirm(
+        "⚠️ DELETE ALL MOOD TRACKER DATA?\n\n" +
+        "This will permanently delete:\n" +
+        "• All mood check-ins\n" +
+        "• Energy & sleep logs\n" +
+        "• Pattern history\n" +
+        "• Everything you've tracked\n\n" +
+        "This CANNOT be undone!\n\n" +
+        "Click OK to continue, Cancel to keep your data."
+    );
+    
+    if (!firstConfirm) {
+        return;
+    }
+    
+    // Second confirmation - make them type
+    const typedConfirmation = prompt(
+        "⚠️ FINAL WARNING ⚠️\n\n" +
+        "Type exactly: DELETE MY MOOD DATA\n\n" +
+        "This will permanently erase all your mood tracking history."
+    );
+    
+    if (typedConfirmation !== "DELETE MY MOOD DATA") {
+        if (typedConfirmation !== null) {
+            alert("❌ Reset cancelled. Text didn't match.");
+        }
+        return;
+    }
+    
+    // Actually reset the data
+    try {
+        // Clear all mood tracker data
+        MoodTracker.checkIns = [];
+        MoodTracker.lastPatternAlert = null;
+        MoodTracker.save();
+        
+        // Show success message
+        alert(
+            "✅ Mood Tracker Data Deleted\n\n" +
+            "All mood tracking data has been permanently removed.\n\n" +
+            "You can start fresh whenever you're ready."
+        );
+        
+        // Refresh the page to clear any UI state
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('Error resetting mood tracker:', error);
+        alert("❌ Error resetting data. Please try again or contact support.");
+    }
+}
