@@ -30,6 +30,11 @@ Object.assign(MoodTracker, {
                         <div class="stat-value">${this.getAverageMood()}</div>
                         <div class="stat-label">Avg Mood</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-value">${this.getAverageEnergy()}</div>
+                        <div class="stat-label">Avg Energy</div>
+                    </div>
                 </div>
                 
                 <!-- Action Buttons -->
@@ -78,6 +83,20 @@ Object.assign(MoodTracker, {
         if (moods.length === 0) return '-';
         
         const avg = moods.reduce((a, b) => a + b, 0) / moods.length;
+        return avg.toFixed(1);
+    },
+    
+    getAverageEnergy() {
+        const last7Days = this.getCheckInsFromLastDays(7);
+        if (last7Days.length === 0) return '-';
+        
+        const energyLevels = last7Days
+            .filter(c => c.energyLevel || c.energyOverall)
+            .map(c => c.energyLevel || c.energyOverall);
+        
+        if (energyLevels.length === 0) return '-';
+        
+        const avg = energyLevels.reduce((a, b) => a + b, 0) / energyLevels.length;
         return avg.toFixed(1);
     },
     
