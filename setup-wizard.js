@@ -722,11 +722,23 @@ const SetupWizard = {
         console.log('Wizard data:', this.data);
         
         try {
+            // Check if required functions exist
+            if (typeof appData === 'undefined') {
+                console.error('❌ appData is not defined');
+                alert('Error: App data structure not initialized. Please refresh the page and try again.');
+                return;
+            }
+            
+            if (typeof saveData !== 'function') {
+                console.error('❌ saveData function is not defined');
+                alert('Error: Save function not available. Please refresh the page and try again.');
+                return;
+            }
+            
             // 1. Courses - only add if they don't exist
             if (this.data.courses.length > 0) {
                 console.log('Saving courses:', this.data.courses);
-                const data = loadData();
-                const existingCourses = data.courses || [];
+                const existingCourses = appData.courses || [];
                 const existingNames = existingCourses.map(c => c.name.toLowerCase());
                 
                 this.data.courses.forEach(courseName => {
@@ -738,16 +750,15 @@ const SetupWizard = {
                     }
                 });
                 
-                data.courses = existingCourses;
-                saveData(data);
+                appData.courses = existingCourses;
+                saveData();
                 console.log('Courses saved successfully');
             }
             
             // 2. Schedule blocks - only add if they don't exist
             if (this.data.scheduleBlocks.length > 0) {
                 console.log('Saving schedule blocks:', this.data.scheduleBlocks);
-                const data = loadData();
-                const existingSchedule = data.schedule || [];
+                const existingSchedule = appData.schedule || [];
                 
                 this.data.scheduleBlocks.forEach(block => {
                     const exists = existingSchedule.some(s => 
@@ -769,16 +780,15 @@ const SetupWizard = {
                     }
                 });
                 
-                data.schedule = existingSchedule;
-                saveData(data);
+                appData.schedule = existingSchedule;
+                saveData();
                 console.log('Schedule blocks saved successfully');
             }
             
             // 3. Templates - only add if they don't exist
             if (this.data.templates.length > 0) {
                 console.log('Saving templates:', this.data.templates);
-                const data = loadData();
-                const existingTemplates = data.templates || [];
+                const existingTemplates = appData.templates || [];
                 const existingNames = existingTemplates.map(t => t.name.toLowerCase());
                 
                 this.data.templates.forEach(template => {
@@ -791,16 +801,15 @@ const SetupWizard = {
                     }
                 });
                 
-                data.templates = existingTemplates;
-                saveData(data);
+                appData.templates = existingTemplates;
+                saveData();
                 console.log('Templates saved successfully');
             }
             
             // 4. Projects - only add if they don't exist
             if (this.data.projects.length > 0) {
                 console.log('Saving projects:', this.data.projects);
-                const data = loadData();
-                const existingProjects = data.projects || [];
+                const existingProjects = appData.projects || [];
                 const existingNames = existingProjects.map(p => p.name.toLowerCase());
                 
                 this.data.projects.forEach(project => {
@@ -818,8 +827,8 @@ const SetupWizard = {
                     }
                 });
                 
-                data.projects = existingProjects;
-                saveData(data);
+                appData.projects = existingProjects;
+                saveData();
                 console.log('Projects saved successfully');
             }
             
