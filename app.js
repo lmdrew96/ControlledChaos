@@ -89,6 +89,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Check for auto-import after a short delay
     setTimeout(checkAutoImport, 2000);
+    
+    // Initialize 7shifts sync
+    if (typeof init7ShiftsSync === 'function') {
+        init7ShiftsSync();
+    }
 });
 
 // ===== AUTO-IMPORT CHECK =====
