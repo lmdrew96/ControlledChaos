@@ -13,7 +13,10 @@ let appData = {
         workerUrl: '',
         clientId: '',
         apiKey: '',
-        maxDailyWorkMinutes: 90  // Default to 90 minutes
+        maxDailyWorkMinutes: 90,  // Default to 90 minutes
+        shifts7CalendarUrl: '',
+        autoSync7Shifts: true,
+        lastSync7Shifts: null
     },
     currentLocation: 'home',
     lastSync: null,

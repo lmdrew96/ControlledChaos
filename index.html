@@ -618,6 +618,55 @@
                 </button>
             </div>
             
+            <!-- Work Schedule Import (7shifts) -->
+            <div class="card">
+                <h2>💼 Work Schedule Import</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Import your work schedule automatically from 7shifts. Updates weekly.
+                </p>
+                
+                <div class="form-group">
+                    <label for="shifts7CalendarUrl">
+                        <strong>7shifts Calendar URL</strong>
+                        <span style="color: var(--text-light); font-size: 0.9em; display: block; margin-top: 5px;">
+                            Get this from 7shifts → Settings → Calendar Feed
+                        </span>
+                    </label>
+                    <input 
+                        type="url" 
+                        id="shifts7CalendarUrl" 
+                        placeholder="Paste your 7shifts calendar URL here"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                </div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="autoSync7Shifts" checked style="margin-right: 10px; width: 20px; height: 20px;">
+                        <span>
+                            <strong>Automatically sync weekly</strong>
+                            <span style="color: var(--text-light); font-size: 0.9em; display: block; margin-top: 5px;">
+                                Your schedule will update automatically every week
+                            </span>
+                        </span>
+                    </label>
+                </div>
+                
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                    <button class="btn btn-primary" id="sync7ShiftsNow" onclick="sync7ShiftsNow()">
+                        🔄 Sync Now
+                    </button>
+                    <small id="lastSync7Shifts" style="color: var(--text-light);">
+                        Never synced
+                    </small>
+                </div>
+                
+                <div style="background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 8px;">
+                    <p style="margin: 0; font-size: 0.9em; color: var(--text-light);">
+                        💡 <strong>Tip:</strong> Work shifts will appear in your schedule as "work" blocks and won't interfere with your classes or personal time.
+                    </p>
+                </div>
+            </div>
+            
             <!-- Calendar Import -->
             <div class="card">
                 <h2>📅 Calendar & Syllabus Import</h2>
