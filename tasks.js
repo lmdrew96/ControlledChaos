@@ -19,15 +19,24 @@ function addTask(task) {
 function toggleTask(taskId) {
     const task = appData.tasks.find(t => t.id === taskId);
     if (task) {
+        const wasCompleted = task.completed;
         task.completed = !task.completed;
         if (task.completed) {
             task.completedAt = new Date().toISOString();
             
+            // Enhanced celebration with bigger confetti
             confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
+                particleCount: 200,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe', '#43e97b']
             });
+            
+            // Show encouraging message
+            showEncouragingMessage(task);
+            
+            // Store task info for undo functionality
+            storeLastCompletedTask(taskId);
             
             // Check if this is a subtask - if so, check if all subtasks are complete
             if (task.parentTaskId) {
@@ -63,6 +72,10 @@ function toggleTask(taskId) {
                     }
                 }, 1000);
             }
+        } else {
+            // Task was uncompleted (undo)
+            delete task.completedAt;
+            showToast('↩️ Task marked as incomplete');
         }
         saveData();
         renderTasks();
@@ -293,6 +306,108 @@ function editTaskTime(taskId) {
     // }
     
     showToast(`✅ Updated time estimate to ${timeNum} minutes`);
+}
+
+// ===== UNDO FUNCTIONALITY =====
+let lastCompletedTaskId = null;
+
+function storeLastCompletedTask(taskId) {
+    lastCompletedTaskId = taskId;
+    
+    // Show undo toast with button
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `
+        <span>✅ Task completed!</span>
+        <button onclick="undoTaskCompletion()" style="background: white; color: var(--primary); border: none; padding: 5px 12px; border-radius: 4px; margin-left: 10px; cursor: pointer; font-weight: 600;">
+            ↩️ Undo
+        </button>
+    `;
+    document.body.appendChild(toast);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 500);
+    }, 5000);
+}
+
+function undoTaskCompletion() {
+    if (lastCompletedTaskId) {
+        toggleTask(lastCompletedTaskId);
+        lastCompletedTaskId = null;
+        
+        // Remove the toast
+        const toast = document.querySelector('.toast');
+        if (toast) {
+            toast.remove();
+        }
+    }
+}
+
+// ===== ENCOURAGING MESSAGES =====
+function showEncouragingMessage(task) {
+    const messages = [
+        "🎉 Amazing work!",
+        "💪 You're crushing it!",
+        "⭐ Keep up the momentum!",
+        "🚀 You're on fire!",
+        "✨ Fantastic job!",
+        "🌟 You're doing great!",
+        "💯 Nailed it!",
+        "🎯 Right on target!",
+        "👏 Well done!",
+        "🏆 Victory is yours!"
+    ];
+    
+    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    
+    // Create floating message
+    const messageEl = document.createElement('div');
+    messageEl.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px 50px;
+        border-radius: 20px;
+        font-size: 2em;
+        font-weight: bold;
+        z-index: 10000;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: celebrationPop 0.6s ease-out;
+    `;
+    messageEl.textContent = randomMessage;
+    document.body.appendChild(messageEl);
+    
+    // Remove after animation
+    setTimeout(() => {
+        messageEl.style.animation = 'celebrationFade 0.3s ease-out';
+        setTimeout(() => messageEl.remove(), 300);
+    }, 1500);
+}
+
+// ===== QUICK RESCHEDULE =====
+function moveTaskToTomorrow(taskId) {
+    const task = appData.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0); // Set to 9 AM tomorrow
+    
+    task.scheduledFor = tomorrow.toISOString();
+    saveData();
+    renderTasks();
+    
+    showToast(`📅 "${task.title}" moved to tomorrow`);
 }
 
 // ===== UTILITY FUNCTIONS =====

@@ -304,6 +304,9 @@ function renderTasks() {
                     </div>
                 </div>
                 <div class="task-actions">
+                    <button class="task-btn" onclick="moveTaskToTomorrow('${task.id}')" title="Move to tomorrow">
+                        📅 Tomorrow
+                    </button>
                     <button class="task-btn" onclick="deleteTask('${task.id}')">🗑️</button>
                 </div>
             </div>
