@@ -1,7 +1,7 @@
 // deadlines.js - Deadline management functions
 
 // ===== DEADLINE CRUD OPERATIONS =====
-function addDeadline(title, dueDate, dueTime = '23:59') {
+function addDeadline(title, dueDate, dueTime = '23:59', course = 'Personal') {
     // If dueDate already includes time (ISO format), use it as-is
     // Otherwise, append the time to create full datetime
     let fullDueDate;
@@ -15,6 +15,7 @@ function addDeadline(title, dueDate, dueTime = '23:59') {
         id: Date.now().toString(),
         title: title,
         dueDate: fullDueDate,
+        class: course,
         createdAt: new Date().toISOString(),
         completed: false
     };
@@ -75,6 +76,18 @@ function showAddDeadlineModal() {
     const quickInput = document.getElementById('quickDeadlineInput');
     const quickText = quickInput.value.trim();
     
+    // Extract unique course names from existing deadlines
+    const existingCourses = [...new Set(
+        appData.deadlines
+            .map(d => d.class || d.course)
+            .filter(c => c && c !== 'Personal')
+    )];
+    
+    // Build course options HTML
+    const courseOptionsHTML = existingCourses
+        .map(course => `<option value="${course}">${course}</option>`)
+        .join('');
+    
     // Create a modal with date AND time inputs
     const modal = document.createElement('div');
     modal.className = 'modal active';
@@ -94,6 +107,20 @@ function showAddDeadlineModal() {
                        value="${quickText}"
                        placeholder="e.g., Biology Lab Report"
                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label for="deadlineCourse">Which course is this for?</label>
+                <select id="deadlineCourse" 
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <option value="Personal">✨ Personal</option>
+                    ${courseOptionsHTML}
+                    <option value="OTHER">Other (type custom name)</option>
+                </select>
+                <input type="text" 
+                       id="deadlineCourseCustom" 
+                       placeholder="Enter course name"
+                       style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 10px; display: none;">
             </div>
             
             <div class="form-group">
@@ -132,11 +159,31 @@ function showAddDeadlineModal() {
     const titleInput = document.getElementById('deadlineTitle');
     const dateInput = document.getElementById('deadlineDate');
     const timeInput = document.getElementById('deadlineTime');
+    const courseSelect = document.getElementById('deadlineCourse');
+    const courseCustomInput = document.getElementById('deadlineCourseCustom');
+    
+    // Show/hide custom course input based on selection
+    courseSelect.addEventListener('change', () => {
+        if (courseSelect.value === 'OTHER') {
+            courseCustomInput.style.display = 'block';
+            courseCustomInput.focus();
+        } else {
+            courseCustomInput.style.display = 'none';
+        }
+    });
     
     saveBtn.addEventListener('click', () => {
         const title = titleInput.value.trim();
         const date = dateInput.value;
         const time = timeInput.value || '23:59';
+        
+        // Get course value
+        let course;
+        if (courseSelect.value === 'OTHER') {
+            course = courseCustomInput.value.trim() || 'Personal';
+        } else {
+            course = courseSelect.value;
+        }
         
         if (!title) {
             alert('Please enter a title for the deadline');
@@ -148,7 +195,7 @@ function showAddDeadlineModal() {
             return;
         }
         
-        addDeadline(title, date, time);
+        addDeadline(title, date, time, course);
         modal.remove();
         if (quickInput) quickInput.value = '';
     });
