@@ -2,7 +2,7 @@
 
 // ===== FETCH AND PARSE 7SHIFTS CALENDAR =====
 async function fetchAndParse7Shifts() {
-    const settings = loadSettings();
+    const settings = appData.settings;
     const calendarUrl = settings.shifts7CalendarUrl;
     
     if (!calendarUrl) {
@@ -222,9 +222,7 @@ async function sync7ShiftsNow() {
         });
         
         // Update last sync timestamp
-        const settings = loadSettings();
-        settings.lastSync7Shifts = new Date().toISOString();
-        saveSettings(settings);
+        appData.settings.lastSync7Shifts = new Date().toISOString();
         
         // Save data and update UI
         saveData();
@@ -255,7 +253,7 @@ async function sync7ShiftsNow() {
 
 // ===== AUTO-SYNC ON APP LOAD =====
 async function autoSync7ShiftsIfNeeded() {
-    const settings = loadSettings();
+    const settings = appData.settings;
     
     // Check if auto-sync is enabled
     if (!settings.autoSync7Shifts) {
@@ -294,7 +292,7 @@ function init7ShiftsSync() {
     // Update last sync display if element exists
     const lastSyncDisplay = document.getElementById('lastSync7Shifts');
     if (lastSyncDisplay) {
-        const settings = loadSettings();
+        const settings = appData.settings;
         if (settings.lastSync7Shifts) {
             const lastSync = new Date(settings.lastSync7Shifts);
             lastSyncDisplay.textContent = `Last synced: ${lastSync.toLocaleString()}`;
