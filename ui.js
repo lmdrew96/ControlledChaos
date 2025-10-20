@@ -83,29 +83,48 @@ function initializeMoreMenu() {
     }
     
     function handleAction(action) {
-        if (action === 'settings' || action === 'templates') {
-            // Manually switch tabs since these don't have tab buttons
-            const tabContents = document.querySelectorAll('.tab-content');
-            const tabButtons = document.querySelectorAll('.tab-button');
-            
-            // Hide all tab content
-            tabContents.forEach(content => {
-                content.style.display = 'none';
-            });
-            
-            // Remove active class from all tab buttons
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            
-            // Show the target tab
-            const targetTabId = action === 'settings' ? 'settings-tab' : 'templates-tab';
-            const targetTab = document.getElementById(targetTabId);
-            if (targetTab) {
-                targetTab.style.display = 'block';
-                localStorage.setItem('activeTab', action);
-                console.log(`📑 Switched to ${action} tab`);
-            }
-        } else if (action === 'appearance') {
-            toggleFont();
+        switch(action) {
+            case 'braindump':
+                showBrainDump();
+                break;
+            case 'stuck':
+                showStuck();
+                break;
+            case 'moodpatterns':
+                if (typeof MoodTracker !== 'undefined') {
+                    MoodTracker.showVisualization();
+                } else {
+                    showToast('⚠️ Mood Tracker not available');
+                }
+                break;
+            case 'settings':
+            case 'templates':
+                // Manually switch tabs since these don't have tab buttons
+                const tabContents = document.querySelectorAll('.tab-content');
+                const tabButtons = document.querySelectorAll('.tab-button');
+                
+                // Hide all tab content
+                tabContents.forEach(content => {
+                    content.style.display = 'none';
+                });
+                
+                // Remove active class from all tab buttons
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Show the target tab
+                const targetTabId = action === 'settings' ? 'settings-tab' : 'templates-tab';
+                const targetTab = document.getElementById(targetTabId);
+                if (targetTab) {
+                    targetTab.style.display = 'block';
+                    localStorage.setItem('activeTab', action);
+                    console.log(`📑 Switched to ${action} tab`);
+                }
+                break;
+            case 'appearance':
+                toggleFont();
+                break;
+            default:
+                console.warn('Unknown action:', action);
         }
     }
 }

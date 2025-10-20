@@ -145,7 +145,10 @@
             <div style="position: relative; display: inline-block;">
                 <button class="menu-button" id="moreMenuButton">⚙️ More ▾</button>
                 <!-- More Menu Dropdown -->
-                <div class="more-menu" id="moreMenu">
+                <div class="more-menu hidden" id="moreMenu">
+                    <button class="more-menu-item" data-action="braindump">🧠 Brain Dump</button>
+                    <button class="more-menu-item" data-action="stuck">🤔 I'm Stuck</button>
+                    <button class="more-menu-item" data-action="moodpatterns">📊 Mood Patterns</button>
                     <button class="more-menu-item" data-action="settings">⚙️ Settings</button>
                     <button class="more-menu-item" data-action="templates">📋 Task Templates</button>
                     <button class="more-menu-item" data-action="appearance">🎨 Appearance</button>
@@ -161,15 +164,15 @@
                 <h3 class="bottom-sheet-title">Menu</h3>
             </div>
             <div class="bottom-sheet-menu">
-                <button class="bottom-sheet-item" onclick="showBrainDump(); closeBottomSheet();" aria-label="Brain dump your thoughts">
+                <button class="bottom-sheet-item" data-action="braindump">
                     <span class="bottom-sheet-item-icon">🧠</span>
                     <span class="bottom-sheet-item-text">Brain Dump</span>
                 </button>
-                <button class="bottom-sheet-item" onclick="showStuck(); closeBottomSheet();" aria-label="Get help when stuck">
+                <button class="bottom-sheet-item" data-action="stuck">
                     <span class="bottom-sheet-item-icon">🤔</span>
                     <span class="bottom-sheet-item-text">I'm Stuck</span>
                 </button>
-                <button class="bottom-sheet-item" onclick="MoodTracker.showVisualization(); closeBottomSheet();" aria-label="View mood patterns">
+                <button class="bottom-sheet-item" data-action="moodpatterns">
                     <span class="bottom-sheet-item-icon">📊</span>
                     <span class="bottom-sheet-item-text">Mood Patterns</span>
                 </button>

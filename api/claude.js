@@ -28,10 +28,9 @@ function checkRateLimit(email) {
 }
 
 export default async function handler(request) {
-  // CORS headers - UPDATE THIS WITH YOUR ACTUAL VERCEL DOMAIN
-  // Example: 'https://controlled-chaos.vercel.app'
+  // CORS headers - Restricted to your Vercel domain for security
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*', // TODO: Replace with your Vercel domain
+    'Access-Control-Allow-Origin': 'https://controlled-chaos-zeta.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, authorization',
   };
