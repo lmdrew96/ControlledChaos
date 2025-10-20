@@ -165,6 +165,23 @@ async function sync7ShiftsNow() {
     syncButton.disabled = true;
     syncButton.textContent = '⏳ Syncing...';
     
+    // Get URL from input field if not saved in settings yet
+    const urlInput = document.getElementById('shifts7CalendarUrl');
+    if (urlInput && urlInput.value.trim()) {
+        // Save the URL to settings immediately
+        appData.settings.shifts7CalendarUrl = urlInput.value.trim();
+        saveData();
+        console.log('💾 Saved 7shifts URL from input field');
+    }
+    
+    // Check if URL is now available
+    if (!appData.settings.shifts7CalendarUrl) {
+        showToast('⚠️ Please enter your 7shifts calendar URL first');
+        syncButton.disabled = false;
+        syncButton.textContent = originalBtnText;
+        return;
+    }
+    
     try {
         // Fetch and parse shifts
         const shifts = await fetchAndParse7Shifts();
