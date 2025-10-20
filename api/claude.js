@@ -3,6 +3,21 @@ export const config = {
   runtime: 'edge',
 };
 
+// Content Security Policy
+const CSP_HEADER = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com https://cdnjs.cloudflare.com",
+  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "font-src 'self' https://cdn.jsdelivr.net data:",
+  "img-src 'self' data: https:",
+  "connect-src 'self' https://api.anthropic.com https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com",
+  "frame-src https://accounts.google.com",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests"
+].join('; ');
+
 // Hardcoded owner - can never be locked out
 const OWNER_EMAIL = 'lmdrew96@gmail.com';
 
@@ -33,6 +48,12 @@ export default async function handler(request) {
     'Access-Control-Allow-Origin': 'https://controlled-chaos-zeta.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, authorization',
+    'Content-Security-Policy': CSP_HEADER,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
   };
   
   // Handle CORS preflight
@@ -75,14 +96,58 @@ export default async function handler(request) {
       });
     }
     
-    // Parse request body
+    // Parse request body with size limit
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 1048576) { // 1MB limit
+      return new Response(JSON.stringify({ 
+        error: 'Request too large',
+        details: 'Request body exceeds 1MB limit'
+      }), {
+        status: 413,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    
     const requestBody = await request.json();
     const { userEmail, googleToken, allowlist, ...aiRequestData } = requestBody;
     
+    // Input validation and sanitization
+    if (!userEmail || typeof userEmail !== 'string' || !userEmail.includes('@')) {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid email',
+        details: 'Valid email address required'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    
+    if (!googleToken || typeof googleToken !== 'string') {
+      return new Response(JSON.stringify({ 
+        error: 'Invalid token',
+        details: 'Valid authentication token required'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders,
+        },
+      });
+    }
+    
+    // Sanitize email (basic XSS prevention)
+    const sanitizedEmail = userEmail.trim().toLowerCase().replace(/[<>]/g, '');
+    
     // Verify Google OAuth token and extract email
     const verifiedEmail = await verifyGoogleToken(googleToken);
-    if (!verifiedEmail || verifiedEmail !== userEmail) {
-      console.log('Authentication failed:', { verifiedEmail, userEmail });
+    if (!verifiedEmail || verifiedEmail.toLowerCase() !== sanitizedEmail) {
+      console.log('Authentication failed:', { verifiedEmail, sanitizedEmail });
       return new Response(JSON.stringify({ 
         error: 'Authentication failed',
         details: 'Please sign in with Google Drive'
@@ -95,9 +160,11 @@ export default async function handler(request) {
       });
     }
     
-    // Check authorization
-    const isOwner = verifiedEmail === OWNER_EMAIL;
-    const isAllowed = allowlist?.allowedUsers?.includes(verifiedEmail);
+    // Check authorization with sanitized email
+    const isOwner = verifiedEmail.toLowerCase() === OWNER_EMAIL.toLowerCase();
+    const isAllowed = allowlist?.allowedUsers?.some(
+      email => email.toLowerCase() === verifiedEmail.toLowerCase()
+    );
     
     if (!isOwner && !isAllowed) {
       console.log('User not authorized:', verifiedEmail);
@@ -219,17 +286,30 @@ export default async function handler(request) {
   }
 }
 
-// Verify Google OAuth token
+// Verify Google OAuth token with enhanced security
 async function verifyGoogleToken(token) {
-  if (!token) {
-    console.log('No token provided');
+  if (!token || typeof token !== 'string') {
+    console.log('No token provided or invalid type');
+    return null;
+  }
+  
+  // Basic token format validation
+  if (token.length < 20 || token.length > 2048) {
+    console.log('Token length invalid');
     return null;
   }
   
   try {
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const response = await fetch(
-      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`,
+      { signal: controller.signal }
     );
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       console.log('Token verification failed:', response.status);
@@ -237,10 +317,27 @@ async function verifyGoogleToken(token) {
     }
     
     const data = await response.json();
+    
+    // Validate token data
+    if (!data.email || !data.email_verified) {
+      console.log('Email not verified or missing');
+      return null;
+    }
+    
+    // Check token expiration
+    if (data.exp && parseInt(data.exp) < Math.floor(Date.now() / 1000)) {
+      console.log('Token expired');
+      return null;
+    }
+    
     console.log('Token verified for:', data.email);
     return data.email || null;
   } catch (error) {
-    console.error('Token verification error:', error);
+    if (error.name === 'AbortError') {
+      console.error('Token verification timeout');
+    } else {
+      console.error('Token verification error:', error);
+    }
     return null;
   }
 }
