@@ -174,6 +174,11 @@ async function saveSettings() {
     appData.settings.apiKey = apiKey;
     appData.settings.maxDailyWorkMinutes = maxWorkMinutes;
     
+    // Geocode location addresses if they changed
+    if (typeof geocodeAndSaveLocations === 'function') {
+        await geocodeAndSaveLocations();
+    }
+    
     // Save auto-import settings
     if (typeof saveAutoImportSettings === 'function') {
         saveAutoImportSettings();

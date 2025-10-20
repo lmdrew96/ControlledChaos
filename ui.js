@@ -1059,6 +1059,26 @@ function populateSettingsInputs() {
         maxWorkInput.value = appData.settings.maxDailyWorkMinutes;
         console.log('🔧 [SETTINGS] Max work time populated:', appData.settings.maxDailyWorkMinutes);
     }
+    
+    // Populate location settings
+    const homeLocationInput = document.getElementById('homeLocationAddress');
+    const schoolLocationInput = document.getElementById('schoolLocationAddress');
+    const workLocationInput = document.getElementById('workLocationAddress');
+    
+    if (homeLocationInput && appData.settings?.homeLocationAddress) {
+        homeLocationInput.value = appData.settings.homeLocationAddress;
+        console.log('🔧 [SETTINGS] Home location populated');
+    }
+    
+    if (schoolLocationInput && appData.settings?.schoolLocationAddress) {
+        schoolLocationInput.value = appData.settings.schoolLocationAddress;
+        console.log('🔧 [SETTINGS] School location populated');
+    }
+    
+    if (workLocationInput && appData.settings?.workLocationAddress) {
+        workLocationInput.value = appData.settings.workLocationAddress;
+        console.log('🔧 [SETTINGS] Work location populated');
+    }
 }
 
 // ===== TOAST NOTIFICATION =====

@@ -111,6 +111,15 @@
                 💾 Checking...
             </div>
             
+            <!-- Location Button -->
+            <button id="checkLocationBtn" class="btn btn-secondary" style="
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+                white-space: nowrap;
+            " title="Click to update your current location">
+                📍 Update Location
+            </button>
+            
             <div class="header-buttons">
                 <button class="btn btn-secondary" onclick="showQuickAdd()" data-tooltip="Quick Add">
                     <span class="btn-icon">⚡</span>
@@ -618,6 +627,67 @@
                 </button>
             </div>
             
+            <!-- Location Settings -->
+            <div class="card" id="locationSettingsSection">
+                <h2>📍 Location Settings</h2>
+                <p style="color: var(--text-light); margin-bottom: 15px;">
+                    Set your key locations so the app can suggest location-appropriate tasks. 
+                    Location is only checked when you click the button - no constant tracking.
+                </p>
+                
+                <div class="form-group">
+                    <label for="homeLocationAddress">
+                        <strong>Home Address</strong>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="homeLocationAddress" 
+                        placeholder="123 Main St, City, State"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                        Used to detect when you're home
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="schoolLocationAddress">
+                        <strong>School Address</strong>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="schoolLocationAddress" 
+                        placeholder="University of Delaware, Newark, DE"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                        Used to detect when you're at school
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="workLocationAddress">
+                        <strong>Work Address</strong>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="workLocationAddress" 
+                        placeholder="Your workplace address"
+                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                        Used to detect when you're at work
+                    </small>
+                </div>
+                
+                <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <strong>🔒 Privacy:</strong>
+                    <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
+                        <li>Location is only checked when you click the "Update Location" button</li>
+                        <li>Never checked automatically</li>
+                        <li>Stored locally on your device only</li>
+                        <li>Never sent to any server</li>
+                    </ul>
+                </div>
+            </div>
+            
             <!-- Work Schedule Import (7shifts) -->
             <div class="card">
                 <h2>💼 Work Schedule Import</h2>
@@ -852,6 +922,7 @@
     <!-- Specialized features -->
     <script src="calendar-import.js"></script>
     <script src="shifts-import.js"></script>
+    <script src="location.js"></script>
     <script src="settings-sync.js"></script>
     <script src="api-queue.js"></script>
     <script src="admin.js"></script>

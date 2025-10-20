@@ -16,7 +16,15 @@ let appData = {
         maxDailyWorkMinutes: 90,  // Default to 90 minutes
         shifts7CalendarUrl: '',
         autoSync7Shifts: true,
-        lastSync7Shifts: null
+        lastSync7Shifts: null,
+        // Location settings
+        homeLocationAddress: '',
+        schoolLocationAddress: '',
+        workLocationAddress: '',
+        homeLocationCoords: null,
+        schoolLocationCoords: null,
+        workLocationCoords: null,
+        lastLocationCheck: null
     },
     currentLocation: 'home',
     lastSync: null,
