@@ -76,11 +76,34 @@ function showAddDeadlineModal() {
     const quickInput = document.getElementById('quickDeadlineInput');
     const quickText = quickInput.value.trim();
     
-    // Extract unique course names from existing deadlines
+    // Helper function to normalize course names (fix character encoding issues)
+    const normalizeCourse = (courseName) => {
+        if (!courseName) return courseName;
+        return courseName
+            .replace(/Ș/g, 'S')  // Replace special S with regular S
+            .replace(/ș/g, 's')  // Replace lowercase special s
+            .replace(/[ÀÁÂÃÄÅ]/g, 'A')
+            .replace(/[àáâãäå]/g, 'a')
+            .replace(/[ÈÉÊË]/g, 'E')
+            .replace(/[èéêë]/g, 'e')
+            .replace(/[ÌÍÎÏ]/g, 'I')
+            .replace(/[ìíîï]/g, 'i')
+            .replace(/[ÒÓÔÕÖ]/g, 'O')
+            .replace(/[òóôõö]/g, 'o')
+            .replace(/[ÙÚÛÜ]/g, 'U')
+            .replace(/[ùúûü]/g, 'u')
+            .replace(/Ñ/g, 'N')
+            .replace(/ñ/g, 'n')
+            .replace(/Ç/g, 'C')
+            .replace(/ç/g, 'c');
+    };
+    
+    // Extract unique course names from existing deadlines and normalize them
     const existingCourses = [...new Set(
         appData.deadlines
             .map(d => d.class || d.course)
             .filter(c => c && c !== 'Personal')
+            .map(c => normalizeCourse(c))
     )];
     
     // Build course options HTML
@@ -184,6 +207,9 @@ function showAddDeadlineModal() {
         } else {
             course = courseSelect.value;
         }
+        
+        // Normalize course name to prevent character encoding issues
+        course = normalizeCourse(course);
         
         if (!title) {
             alert('Please enter a title for the deadline');
@@ -692,4 +718,62 @@ function clearAllDeadlines() {
         renderTasks();
         showToast(`✅ Cleared ${count} deadline${count !== 1 ? 's' : ''}`);
     }
+}
+
+// ===== DATA MIGRATION: NORMALIZE COURSE NAMES =====
+// One-time migration to fix character encoding issues in existing deadlines
+function migrateNormalizeCourseNames() {
+    // Helper function to normalize course names
+    const normalizeCourse = (courseName) => {
+        if (!courseName) return courseName;
+        return courseName
+            .replace(/Ș/g, 'S')
+            .replace(/ș/g, 's')
+            .replace(/[ÀÁÂÃÄÅ]/g, 'A')
+            .replace(/[àáâãäå]/g, 'a')
+            .replace(/[ÈÉÊË]/g, 'E')
+            .replace(/[èéêë]/g, 'e')
+            .replace(/[ÌÍÎÏ]/g, 'I')
+            .replace(/[ìíîï]/g, 'i')
+            .replace(/[ÒÓÔÕÖ]/g, 'O')
+            .replace(/[òóôõö]/g, 'o')
+            .replace(/[ÙÚÛÜ]/g, 'U')
+            .replace(/[ùúûü]/g, 'u')
+            .replace(/Ñ/g, 'N')
+            .replace(/ñ/g, 'n')
+            .replace(/Ç/g, 'C')
+            .replace(/ç/g, 'c');
+    };
+    
+    let migratedCount = 0;
+    
+    // Normalize all deadline course names
+    if (appData.deadlines && appData.deadlines.length > 0) {
+        appData.deadlines.forEach(deadline => {
+            if (deadline.class || deadline.course) {
+                const originalCourse = deadline.class || deadline.course;
+                const normalizedCourse = normalizeCourse(originalCourse);
+                
+                if (originalCourse !== normalizedCourse) {
+                    deadline.class = normalizedCourse;
+                    migratedCount++;
+                }
+            }
+        });
+    }
+    
+    if (migratedCount > 0) {
+        saveData();
+        console.log(`✅ [MIGRATION] Normalized ${migratedCount} deadline course names`);
+        showToast(`✅ Fixed ${migratedCount} course name${migratedCount !== 1 ? 's' : ''}`);
+        
+        // Refresh the UI to show normalized names
+        if (typeof renderDeadlines === 'function') {
+            renderDeadlines();
+        }
+    } else {
+        console.log('ℹ️ [MIGRATION] No course names needed normalization');
+    }
+    
+    return migratedCount;
 }
