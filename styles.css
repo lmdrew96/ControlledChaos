@@ -2238,3 +2238,128 @@ h1 {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* ===== COLLAPSIBLE SECTIONS ===== */
+.collapsible-section {
+    margin-bottom: 20px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.collapsible-section.expanded {
+    border-color: var(--primary);
+}
+
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    background: var(--bg-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.collapsible-header:hover {
+    background: #e8eaf0;
+}
+
+.collapsible-header:active {
+    transform: scale(0.99);
+}
+
+.collapsible-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.collapsible-title h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--text);
+}
+
+.collapsible-icon {
+    font-size: 1.5em;
+}
+
+.collapsible-description {
+    color: var(--text-light);
+    font-size: 0.9em;
+    margin: 5px 0 0 0;
+}
+
+.collapsible-toggle {
+    font-size: 1.5em;
+    color: var(--text-light);
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.collapsible-section.expanded .collapsible-toggle {
+    transform: rotate(180deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.collapsible-section.expanded .collapsible-content {
+    max-height: 2000px; /* Large enough for content */
+}
+
+.collapsible-inner {
+    padding: 20px;
+    background: white;
+}
+
+/* Badge for section status */
+.section-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.section-badge.configured {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.section-badge.required {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+.section-badge.optional {
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--primary);
+}
+
+/* Mobile adjustments for collapsible sections */
+@media (max-width: 768px) {
+    .collapsible-header {
+        padding: 15px;
+    }
+    
+    .collapsible-title h3 {
+        font-size: 1.1em;
+    }
+    
+    .collapsible-icon {
+        font-size: 1.3em;
+    }
+    
+    .collapsible-inner {
+        padding: 15px;
+    }
+}
