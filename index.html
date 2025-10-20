@@ -431,76 +431,108 @@
             <h2 style="color: var(--primary); margin-bottom: 20px;">⚙️ Settings & Configuration</h2>
             <p style="color: var(--text-light); margin-bottom: 20px;">Configure your API keys and preferences.</p>
             
-            <!-- Initial Setup Card (add at TOP of settings-tab, before Google Drive Sync) -->
-            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                    <div style="font-size: 3em;">🚀</div>
-                    <div>
-                        <h2 style="margin: 0; color: white;">Initial Setup</h2>
-                        <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.95em;">
-                            First time here? Set up your entire workspace in 5 minutes.
-                        </p>
+            <!-- Getting Started Section (Expanded by default) -->
+            <div class="collapsible-section expanded" id="getting-started-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">🚀</span>
+                        <div>
+                            <h3>Getting Started</h3>
+                            <p class="collapsible-description">Initial setup and Google Drive sync</p>
+                        </div>
+                    </div>
+                    <span class="section-badge required">⚠ Required</span>
+                    <span class="collapsible-toggle">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Initial Setup Card -->
+                        <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                <div style="font-size: 3em;">🚀</div>
+                                <div>
+                                    <h2 style="margin: 0; color: white;">Initial Setup</h2>
+                                    <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 0.95em;">
+                                        First time here? Set up your entire workspace in 5 minutes.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="startInitialSetup()" 
+                                    style="width: 100%; background: white; color: #667eea; font-weight: 600; padding: 12px;">
+                                ✨ Start Initial Setup
+                            </button>
+                            
+                            <p style="margin-top: 10px; opacity: 0.9; font-size: 0.85em; text-align: center;">
+                                Safe to run multiple times - won't duplicate your data
+                            </p>
+                        </div>
+                        
+                        <!-- Google Drive Authentication Section -->
+                        <div class="card" style="margin-bottom: 2rem;">
+                            <h2>☁️ Google Drive Sync</h2>
+                            <p style="color: #666; margin-bottom: 1rem;">
+                                Sign in to sync your data across devices and back up to Google Drive.
+                            </p>
+                            
+                            <div id="googleSignInSettings">
+                                <button id="googleSignInBtn" class="primary-button" onclick="handleGoogleSignIn()">
+                                    Sign in with Google
+                                </button>
+                            </div>
+                            
+                            <div id="googleAccountInfo" style="display: none; margin-top: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <span id="userEmailDisplay" style="color: #666;">user@example.com</span>
+                                    <button id="googleSignOutBtn" class="secondary-button" onclick="handleGoogleSignOut()">Sign Out</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <button class="btn btn-primary" onclick="startInitialSetup()" 
-                        style="width: 100%; background: white; color: #667eea; font-weight: 600; padding: 12px;">
-                    ✨ Start Initial Setup
-                </button>
-                
-                <p style="margin-top: 10px; opacity: 0.9; font-size: 0.85em; text-align: center;">
-                    Safe to run multiple times - won't duplicate your data
-                </p>
             </div>
             
-            <!-- Google Drive Authentication Section -->
-            <div class="card" style="margin-bottom: 2rem;">
-                <h2>☁️ Google Drive Sync</h2>
-                <p style="color: #666; margin-bottom: 1rem;">
-                    Sign in to sync your data across devices and back up to Google Drive.
-                </p>
-                
-                <div id="googleSignInSettings">
-                    <button id="googleSignInBtn" class="primary-button" onclick="handleGoogleSignIn()">
-                        Sign in with Google
-                    </button>
-                </div>
-                
-                <div id="googleAccountInfo" style="display: none; margin-top: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <span id="userEmailDisplay" style="color: #666;">user@example.com</span>
-                        <button id="googleSignOutBtn" class="secondary-button" onclick="handleGoogleSignOut()">Sign Out</button>
+            <!-- Configuration Section -->
+            <div class="collapsible-section" id="configuration-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">🔧</span>
+                        <div>
+                            <h3>Configuration</h3>
+                            <p class="collapsible-description">API keys and admin access</p>
+                        </div>
                     </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
                 </div>
-            </div>
-            
-            <!-- Settings Content -->
-            <div class="card">
-                <h2>🔧 API Configuration</h2>
-                <p style="color: #666; margin-bottom: 1.5rem;">
-                    <strong>Note:</strong> The app now uses Vercel Edge Functions instead of Cloudflare Workers. API calls go through <code>/api/claude.js</code>.
-                </p>
-                
-                <div class="form-group">
-                    <label for="clientIdInput">Google OAuth Client ID</label>
-                    <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Your Google OAuth Client ID for Drive sync. Required for cross-device settings sync.
-                    </p>
-                </div>
-                
-                <div class="form-group">
-                    <label for="apiKeyInput">Anthropic API Key</label>
-                    <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        <strong>🔒 Encrypted:</strong> Your API key is encrypted before syncing to Google Drive using your account as the encryption key.
-                    </p>
-                </div>
-                
-                </div>
-            
-            <!-- Admin Panel (Owner Only) -->
-            <div class="card" id="admin-panel" style="display: none;">
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Settings Content -->
+                        <div class="card">
+                            <h2>🔧 API Configuration</h2>
+                            <p style="color: #666; margin-bottom: 1.5rem;">
+                                <strong>Note:</strong> The app now uses Vercel Edge Functions instead of Cloudflare Workers. API calls go through <code>/api/claude.js</code>.
+                            </p>
+                            
+                            <div class="form-group">
+                                <label for="clientIdInput">Google OAuth Client ID</label>
+                                <input type="text" id="clientIdInput" placeholder="123456789-abc.apps.googleusercontent.com">
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                                    Your Google OAuth Client ID for Drive sync. Required for cross-device settings sync.
+                                </p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="apiKeyInput">Anthropic API Key</label>
+                                <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                                    <strong>🔒 Encrypted:</strong> Your API key is encrypted before syncing to Google Drive using your account as the encryption key.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Admin Panel (Owner Only) -->
+                        <div class="card" id="admin-panel" style="display: none;">
                 <h2>🔐 Manage Access (Admin Only)</h2>
                 <p style="color: var(--text-light); margin-bottom: 15px;">
                     Control who can use this app. Only authorized users can access AI features.
@@ -534,12 +566,30 @@
                         <li>Changes take effect immediately</li>
                         <li>You can't remove yourself (owner)</li>
                         <li>Maximum 4 users total (including you)</li>
-                    </ul>
+                        </ul>
+                    </div>
+                </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- API Info Section (Replaces API Key Input) -->
-            <div class="card">
+            <!-- AI Features Section -->
+            <div class="collapsible-section" id="ai-features-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">✨</span>
+                        <div>
+                            <h3>AI Features</h3>
+                            <p class="collapsible-description">AI-powered task suggestions and work limits</p>
+                        </div>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- API Info Section -->
+                        <div class="card">
                 <h2>✨ AI Features</h2>
                 <p style="color: var(--text-light); margin-bottom: 15px;">
                     AI features are powered by a shared API key managed by the app owner. No setup needed!
@@ -583,12 +633,30 @@
                         <li>Encryption uses your Google account as the key</li>
                         <li>Settings sync automatically when you save</li>
                         <li>Works across all your devices</li>
-                    </ul>
+                        </ul>
+                    </div>
+                </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Preferences -->
-            <div class="card">
+            <!-- Appearance Section -->
+            <div class="collapsible-section" id="appearance-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">🎨</span>
+                        <div>
+                            <h3>Appearance</h3>
+                            <p class="collapsible-description">Font style and mood tracker preferences</p>
+                        </div>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Preferences -->
+                        <div class="card">
                 <h2>🎨 Preferences</h2>
                 
                 <div class="form-group">
@@ -611,88 +679,99 @@
                         </span>
                         <input type="checkbox" id="moodTrackerEnabled" onchange="toggleMoodTracker()" style="width: 24px; height: 24px; cursor: pointer;">
                     </label>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Course Mappings -->
-            <div class="card">
-                <h2>🎓 Course Mappings</h2>
-                <p style="color: var(--text-light); margin-bottom: 15px;">
-                    Map course codes to friendly names. These are used when importing from calendars and syllabi.
-                </p>
-                
-                <div id="courseMappingsList" style="margin-bottom: 15px;">
-                    <!-- Course mappings will be rendered here -->
+            <!-- Academic Section -->
+            <div class="collapsible-section" id="academic-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">🎓</span>
+                        <div>
+                            <h3>Academic</h3>
+                            <p class="collapsible-description">Course mappings and calendar import</p>
+                        </div>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
                 </div>
-                
-                <button class="btn btn-secondary" onclick="showAddCourseMappingModal()" style="width: 100%;">
-                    ➕ Add Course Mapping
-                </button>
-            </div>
-            
-            <!-- Location Settings -->
-            <div class="card" id="locationSettingsSection">
-                <h2>📍 Location Settings</h2>
-                <p style="color: var(--text-light); margin-bottom: 15px;">
-                    Set your key locations so the app can suggest location-appropriate tasks. 
-                    Location is only checked when you click the button - no constant tracking.
-                </p>
-                
-                <div class="form-group">
-                    <label for="homeLocationAddress">
-                        <strong>Home Address</strong>
-                    </label>
-                    <input 
-                        type="text" 
-                        id="homeLocationAddress" 
-                        placeholder="123 Main St, City, State"
-                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
-                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
-                        Used to detect when you're home
-                    </small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="schoolLocationAddress">
-                        <strong>School Address</strong>
-                    </label>
-                    <input 
-                        type="text" 
-                        id="schoolLocationAddress" 
-                        placeholder="University of Delaware, Newark, DE"
-                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
-                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
-                        Used to detect when you're at school
-                    </small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="workLocationAddress">
-                        <strong>Work Address</strong>
-                    </label>
-                    <input 
-                        type="text" 
-                        id="workLocationAddress" 
-                        placeholder="Your workplace address"
-                        style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
-                    <small style="color: var(--text-light); display: block; margin-top: 5px;">
-                        Used to detect when you're at work
-                    </small>
-                </div>
-                
-                <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
-                    <strong>🔒 Privacy:</strong>
-                    <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
-                        <li>Location is only checked when you click the "Update Location" button</li>
-                        <li>Never checked automatically</li>
-                        <li>Stored locally on your device only</li>
-                        <li>Never sent to any server</li>
-                    </ul>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Course Mappings -->
+                        <div class="card">
+                            <h2>🎓 Course Mappings</h2>
+                            <p style="color: var(--text-light); margin-bottom: 15px;">
+                                Map course codes to friendly names. These are used when importing from calendars and syllabi.
+                            </p>
+                            
+                            <div id="courseMappingsList" style="margin-bottom: 15px;">
+                                <!-- Course mappings will be rendered here -->
+                            </div>
+                            
+                            <button class="btn btn-secondary" onclick="showAddCourseMappingModal()" style="width: 100%;">
+                                ➕ Add Course Mapping
+                            </button>
+                        </div>
+                        
+                        <!-- Calendar Import -->
+                        <div class="card">
+                            <h2>📅 Calendar & Syllabus Import</h2>
+                            <p style="color: var(--text-light); margin-bottom: 15px;">
+                                Import your schedule and deadlines from Canvas, Google Calendar, or upload a syllabus PDF/DOCX.
+                            </p>
+                            
+                            <div class="form-group" style="margin-bottom: 20px; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                                <h3 style="margin-bottom: 10px;">🤖 Automated Calendar Import</h3>
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                                    Automatically check your calendar for new assignments every day at 6 AM.
+                                </p>
+                                
+                                <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
+                                    <input type="checkbox" id="autoImportEnabled" style="margin-right: 10px;">
+                                    <span style="font-weight: 600;">Enable daily auto-import</span>
+                                </label>
+                                
+                                <div id="autoImportUrlSection" style="display: none; margin-top: 15px;">
+                                    <label for="autoImportCalendarUrl" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                                        Calendar Feed URL
+                                    </label>
+                                    <input type="url" 
+                                           id="autoImportCalendarUrl" 
+                                           placeholder="https://school.instructure.com/feeds/calendars/user_XXXXX.ics"
+                                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+                                    <small style="color: var(--text-light); display: block;">
+                                        This URL will be encrypted and stored securely in your Google Drive.
+                                    </small>
+                                    
+                                    <button class="btn btn-secondary" onclick="manualTriggerAutoImport()" style="margin-top: 10px;">
+                                        🧪 Test Auto-Import Now
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Work Schedule Import (7shifts) -->
-            <div class="card">
+            <!-- Work Section -->
+            <div class="collapsible-section" id="work-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">💼</span>
+                        <div>
+                            <h3>Work</h3>
+                            <p class="collapsible-description">7shifts schedule integration</p>
+                        </div>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Work Schedule Import (7shifts) -->
+                        <div class="card">
                 <h2>💼 Work Schedule Import</h2>
                 <p style="color: var(--text-light); margin-bottom: 15px;">
                     Import your work schedule automatically from 7shifts. Updates weekly.
@@ -736,117 +815,184 @@
                 <div style="background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 8px;">
                     <p style="margin: 0; font-size: 0.9em; color: var(--text-light);">
                         💡 <strong>Tip:</strong> Work shifts will appear in your schedule as "work" blocks and won't interfere with your classes or personal time.
-                    </p>
+                        </p>
+                    </div>
+                </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Calendar Import -->
-            <div class="card">
-                <h2>📅 Calendar & Syllabus Import</h2>
-                <p style="color: var(--text-light); margin-bottom: 15px;">
-                    Import your schedule and deadlines from Canvas, Google Calendar, or upload a syllabus PDF/DOCX.
-                </p>
-                
-                <div class="form-group" style="margin-bottom: 20px; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
-                    <h3 style="margin-bottom: 10px;">🤖 Automated Calendar Import</h3>
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
-                        Automatically check your calendar for new assignments every day at 6 AM.
-                    </p>
-                    
-                    <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
-                        <input type="checkbox" id="autoImportEnabled" style="margin-right: 10px;">
-                        <span style="font-weight: 600;">Enable daily auto-import</span>
-                    </label>
-                    
-                    <div id="autoImportUrlSection" style="display: none; margin-top: 15px;">
-                        <label for="autoImportCalendarUrl" style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            Calendar Feed URL
-                        </label>
-                        <input type="url" 
-                               id="autoImportCalendarUrl" 
-                               placeholder="https://school.instructure.com/feeds/calendars/user_XXXXX.ics"
-                               style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
-                        <small style="color: var(--text-light); display: block;">
-                            This URL will be encrypted and stored securely in your Google Drive.
-                        </small>
-                        
-                        <button class="btn btn-secondary" onclick="manualTriggerAutoImport()" style="margin-top: 10px;">
-                            🧪 Test Auto-Import Now
-                </button>
+            <!-- Advanced Section -->
+            <div class="collapsible-section" id="advanced-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">⚙️</span>
+                        <div>
+                            <h3>Advanced</h3>
+                            <p class="collapsible-description">Reset options and dangerous operations</p>
+                        </div>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Advanced Settings -->
+                        <div class="card">
+                            <h2>⚙️ Advanced</h2>
+                            
+                            <!-- Reset All App Data -->
+                            <div class="form-group" style="border: 2px solid #ef4444; border-radius: 8px; padding: 15px; background: rgba(239, 68, 68, 0.05); margin-bottom: 25px;">
+                                <h3 style="color: #ef4444; margin-bottom: 10px;">💣 Nuclear Reset</h3>
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                                    Delete ALL app data and start completely fresh. 
+                                    <strong>Your API keys and settings will be preserved.</strong>
+                                </p>
+                                
+                                <details style="margin-bottom: 15px;">
+                                    <summary style="cursor: pointer; font-weight: 600; color: var(--text-light); padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                                        ⚠️ What will be deleted? (click to expand)
+                                    </summary>
+                                    <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
+                                        <li>All tasks and errands</li>
+                                        <li>All deadlines</li>
+                                        <li>All projects</li>
+                                        <li>Entire schedule</li>
+                                        <li>All mood tracker data</li>
+                                        <li>Course mappings</li>
+                                        <li>Task templates</li>
+                                    </ul>
+                                    <div style="margin-top: 10px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 4px; border-left: 3px solid #10b981;">
+                                        <strong style="color: #10b981;">✅ What stays safe:</strong> API keys, Google OAuth tokens, preferences
+                                    </div>
+                                </details>
+                                
+                                <button class="btn btn-danger" onclick="confirmResetAllAppData()" style="width: 100%;">
+                                    💣 Reset All App Data
+                                </button>
+                            </div>
+                            
+                            <!-- Mood Tracker Data Reset -->
+                            <div class="form-group" style="border: 2px solid #ef4444; border-radius: 8px; padding: 15px; background: rgba(239, 68, 68, 0.05); margin-bottom: 20px;">
+                                <h3 style="color: #ef4444; margin-bottom: 10px;">⚠️ Mood Tracker Data</h3>
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
+                                    This will permanently delete ALL mood check-ins, patterns, and tracking history. 
+                                    <strong>This cannot be undone.</strong>
+                                </p>
+                                
+                                <details style="margin-bottom: 15px;">
+                                    <summary style="cursor: pointer; font-weight: 600; color: var(--text-light); padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
+                                        ⚠️ What will be deleted? (click to expand)
+                                    </summary>
+                                    <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
+                                        <li>All mood check-ins (morning, evening, quick checks)</li>
+                                        <li>Energy level logs</li>
+                                        <li>Sleep tracking data</li>
+                                        <li>Medication logs</li>
+                                        <li>Pattern alerts and responses</li>
+                                        <li>Your entire mood tracking history</li>
+                                    </ul>
+                                    <div style="margin-top: 10px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border-left: 3px solid #ef4444;">
+                                        <strong style="color: #ef4444;">💡 Tip:</strong> Use "Export for Therapy" or "Backup Data" first if you want to keep a copy!
+                                    </div>
+                                </details>
+                                
+                                <button class="btn btn-danger" onclick="confirmResetMoodTracker()" style="width: 100%;">
+                                    🗑️ Reset Mood Tracker Data
+                                </button>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button class="btn btn-danger" onclick="resetAllSettings()" style="width: 100%;">
+                                    🗑️ Reset All Settings
+                                </button>
+                                <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
+                                    Clear all API keys, credentials, and preferences. This cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Advanced Settings -->
-            <div class="card">
-                <h2>⚙️ Advanced</h2>
-                
-                <!-- Reset All App Data (add this as FIRST item in Advanced card) -->
-                <div class="form-group" style="border: 2px solid #ef4444; border-radius: 8px; padding: 15px; background: rgba(239, 68, 68, 0.05); margin-bottom: 25px;">
-                    <h3 style="color: #ef4444; margin-bottom: 10px;">💣 Nuclear Reset</h3>
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
-                        Delete ALL app data and start completely fresh. 
-                        <strong>Your API keys and settings will be preserved.</strong>
-                    </p>
-                    
-                    <details style="margin-bottom: 15px;">
-                        <summary style="cursor: pointer; font-weight: 600; color: var(--text-light); padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                            ⚠️ What will be deleted? (click to expand)
-                        </summary>
-                        <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
-                            <li>All tasks and errands</li>
-                            <li>All deadlines</li>
-                            <li>All projects</li>
-                            <li>Entire schedule</li>
-                            <li>All mood tracker data</li>
-                            <li>Course mappings</li>
-                            <li>Task templates</li>
-                        </ul>
-                        <div style="margin-top: 10px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 4px; border-left: 3px solid #10b981;">
-                            <strong style="color: #10b981;">✅ What stays safe:</strong> API keys, Google OAuth tokens, preferences
+            <!-- Location Section -->
+            <div class="collapsible-section" id="location-section">
+                <div class="collapsible-header">
+                    <div class="collapsible-title">
+                        <span class="collapsible-icon">📍</span>
+                        <div>
+                            <h3>Location</h3>
+                            <p class="collapsible-description">Set your home, school, and work addresses</p>
                         </div>
-                    </details>
-                    
-                    <button class="btn btn-danger" onclick="confirmResetAllAppData()" style="width: 100%;">
-                        💣 Reset All App Data
-                    </button>
+                    </div>
+                    <span class="section-badge optional">Optional</span>
+                    <span class="collapsible-toggle">▼</span>
                 </div>
-                
-                <!-- Mood Tracker Data Reset -->
-                <div class="form-group" style="border: 2px solid #ef4444; border-radius: 8px; padding: 15px; background: rgba(239, 68, 68, 0.05); margin-bottom: 20px;">
-                    <h3 style="color: #ef4444; margin-bottom: 10px;">⚠️ Mood Tracker Data</h3>
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-bottom: 15px;">
-                        This will permanently delete ALL mood check-ins, patterns, and tracking history. 
-                        <strong>This cannot be undone.</strong>
-                    </p>
-                    
-                    <details style="margin-bottom: 15px;">
-                        <summary style="cursor: pointer; font-weight: 600; color: var(--text-light); padding: 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px;">
-                            ⚠️ What will be deleted? (click to expand)
-                        </summary>
-                        <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
-                            <li>All mood check-ins (morning, evening, quick checks)</li>
-                            <li>Energy level logs</li>
-                            <li>Sleep tracking data</li>
-                            <li>Medication logs</li>
-                            <li>Pattern alerts and responses</li>
-                            <li>Your entire mood tracking history</li>
-                        </ul>
-                        <div style="margin-top: 10px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; border-left: 3px solid #ef4444;">
-                            <strong style="color: #ef4444;">💡 Tip:</strong> Use "Export for Therapy" or "Backup Data" first if you want to keep a copy!
+                <div class="collapsible-content">
+                    <div class="collapsible-inner">
+                        <!-- Location Settings -->
+                        <div class="card" id="locationSettingsSection">
+                            <h2>📍 Location Settings</h2>
+                            <p style="color: var(--text-light); margin-bottom: 15px;">
+                                Set your key locations so the app can suggest location-appropriate tasks. 
+                                Location is only checked when you click the button - no constant tracking.
+                            </p>
+                            
+                            <div class="form-group">
+                                <label for="homeLocationAddress">
+                                    <strong>Home Address</strong>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="homeLocationAddress" 
+                                    placeholder="123 Main St, City, State"
+                                    style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                                    Used to detect when you're home
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="schoolLocationAddress">
+                                    <strong>School Address</strong>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="schoolLocationAddress" 
+                                    placeholder="University of Delaware, Newark, DE"
+                                    style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                                    Used to detect when you're at school
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="workLocationAddress">
+                                    <strong>Work Address</strong>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="workLocationAddress" 
+                                    placeholder="Your workplace address"
+                                    style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+                                <small style="color: var(--text-light); display: block; margin-top: 5px;">
+                                    Used to detect when you're at work
+                                </small>
+                            </div>
+                            
+                            <div style="background: rgba(102, 126, 234, 0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                <strong>🔒 Privacy:</strong>
+                                <ul style="margin: 10px 0 0 20px; color: var(--text-light); font-size: 0.9em; line-height: 1.6;">
+                                    <li>Location is only checked when you click the "Update Location" button</li>
+                                    <li>Never checked automatically</li>
+                                    <li>Stored locally on your device only</li>
+                                    <li>Never sent to any server</li>
+                                </ul>
+                            </div>
                         </div>
-                    </details>
-                    
-                    <button class="btn btn-danger" onclick="confirmResetMoodTracker()" style="width: 100%;">
-                        🗑️ Reset Mood Tracker Data
-                    </button>
-                </div>
-                
-                <div class="form-group">
-                    <button class="btn btn-danger" onclick="resetAllSettings()" style="width: 100%;">
-                        🗑️ Reset All Settings
-                    </button>
-                    <p style="color: var(--text-light); font-size: 0.9em; margin-top: 5px;">
-                        Clear all API keys, credentials, and preferences. This cannot be undone.
-                    </p>
+                    </div>
                 </div>
             </div>
             
