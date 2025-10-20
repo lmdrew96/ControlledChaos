@@ -1,3 +1,9 @@
+@font-face {
+    font-family: 'SuperFrog';
+    src: url('SuperFrog-Yqy1q.ttf') format('truetype');
+    font-display: swap;
+}
+
 :root {
     --primary: #667eea;
     --secondary: #764ba2;
@@ -60,6 +66,7 @@ h1 {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 10px;
+    font-family: 'SuperFrog', cursive, sans-serif;
 }
 
 .tagline {
