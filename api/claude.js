@@ -6,11 +6,33 @@ export const config = {
 // Hardcoded owner - can never be locked out
 const OWNER_EMAIL = 'lmdrew96@gmail.com';
 
+// Simple in-memory rate limiting (resets on deployment)
+const rateLimits = new Map();
+
+function checkRateLimit(email) {
+  const now = Date.now();
+  const userLimits = rateLimits.get(email) || { count: 0, resetTime: now + 3600000 }; // 1 hour
+  
+  if (now > userLimits.resetTime) {
+    userLimits.count = 0;
+    userLimits.resetTime = now + 3600000;
+  }
+  
+  if (userLimits.count >= 50) { // 50 requests per hour
+    return false;
+  }
+  
+  userLimits.count++;
+  rateLimits.set(email, userLimits);
+  return true;
+}
+
 export default async function handler(request) {
-  // CORS headers
+  // CORS headers - UPDATE THIS WITH YOUR ACTUAL VERCEL DOMAIN
+  // Example: 'https://controlled-chaos.vercel.app'
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Origin': '*', // TODO: Replace with your Vercel domain
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, authorization',
   };
   
@@ -93,6 +115,20 @@ export default async function handler(request) {
     }
     
     console.log('User authorized:', verifiedEmail, isOwner ? '(owner)' : '(allowed)');
+    
+    // Check rate limit
+    if (!checkRateLimit(verifiedEmail)) {
+      return new Response(JSON.stringify({ 
+        error: 'Rate limit exceeded',
+        details: 'You can make 50 AI requests per hour. Try again later.'
+      }), { 
+        status: 429, 
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...corsHeaders 
+        }
+      });
+    }
     
     // User is authorized - forward request to Anthropic with server key
     const controller = new AbortController();

@@ -456,6 +456,7 @@ async function loadDataFromDrive() {
             }
         } else {
             console.error('❌ [DRIVE] Load error:', error);
+            showUserFriendlyError(error);
         }
         return null;
     }
@@ -536,6 +537,7 @@ async function saveDataToDrive() {
             handleTokenExpiration();
         } else {
             console.error('❌ [DRIVE] Save error:', error);
+            showUserFriendlyError(error);
         }
         pendingChanges = true;
         hideSavingIndicator(false);
@@ -733,6 +735,38 @@ function waitForGapiInit() {
             resolve();
         }, 10000);
     });
+}
+
+// ===== USER-FRIENDLY ERROR MESSAGES =====
+function showUserFriendlyError(error) {
+    const errorMessages = {
+        'Network error': '🌐 Connection issue. Check your internet and try again.',
+        'Token expired': '⚠️ Session expired. Please sign in again.',
+        'Rate limit': '⏱️ Too many requests. Take a break and try again in a bit.',
+        '401': '🔐 Authentication failed. Please sign in again.',
+        '403': '🚫 Access denied. Check your permissions.',
+        '404': '❓ Resource not found.',
+        '429': '⏱️ Rate limit exceeded. Slow down a bit.',
+        '500': '⚙️ Server error. Try again in a moment.',
+        '503': '🔧 Service temporarily unavailable.',
+        'default': '❌ Something went wrong. Try refreshing the page.'
+    };
+    
+    const errorString = error.toString().toLowerCase();
+    const errorMessage = error.message ? error.message.toLowerCase() : '';
+    
+    // Find matching error message
+    let message = errorMessages.default;
+    for (const [key, value] of Object.entries(errorMessages)) {
+        if (key === 'default') continue;
+        if (errorString.includes(key.toLowerCase()) || errorMessage.includes(key.toLowerCase())) {
+            message = value;
+            break;
+        }
+    }
+    
+    showToast(message);
+    return message;
 }
 
 // ===== SAVING INDICATOR FUNCTIONS =====

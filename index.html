@@ -121,29 +121,17 @@
             </button>
             
             <div class="header-buttons">
-                <button class="btn btn-secondary" onclick="showQuickAdd()" data-tooltip="Quick Add">
+                <button class="btn btn-secondary" onclick="showQuickAdd()" data-tooltip="Quick Add" aria-label="Quick add a task">
                     <span class="btn-icon">⚡</span>
                     <span class="btn-text">Quick Add</span>
                 </button>
-                <button class="btn btn-secondary" onclick="showBrainDump()" data-tooltip="Brain Dump">
-                    <span class="btn-icon">🧠</span>
-                    <span class="btn-text">Brain Dump</span>
-                </button>
-                <button class="btn btn-secondary" onclick="showEnhancedPickForMe()" data-tooltip="Pick For Me">
+                <button class="btn btn-secondary" onclick="showEnhancedPickForMe()" data-tooltip="Pick For Me" aria-label="Get AI-powered task suggestion">
                     <span class="btn-icon">✨</span>
                     <span class="btn-text">Pick For Me</span>
                 </button>
-                <button class="btn btn-secondary" onclick="showStuck()" data-tooltip="I'm Stuck">
-                    <span class="btn-icon">🤔</span>
-                    <span class="btn-text">I'm Stuck</span>
-                </button>
-                <button class="btn btn-secondary" onclick="QuickCheck.showWidget()" data-tooltip="Quick Mood">
+                <button class="btn btn-secondary" onclick="QuickCheck.showWidget()" data-tooltip="Quick Mood" aria-label="Quick mood check-in">
                     <span class="btn-icon">💜</span>
                     <span class="btn-text">Quick Mood</span>
-                </button>
-                <button class="btn btn-secondary" onclick="MoodTracker.showVisualization()" data-tooltip="Mood Patterns">
-                    <span class="btn-icon">📊</span>
-                    <span class="btn-text">Mood Patterns</span>
                 </button>
             </div>
         </header>
@@ -173,6 +161,18 @@
                 <h3 class="bottom-sheet-title">Menu</h3>
             </div>
             <div class="bottom-sheet-menu">
+                <button class="bottom-sheet-item" onclick="showBrainDump(); closeBottomSheet();" aria-label="Brain dump your thoughts">
+                    <span class="bottom-sheet-item-icon">🧠</span>
+                    <span class="bottom-sheet-item-text">Brain Dump</span>
+                </button>
+                <button class="bottom-sheet-item" onclick="showStuck(); closeBottomSheet();" aria-label="Get help when stuck">
+                    <span class="bottom-sheet-item-icon">🤔</span>
+                    <span class="bottom-sheet-item-text">I'm Stuck</span>
+                </button>
+                <button class="bottom-sheet-item" onclick="MoodTracker.showVisualization(); closeBottomSheet();" aria-label="View mood patterns">
+                    <span class="bottom-sheet-item-icon">📊</span>
+                    <span class="bottom-sheet-item-text">Mood Patterns</span>
+                </button>
                 <button class="bottom-sheet-item" data-action="settings">
                     <span class="bottom-sheet-item-icon">⚙️</span>
                     <span class="bottom-sheet-item-text">Settings</span>
