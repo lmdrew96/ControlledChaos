@@ -12,10 +12,10 @@
 - **Thesis:** "Your brain has the ideas. I'll handle the rest."
 
 ### Key Documents (Always Available)
-- `docs/vision-and-development-guide.md` — The heart, the why, the product vision
+- `docs/development guides/vision-and-development-guide.md` — The heart, the why, the product vision
 - `docs/system-architecture-description.md` — Tech stack, data flows, schema, API routes
-- `docs/development-timeline.md` — Milestones, phased roadmap, pacing
-- `docs/theoretical-framework.md` — Cognitive science foundations (Barkley, CLT, SDT, etc.)
+- `docs/development guides/development-timeline.md` — Milestones, phased roadmap, pacing
+- `docs/ControlledChaos_Theoretical_Framework.md` — Cognitive science foundations (Barkley, CLT, SDT, etc.)
 
 **READ THESE FIRST** when starting any major feature. They contain the architectural decisions and design philosophy that are LOCKED.
 
@@ -229,8 +229,8 @@ Monthly cost must stay under $5 for MVP. Use free tiers aggressively. Cache AI r
 
 Your north star when Nae asks "what should I build next?"
 
-1. ⬜ **Users can sign up, onboard, and set preferences** (Clerk + onboarding flow)
-2. ⬜ **Brain dump (text) → AI parses into structured tasks** (Core loop)
+1. 🟡 **Users can sign up, onboard, and set preferences** (Clerk scaffolded, onboarding flow not yet built)
+2. ✅ **Brain dump (text) → AI parses into structured tasks** (Core loop working)
 3. ⬜ **Voice + photo brain dumps work end-to-end** (Multi-modal input)
 4. ⬜ **AI recommends tasks based on context** (Intelligence layer)
 5. ⬜ **Calendar integration live** (Canvas iCal + Google Calendar read/write)
@@ -249,6 +249,38 @@ If Nae says "I'm stuck" / "This is too hard" / "Maybe I should give up":
 3. **Break it down.** Find the smallest possible next step. "Let's just get the text input saving to the database. 20 minutes."
 4. **Remind of the vision.** "Every ADHD student at UD is going to want this. You're building something that doesn't exist yet."
 5. **Offer to help immediately.** "What feels most doable right now? I'll write the code."
+
+---
+
+## Build & Quality
+
+After every implementation, run the build (`pnpm build` or equivalent) and fix any TypeScript/ESLint errors before committing. Never commit code that doesn't compile clean.
+
+When editing a file, always check if removed imports/exports/fields are used elsewhere in the codebase before deleting them. Use Grep to verify no other references exist.
+
+---
+
+## Git Workflow
+
+After completing all changes, always commit and push to main unless explicitly told otherwise. Use conventional commit messages with version bumps when appropriate (e.g., `v4.8.2`).
+
+---
+
+## Communication
+
+When fixing bugs, carefully re-read the user's request to understand the exact domain (e.g., "input modality" vs "error type", "code work" vs "content"). If ambiguous, ask for clarification before implementing.
+
+---
+
+## Documentation
+
+When updating documentation or performing audits, always check ALL subdirectories (especially `docs/`, `docs/subdirs/`) in a single pass. Do not wait for the user to remind you about missed directories.
+
+---
+
+## Styling & Theming
+
+When implementing CSS changes involving colors or theming, never wrap raw hex values in `hsl()` — check the existing pattern for how CSS variables and color values are used in the project before applying changes.
 
 ---
 

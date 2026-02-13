@@ -50,9 +50,10 @@ ControlledChaos is a Progressive Web App (PWA) built on Next.js with a serverles
 ### Frontend
 | Technology | Purpose | Rationale |
 |---|---|---|
-| **Next.js 15** (App Router) | Framework | Already know it from ChaosLimbă; SSR + API routes + PWA support |
+| **Next.js 16** (App Router) | Framework | Already know it from ChaosLimbă; SSR + API routes + PWA support |
+| **React 19** + React Compiler | UI library | Automatic memoization, concurrent features |
 | **TypeScript** | Language | Type safety, better DX, mandatory |
-| **Tailwind CSS** | Styling | Utility-first, fast iteration, consistent design |
+| **Tailwind CSS v4** | Styling | Utility-first, fast iteration, PostCSS-native (no config file) |
 | **shadcn/ui** | Component library | Beautiful defaults, fully customizable, accessible |
 | **next-pwa** | PWA support | Service worker, offline, push notifications |
 | **Framer Motion** | Animations | Subtle, purposeful micro-interactions |
@@ -409,21 +410,21 @@ User Opens App / Notification Fires
 
 ```
 controlledchaos/
-├── CLAUDE.md                          # Claude Code operating instructions
+├── .claude/
+│   └── CLAUDE.md                      # Claude Code operating instructions
 ├── README.md
 ├── docs/
-│   ├── vision-and-development-guide.md
 │   ├── system-architecture-description.md
-│   ├── development-timeline.md
-│   └── theoretical-framework.md       # Cognitive science foundations
-├── public/
-│   ├── manifest.json                  # PWA manifest
-│   ├── sw.js                          # Service worker
-│   └── icons/                         # PWA icons
+│   ├── ControlledChaos_Theoretical_Framework.md
+│   └── development guides/
+│       ├── development-timeline.md
+│       └── vision-and-development-guide.md
+├── public/                            # (PWA manifest, service worker, icons — planned)
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx                 # Root layout with Clerk provider
 │   │   ├── page.tsx                   # Landing / marketing page
+│   │   ├── globals.css                # Tailwind v4 CSS entry point
 │   │   ├── (auth)/
 │   │   │   ├── sign-in/
 │   │   │   └── sign-up/
@@ -432,43 +433,45 @@ controlledchaos/
 │   │   │   ├── dashboard/             # Main view — recommendation + task feed
 │   │   │   ├── dump/                  # Brain dump interface
 │   │   │   ├── tasks/                 # Full task list / management
-│   │   │   ├── calendar/              # Calendar view
-│   │   │   └── settings/              # Preferences, locations, integrations
-│   │   └── api/                       # API routes (see Section 5)
+│   │   │   ├── calendar/              # Calendar view (stubbed)
+│   │   │   └── settings/              # Preferences, locations, integrations (stubbed)
+│   │   └── api/
+│   │       ├── dump/text/route.ts     # ✅ Text brain dump parsing
+│   │       └── tasks/
+│   │           ├── route.ts           # ✅ Task list + create
+│   │           └── [id]/route.ts      # ✅ Task update + delete
 │   ├── components/
-│   │   ├── ui/                        # shadcn/ui components
+│   │   ├── ui/                        # shadcn/ui components (14 installed)
 │   │   ├── features/
-│   │   │   ├── brain-dump/            # Dump input components
-│   │   │   ├── task-feed/             # Task list and cards
-│   │   │   ├── recommendation/        # AI recommendation display
-│   │   │   ├── calendar/              # Calendar components
-│   │   │   └── notifications/         # Notification UI
-│   │   └── layout/                    # Shell, sidebar, nav components
+│   │   │   ├── brain-dump/            # ✅ dump-input.tsx
+│   │   │   ├── task-feed/             # ✅ task-card.tsx, task-list.tsx
+│   │   │   ├── recommendation/        # (planned)
+│   │   │   ├── calendar/              # (planned)
+│   │   │   └── notifications/         # (planned)
+│   │   └── layout/                    # ✅ providers.tsx, app-shell.tsx, user-nav.tsx
 │   ├── lib/
 │   │   ├── ai/
-│   │   │   ├── parse-dump.ts          # Brain dump → structured tasks
-│   │   │   ├── recommend.ts           # Task recommendation engine
-│   │   │   ├── schedule.ts            # AI scheduling logic
-│   │   │   └── prompts.ts             # System prompts (centralized)
+│   │   │   ├── index.ts              # ✅ Anthropic client setup
+│   │   │   ├── parse-dump.ts          # ✅ Brain dump → structured tasks
+│   │   │   ├── prompts.ts             # ✅ System prompts (centralized)
+│   │   │   ├── recommend.ts           # (planned) Task recommendation engine
+│   │   │   └── schedule.ts            # (planned) AI scheduling logic
 │   │   ├── db/
-│   │   │   ├── schema.ts              # Drizzle schema
-│   │   │   ├── queries.ts             # Reusable query functions
-│   │   │   └── index.ts               # DB connection
-│   │   ├── calendar/
-│   │   │   ├── ical-parser.ts         # Canvas iCal parsing
-│   │   │   └── google-calendar.ts     # Google Calendar API wrapper
-│   │   ├── notifications/
-│   │   │   ├── push.ts                # Web Push utilities
-│   │   │   └── email.ts               # Resend email digest functions
-│   │   ├── location/
-│   │   │   └── geolocation.ts         # Location detection + matching
-│   │   └── utils.ts
-│   ├── hooks/                         # Custom React hooks
-│   └── types/                         # Shared TypeScript types
-├── drizzle/                           # Migrations
-├── drizzle.config.ts
+│   │   │   ├── schema.ts              # ✅ Drizzle schema (9 tables)
+│   │   │   ├── queries.ts             # ✅ Reusable query functions
+│   │   │   └── index.ts               # ✅ DB connection
+│   │   ├── calendar/                  # (planned)
+│   │   ├── notifications/             # (planned)
+│   │   ├── location/                  # (planned)
+│   │   └── utils.ts                   # ✅ cn() helper
+│   ├── hooks/                         # (planned) Custom React hooks
+│   ├── middleware.ts                   # ✅ Clerk auth middleware
+│   └── types/
+│       └── index.ts                   # ✅ Shared TypeScript types
+├── drizzle.config.ts                  # ✅ Drizzle Kit config
+├── components.json                    # ✅ shadcn/ui config (new-york style)
 ├── next.config.ts
-├── tailwind.config.ts
+├── postcss.config.mjs                 # Tailwind v4 PostCSS plugin
 ├── tsconfig.json
 └── package.json
 ```

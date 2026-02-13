@@ -12,8 +12,8 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 
 | # | Milestone | Target | Status |
 |---|---|---|---|
-| 1 | Users can sign up, onboard, and set preferences | Month 1 | ⬜ |
-| 2 | Brain dump (text) → AI parses into structured tasks | Month 1 | ⬜ |
+| 1 | Users can sign up, onboard, and set preferences | Month 1 | 🟡 Scaffolding complete, onboarding flow not yet built |
+| 2 | Brain dump (text) → AI parses into structured tasks | Month 1 | ✅ Core loop working |
 | 3 | Voice + photo brain dumps work end-to-end | Month 2 | ⬜ |
 | 4 | AI recommends tasks based on context (energy, time, location, priority) | Month 2 | ⬜ |
 | 5 | Calendar integration live (Canvas iCal + Google Calendar read/write) | Month 3 | ⬜ |
@@ -28,23 +28,23 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 **Theme:** "Dump it and see it work"
 
 ### Week 1–2: Project Scaffolding
-- [ ] Initialize Next.js 15 project with TypeScript
-- [ ] Configure Tailwind CSS + shadcn/ui
-- [ ] Set up Clerk authentication (sign up, sign in, Google OAuth)
-- [ ] Set up Neon database + Drizzle ORM
-- [ ] Create initial schema + first migration (users, tasks, brain_dumps, user_settings)
+- [x] Initialize Next.js 16 project with TypeScript + React Compiler
+- [x] Configure Tailwind CSS v4 + shadcn/ui (new-york style, neutral)
+- [x] Set up Clerk authentication (sign up, sign in, Google OAuth)
+- [x] Set up Neon database + Drizzle ORM
+- [x] Create initial schema (users, user_settings, goals, brain_dumps, tasks, calendar_events, locations, task_activity, notifications)
 - [ ] Set up Cloudflare R2 bucket (for media storage later)
 - [ ] Configure Vercel deployment + environment variables
 - [ ] PWA manifest + basic service worker setup
-- [ ] CLAUDE.md in repo root
+- [x] CLAUDE.md in `.claude/` directory
 
 ### Week 3–4: Text Brain Dump + Task Display
-- [ ] Brain dump UI: full-screen text input, "just start typing" design
-- [ ] `/api/dump/text` route: receives text, calls Claude Haiku 4.5
-- [ ] AI prompt engineering: brain dump → structured tasks (title, priority, energy, category, time estimate, location, deadline)
-- [ ] Task storage: parsed tasks saved to database
-- [ ] Task feed UI: clean list of tasks with status indicators
-- [ ] Task actions: mark complete, edit, snooze, delete
+- [x] Brain dump UI: full-screen text input, "just start typing" design
+- [x] `/api/dump/text` route: receives text, calls Claude Haiku 4.5
+- [x] AI prompt engineering: brain dump → structured tasks (title, priority, energy, category, time estimate, location, deadline)
+- [x] Task storage: parsed tasks saved to database
+- [x] Task feed UI: clean list of tasks with status indicators
+- [x] Task actions: mark complete, edit, snooze, delete
 - [ ] Basic task detail view
 - [ ] User onboarding flow (name, timezone, energy patterns, Canvas iCal URL)
 
