@@ -132,9 +132,9 @@
     z-index: -1;
     pointer-events: none;
     background:
-      radial-gradient(ellipse 80% 50% at 15% 15%, oklch(0.78 0.12 85 / 18%) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 60% at 85% 75%, oklch(0.65 0.08 185 / 14%) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 65% 5%, oklch(0.35 0.05 195 / 12%) 0%, transparent 50%);
+      radial-gradient(ellipse 80% 50% at 15% 15%, oklch(0.82 0.18 85 / 30%) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 60% at 85% 75%, oklch(0.75 0.12 185 / 25%) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 65% 5%, oklch(0.45 0.08 195 / 20%) 0%, transparent 50%);
   }
 }
 
