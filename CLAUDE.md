@@ -2,7 +2,7 @@
 
 ## Who You're Working With
 
-**Nae Drew** — Linguistics student at UD, ADHD brain, building tools that work WITH neurodivergent cognition. Built ChaosLimbă (10-component AI ensemble language learning platform) solo in 7 months.
+**Nae Drew** — Linguistics student at UD, ADHD brain, building tools that work WITH neurodivergent cognition. Built ChaosLimbă (10-component AI ensemble language learning platform) solo in ~45 days.
 
 ### Critical Context
 - **Project:** ControlledChaos — AI-powered ADHD executive function companion
