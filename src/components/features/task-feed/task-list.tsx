@@ -4,21 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Loader2, Brain, ListTodo } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskCard } from "./task-card";
+import { TaskDetailModal } from "./task-detail-modal";
 import Link from "next/link";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  energyLevel: string;
-  estimatedMinutes: number | null;
-  category: string | null;
-  locationTag: string | null;
-  deadline: string | null;
-  completedAt: string | null;
-}
+import type { Task } from "@/types";
 
 type FilterStatus = "active" | "completed" | "all";
 
@@ -26,6 +14,7 @@ export function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("active");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -53,6 +42,8 @@ export function TaskList() {
 
   const activeTasks = tasks.filter((t) => t.status !== "completed");
   const completedTasks = tasks.filter((t) => t.status === "completed");
+
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
   if (isLoading) {
     return (
@@ -110,7 +101,12 @@ export function TaskList() {
       {/* Task list */}
       <div className="space-y-2">
         {filteredTasks.map((task) => (
-          <TaskCard key={task.id} task={task} onUpdate={fetchTasks} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            onUpdate={fetchTasks}
+            onClick={() => setSelectedTaskId(task.id)}
+          />
         ))}
 
         {filteredTasks.length === 0 && (
@@ -121,6 +117,13 @@ export function TaskList() {
           </p>
         )}
       </div>
+
+      {/* Task detail modal */}
+      <TaskDetailModal
+        task={selectedTask}
+        onClose={() => setSelectedTaskId(null)}
+        onUpdate={fetchTasks}
+      />
     </div>
   );
 }

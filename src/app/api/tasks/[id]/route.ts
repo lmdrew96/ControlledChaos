@@ -25,6 +25,11 @@ export async function PATCH(
       body.completedAt = null;
     }
 
+    // Convert deadline string to Date (or null) for Drizzle
+    if (body.deadline !== undefined) {
+      body.deadline = body.deadline ? new Date(body.deadline) : null;
+    }
+
     const updated = await updateTask(id, userId, body);
 
     if (!updated) {

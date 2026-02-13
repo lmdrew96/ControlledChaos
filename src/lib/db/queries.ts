@@ -1,7 +1,13 @@
 import { db } from "./index";
-import { brainDumps, tasks, users } from "./schema";
+import { brainDumps, tasks, users, userSettings } from "./schema";
 import { eq, and, desc, ne } from "drizzle-orm";
-import type { ParsedTask, DumpInputType, BrainDumpResult } from "@/types";
+import type {
+  ParsedTask,
+  DumpInputType,
+  BrainDumpResult,
+  EnergyProfile,
+  NotificationPrefs,
+} from "@/types";
 
 // ============================================================
 // Users
@@ -27,6 +33,70 @@ export async function ensureUser(
     .returning();
 
   return user;
+}
+
+export async function updateUser(
+  userId: string,
+  data: Partial<{ displayName: string; timezone: string }>
+) {
+  const [updated] = await db
+    .update(users)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning();
+
+  return updated;
+}
+
+// ============================================================
+// User Settings
+// ============================================================
+export async function getUserSettings(userId: string) {
+  const [settings] = await db
+    .select()
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+
+  return settings ?? null;
+}
+
+export async function createUserSettings(params: {
+  userId: string;
+  energyProfile?: EnergyProfile | null;
+  canvasIcalUrl?: string | null;
+  onboardingComplete: boolean;
+}) {
+  const [settings] = await db
+    .insert(userSettings)
+    .values({
+      userId: params.userId,
+      energyProfile: params.energyProfile ?? null,
+      canvasIcalUrl: params.canvasIcalUrl ?? null,
+      onboardingComplete: params.onboardingComplete,
+    })
+    .returning();
+
+  return settings;
+}
+
+export async function updateUserSettings(
+  userId: string,
+  data: Partial<{
+    energyProfile: EnergyProfile | null;
+    canvasIcalUrl: string | null;
+    googleCalConnected: boolean;
+    onboardingComplete: boolean;
+    notificationPrefs: NotificationPrefs | null;
+  }>
+) {
+  const [updated] = await db
+    .update(userSettings)
+    .set(data)
+    .where(eq(userSettings.userId, userId))
+    .returning();
+
+  return updated;
 }
 
 // ============================================================

@@ -1,6 +1,24 @@
 // ============================================================
 // Task Types
 // ============================================================
+
+/** Task as returned from the API (serialized dates as strings) */
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  energyLevel: string;
+  estimatedMinutes: number | null;
+  category: string | null;
+  locationTag: string | null;
+  deadline: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type TaskStatus =
   | "pending"
   | "in_progress"

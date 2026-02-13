@@ -5,7 +5,6 @@ import {
   Check,
   Trash2,
   Clock,
-  Zap,
   MapPin,
   Calendar,
   Loader2,
@@ -14,45 +13,26 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  energyLevel: string;
-  estimatedMinutes: number | null;
-  category: string | null;
-  locationTag: string | null;
-  deadline: string | null;
-  completedAt: string | null;
-}
-
-const priorityConfig = {
-  urgent: { label: "Urgent", className: "bg-red-500/15 text-red-400 border-red-500/30" },
-  important: { label: "Important", className: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
-  normal: { label: "Normal", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
-  someday: { label: "Someday", className: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30" },
-} as const;
-
-const energyConfig = {
-  low: { label: "Low energy", icon: "⚡" },
-  medium: { label: "Medium energy", icon: "⚡⚡" },
-  high: { label: "High energy", icon: "⚡⚡⚡" },
-} as const;
+import type { Task } from "@/types";
+import { priorityConfig, energyConfig } from "./task-config";
 
 export function TaskCard({
   task,
   onUpdate,
+  onClick,
 }: {
   task: Task;
   onUpdate: () => void;
+  onClick?: () => void;
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const isCompleted = task.status === "completed";
-  const priority = priorityConfig[task.priority as keyof typeof priorityConfig] ?? priorityConfig.normal;
-  const energy = energyConfig[task.energyLevel as keyof typeof energyConfig] ?? energyConfig.medium;
+  const priority =
+    priorityConfig[task.priority as keyof typeof priorityConfig] ??
+    priorityConfig.normal;
+  const energy =
+    energyConfig[task.energyLevel as keyof typeof energyConfig] ??
+    energyConfig.medium;
 
   async function handleAction(action: "complete" | "undo" | "delete") {
     setIsUpdating(true);
@@ -78,14 +58,18 @@ export function TaskCard({
   return (
     <Card
       className={cn(
-        "group relative p-4 transition-colors",
+        "group relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
         isCompleted && "opacity-60"
       )}
+      onClick={onClick}
     >
       <div className="flex items-start gap-3">
         {/* Complete/undo button */}
         <button
-          onClick={() => handleAction(isCompleted ? "undo" : "complete")}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAction(isCompleted ? "undo" : "complete");
+          }}
           disabled={isUpdating}
           className={cn(
             "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
@@ -117,7 +101,10 @@ export function TaskCard({
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={() => handleAction("delete")}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAction("delete");
+              }}
               disabled={isUpdating}
             >
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -134,7 +121,10 @@ export function TaskCard({
               {priority.label}
             </Badge>
 
-            <span className="text-xs text-muted-foreground" title={energy.label}>
+            <span
+              className="text-xs text-muted-foreground"
+              title={energy.label}
+            >
               {energy.icon}
             </span>
 
