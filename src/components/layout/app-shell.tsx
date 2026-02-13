@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -27,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar — hidden on mobile, shown on md+ */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card backdrop-blur-xl">
         <div className="flex h-14 items-center gap-2 border-b border-border px-6">
           <Logo className="h-5 w-5" />
           <span className="font-semibold tracking-tight">ControlledChaos</span>
@@ -54,13 +55,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-border p-4">
+        <div className="flex items-center justify-between border-t border-border p-4">
           <UserNav />
+          <ThemeToggle />
         </div>
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card py-2 md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card backdrop-blur-xl py-2 md:hidden">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
