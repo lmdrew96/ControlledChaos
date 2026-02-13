@@ -1,3 +1,5 @@
+import { TaskList } from "@/components/features/task-feed/task-list";
+
 export default function TasksPage() {
   return (
     <div className="space-y-6">
@@ -8,9 +10,7 @@ export default function TasksPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-        Task feed coming soon
-      </div>
+      <TaskList />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { DumpInput } from "@/components/features/brain-dump/dump-input";
+
 export default function BrainDumpPage() {
   return (
     <div className="space-y-6">
@@ -8,10 +10,7 @@ export default function BrainDumpPage() {
         </p>
       </div>
 
-      {/* Brain dump input will go here */}
-      <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-        Brain dump interface coming soon
-      </div>
+      <DumpInput />
     </div>
   );
 }
