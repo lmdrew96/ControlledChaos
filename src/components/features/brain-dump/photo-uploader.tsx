@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Camera, ImagePlus, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,8 @@ const ALLOWED_TYPES = new Set([
 
 export function PhotoUploader() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [stage, setStage] = useState<PhotoStage>("ready");
   const [preview, setPreview] = useState<string | null>(null);
@@ -124,9 +125,8 @@ export function PhotoUploader() {
     setExtractedText("");
     setMediaUrl(null);
     setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -155,35 +155,54 @@ export function PhotoUploader() {
   if (stage === "ready") {
     return (
       <div className="flex flex-col items-center gap-6 py-8">
-        <label
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={cn(
-            "flex h-48 w-full max-w-sm cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-colors",
-            isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/50 hover:bg-accent/50"
-          )}
-        >
-          <Camera className="h-10 w-10 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              Take a photo or upload an image
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Handwritten notes, sticky notes, whiteboards, screenshots
-            </p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            capture="environment"
-            onChange={handleInputChange}
-            className="hidden"
-          />
-        </label>
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          {/* Take photo — shows camera on mobile, file picker on desktop */}
+          <label className="flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed border-border px-5 py-4 transition-colors hover:border-primary/50 hover:bg-accent/50">
+            <Camera className="h-8 w-8 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Take a photo</p>
+              <p className="text-xs text-muted-foreground">
+                Use your camera to capture notes
+              </p>
+            </div>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              capture="environment"
+              onChange={handleInputChange}
+              className="hidden"
+            />
+          </label>
+
+          {/* Upload from gallery/files — no capture attribute */}
+          <label
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={cn(
+              "flex cursor-pointer items-center gap-4 rounded-xl border-2 border-dashed px-5 py-4 transition-colors",
+              isDragging
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50 hover:bg-accent/50"
+            )}
+          >
+            <ImagePlus className="h-8 w-8 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Upload an image</p>
+              <p className="text-xs text-muted-foreground">
+                From gallery, files, or drag and drop
+              </p>
+            </div>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleInputChange}
+              className="hidden"
+            />
+          </label>
+        </div>
 
         {error && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
