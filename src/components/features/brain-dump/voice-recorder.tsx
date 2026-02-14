@@ -82,7 +82,9 @@ export function VoiceRecorder() {
 
       setTranscript(data.transcript);
       setMediaUrl(data.mediaUrl);
-      setStage("reviewing");
+
+      // Auto-parse immediately — no manual step needed
+      await parseTranscript(data.transcript, data.mediaUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Transcription failed");
       setStage("ready");
@@ -91,8 +93,8 @@ export function VoiceRecorder() {
     }
   }
 
-  async function handleParse() {
-    if (!transcript.trim()) return;
+  async function parseTranscript(text: string, url: string | null) {
+    if (!text.trim()) return;
 
     setStage("parsing");
     setError(null);
@@ -101,7 +103,7 @@ export function VoiceRecorder() {
       const response = await fetch("/api/dump/voice/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, mediaUrl }),
+        body: JSON.stringify({ transcript: text, mediaUrl: url }),
       });
 
       if (!response.ok) {
@@ -114,8 +116,12 @@ export function VoiceRecorder() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-      setStage("reviewing");
+      setStage("reviewing"); // Fall back to review so user can edit/retry
     }
+  }
+
+  async function handleParse() {
+    await parseTranscript(transcript, mediaUrl);
   }
 
   function handleReRecord() {
