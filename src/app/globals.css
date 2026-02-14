@@ -138,6 +138,21 @@
   }
 }
 
+/* Voice recorder waveform animation */
+.waveform-bar {
+  height: 100%;
+  animation: waveform 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes waveform {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
 /* Dark mode — blobs glow brighter on dark background */
 .dark body::before {
   background:

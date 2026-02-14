@@ -115,6 +115,7 @@ export async function createBrainDump(params: {
   inputType: DumpInputType;
   rawContent: string;
   aiResponse: BrainDumpResult;
+  mediaUrl?: string;
 }) {
   const [dump] = await db
     .insert(brainDumps)
@@ -124,6 +125,7 @@ export async function createBrainDump(params: {
       rawContent: params.rawContent,
       parsed: true,
       aiResponse: params.aiResponse,
+      mediaUrl: params.mediaUrl ?? null,
     })
     .returning();
 
