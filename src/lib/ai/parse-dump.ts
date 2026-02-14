@@ -1,5 +1,5 @@
 import { callHaiku } from "./index";
-import { BRAIN_DUMP_SYSTEM_PROMPT, VOICE_DUMP_ADDENDUM } from "./prompts";
+import { BRAIN_DUMP_SYSTEM_PROMPT, VOICE_DUMP_ADDENDUM, PHOTO_DUMP_ADDENDUM } from "./prompts";
 import type { BrainDumpResult, DumpInputType, ParsedTask } from "@/types";
 
 export async function parseBrainDump(
@@ -10,10 +10,12 @@ export async function parseBrainDump(
     throw new Error("Brain dump content cannot be empty");
   }
 
-  const system =
-    inputType === "voice"
-      ? BRAIN_DUMP_SYSTEM_PROMPT + VOICE_DUMP_ADDENDUM
-      : BRAIN_DUMP_SYSTEM_PROMPT;
+  let system = BRAIN_DUMP_SYSTEM_PROMPT;
+  if (inputType === "voice") {
+    system += VOICE_DUMP_ADDENDUM;
+  } else if (inputType === "photo") {
+    system += PHOTO_DUMP_ADDENDUM;
+  }
 
   const result = await callHaiku({
     system,

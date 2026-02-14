@@ -33,3 +33,25 @@ export async function uploadAudio(params: UploadAudioParams): Promise<string> {
 
   return `r2://${R2_BUCKET_NAME}/${key}`;
 }
+
+interface UploadPhotoParams {
+  userId: string;
+  buffer: Buffer;
+  contentType: string;
+  fileExtension: string;
+}
+
+export async function uploadPhoto(params: UploadPhotoParams): Promise<string> {
+  const key = `photo-dumps/${params.userId}/${Date.now()}.${params.fileExtension}`;
+
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: params.buffer,
+      ContentType: params.contentType,
+    })
+  );
+
+  return `r2://${R2_BUCKET_NAME}/${key}`;
+}

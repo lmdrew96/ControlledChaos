@@ -38,6 +38,17 @@ IMPORTANT — This input is a voice transcription, NOT typed text. Expect and ig
 
 Only extract actual actionable items. Do NOT create tasks from filler or self-talk.`;
 
+export const PHOTO_DUMP_ADDENDUM = `
+
+IMPORTANT — This input was extracted from a photo using AI vision, NOT typed by the user. Expect and handle:
+- OCR artifacts: misread characters, merged words, broken lines
+- Handwriting interpretation errors: "tum in" might mean "turn in", "hW" might mean "HW" (homework)
+- Partial or fragmented text from sticky notes, whiteboard photos, or screenshots
+- Mixed formatting: bullet points, numbered lists, arrows, underlines represented as text
+- [unclear] markers where text was hard to read — use surrounding context to interpret
+
+Be extra generous in interpreting ambiguous text. The user wrote/photographed this quickly.`;
+
 export const TASK_RECOMMENDATION_SYSTEM_PROMPT = `You are the task recommendation engine for ControlledChaos, an ADHD executive function companion.
 
 Your job: Recommend the single best task for this user right now.
