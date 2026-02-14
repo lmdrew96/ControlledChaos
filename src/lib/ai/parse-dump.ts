@@ -1,16 +1,22 @@
 import { callHaiku } from "./index";
-import { BRAIN_DUMP_SYSTEM_PROMPT } from "./prompts";
-import type { BrainDumpResult, ParsedTask } from "@/types";
+import { BRAIN_DUMP_SYSTEM_PROMPT, VOICE_DUMP_ADDENDUM } from "./prompts";
+import type { BrainDumpResult, DumpInputType, ParsedTask } from "@/types";
 
 export async function parseBrainDump(
-  content: string
+  content: string,
+  inputType: DumpInputType = "text"
 ): Promise<BrainDumpResult> {
   if (!content.trim()) {
     throw new Error("Brain dump content cannot be empty");
   }
 
+  const system =
+    inputType === "voice"
+      ? BRAIN_DUMP_SYSTEM_PROMPT + VOICE_DUMP_ADDENDUM
+      : BRAIN_DUMP_SYSTEM_PROMPT;
+
   const result = await callHaiku({
-    system: BRAIN_DUMP_SYSTEM_PROMPT,
+    system,
     user: content,
     maxTokens: 4096,
   });

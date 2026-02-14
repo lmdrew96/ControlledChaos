@@ -28,6 +28,16 @@ For each task, output:
 
 Respond with valid JSON: { "tasks": [...], "summary": "Brief summary of what was captured" }`;
 
+export const VOICE_DUMP_ADDENDUM = `
+
+IMPORTANT — This input is a voice transcription, NOT typed text. Expect and ignore:
+- Filler phrases: "um", "uh", "like", "you know", "let me think", "all right", "okay so"
+- Self-talk: "let's see", "what else", "hmm", "yeah that sounds good", "I think that's it"
+- Recording artifacts: "is this working", "let me try this", "okay here we go"
+- Repetitions and false starts from natural speech
+
+Only extract actual actionable items. Do NOT create tasks from filler or self-talk.`;
+
 export const TASK_RECOMMENDATION_SYSTEM_PROMPT = `You are the task recommendation engine for ControlledChaos, an ADHD executive function companion.
 
 Your job: Recommend the single best task for this user right now.

@@ -23,8 +23,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse with AI (same pipeline as text dumps)
-    const result = await parseBrainDump(transcript);
+    // Parse with AI (voice-aware: filters filler speech)
+    const result = await parseBrainDump(transcript, "voice");
 
     // Save brain dump record with voice metadata
     const dump = await createBrainDump({
