@@ -3,6 +3,7 @@ import { Brain, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskList } from "@/components/features/task-feed/task-list";
+import { DoThisNext } from "@/components/features/recommendation/do-this-next";
 
 export default function DashboardPage() {
   return (
@@ -13,6 +14,9 @@ export default function DashboardPage() {
           Your brain has the ideas. I&apos;ll handle the rest.
         </p>
       </div>
+
+      {/* Hero: Task Recommendation */}
+      <DoThisNext />
 
       {/* Quick brain dump CTA */}
       <Card className="border-primary/20 bg-primary/5">

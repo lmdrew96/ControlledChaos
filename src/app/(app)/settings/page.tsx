@@ -1,3 +1,7 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EnergyProfileEditor } from "@/components/features/settings/energy-profile";
+import { SavedLocations } from "@/components/features/settings/saved-locations";
+
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
@@ -8,9 +12,25 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-        Settings coming soon
-      </div>
+      {/* Energy Profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Energy Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EnergyProfileEditor />
+        </CardContent>
+      </Card>
+
+      {/* Saved Locations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Saved Locations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SavedLocations />
+        </CardContent>
+      </Card>
     </div>
   );
 }

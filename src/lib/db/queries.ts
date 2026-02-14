@@ -1,6 +1,14 @@
 import { db } from "./index";
-import { brainDumps, tasks, users, userSettings } from "./schema";
-import { eq, and, desc, ne } from "drizzle-orm";
+import {
+  brainDumps,
+  calendarEvents,
+  locations,
+  taskActivity,
+  tasks,
+  users,
+  userSettings,
+} from "./schema";
+import { eq, and, desc, ne, gt, gte, inArray } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -199,6 +207,163 @@ export async function deleteTask(taskId: string, userId: string) {
   const [deleted] = await db
     .delete(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .returning();
+
+  return deleted;
+}
+
+// ============================================================
+// Users (read)
+// ============================================================
+export async function getUser(userId: string) {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return user ?? null;
+}
+
+// ============================================================
+// Task Activity
+// ============================================================
+export async function logTaskActivity(params: {
+  userId: string;
+  taskId: string;
+  action: string;
+  context?: Record<string, unknown>;
+}) {
+  const [activity] = await db
+    .insert(taskActivity)
+    .values({
+      userId: params.userId,
+      taskId: params.taskId,
+      action: params.action,
+      context: params.context ?? null,
+    })
+    .returning();
+
+  return activity;
+}
+
+export async function getRecentTaskActivity(
+  userId: string,
+  limit: number = 20
+) {
+  return db
+    .select()
+    .from(taskActivity)
+    .where(eq(taskActivity.userId, userId))
+    .orderBy(desc(taskActivity.createdAt))
+    .limit(limit);
+}
+
+export async function getTasksCompletedToday(userId: string, timezone: string) {
+  // Calculate start of day in user's timezone
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  const startOfDay = new Date(`${year}-${month}-${day}T00:00:00`);
+
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        eq(tasks.status, "completed"),
+        gte(tasks.completedAt, startOfDay)
+      )
+    );
+}
+
+// ============================================================
+// Pending Tasks for Recommendation
+// ============================================================
+export async function getPendingTasks(userId: string) {
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        inArray(tasks.status, ["pending", "in_progress"])
+      )
+    )
+    .orderBy(desc(tasks.createdAt));
+}
+
+// ============================================================
+// Calendar Events
+// ============================================================
+export async function getNextCalendarEvent(userId: string) {
+  const now = new Date();
+  const [event] = await db
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(eq(calendarEvents.userId, userId), gt(calendarEvents.startTime, now))
+    )
+    .orderBy(calendarEvents.startTime)
+    .limit(1);
+
+  return event ?? null;
+}
+
+// ============================================================
+// Saved Locations
+// ============================================================
+export async function getSavedLocations(userId: string) {
+  return db
+    .select()
+    .from(locations)
+    .where(eq(locations.userId, userId))
+    .orderBy(locations.createdAt);
+}
+
+export async function createLocation(params: {
+  userId: string;
+  name: string;
+  latitude: string;
+  longitude: string;
+  radiusMeters?: number;
+}) {
+  const [loc] = await db.insert(locations).values(params).returning();
+  return loc;
+}
+
+export async function updateLocation(
+  locationId: string,
+  userId: string,
+  data: Partial<{
+    name: string;
+    latitude: string;
+    longitude: string;
+    radiusMeters: number;
+  }>
+) {
+  const [updated] = await db
+    .update(locations)
+    .set(data)
+    .where(and(eq(locations.id, locationId), eq(locations.userId, userId)))
+    .returning();
+
+  return updated;
+}
+
+export async function deleteLocation(locationId: string, userId: string) {
+  const [deleted] = await db
+    .delete(locations)
+    .where(and(eq(locations.id, locationId), eq(locations.userId, userId)))
     .returning();
 
   return deleted;
