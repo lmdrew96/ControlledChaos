@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Calendar,
   Loader2,
@@ -23,6 +23,7 @@ const GOOGLE_CALENDAR_SCOPES = [
 
 export function CalendarSettings() {
   const { user } = useUser();
+  const { openUserProfile } = useClerk();
 
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
@@ -171,6 +172,18 @@ export function CalendarSettings() {
         window.location.href = url.toString();
       }
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : String(err);
+
+      // Clerk requires reverification for sensitive operations like adding accounts
+      if (message.includes("additional verification")) {
+        toast.info(
+          "Clerk needs you to verify your identity first. Opening your profile..."
+        );
+        openUserProfile();
+        return;
+      }
+
       console.error("[Settings] Google link error:", err);
       toast.error("Failed to start Google sign-in");
     }
