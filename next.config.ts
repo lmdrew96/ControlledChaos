@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  serverExternalPackages: ["node-ical"],
 };
 
 export default nextConfig;

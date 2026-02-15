@@ -119,6 +119,27 @@ export interface NotificationPrefs {
 // ============================================================
 export type CalendarSource = "canvas" | "google" | "controlledchaos";
 
+export interface CalendarEvent {
+  id: string;
+  userId: string;
+  source: CalendarSource;
+  externalId: string | null;
+  title: string;
+  description: string | null;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  isAllDay: boolean;
+  syncedAt: string;
+}
+
+export interface CalendarSyncResult {
+  created: number;
+  updated: number;
+  deleted: number;
+  total: number;
+}
+
 // ============================================================
 // Goal Types
 // ============================================================

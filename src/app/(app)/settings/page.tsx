@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnergyProfileEditor } from "@/components/features/settings/energy-profile";
 import { SavedLocations } from "@/components/features/settings/saved-locations";
+import { CalendarSettings } from "@/components/features/settings/calendar-settings";
 
 export default function SettingsPage() {
   return (
@@ -29,6 +30,16 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SavedLocations />
+        </CardContent>
+      </Card>
+
+      {/* Calendar Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Calendar Integration</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CalendarSettings />
         </CardContent>
       </Card>
     </div>

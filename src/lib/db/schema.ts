@@ -8,6 +8,7 @@ import {
   integer,
   decimal,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // ============================================================
@@ -132,6 +133,11 @@ export const calendarEvents = pgTable(
   },
   (table) => [
     index("idx_calendar_events_user_time").on(table.userId, table.startTime),
+    uniqueIndex("idx_calendar_events_unique_external").on(
+      table.userId,
+      table.source,
+      table.externalId
+    ),
   ]
 );
 

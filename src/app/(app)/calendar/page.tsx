@@ -1,3 +1,5 @@
+import { WeekView } from "@/components/features/calendar/week-view";
+
 export default function CalendarPage() {
   return (
     <div className="space-y-6">
@@ -8,9 +10,7 @@ export default function CalendarPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-        Calendar view coming soon
-      </div>
+      <WeekView />
     </div>
   );
 }

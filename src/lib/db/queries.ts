@@ -8,7 +8,7 @@ import {
   users,
   userSettings,
 } from "./schema";
-import { eq, and, desc, ne, gt, gte, inArray } from "drizzle-orm";
+import { eq, and, desc, ne, gt, gte, lte, inArray, notInArray } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -319,6 +319,99 @@ export async function getNextCalendarEvent(userId: string) {
     .limit(1);
 
   return event ?? null;
+}
+
+export async function upsertCalendarEvent(params: {
+  userId: string;
+  source: string;
+  externalId: string;
+  title: string;
+  description: string | null;
+  startTime: Date;
+  endTime: Date;
+  location: string | null;
+  isAllDay: boolean;
+}) {
+  const [result] = await db
+    .insert(calendarEvents)
+    .values({
+      userId: params.userId,
+      source: params.source,
+      externalId: params.externalId,
+      title: params.title,
+      description: params.description,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      location: params.location,
+      isAllDay: params.isAllDay,
+      syncedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [
+        calendarEvents.userId,
+        calendarEvents.source,
+        calendarEvents.externalId,
+      ],
+      set: {
+        title: params.title,
+        description: params.description,
+        startTime: params.startTime,
+        endTime: params.endTime,
+        location: params.location,
+        isAllDay: params.isAllDay,
+        syncedAt: new Date(),
+      },
+    })
+    .returning();
+
+  return result;
+}
+
+export async function getCalendarEventsByDateRange(
+  userId: string,
+  start: Date,
+  end: Date
+) {
+  return db
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.userId, userId),
+        gte(calendarEvents.startTime, start),
+        lte(calendarEvents.startTime, end)
+      )
+    )
+    .orderBy(calendarEvents.startTime);
+}
+
+export async function deleteStaleCalendarEvents(
+  userId: string,
+  source: string,
+  currentExternalIds: string[]
+) {
+  if (currentExternalIds.length === 0) {
+    return db
+      .delete(calendarEvents)
+      .where(
+        and(
+          eq(calendarEvents.userId, userId),
+          eq(calendarEvents.source, source)
+        )
+      )
+      .returning();
+  }
+
+  return db
+    .delete(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.userId, userId),
+        eq(calendarEvents.source, source),
+        notInArray(calendarEvents.externalId, currentExternalIds)
+      )
+    )
+    .returning();
 }
 
 // ============================================================
