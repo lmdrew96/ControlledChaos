@@ -9,6 +9,7 @@ import {
   MapPin,
   Clock,
   Calendar,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ function eventPosition(event: CalendarEvent) {
 // ============================================================
 
 export function WeekView() {
-  const { events, isLoading, error, fetchEvents, syncCalendar } =
+  const { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks } =
     useCalendarEvents();
 
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
@@ -128,6 +129,7 @@ export function WeekView() {
     null
   );
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
 
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
@@ -204,12 +206,36 @@ export function WeekView() {
     setIsSyncing(true);
     try {
       const result = await syncCalendar();
-      toast.success(`Synced ${result.total} events from Canvas!`);
+      const parts: string[] = [];
+      if (result.canvas) parts.push(`${result.canvas.total} Canvas`);
+      if (result.google) parts.push(`${result.google.total} Google`);
+      toast.success(
+        parts.length > 0
+          ? `Synced ${parts.join(" + ")} events!`
+          : "Sync complete!"
+      );
       await fetchEvents(weekStart, weekEnd);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setIsSyncing(false);
+    }
+  }
+
+  async function handleSchedule() {
+    setIsScheduling(true);
+    try {
+      const result = await scheduleTasks();
+      if (result.eventsCreated === 0) {
+        toast.info(result.message || "No tasks to schedule right now.");
+      } else {
+        toast.success(result.message);
+      }
+      await fetchEvents(weekStart, weekEnd);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Scheduling failed");
+    } finally {
+      setIsScheduling(false);
     }
   }
 
@@ -270,19 +296,34 @@ export function WeekView() {
           </span>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSync}
-          disabled={isSyncing}
-        >
-          {isSyncing ? (
-            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-3 w-3" />
-          )}
-          Sync
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSchedule}
+            disabled={isScheduling}
+          >
+            {isScheduling ? (
+              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-3 w-3" />
+            )}
+            Schedule Tasks
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSync}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-3 w-3" />
+            )}
+            Sync
+          </Button>
+        </div>
       </div>
 
       {error && (

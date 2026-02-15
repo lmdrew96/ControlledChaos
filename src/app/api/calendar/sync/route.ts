@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserSettings } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
+import type { CalendarSyncResult } from "@/types";
 
 export async function POST() {
   try {
@@ -11,18 +13,53 @@ export async function POST() {
     }
 
     const settings = await getUserSettings(userId);
-    if (!settings?.canvasIcalUrl) {
+
+    let canvasResult: CalendarSyncResult | null = null;
+    let googleResult: CalendarSyncResult | null = null;
+    const errors: string[] = [];
+
+    // Sync Canvas if configured
+    if (settings?.canvasIcalUrl) {
+      try {
+        canvasResult = await syncCanvasCalendar(
+          userId,
+          settings.canvasIcalUrl
+        );
+      } catch (err) {
+        console.error("[API] Canvas sync failed:", err);
+        errors.push(
+          `Canvas: ${err instanceof Error ? err.message : "sync failed"}`
+        );
+      }
+    }
+
+    // Sync Google if connected
+    if (settings?.googleCalConnected) {
+      try {
+        googleResult = await syncGoogleCalendar(userId);
+      } catch (err) {
+        console.error("[API] Google sync failed:", err);
+        errors.push(
+          `Google: ${err instanceof Error ? err.message : "sync failed"}`
+        );
+      }
+    }
+
+    if (!canvasResult && !googleResult && errors.length === 0) {
       return NextResponse.json(
-        { error: "No Canvas iCal URL configured. Add it in Settings." },
+        {
+          error:
+            "No calendars configured. Add Canvas iCal URL or connect Google Calendar in Settings.",
+        },
         { status: 400 }
       );
     }
 
-    const result = await syncCanvasCalendar(userId, settings.canvasIcalUrl);
-
     return NextResponse.json({
-      success: true,
-      ...result,
+      success: errors.length === 0,
+      canvas: canvasResult,
+      google: googleResult,
+      errors: errors.length > 0 ? errors : undefined,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {

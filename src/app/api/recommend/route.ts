@@ -122,6 +122,7 @@ export async function POST(request: Request) {
       category: t.category,
       locationTag: t.locationTag,
       deadline: t.deadline?.toISOString() ?? null,
+      scheduledFor: t.scheduledFor?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),

@@ -79,7 +79,9 @@ Rules:
 - Mix task types to prevent fatigue
 - Schedule high-energy tasks during the user's peak energy times
 - Include buffer time between tasks (10-15 min)
-- Don't over-schedule — leave breathing room
+- Don't over-schedule — leave breathing room (max 6-8 blocks total)
 - Prioritize deadline-driven tasks first
+- Only schedule tasks that fit within the provided free time blocks
+- Use the task's estimatedMinutes for block duration (default to 30 min if not set)
 
-Output: Array of { taskId, startTime, endTime, reasoning }`;
+Respond with valid JSON: { "blocks": [{ "taskId": "uuid", "startTime": "ISO8601", "endTime": "ISO8601", "reasoning": "One sentence explaining why this time slot" }] }`;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { CalendarEvent, CalendarSyncResult } from "@/types";
+import type { CalendarEvent, ScheduleResult } from "@/types";
 
 export function useCalendarEvents() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -30,12 +30,24 @@ export function useCalendarEvents() {
     }
   }, []);
 
-  const syncCalendar = useCallback(async (): Promise<CalendarSyncResult> => {
+  const syncCalendar = useCallback(async () => {
     const res = await fetch("/api/calendar/sync", { method: "POST" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Sync failed");
+    return data as {
+      success: boolean;
+      canvas: { total: number } | null;
+      google: { total: number } | null;
+      syncedAt: string;
+    };
+  }, []);
+
+  const scheduleTasks = useCallback(async (): Promise<ScheduleResult> => {
+    const res = await fetch("/api/calendar/schedule", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Scheduling failed");
     return data;
   }, []);
 
-  return { events, isLoading, error, fetchEvents, syncCalendar };
+  return { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks };
 }

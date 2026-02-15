@@ -193,6 +193,7 @@ export async function updateTask(
     category: string | null;
     locationTag: string | null;
     deadline: Date | null;
+    scheduledFor: Date | null;
     completedAt: Date | null;
   }>
 ) {

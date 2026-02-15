@@ -14,6 +14,7 @@ export interface Task {
   category: string | null;
   locationTag: string | null;
   deadline: string | null;
+  scheduledFor: string | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -138,6 +139,29 @@ export interface CalendarSyncResult {
   updated: number;
   deleted: number;
   total: number;
+}
+
+// ============================================================
+// AI Scheduling Types
+// ============================================================
+export interface ScheduledBlock {
+  taskId: string;
+  startTime: string;
+  endTime: string;
+  reasoning: string;
+}
+
+export interface ScheduleResult {
+  blocks: ScheduledBlock[];
+  eventsCreated: number;
+  googleEventsCreated: number;
+  message: string;
+}
+
+export interface FreeTimeBlock {
+  start: string;
+  end: string;
+  durationMinutes: number;
 }
 
 // ============================================================
