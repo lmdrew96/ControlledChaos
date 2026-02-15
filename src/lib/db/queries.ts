@@ -96,6 +96,8 @@ export async function updateUserSettings(
     googleCalConnected: boolean;
     onboardingComplete: boolean;
     notificationPrefs: NotificationPrefs | null;
+    wakeTime: number;
+    sleepTime: number;
   }>
 ) {
   const [updated] = await db

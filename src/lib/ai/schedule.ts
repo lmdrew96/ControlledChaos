@@ -14,15 +14,19 @@ interface SchedulingInput {
   energyProfile: EnergyProfile | null;
   timezone: string;
   scheduleDays: number;
+  wakeTime?: number; // Hour 0-23, defaults to 7
+  sleepTime?: number; // Hour 0-23, defaults to 22
 }
 
 /**
  * Find free time blocks between existing calendar events.
- * Only considers blocks >= 20 minutes during waking hours (7am-10pm).
+ * Only considers blocks >= 20 minutes during waking hours.
  */
 export function findFreeBlocks(
   events: CalendarEvent[],
-  days: number
+  days: number,
+  wakeTime = 7,
+  sleepTime = 22
 ): FreeTimeBlock[] {
   const blocks: FreeTimeBlock[] = [];
   const now = new Date();
@@ -30,10 +34,10 @@ export function findFreeBlocks(
   for (let d = 0; d < days; d++) {
     const dayStart = new Date(now);
     dayStart.setDate(dayStart.getDate() + d);
-    dayStart.setHours(7, 0, 0, 0);
+    dayStart.setHours(wakeTime, 0, 0, 0);
 
     const dayEnd = new Date(dayStart);
-    dayEnd.setHours(22, 0, 0, 0);
+    dayEnd.setHours(sleepTime, 0, 0, 0);
 
     // On the first day, start from now if it's already past 7am
     const effectiveStart = d === 0 && now > dayStart ? now : dayStart;
@@ -109,8 +113,15 @@ function buildSchedulingPrompt(
     deadline: t.deadline,
   }));
 
+  const wakeHour = input.wakeTime ?? 7;
+  const sleepHour = input.sleepTime ?? 22;
+  const fmtHour = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
+
   return `## User's Timezone
 ${input.timezone}
+
+## Active Hours
+${fmtHour(wakeHour)} – ${fmtHour(sleepHour)}. NEVER schedule outside this window.
 
 ## Energy Profile
 ${input.energyProfile ? JSON.stringify(input.energyProfile) : "Not set (assume medium energy throughout the day)"}
@@ -134,7 +145,12 @@ export async function generateSchedule(
     return [];
   }
 
-  const freeBlocks = findFreeBlocks(input.calendarEvents, input.scheduleDays);
+  const freeBlocks = findFreeBlocks(
+    input.calendarEvents,
+    input.scheduleDays,
+    input.wakeTime,
+    input.sleepTime
+  );
 
   if (freeBlocks.length === 0) {
     return [];

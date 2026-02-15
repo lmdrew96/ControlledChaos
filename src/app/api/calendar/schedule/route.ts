@@ -82,12 +82,17 @@ export async function POST() {
     }));
 
     // Call AI scheduler
+    const wakeTime = (settings?.wakeTime as number) ?? 7;
+    const sleepTime = (settings?.sleepTime as number) ?? 22;
+
     const blocks = await generateSchedule({
       pendingTasks: serializedTasks,
       calendarEvents: serializedEvents,
       energyProfile: (settings?.energyProfile as EnergyProfile) ?? null,
       timezone,
       scheduleDays,
+      wakeTime,
+      sleepTime,
     });
 
     if (blocks.length === 0) {

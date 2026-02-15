@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
   Calendar,
+  Clock,
   Loader2,
   RefreshCw,
   X,
@@ -43,6 +44,13 @@ export function CalendarSettings() {
     total: number;
   } | null>(null);
 
+  // Calendar hours
+  const [wakeTime, setWakeTime] = useState(7);
+  const [sleepTime, setSleepTime] = useState(22);
+  const [savedWakeTime, setSavedWakeTime] = useState(7);
+  const [savedSleepTime, setSavedSleepTime] = useState(22);
+  const [isSavingHours, setIsSavingHours] = useState(false);
+
   const isDirty = canvasUrl !== original;
   const hasUrl = original.trim().length > 0;
 
@@ -63,6 +71,14 @@ export function CalendarSettings() {
             setOriginal(data.canvasIcalUrl);
           }
           setGoogleConnected(data.googleCalConnected ?? false);
+          if (data.wakeTime != null) {
+            setWakeTime(data.wakeTime);
+            setSavedWakeTime(data.wakeTime);
+          }
+          if (data.sleepTime != null) {
+            setSleepTime(data.sleepTime);
+            setSavedSleepTime(data.sleepTime);
+          }
         }
       } catch {
         // defaults
@@ -86,6 +102,28 @@ export function CalendarSettings() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleAccounts.length, googleConnected, isLoading]);
+
+  // ── Calendar hours handlers ─────────────────────────────────
+  const hoursDirty = wakeTime !== savedWakeTime || sleepTime !== savedSleepTime;
+
+  async function handleSaveHours() {
+    setIsSavingHours(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wakeTime, sleepTime }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSavedWakeTime(wakeTime);
+      setSavedSleepTime(sleepTime);
+      toast.success("Calendar hours updated!");
+    } catch {
+      toast.error("Failed to save calendar hours");
+    } finally {
+      setIsSavingHours(false);
+    }
+  }
 
   // ── Canvas handlers ──────────────────────────────────────────
   async function handleSave() {
@@ -225,8 +263,81 @@ export function CalendarSettings() {
     );
   }
 
+  const formatHour = (h: number) => {
+    if (h === 0) return "12 AM";
+    if (h === 12) return "12 PM";
+    return h < 12 ? `${h} AM` : `${h - 12} PM`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* ── Calendar Hours ──────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Calendar Hours</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Set when your day starts and ends. The calendar view and AI
+          scheduling will respect this window.
+        </p>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1.5">
+            <label htmlFor="wake-time" className="text-xs text-muted-foreground">
+              Day starts
+            </label>
+            <select
+              id="wake-time"
+              value={wakeTime}
+              onChange={(e) => setWakeTime(Number(e.target.value))}
+              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {formatHour(h)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="sleep-time" className="text-xs text-muted-foreground">
+              Day ends
+            </label>
+            <select
+              id="sleep-time"
+              value={sleepTime}
+              onChange={(e) => setSleepTime(Number(e.target.value))}
+              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {formatHour(h)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {hoursDirty && (
+            <Button
+              onClick={handleSaveHours}
+              disabled={isSavingHours || wakeTime >= sleepTime}
+              size="sm"
+            >
+              {isSavingHours && (
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              )}
+              Save
+            </Button>
+          )}
+        </div>
+        {wakeTime >= sleepTime && (
+          <p className="text-xs text-destructive">
+            Day start must be before day end.
+          </p>
+        )}
+      </div>
+
+      <Separator />
+
       {/* ── Canvas Calendar ───────────────────────────────── */}
       <div className="space-y-4">
         <div className="space-y-2">

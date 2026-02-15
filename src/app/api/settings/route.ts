@@ -15,6 +15,8 @@ export async function GET() {
       energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       googleCalConnected: settings?.googleCalConnected ?? false,
+      wakeTime: settings?.wakeTime ?? 7,
+      sleepTime: settings?.sleepTime ?? 22,
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -40,6 +42,14 @@ export async function PATCH(request: Request) {
     }
     if (body.canvasIcalUrl !== undefined) {
       data.canvasIcalUrl = body.canvasIcalUrl;
+    }
+    if (body.wakeTime !== undefined) {
+      const h = Number(body.wakeTime);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) data.wakeTime = h;
+    }
+    if (body.sleepTime !== undefined) {
+      const h = Number(body.sleepTime);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) data.sleepTime = h;
     }
 
     const updated = await updateUserSettings(userId, data);

@@ -27,10 +27,9 @@ import type { CalendarEvent, CalendarSource } from "@/types";
 // ============================================================
 // Constants
 // ============================================================
-const START_HOUR = 7;
-const END_HOUR = 22; // 10pm
+const DEFAULT_START_HOUR = 7;
+const DEFAULT_END_HOUR = 22;
 const ROW_HEIGHT = 48; // px per 30-min slot
-const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 2;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // ============================================================
@@ -101,13 +100,13 @@ function sourceLabel(source: CalendarSource): string {
   }
 }
 
-function eventPosition(event: CalendarEvent) {
+function eventPosition(event: CalendarEvent, startHour: number) {
   const start = new Date(event.startTime);
   const end = new Date(event.endTime);
 
   const startSlot =
-    (start.getHours() - START_HOUR) * 2 + start.getMinutes() / 30;
-  const endSlot = (end.getHours() - START_HOUR) * 2 + end.getMinutes() / 30;
+    (start.getHours() - startHour) * 2 + start.getMinutes() / 30;
+  const endSlot = (end.getHours() - startHour) * 2 + end.getMinutes() / 30;
 
   const top = Math.max(0, startSlot) * ROW_HEIGHT;
   const height = Math.max(1, endSlot - Math.max(0, startSlot)) * ROW_HEIGHT;
@@ -201,6 +200,24 @@ export function WeekView() {
   );
   const [isSyncing, setIsSyncing] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+
+  // Calendar hour boundaries from user settings
+  const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
+  const [endHour, setEndHour] = useState(DEFAULT_END_HOUR);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setStartHour(data.wakeTime ?? DEFAULT_START_HOUR);
+          setEndHour(data.sleepTime ?? DEFAULT_END_HOUR);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const totalSlots = (endHour - startHour) * 2;
 
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
@@ -313,21 +330,21 @@ export function WeekView() {
   // Time labels for the grid
   const timeLabels = useMemo(() => {
     const labels: string[] = [];
-    for (let h = START_HOUR; h < END_HOUR; h++) {
+    for (let h = startHour; h < endHour; h++) {
       const hour = h % 12 === 0 ? 12 : h % 12;
       const ampm = h < 12 ? "am" : "pm";
       labels.push(`${hour}${ampm}`);
     }
     return labels;
-  }, []);
+  }, [startHour, endHour]);
 
   // Current time indicator position
   const currentTimeTop = useMemo(() => {
     const now = new Date();
-    const slot = (now.getHours() - START_HOUR) * 2 + now.getMinutes() / 30;
-    if (slot < 0 || slot > TOTAL_SLOTS) return null;
+    const slot = (now.getHours() - startHour) * 2 + now.getMinutes() / 30;
+    if (slot < 0 || slot > totalSlots) return null;
     return slot * ROW_HEIGHT;
-  }, []);
+  }, [startHour, totalSlots]);
 
   // Is this week the current week?
   const isCurrentWeek = isSameDay(weekStart, getMonday(today));
@@ -572,10 +589,10 @@ export function WeekView() {
                       "relative border-l border-border",
                       isSameDay(day, today) && "bg-primary/[0.02]"
                     )}
-                    style={{ height: TOTAL_SLOTS * ROW_HEIGHT }}
+                    style={{ height: totalSlots * ROW_HEIGHT }}
                   >
                     {/* Half-hour grid lines */}
-                    {Array.from({ length: TOTAL_SLOTS }, (_, i) => (
+                    {Array.from({ length: totalSlots }, (_, i) => (
                       <div
                         key={i}
                         className={cn(
@@ -592,7 +609,7 @@ export function WeekView() {
                     {(() => {
                       const overlapLayout = layoutOverlappingEvents(dayEvents);
                       return dayEvents.map((event) => {
-                        const pos = eventPosition(event);
+                        const pos = eventPosition(event, startHour);
                         const overlap = overlapLayout.get(event.id);
                         const col = overlap?.column ?? 0;
                         const totalCols = overlap?.totalColumns ?? 1;
