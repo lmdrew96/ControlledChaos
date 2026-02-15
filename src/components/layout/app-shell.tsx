@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar — hidden on mobile, shown on md+ */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card backdrop-blur-xl">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card backdrop-blur-xl sticky top-0 h-screen">
         <div className="flex h-14 items-center gap-2 border-b border-border px-6">
           <Logo className="h-5 w-5" />
           <span className="font-semibold tracking-tight">ControlledChaos</span>
