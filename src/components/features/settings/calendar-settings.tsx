@@ -1,11 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useUser, useReverification } from "@clerk/nextjs";
-import {
-  isClerkRuntimeError,
-  isReverificationCancelledError,
-} from "@clerk/nextjs/errors";
+import { useUser } from "@clerk/nextjs";
 import {
   Calendar,
   Loader2,
@@ -13,7 +9,7 @@ import {
   X,
   CheckCircle2,
   ExternalLink,
-  Plus,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,13 +23,6 @@ const GOOGLE_CALENDAR_SCOPES = [
 
 export function CalendarSettings() {
   const { user } = useUser();
-
-  // Wrap createExternalAccount with Clerk's reverification flow —
-  // automatically shows a verification modal when Clerk requires step-up auth
-  const createExternalAccount = useReverification(
-    (params: { strategy: "oauth_google"; redirectUrl: string; additionalScopes: string[] }) =>
-      user?.createExternalAccount(params)
-  );
 
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
@@ -171,22 +160,17 @@ export function CalendarSettings() {
     if (!user) return;
 
     try {
-      const result = await createExternalAccount({
+      const result = await user.createExternalAccount({
         strategy: "oauth_google",
         redirectUrl: window.location.href,
         additionalScopes: GOOGLE_CALENDAR_SCOPES,
       });
 
-      const url = result?.verification?.externalVerificationRedirectURL;
+      const url = result.verification?.externalVerificationRedirectURL;
       if (url) {
         window.location.href = url.toString();
       }
     } catch (err) {
-      // User closed the reverification modal — not an error
-      if (isClerkRuntimeError(err) && isReverificationCancelledError(err)) {
-        return;
-      }
-
       console.error("[Settings] Google link error:", err);
       toast.error("Failed to start Google sign-in");
     }
@@ -324,7 +308,7 @@ export function CalendarSettings() {
 
         {googleConnected ? (
           <div className="space-y-3">
-            {/* Show each connected Google account */}
+            {/* Show connected Google account */}
             {googleAccounts.length > 0 ? (
               <div className="space-y-2">
                 {googleAccounts.map((account) => (
@@ -352,30 +336,36 @@ export function CalendarSettings() {
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={handleAddGoogleAccount}
-                variant="outline"
-                size="sm"
-              >
-                <Plus className="mr-2 h-3 w-3" />
-                Add another account
-              </Button>
-              <Button
-                onClick={handleDisconnectGoogle}
-                disabled={isDisconnecting}
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive"
-              >
-                {isDisconnecting ? (
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                ) : (
-                  <X className="mr-2 h-3 w-3" />
-                )}
-                Disconnect all
-              </Button>
+            <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 p-3">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
+                To see events from another Google account (e.g. school), open{" "}
+                <a
+                  href="https://calendar.google.com/calendar/r/settings/addcalendar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Google Calendar settings
+                </a>{" "}
+                and subscribe to it. Synced calendars show up here automatically.
+              </p>
             </div>
+
+            <Button
+              onClick={handleDisconnectGoogle}
+              disabled={isDisconnecting}
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+            >
+              {isDisconnecting ? (
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              ) : (
+                <X className="mr-2 h-3 w-3" />
+              )}
+              Disconnect
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">

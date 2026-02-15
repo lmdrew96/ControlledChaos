@@ -23,9 +23,21 @@ export interface GoogleCalendarEvent {
   status: string;
 }
 
-interface GoogleCalendarListResponse {
+interface GoogleEventsResponse {
   items: GoogleCalendarEvent[];
   nextPageToken?: string;
+}
+
+interface GoogleCalendarListEntry {
+  id: string;
+  summary?: string;
+  primary?: boolean;
+  selected?: boolean;
+  accessRole: string;
+}
+
+interface GoogleCalendarListResponse {
+  items: GoogleCalendarListEntry[];
 }
 
 export function createGoogleCalendarClient(accessToken: string) {
@@ -35,13 +47,64 @@ export function createGoogleCalendarClient(accessToken: string) {
   };
 
   return {
-    /** List events from primary calendar within a time range */
+    /**
+     * List events from ALL visible calendars within a time range.
+     * Fetches the user's calendar list first, then queries each one.
+     * This picks up subscribed calendars (e.g. school calendar added to personal account).
+     */
     async listEvents(params: {
       timeMin: string;
       timeMax: string;
       maxResults?: number;
     }): Promise<GoogleCalendarEvent[]> {
-      const url = new URL(`${GCAL_BASE}/calendars/primary/events`);
+      // 1. Get all calendars the user can see
+      const calListRes = await fetch(
+        `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
+        { headers }
+      );
+      if (!calListRes.ok) {
+        // Fall back to just primary if calendarList fails
+        return this.listEventsFromCalendar("primary", params);
+      }
+      const calList: GoogleCalendarListResponse = await calListRes.json();
+      const calendars = calList.items ?? [];
+
+      if (calendars.length === 0) {
+        return this.listEventsFromCalendar("primary", params);
+      }
+
+      // 2. Fetch events from each calendar in parallel
+      const perCalendar = Math.max(
+        50,
+        Math.floor((params.maxResults ?? 250) / calendars.length)
+      );
+      const results = await Promise.allSettled(
+        calendars.map((cal) =>
+          this.listEventsFromCalendar(cal.id, {
+            ...params,
+            maxResults: perCalendar,
+          })
+        )
+      );
+
+      const allEvents: GoogleCalendarEvent[] = [];
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          allEvents.push(...result.value);
+        }
+      }
+
+      return allEvents;
+    },
+
+    /** List events from a single calendar by ID */
+    async listEventsFromCalendar(
+      calendarId: string,
+      params: { timeMin: string; timeMax: string; maxResults?: number }
+    ): Promise<GoogleCalendarEvent[]> {
+      const url = new URL(
+        `${GCAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`
+      );
       url.searchParams.set("timeMin", params.timeMin);
       url.searchParams.set("timeMax", params.timeMax);
       url.searchParams.set("singleEvents", "true");
@@ -53,7 +116,7 @@ export function createGoogleCalendarClient(accessToken: string) {
         const body = await res.text();
         throw new Error(`Google Calendar API error ${res.status}: ${body}`);
       }
-      const data: GoogleCalendarListResponse = await res.json();
+      const data: GoogleEventsResponse = await res.json();
       return data.items ?? [];
     },
 
