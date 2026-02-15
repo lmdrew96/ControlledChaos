@@ -141,8 +141,8 @@ function layoutOverlappingEvents(
 
   for (let i = 1; i < sorted.length; i++) {
     const eventStart = new Date(sorted[i].startTime).getTime();
-    if (eventStart < clusterEnd) {
-      // Overlaps with current cluster
+    if (eventStart <= clusterEnd) {
+      // Overlaps with current cluster (<=  handles zero-duration events at same time)
       currentCluster.push(sorted[i]);
       clusterEnd = Math.max(clusterEnd, new Date(sorted[i].endTime).getTime());
     } else {
