@@ -115,6 +115,73 @@ function eventPosition(event: CalendarEvent) {
   return { top, height: Math.max(height, ROW_HEIGHT / 2) };
 }
 
+/**
+ * Calculate horizontal layout for overlapping events in a day column.
+ * Returns a map of event ID → { column, totalColumns } so events
+ * sit side by side instead of stacking on top of each other.
+ */
+function layoutOverlappingEvents(
+  events: CalendarEvent[]
+): Map<string, { column: number; totalColumns: number }> {
+  const layout = new Map<string, { column: number; totalColumns: number }>();
+  if (events.length === 0) return layout;
+
+  // Sort by start time, then by end time (longer events first)
+  const sorted = [...events].sort((a, b) => {
+    const diff =
+      new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+    if (diff !== 0) return diff;
+    return new Date(b.endTime).getTime() - new Date(a.endTime).getTime();
+  });
+
+  // Group into overlap clusters
+  const clusters: CalendarEvent[][] = [];
+  let currentCluster: CalendarEvent[] = [sorted[0]];
+  let clusterEnd = new Date(sorted[0].endTime).getTime();
+
+  for (let i = 1; i < sorted.length; i++) {
+    const eventStart = new Date(sorted[i].startTime).getTime();
+    if (eventStart < clusterEnd) {
+      // Overlaps with current cluster
+      currentCluster.push(sorted[i]);
+      clusterEnd = Math.max(clusterEnd, new Date(sorted[i].endTime).getTime());
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [sorted[i]];
+      clusterEnd = new Date(sorted[i].endTime).getTime();
+    }
+  }
+  clusters.push(currentCluster);
+
+  // Assign columns within each cluster
+  for (const cluster of clusters) {
+    const columns: { end: number }[] = [];
+
+    for (const event of cluster) {
+      const start = new Date(event.startTime).getTime();
+
+      // Find the first column where this event fits (no overlap)
+      let col = columns.findIndex((c) => c.end <= start);
+      if (col === -1) {
+        col = columns.length;
+        columns.push({ end: 0 });
+      }
+      columns[col].end = new Date(event.endTime).getTime();
+
+      layout.set(event.id, { column: col, totalColumns: 0 });
+    }
+
+    // Set totalColumns for all events in this cluster
+    const totalCols = columns.length;
+    for (const event of cluster) {
+      const entry = layout.get(event.id)!;
+      entry.totalColumns = totalCols;
+    }
+  }
+
+  return layout;
+}
+
 // ============================================================
 // Component
 // ============================================================
@@ -518,29 +585,45 @@ export function WeekView() {
                     ))}
 
                     {/* Event blocks */}
-                    {dayEvents.map((event) => {
-                      const pos = eventPosition(event);
-                      return (
-                        <button
-                          key={event.id}
-                          onClick={() => setSelectedEvent(event)}
-                          className={cn(
-                            "absolute inset-x-1 z-10 overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-left transition-opacity hover:opacity-80",
-                            sourceColor(event.source as CalendarSource)
-                          )}
-                          style={{ top: pos.top, height: pos.height }}
-                        >
-                          <p className="truncate text-[11px] font-medium leading-tight">
-                            {event.title}
-                          </p>
-                          {pos.height > ROW_HEIGHT && (
-                            <p className="truncate text-[10px] opacity-70">
-                              {formatTime(new Date(event.startTime))}
+                    {(() => {
+                      const overlapLayout = layoutOverlappingEvents(dayEvents);
+                      return dayEvents.map((event) => {
+                        const pos = eventPosition(event);
+                        const overlap = overlapLayout.get(event.id);
+                        const col = overlap?.column ?? 0;
+                        const totalCols = overlap?.totalColumns ?? 1;
+
+                        // Calculate width and left offset for side-by-side layout
+                        const widthPercent = 100 / totalCols;
+                        const leftPercent = col * widthPercent;
+
+                        return (
+                          <button
+                            key={event.id}
+                            onClick={() => setSelectedEvent(event)}
+                            className={cn(
+                              "absolute z-10 overflow-hidden rounded border-l-2 px-1 py-0.5 text-left transition-opacity hover:opacity-80",
+                              sourceColor(event.source as CalendarSource)
+                            )}
+                            style={{
+                              top: pos.top,
+                              height: pos.height,
+                              left: `calc(${leftPercent}% + 2px)`,
+                              width: `calc(${widthPercent}% - 4px)`,
+                            }}
+                          >
+                            <p className="truncate text-[11px] font-medium leading-tight">
+                              {event.title}
                             </p>
-                          )}
-                        </button>
-                      );
-                    })}
+                            {pos.height > ROW_HEIGHT && (
+                              <p className="truncate text-[10px] opacity-70">
+                                {formatTime(new Date(event.startTime))}
+                              </p>
+                            )}
+                          </button>
+                        );
+                      });
+                    })()}
 
                     {/* Current time indicator */}
                     {isSameDay(day, today) &&
