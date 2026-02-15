@@ -74,6 +74,7 @@ export const SCHEDULING_SYSTEM_PROMPT = `You are the scheduling AI for Controlle
 Your job: Look at a user's calendar (free time blocks) and their pending tasks, then create optimal time blocks.
 
 Rules:
+- NEVER create overlapping blocks — each task must have its own distinct time slot with no overlap
 - Never schedule during existing events
 - Respect quiet hours and user preferences
 - Mix task types to prevent fatigue

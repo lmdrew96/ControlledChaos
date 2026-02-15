@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
   Calendar,
@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   ExternalLink,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,8 +46,10 @@ export function CalendarSettings() {
   const isDirty = canvasUrl !== original;
   const hasUrl = original.trim().length > 0;
 
-  const googleAccount = user?.externalAccounts?.find(
-    (ea) => ea.provider === "google"
+  const googleAccounts = useMemo(
+    () =>
+      user?.externalAccounts?.filter((ea) => ea.provider === "google") ?? [],
+    [user?.externalAccounts]
   );
 
   useEffect(() => {
@@ -72,19 +75,17 @@ export function CalendarSettings() {
 
   // Auto-connect after Google OAuth redirect
   useEffect(() => {
-    if (googleAccount && !googleConnected && !isLoading) {
-      // Check if we just came back from a Google OAuth redirect
+    if (googleAccounts.length > 0 && !googleConnected && !isLoading) {
       const url = new URL(window.location.href);
       if (url.searchParams.has("__clerk_status")) {
         handleConnectGoogle();
-        // Clean up the URL
         url.searchParams.delete("__clerk_status");
         url.searchParams.delete("__clerk_created_session");
         window.history.replaceState({}, "", url.pathname);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleAccount, googleConnected, isLoading]);
+  }, [googleAccounts.length, googleConnected, isLoading]);
 
   // ── Canvas handlers ──────────────────────────────────────────
   async function handleSave() {
@@ -117,7 +118,6 @@ export function CalendarSettings() {
 
       const canvasTotal = data.canvas?.total ?? 0;
       const googleTotal = data.google?.total ?? 0;
-      const total = canvasTotal + googleTotal;
 
       setSyncResult({ total: canvasTotal, syncedAt: data.syncedAt });
       if (googleTotal > 0) {
@@ -156,7 +156,7 @@ export function CalendarSettings() {
   }
 
   // ── Google handlers ──────────────────────────────────────────
-  async function handleLinkGoogle() {
+  async function handleAddGoogleAccount() {
     if (!user) return;
 
     try {
@@ -166,8 +166,7 @@ export function CalendarSettings() {
         additionalScopes: GOOGLE_CALENDAR_SCOPES,
       });
 
-      const url =
-        result.verification?.externalVerificationRedirectURL;
+      const url = result.verification?.externalVerificationRedirectURL;
       if (url) {
         window.location.href = url.toString();
       }
@@ -309,10 +308,27 @@ export function CalendarSettings() {
 
         {googleConnected ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-green-400">
-              <CheckCircle2 className="h-4 w-4" />
-              Google Calendar connected
-            </div>
+            {/* Show each connected Google account */}
+            {googleAccounts.length > 0 ? (
+              <div className="space-y-2">
+                {googleAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                    <span className="text-muted-foreground">
+                      {account.emailAddress}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle2 className="h-4 w-4" />
+                Google Calendar connected
+              </div>
+            )}
 
             {googleSyncResult && (
               <p className="text-xs text-muted-foreground">
@@ -321,6 +337,14 @@ export function CalendarSettings() {
             )}
 
             <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={handleAddGoogleAccount}
+                variant="outline"
+                size="sm"
+              >
+                <Plus className="mr-2 h-3 w-3" />
+                Add another account
+              </Button>
               <Button
                 onClick={handleDisconnectGoogle}
                 disabled={isDisconnecting}
@@ -333,7 +357,7 @@ export function CalendarSettings() {
                 ) : (
                   <X className="mr-2 h-3 w-3" />
                 )}
-                Disconnect
+                Disconnect all
               </Button>
             </div>
           </div>
@@ -344,7 +368,7 @@ export function CalendarSettings() {
               tasks into free time blocks.
             </p>
 
-            {googleAccount ? (
+            {googleAccounts.length > 0 ? (
               <Button
                 onClick={handleConnectGoogle}
                 disabled={isConnecting}
@@ -358,7 +382,7 @@ export function CalendarSettings() {
                 Connect Google Calendar
               </Button>
             ) : (
-              <Button onClick={handleLinkGoogle} size="sm">
+              <Button onClick={handleAddGoogleAccount} size="sm">
                 <ExternalLink className="mr-2 h-3 w-3" />
                 Sign in with Google
               </Button>

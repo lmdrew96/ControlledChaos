@@ -169,8 +169,44 @@ export async function generateSchedule(
 
   // Only keep blocks with valid task IDs
   const validTaskIds = new Set(input.pendingTasks.map((t) => t.id));
-  return parsed.blocks.filter(
+  const validBlocks = parsed.blocks.filter(
     (block) =>
       validTaskIds.has(block.taskId) && block.startTime && block.endTime
   );
+
+  // Remove overlapping blocks — keep earlier blocks, drop later ones that conflict
+  return removeOverlappingBlocks(validBlocks);
+}
+
+/**
+ * Remove overlapping blocks from the schedule.
+ * Keeps the first block in each conflict, drops later ones.
+ */
+function removeOverlappingBlocks(blocks: ScheduledBlock[]): ScheduledBlock[] {
+  if (blocks.length <= 1) return blocks;
+
+  // Sort by start time
+  const sorted = [...blocks].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+
+  const result: ScheduledBlock[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = result[result.length - 1];
+    const curr = sorted[i];
+    const prevEnd = new Date(prev.endTime).getTime();
+    const currStart = new Date(curr.startTime).getTime();
+
+    // Only keep if it doesn't overlap with the last accepted block
+    if (currStart >= prevEnd) {
+      result.push(curr);
+    } else {
+      console.warn(
+        `[AI Schedule] Dropped overlapping block for task ${curr.taskId}: ${curr.startTime} overlaps with ${prev.startTime}-${prev.endTime}`
+      );
+    }
+  }
+
+  return result;
 }

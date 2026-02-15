@@ -1,4 +1,7 @@
-import { getGoogleAccessToken } from "./google-auth";
+import {
+  getGoogleAccessToken,
+  getAllGoogleAccessTokens,
+} from "./google-auth";
 import { createGoogleCalendarClient } from "./google";
 import {
   upsertCalendarEvent,
@@ -9,20 +12,18 @@ import type { CalendarSyncResult } from "@/types";
 const MAX_EVENTS = 500;
 
 /**
- * Sync events from the user's primary Google Calendar into the DB.
- * Mirrors the sync-canvas.ts pattern.
+ * Sync events from ALL connected Google Calendars into the DB.
+ * Each account's events get a prefixed externalId to avoid conflicts.
  */
 export async function syncGoogleCalendar(
   userId: string
 ): Promise<CalendarSyncResult> {
-  const accessToken = await getGoogleAccessToken(userId);
-  if (!accessToken) {
+  const accounts = await getAllGoogleAccessTokens(userId);
+  if (accounts.length === 0) {
     throw new Error(
       "Google Calendar not connected. Connect it in Settings."
     );
   }
-
-  const gcal = createGoogleCalendarClient(accessToken);
 
   // Sync window: 30 days back to 90 days forward
   const now = new Date();
@@ -31,61 +32,80 @@ export async function syncGoogleCalendar(
   const timeMax = new Date(now);
   timeMax.setDate(timeMax.getDate() + 90);
 
-  const events = await gcal.listEvents({
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
-    maxResults: MAX_EVENTS,
-  });
+  let totalCreated = 0;
+  const allExternalIds: string[] = [];
 
-  let created = 0;
-  let updated = 0;
-  const currentExternalIds: string[] = [];
+  for (const account of accounts) {
+    const gcal = createGoogleCalendarClient(account.token);
 
-  for (const event of events) {
-    if (!event.id || event.status === "cancelled") continue;
+    let events;
+    try {
+      events = await gcal.listEvents({
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        maxResults: MAX_EVENTS,
+      });
+    } catch (err) {
+      console.error(
+        `[Calendar] Google sync failed for ${account.email ?? account.accountId}:`,
+        err
+      );
+      continue; // Skip this account, try the next
+    }
 
-    currentExternalIds.push(event.id);
+    for (const event of events) {
+      if (!event.id || event.status === "cancelled") continue;
 
-    const isAllDay = !!event.start.date && !event.start.dateTime;
-    const startTime = new Date(event.start.dateTime ?? event.start.date!);
-    const endTime = new Date(event.end.dateTime ?? event.end.date!);
+      // Prefix externalId with account ID to avoid conflicts between accounts
+      const externalId = `${account.accountId}:${event.id}`;
+      allExternalIds.push(externalId);
 
-    await upsertCalendarEvent({
-      userId,
-      source: "google",
-      externalId: event.id,
-      title: event.summary || "Untitled Event",
-      description: event.description ?? null,
-      startTime,
-      endTime,
-      location: event.location ?? null,
-      isAllDay,
-    });
+      const isAllDay = !!event.start.date && !event.start.dateTime;
+      const startTime = new Date(event.start.dateTime ?? event.start.date!);
+      const endTime = new Date(event.end.dateTime ?? event.end.date!);
 
-    created++;
+      await upsertCalendarEvent({
+        userId,
+        source: "google",
+        externalId,
+        title: event.summary || "Untitled Event",
+        description: event.description ?? null,
+        startTime,
+        endTime,
+        location: event.location ?? null,
+        isAllDay,
+      });
+
+      totalCreated++;
+    }
+
+    console.log(
+      `[Calendar] Google sync (${account.email ?? account.accountId}): ${events.length} events`
+    );
   }
 
-  // Delete events no longer in Google
+  // Delete events no longer in any Google account
   const deleted = await deleteStaleCalendarEvents(
     userId,
     "google",
-    currentExternalIds
+    allExternalIds
   );
 
   console.log(
-    `[Calendar] Google sync: ${created} synced, ${deleted.length} deleted`
+    `[Calendar] Google sync total: ${totalCreated} synced, ${deleted.length} deleted`
   );
 
   return {
-    created,
-    updated,
+    created: totalCreated,
+    updated: 0,
     deleted: deleted.length,
-    total: currentExternalIds.length,
+    total: allExternalIds.length,
   };
 }
 
 /**
  * Write a scheduled time block to Google Calendar.
+ * Writes to the first connected Google account.
  * Returns the Google event ID for storing as externalId, or null on failure.
  */
 export async function writeEventToGoogle(
