@@ -90,9 +90,22 @@ export async function POST(request: Request) {
       .filter((a) => a.action === "rejected" || a.action === "snoozed")
       .map((a) => a.taskId);
 
+    // Format current time in user's timezone so the AI sees the correct local time
+    const now = new Date();
+    const localTime = now.toLocaleString("en-US", {
+      timeZone: timezone,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
     // Build context
     const context: UserContext = {
-      currentTime: new Date().toISOString(),
+      currentTime: localTime,
       timezone,
       location: locationContext,
       nextEvent: nextEvent
