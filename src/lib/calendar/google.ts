@@ -139,6 +139,27 @@ export function createGoogleCalendarClient(accessToken: string) {
       return res.json();
     },
 
+    /** Update an event on the primary calendar (partial update) */
+    async patchEvent(
+      eventId: string,
+      updates: Partial<{
+        summary: string;
+        description: string;
+        start: { dateTime: string; timeZone: string };
+        end: { dateTime: string; timeZone: string };
+      }>
+    ): Promise<GoogleCalendarEvent> {
+      const res = await fetch(
+        `${GCAL_BASE}/calendars/primary/events/${encodeURIComponent(eventId)}`,
+        { method: "PATCH", headers, body: JSON.stringify(updates) }
+      );
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Google Calendar patch error ${res.status}: ${body}`);
+      }
+      return res.json();
+    },
+
     /** Delete an event from the primary calendar */
     async deleteEvent(eventId: string): Promise<void> {
       const res = await fetch(

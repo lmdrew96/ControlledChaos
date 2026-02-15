@@ -417,6 +417,32 @@ export async function deleteStaleCalendarEvents(
     .returning();
 }
 
+export async function deleteCalendarEvent(id: string, userId: string) {
+  const [deleted] = await db
+    .delete(calendarEvents)
+    .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)))
+    .returning();
+  return deleted ?? null;
+}
+
+export async function updateCalendarEvent(
+  id: string,
+  userId: string,
+  data: Partial<{
+    title: string;
+    description: string | null;
+    startTime: Date;
+    endTime: Date;
+  }>
+) {
+  const [updated] = await db
+    .update(calendarEvents)
+    .set({ ...data, syncedAt: new Date() })
+    .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)))
+    .returning();
+  return updated ?? null;
+}
+
 // ============================================================
 // Saved Locations
 // ============================================================

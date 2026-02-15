@@ -10,6 +10,8 @@ import {
   Clock,
   Calendar,
   Sparkles,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,13 @@ function formatTime(date: Date): string {
     minute: "2-digit",
     hour12: true,
   });
+}
+
+/** Convert an ISO string to a datetime-local input value (YYYY-MM-DDTHH:MM) */
+function toLocalDatetime(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatDateRange(start: Date, end: Date, isAllDay: boolean): string {
@@ -201,6 +210,14 @@ export function WeekView() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
 
+  // Event edit/delete state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   // Calendar hour boundaries from user settings
   const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
   const [endHour, setEndHour] = useState(DEFAULT_END_HOUR);
@@ -324,6 +341,64 @@ export function WeekView() {
       toast.error(err instanceof Error ? err.message : "Scheduling failed");
     } finally {
       setIsScheduling(false);
+    }
+  }
+
+  function startEditing() {
+    if (!selectedEvent) return;
+    setEditTitle(selectedEvent.title.replace(/^\[CC\]\s*/, ""));
+    // Format as datetime-local value: YYYY-MM-DDTHH:MM
+    setEditStart(toLocalDatetime(selectedEvent.startTime));
+    setEditEnd(toLocalDatetime(selectedEvent.endTime));
+    setIsEditing(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!selectedEvent) return;
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/calendar/events/${selectedEvent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `[CC] ${editTitle}`,
+          startTime: new Date(editStart).toISOString(),
+          endTime: new Date(editEnd).toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update");
+      }
+      toast.success("Event updated!");
+      setSelectedEvent(null);
+      setIsEditing(false);
+      await fetchEvents(weekStart, weekEnd);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  async function handleDeleteEvent() {
+    if (!selectedEvent) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/calendar/events/${selectedEvent.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete");
+      }
+      toast.success("Scheduled event removed.");
+      setSelectedEvent(null);
+      await fetchEvents(weekStart, weekEnd);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -669,13 +744,20 @@ export function WeekView() {
       {/* Event detail dialog */}
       <Dialog
         open={!!selectedEvent}
-        onOpenChange={(open) => !open && setSelectedEvent(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedEvent(null);
+            setIsEditing(false);
+          }
+        }}
       >
         <DialogContent className="sm:max-w-md">
           {selectedEvent && (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedEvent.title}</DialogTitle>
+                <DialogTitle>
+                  {isEditing ? "Edit Scheduled Event" : selectedEvent.title}
+                </DialogTitle>
                 <DialogDescription>
                   <span
                     className={cn(
@@ -688,44 +770,129 @@ export function WeekView() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-3 pt-2">
-                <div className="flex items-start gap-3 text-sm">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p>
-                      {formatDateRange(
-                        new Date(selectedEvent.startTime),
-                        new Date(selectedEvent.endTime),
-                        selectedEvent.isAllDay
+              {isEditing ? (
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Title
+                    </label>
+                    <input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Start
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editStart}
+                        onChange={(e) => setEditStart(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        End
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editEnd}
+                        onChange={(e) => setEditEnd(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      onClick={handleSaveEdit}
+                      disabled={isSavingEdit || !editTitle.trim()}
+                      size="sm"
+                    >
+                      {isSavingEdit && (
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
                       )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(selectedEvent.startTime).toLocaleDateString(
-                        "en-US",
-                        {
+                      Save
+                    </Button>
+                    <Button
+                      onClick={() => setIsEditing(false)}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-start gap-3 text-sm">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p>
+                        {formatDateRange(
+                          new Date(selectedEvent.startTime),
+                          new Date(selectedEvent.endTime),
+                          selectedEvent.isAllDay
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(
+                          selectedEvent.startTime
+                        ).toLocaleDateString("en-US", {
                           weekday: "long",
                           month: "long",
                           day: "numeric",
                           year: "numeric",
-                        }
-                      )}
-                    </p>
+                        })}
+                      </p>
+                    </div>
                   </div>
+
+                  {selectedEvent.location && (
+                    <div className="flex items-start gap-3 text-sm">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <p>{selectedEvent.location}</p>
+                    </div>
+                  )}
+
+                  {selectedEvent.description && (
+                    <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                      {selectedEvent.description}
+                    </div>
+                  )}
+
+                  {/* Edit/Delete actions for CC-scheduled events */}
+                  {selectedEvent.source === "controlledchaos" && (
+                    <div className="flex items-center gap-2 border-t border-border pt-3">
+                      <Button
+                        onClick={startEditing}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Pencil className="mr-2 h-3 w-3" />
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={handleDeleteEvent}
+                        disabled={isDeleting}
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-3 w-3" />
+                        )}
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                 </div>
-
-                {selectedEvent.location && (
-                  <div className="flex items-start gap-3 text-sm">
-                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <p>{selectedEvent.location}</p>
-                  </div>
-                )}
-
-                {selectedEvent.description && (
-                  <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                    {selectedEvent.description}
-                  </div>
-                )}
-              </div>
+              )}
             </>
           )}
         </DialogContent>
