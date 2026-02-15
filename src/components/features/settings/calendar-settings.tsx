@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useUser, useClerk } from "@clerk/nextjs";
+import { useUser, useReverification } from "@clerk/nextjs";
+import {
+  isClerkRuntimeError,
+  isReverificationCancelledError,
+} from "@clerk/nextjs/errors";
 import {
   Calendar,
   Loader2,
@@ -23,7 +27,13 @@ const GOOGLE_CALENDAR_SCOPES = [
 
 export function CalendarSettings() {
   const { user } = useUser();
-  const { openUserProfile } = useClerk();
+
+  // Wrap createExternalAccount with Clerk's reverification flow —
+  // automatically shows a verification modal when Clerk requires step-up auth
+  const createExternalAccount = useReverification(
+    (params: { strategy: "oauth_google"; redirectUrl: string; additionalScopes: string[] }) =>
+      user?.createExternalAccount(params)
+  );
 
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
@@ -161,26 +171,19 @@ export function CalendarSettings() {
     if (!user) return;
 
     try {
-      const result = await user.createExternalAccount({
+      const result = await createExternalAccount({
         strategy: "oauth_google",
         redirectUrl: window.location.href,
         additionalScopes: GOOGLE_CALENDAR_SCOPES,
       });
 
-      const url = result.verification?.externalVerificationRedirectURL;
+      const url = result?.verification?.externalVerificationRedirectURL;
       if (url) {
         window.location.href = url.toString();
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : String(err);
-
-      // Clerk requires reverification for sensitive operations like adding accounts
-      if (message.includes("additional verification")) {
-        toast.info(
-          "Clerk needs you to verify your identity first. Opening your profile..."
-        );
-        openUserProfile();
+      // User closed the reverification modal — not an error
+      if (isClerkRuntimeError(err) && isReverificationCancelledError(err)) {
         return;
       }
 
