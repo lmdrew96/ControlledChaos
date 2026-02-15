@@ -421,7 +421,7 @@ export function WeekView() {
                           key={event.id}
                           onClick={() => setSelectedEvent(event)}
                           className={cn(
-                            "mb-0.5 w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium",
+                            "mb-0.5 w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium",
                             sourceColor(event.source as CalendarSource)
                           )}
                         >
