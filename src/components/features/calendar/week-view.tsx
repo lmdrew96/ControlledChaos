@@ -161,12 +161,16 @@ function layoutOverlappingEvents(
       const start = new Date(event.startTime).getTime();
 
       // Find the first column where this event fits (no overlap)
-      let col = columns.findIndex((c) => c.end <= start);
+      // Use strict < so zero-duration events at the same time get separate columns
+      let col = columns.findIndex((c) => c.end < start);
       if (col === -1) {
         col = columns.length;
         columns.push({ end: 0 });
       }
-      columns[col].end = new Date(event.endTime).getTime();
+      // Ensure zero-duration events occupy at least 1ms so subsequent events
+      // at the same time don't reuse the same column
+      const end = new Date(event.endTime).getTime();
+      columns[col].end = Math.max(end, start + 1);
 
       layout.set(event.id, { column: col, totalColumns: 0 });
     }
