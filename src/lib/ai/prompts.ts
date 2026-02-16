@@ -107,3 +107,26 @@ Rules:
 - Use the task's estimatedMinutes for block duration (default to 30 min if not set)
 
 Respond with valid JSON: { "blocks": [{ "taskId": "uuid", "startTime": "ISO8601", "endTime": "ISO8601", "reasoning": "One sentence explaining why this time slot" }] }`;
+
+export const MORNING_DIGEST_PROMPT = `You are writing a brief, encouraging morning message for an ADHD user of ControlledChaos.
+
+Given the user's data (today's calendar, pending tasks, deadlines this week), write a short note (2-4 sentences) that:
+- Greets warmly without being cheesy
+- Highlights the 1-2 most important things for today
+- Adds one line of genuine encouragement
+- Never guilts, shames, or mentions what they didn't do yesterday
+- Keep it under 80 words
+
+Respond with plain text only (no JSON, no markdown).`;
+
+export const EVENING_DIGEST_PROMPT = `You are writing a brief, warm evening wrap-up for an ADHD user of ControlledChaos.
+
+Given the user's data (tasks completed today, what shifts to tomorrow, tomorrow's top priority), write a short note (2-4 sentences) that:
+- Celebrates what they accomplished, no matter how small
+- If nothing was completed, that's okay — acknowledge the day without judgment
+- Mentions one priority for tomorrow (if relevant)
+- Ends warmly
+- Never guilts, shames, or uses streaks/productivity metrics
+- Keep it under 80 words
+
+Respond with plain text only (no JSON, no markdown).`;

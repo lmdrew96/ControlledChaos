@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/push-triggers",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/morning-digest",
+      "schedule": "*/15 6-16 * * *"
+    },
+    {
+      "path": "/api/cron/evening-digest",
+      "schedule": "*/15 22-23,0-4 * * *"
     }
   ]
 }

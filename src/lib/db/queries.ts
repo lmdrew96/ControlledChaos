@@ -611,3 +611,27 @@ export async function getAllUsersWithPushEnabled() {
     timezone: r.timezone ?? "America/New_York",
   }));
 }
+
+/**
+ * Get all users whose notification prefs include morning or evening digest enabled.
+ * Returns userId, timezone, email, and their prefs for time matching.
+ */
+export async function getAllUsersWithDigestEnabled() {
+  const rows = await db
+    .select({
+      userId: userSettings.userId,
+      timezone: users.timezone,
+      email: users.email,
+      notificationPrefs: userSettings.notificationPrefs,
+    })
+    .from(userSettings)
+    .innerJoin(users, eq(userSettings.userId, users.id))
+    .where(sql`${userSettings.notificationPrefs} IS NOT NULL`);
+
+  return rows.map((r) => ({
+    userId: r.userId,
+    timezone: r.timezone ?? "America/New_York",
+    email: r.email,
+    prefs: r.notificationPrefs as NotificationPrefs | null,
+  }));
+}
