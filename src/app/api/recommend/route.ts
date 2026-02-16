@@ -10,7 +10,6 @@ import {
   getTasksCompletedToday,
   getRecentTaskActivity,
   getSavedLocations,
-  getLastCalendarSync,
   logTaskActivity,
 } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
@@ -18,8 +17,6 @@ import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, EnergyProfile } from "@/types";
-
-const STALE_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function POST(request: Request) {
   try {
@@ -35,17 +32,10 @@ export async function POST(request: Request) {
       energyOverride?: EnergyLevel;
     };
 
-    // Refresh calendar if data is stale (>15 min since last sync)
-    const [settings, lastSync] = await Promise.all([
-      getUserSettings(userId),
-      getLastCalendarSync(userId),
-    ]);
+    // Always sync calendar before reasoning so the AI sees the latest data
+    const settings = await getUserSettings(userId);
 
-    const isStale =
-      !lastSync ||
-      Date.now() - new Date(lastSync).getTime() > STALE_THRESHOLD_MS;
-
-    if (isStale && settings) {
+    if (settings) {
       const syncPromises: Promise<unknown>[] = [];
       if (settings.canvasIcalUrl) {
         syncPromises.push(
