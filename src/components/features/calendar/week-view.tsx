@@ -500,10 +500,10 @@ export function WeekView() {
         return;
       }
 
-      // Calculate new start/end times
+      // Calculate new start/end times (dragTimeSlot is in half-hour slots)
       const targetDay = weekDays[dragDayIdx];
-      const hours = startHour + Math.floor(dragTimeSlot);
-      const minutes = (dragTimeSlot % 1) * 60;
+      const hours = startHour + Math.floor(dragTimeSlot / 2);
+      const minutes = (dragTimeSlot % 2) * 30;
 
       const originalStart = new Date(dragEvent.startTime);
       const originalEnd = new Date(dragEvent.endTime);
@@ -914,8 +914,8 @@ export function WeekView() {
                   {dragTimeSlot !== null && (
                     <p className="truncate text-[10px] opacity-70">
                       {(() => {
-                        const h = startHour + Math.floor(dragTimeSlot);
-                        const m = (dragTimeSlot % 1) * 60;
+                        const h = startHour + Math.floor(dragTimeSlot / 2);
+                        const m = (dragTimeSlot % 2) * 30;
                         const hr = h % 12 === 0 ? 12 : h % 12;
                         const ampm = h < 12 ? "AM" : "PM";
                         return `${hr}:${String(Math.round(m)).padStart(2, "0")} ${ampm}`;

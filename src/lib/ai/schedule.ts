@@ -102,6 +102,20 @@ function buildSchedulingPrompt(
   input: SchedulingInput,
   freeBlocks: FreeTimeBlock[]
 ): string {
+  // Format deadlines in the user's timezone so the AI doesn't misread UTC
+  const fmtDeadline = (iso: string | null) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString("en-US", {
+      timeZone: input.timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const taskList = input.pendingTasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -110,7 +124,7 @@ function buildSchedulingPrompt(
     estimatedMinutes: t.estimatedMinutes,
     category: t.category,
     locationTags: t.locationTags,
-    deadline: t.deadline,
+    deadline: fmtDeadline(t.deadline),
   }));
 
   const wakeHour = input.wakeTime ?? 7;
