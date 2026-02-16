@@ -10,11 +10,16 @@ import {
   getTasksCompletedToday,
   getRecentTaskActivity,
   getSavedLocations,
+  getLastCalendarSync,
   logTaskActivity,
 } from "@/lib/db/queries";
+import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, EnergyProfile } from "@/types";
+
+const STALE_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function POST(request: Request) {
   try {
@@ -30,16 +35,48 @@ export async function POST(request: Request) {
       energyOverride?: EnergyLevel;
     };
 
-    // Gather all context in parallel
+    // Refresh calendar if data is stale (>15 min since last sync)
+    const [settings, lastSync] = await Promise.all([
+      getUserSettings(userId),
+      getLastCalendarSync(userId),
+    ]);
+
+    const isStale =
+      !lastSync ||
+      Date.now() - new Date(lastSync).getTime() > STALE_THRESHOLD_MS;
+
+    if (isStale && settings) {
+      const syncPromises: Promise<unknown>[] = [];
+      if (settings.canvasIcalUrl) {
+        syncPromises.push(
+          syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
+            console.error("[Recommend] Canvas sync failed:", err)
+          )
+        );
+      }
+      if (settings.googleCalConnected) {
+        const calIds =
+          (settings.googleCalendarIds as string[] | null) ?? null;
+        syncPromises.push(
+          syncGoogleCalendar(userId, calIds).catch((err) =>
+            console.error("[Recommend] Google sync failed:", err)
+          )
+        );
+      }
+      if (syncPromises.length > 0) {
+        await Promise.all(syncPromises);
+      }
+    }
+
+    // Gather all context in parallel (now with fresh calendar data)
     const now = new Date();
     const endOfTomorrow = new Date(now);
     endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
     endOfTomorrow.setHours(23, 59, 59, 999);
 
-    const [user, settings, pendingTasks, nextEvent, upcomingEvents, recentActivity] =
+    const [user, pendingTasks, nextEvent, upcomingEvents, recentActivity] =
       await Promise.all([
         getUser(userId),
-        getUserSettings(userId),
         getPendingTasks(userId),
         getNextCalendarEvent(userId),
         getCalendarEventsByDateRange(userId, now, endOfTomorrow),

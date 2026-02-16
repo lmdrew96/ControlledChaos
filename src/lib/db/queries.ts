@@ -647,3 +647,35 @@ export async function getAllUsersWithDigestEnabled() {
     prefs: r.notificationPrefs as NotificationPrefs | null,
   }));
 }
+
+/**
+ * Get all users who have at least one calendar source configured.
+ */
+export async function getAllUsersWithCalendars() {
+  const rows = await db
+    .select({
+      userId: userSettings.userId,
+      canvasIcalUrl: userSettings.canvasIcalUrl,
+      googleCalConnected: userSettings.googleCalConnected,
+      googleCalendarIds: userSettings.googleCalendarIds,
+    })
+    .from(userSettings)
+    .where(
+      sql`${userSettings.canvasIcalUrl} IS NOT NULL OR ${userSettings.googleCalConnected} = true`
+    );
+
+  return rows;
+}
+
+/**
+ * Get the most recent syncedAt timestamp for a user's calendar events.
+ * Returns null if no events exist.
+ */
+export async function getLastCalendarSync(userId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ lastSync: sql<Date>`MAX(${calendarEvents.syncedAt})` })
+    .from(calendarEvents)
+    .where(eq(calendarEvents.userId, userId));
+
+  return row?.lastSync ?? null;
+}

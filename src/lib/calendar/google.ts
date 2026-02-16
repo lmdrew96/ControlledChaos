@@ -51,7 +51,7 @@ export function createGoogleCalendarClient(accessToken: string) {
     async listCalendars(): Promise<GoogleCalendarListEntry[]> {
       const res = await fetch(
         `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
-        { headers }
+        { headers, cache: "no-store" }
       );
       if (!res.ok) return [];
       const data: GoogleCalendarListResponse = await res.json();
@@ -78,7 +78,7 @@ export function createGoogleCalendarClient(accessToken: string) {
         // Fetch all visible calendars
         const calListRes = await fetch(
           `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
-          { headers }
+          { headers, cache: "no-store" }
         );
         if (!calListRes.ok) {
           return this.listEventsFromCalendar("primary", params);
@@ -129,7 +129,7 @@ export function createGoogleCalendarClient(accessToken: string) {
       url.searchParams.set("orderBy", "startTime");
       url.searchParams.set("maxResults", String(params.maxResults ?? 250));
 
-      const res = await fetch(url.toString(), { headers });
+      const res = await fetch(url.toString(), { headers, cache: "no-store" });
       if (!res.ok) {
         const body = await res.text();
         throw new Error(`Google Calendar API error ${res.status}: ${body}`);

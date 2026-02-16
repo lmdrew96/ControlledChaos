@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/calendar-sync",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/push-triggers",
       "schedule": "*/15 * * * *"
     },

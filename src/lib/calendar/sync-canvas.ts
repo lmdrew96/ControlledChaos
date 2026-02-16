@@ -25,6 +25,7 @@ export async function syncCanvasCalendar(
   // Fetch the .ics feed
   const response = await fetch(icalUrl, {
     headers: { Accept: "text/calendar" },
+    cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
 
