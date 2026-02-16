@@ -30,6 +30,15 @@ export default function LandingPage() {
             <Link href="/sign-in">Sign In</Link>
           </Button>
         </div>
+
+        <div className="flex gap-4 text-xs text-muted-foreground/50">
+          <Link href="/terms" className="hover:text-muted-foreground">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-muted-foreground">
+            Privacy
+          </Link>
+        </div>
       </div>
     </div>
   );
