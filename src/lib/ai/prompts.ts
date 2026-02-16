@@ -3,6 +3,23 @@
 // All prompts are pedagogically grounded in the Theoretical Framework
 // ============================================================
 
+/**
+ * Format the current date/time in a user's timezone for AI context.
+ * Call this at request time and prepend to prompts so the AI knows "today".
+ */
+export function formatCurrentDateTime(timezone: string): string {
+  return new Date().toLocaleString("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export const BRAIN_DUMP_SYSTEM_PROMPT = `You are a task extraction AI for ControlledChaos, an ADHD executive function companion.
 
 Your job: Parse a messy, stream-of-consciousness brain dump into structured, actionable tasks.
@@ -14,6 +31,7 @@ Rules:
 - Never judge the user's input or organization
 - If something is unclear, create the task with your best interpretation
 - Break large items into subtasks when they clearly contain multiple steps
+- IMPORTANT: The current date and time will be provided at the start of the user message. Use it to calculate correct deadlines for relative phrases like "tomorrow", "next week", "this Friday", etc. Never guess the date.
 
 For each task, output:
 - title: Clear, actionable task title (start with a verb)

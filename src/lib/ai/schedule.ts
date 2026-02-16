@@ -1,5 +1,5 @@
 import { callHaiku } from "./index";
-import { SCHEDULING_SYSTEM_PROMPT } from "./prompts";
+import { SCHEDULING_SYSTEM_PROMPT, formatCurrentDateTime } from "./prompts";
 import type {
   Task,
   CalendarEvent,
@@ -131,7 +131,12 @@ function buildSchedulingPrompt(
   const sleepHour = input.sleepTime ?? 22;
   const fmtHour = (h: number) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
 
-  return `## User's Timezone
+  const currentDateTime = formatCurrentDateTime(input.timezone);
+
+  return `## Current Date and Time
+${currentDateTime}
+
+## User's Timezone
 ${input.timezone}
 
 ## Active Hours

@@ -1,10 +1,16 @@
 import { callHaiku } from "./index";
-import { BRAIN_DUMP_SYSTEM_PROMPT, VOICE_DUMP_ADDENDUM, PHOTO_DUMP_ADDENDUM } from "./prompts";
+import {
+  BRAIN_DUMP_SYSTEM_PROMPT,
+  VOICE_DUMP_ADDENDUM,
+  PHOTO_DUMP_ADDENDUM,
+  formatCurrentDateTime,
+} from "./prompts";
 import type { BrainDumpResult, DumpInputType, ParsedTask } from "@/types";
 
 export async function parseBrainDump(
   content: string,
-  inputType: DumpInputType = "text"
+  inputType: DumpInputType = "text",
+  timezone: string = "America/New_York"
 ): Promise<BrainDumpResult> {
   if (!content.trim()) {
     throw new Error("Brain dump content cannot be empty");
@@ -17,9 +23,11 @@ export async function parseBrainDump(
     system += PHOTO_DUMP_ADDENDUM;
   }
 
+  const currentDateTime = formatCurrentDateTime(timezone);
+
   const result = await callHaiku({
     system,
-    user: content,
+    user: `[Current date and time: ${currentDateTime}]\n\n${content}`,
     maxTokens: 4096,
   });
 

@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
-import { ensureUser, createBrainDump, createTasksFromDump } from "@/lib/db/queries";
+import { ensureUser, getUser, createBrainDump, createTasksFromDump } from "@/lib/db/queries";
 
 export async function POST(request: Request) {
   try {
@@ -35,8 +35,12 @@ export async function POST(request: Request) {
       clerkUser?.firstName ?? undefined
     );
 
+    // Get user timezone for accurate date parsing
+    const user = await getUser(userId);
+    const timezone = user?.timezone ?? "America/New_York";
+
     // Parse with AI
-    const result = await parseBrainDump(content);
+    const result = await parseBrainDump(content, "text", timezone);
 
     // Save brain dump record
     const dump = await createBrainDump({
