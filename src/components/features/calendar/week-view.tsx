@@ -89,11 +89,11 @@ function formatDateRange(start: Date, end: Date, isAllDay: boolean): string {
 function sourceColor(source: CalendarSource) {
   switch (source) {
     case "canvas":
-      return "bg-blue-500/25 border-blue-400/60 text-blue-100";
+      return "bg-blue-100 dark:bg-blue-500/25 border-blue-300 dark:border-blue-400/60 text-blue-800 dark:text-blue-100";
     case "google":
-      return "bg-green-500/25 border-green-400/60 text-green-100";
+      return "bg-green-100 dark:bg-green-500/25 border-green-300 dark:border-green-400/60 text-green-800 dark:text-green-100";
     case "controlledchaos":
-      return "bg-purple-500/25 border-purple-400/60 text-purple-100";
+      return "bg-purple-100 dark:bg-purple-500/25 border-purple-300 dark:border-purple-400/60 text-purple-800 dark:text-purple-100";
     default:
       return "bg-muted border-border text-foreground";
   }
