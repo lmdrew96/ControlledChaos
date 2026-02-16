@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MapPin,
   Plus,
@@ -8,6 +8,7 @@ import {
   Loader2,
   Navigation,
   Pencil,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,56 @@ interface SavedLocation {
   radiusMeters: number | null;
 }
 
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+/** Debounced address search via Nominatim (OpenStreetMap). Free, no API key. */
+function useAddressSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    if (query.trim().length < 3) {
+      setResults([]);
+      return;
+    }
+
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const params = new URLSearchParams({
+          q: query,
+          format: "json",
+          limit: "5",
+          addressdetails: "0",
+        });
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?${params}`,
+          { headers: { "User-Agent": "ControlledChaos/1.0" } }
+        );
+        if (res.ok) {
+          setResults(await res.json());
+        }
+      } catch {
+        // Silently fail — user can retry or use GPS
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timerRef.current);
+  }, [query]);
+
+  return { query, setQuery, results, setResults, isSearching };
+}
+
 export function SavedLocations() {
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +94,9 @@ export function SavedLocations() {
   const [radiusMeters, setRadiusMeters] = useState("200");
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Address search
+  const search = useAddressSearch();
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -68,6 +122,8 @@ export function SavedLocations() {
     setLongitude("");
     setRadiusMeters("200");
     setEditingId(null);
+    search.setQuery("");
+    search.setResults([]);
   }
 
   function openAdd() {
@@ -81,7 +137,23 @@ export function SavedLocations() {
     setLongitude(loc.longitude ?? "");
     setRadiusMeters(String(loc.radiusMeters ?? 200));
     setEditingId(loc.id);
+    search.setQuery("");
+    search.setResults([]);
     setDialogOpen(true);
+  }
+
+  function selectSearchResult(result: NominatimResult) {
+    setLatitude(parseFloat(result.lat).toFixed(6));
+    setLongitude(parseFloat(result.lon).toFixed(6));
+    // Auto-fill name if empty
+    if (!name.trim()) {
+      // Use the first meaningful part of the display name
+      const parts = result.display_name.split(",");
+      setName(parts[0].trim());
+    }
+    search.setQuery(result.display_name);
+    search.setResults([]);
+    toast.success("Address selected!");
   }
 
   function detectCurrentPosition() {
@@ -112,7 +184,7 @@ export function SavedLocations() {
       return;
     }
     if (!latitude || !longitude) {
-      toast.error("Coordinates are required — use 'Detect' to get them");
+      toast.error("Search for an address or use your current position");
       return;
     }
 
@@ -260,39 +332,63 @@ export function SavedLocations() {
               />
             </div>
 
+            {/* Address search */}
             <div className="space-y-2">
-              <Label>Coordinates</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={detectCurrentPosition}
-                disabled={isDetecting}
-                className="w-full"
-              >
-                {isDetecting ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Navigation className="mr-1.5 h-3.5 w-3.5" />
+              <Label>Address</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search.query}
+                  onChange={(e) => search.setQuery(e.target.value)}
+                  placeholder="Search an address..."
+                  className="pl-9"
+                />
+                {search.isSearching && (
+                  <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
-                Use Current Position
-              </Button>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="Latitude"
-                  type="number"
-                  step="any"
-                />
-                <Input
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="Longitude"
-                  type="number"
-                  step="any"
-                />
               </div>
+
+              {/* Search results dropdown */}
+              {search.results.length > 0 && (
+                <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                  {search.results.map((result) => (
+                    <button
+                      key={result.place_id}
+                      onClick={() => selectSearchResult(result)}
+                      className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+                    >
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="line-clamp-2">
+                        {result.display_name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Coordinates display */}
+              {latitude && longitude && (
+                <p className="text-xs text-muted-foreground">
+                  {latitude}, {longitude}
+                </p>
+              )}
             </div>
+
+            {/* GPS fallback */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={detectCurrentPosition}
+              disabled={isDetecting}
+              className="w-full"
+            >
+              {isDetecting ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Navigation className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Use Current Position
+            </Button>
 
             <div className="space-y-2">
               <Label htmlFor="loc-radius">Radius (meters)</Label>
