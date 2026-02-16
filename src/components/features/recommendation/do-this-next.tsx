@@ -92,8 +92,18 @@ export function DoThisNext() {
   const handleAccept = useCallback(
     async (taskId: string) => {
       setIsRefreshing(true);
-      await sendFeedback(taskId, "accepted");
-      toast.success("Let's do it! Task started.");
+      // Mark task as completed
+      try {
+        await fetch(`/api/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "completed" }),
+        });
+      } catch {
+        // feedback still fires below
+      }
+      await sendFeedback(taskId, "completed");
+      toast.success("Task completed!");
       await refresh();
     },
     [sendFeedback, refresh]

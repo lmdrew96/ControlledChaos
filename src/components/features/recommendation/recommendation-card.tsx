@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  Play,
+  Check,
   Clock,
   Pause,
   Shuffle,
@@ -122,9 +122,9 @@ export function RecommendationCard({
               {isRefreshing ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Play className="mr-1.5 h-3.5 w-3.5" />
+                <Check className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Start
+              Done
             </Button>
             <Button
               variant="outline"
