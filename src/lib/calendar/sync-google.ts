@@ -56,6 +56,10 @@ export async function syncGoogleCalendar(
     for (const event of events) {
       if (!event.id || event.status === "cancelled") continue;
 
+      // Skip events created by ControlledChaos to avoid duplicates
+      const title = event.summary ?? "";
+      if (title.startsWith("[CC]") || title.startsWith("[CC] ")) continue;
+
       // Prefix externalId with account ID to avoid conflicts between accounts
       const externalId = `${account.accountId}:${event.id}`;
       allExternalIds.push(externalId);
