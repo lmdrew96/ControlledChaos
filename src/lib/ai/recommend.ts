@@ -39,6 +39,26 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       ? `\n- Recently rejected task IDs (avoid these): ${recentlyRejectedTaskIds.join(", ")}`
       : "";
 
+  const calendarSection =
+    context.upcomingEvents && context.upcomingEvents.length > 0
+      ? `\n\n## Upcoming Calendar (today + tomorrow)\n${context.upcomingEvents
+          .map((e) => {
+            const start = new Date(e.startTime).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            });
+            const end = new Date(e.endTime).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            });
+            const tag = e.source === "controlledchaos" ? "[Scheduled]" : "";
+            return `- ${start}–${end}: ${e.title} ${tag}`;
+          })
+          .join("\n")}`
+      : "";
+
   return `## Current Context
 - Time: ${context.currentTime}
 - Timezone: ${context.timezone}
@@ -46,7 +66,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 - Energy level: ${context.energyLevel ?? "Unknown"}
 - Next event: ${eventLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
-- Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}
+- Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}${calendarSection}
 
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}

@@ -6,6 +6,7 @@ import {
   getUserSettings,
   getPendingTasks,
   getNextCalendarEvent,
+  getCalendarEventsByDateRange,
   getTasksCompletedToday,
   getRecentTaskActivity,
   getSavedLocations,
@@ -30,12 +31,18 @@ export async function POST(request: Request) {
     };
 
     // Gather all context in parallel
-    const [user, settings, pendingTasks, nextEvent, recentActivity] =
+    const now = new Date();
+    const endOfTomorrow = new Date(now);
+    endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
+    endOfTomorrow.setHours(23, 59, 59, 999);
+
+    const [user, settings, pendingTasks, nextEvent, upcomingEvents, recentActivity] =
       await Promise.all([
         getUser(userId),
         getUserSettings(userId),
         getPendingTasks(userId),
         getNextCalendarEvent(userId),
+        getCalendarEventsByDateRange(userId, now, endOfTomorrow),
         getRecentTaskActivity(userId, 10),
       ]);
 
@@ -91,7 +98,6 @@ export async function POST(request: Request) {
       .map((a) => a.taskId);
 
     // Format current time in user's timezone so the AI sees the correct local time
-    const now = new Date();
     const localTime = now.toLocaleString("en-US", {
       timeZone: timezone,
       weekday: "long",
@@ -115,6 +121,12 @@ export async function POST(request: Request) {
             minutesUntil: minutesUntil!,
           }
         : undefined,
+      upcomingEvents: upcomingEvents.map((e) => ({
+        title: e.title,
+        startTime: e.startTime.toISOString(),
+        endTime: e.endTime.toISOString(),
+        source: e.source,
+      })),
       energyLevel,
       recentActivity: {
         tasksCompletedToday: completedToday.length,

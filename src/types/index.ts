@@ -78,6 +78,12 @@ export interface UserContext {
     startTime: string;
     minutesUntil: number;
   };
+  upcomingEvents?: Array<{
+    title: string;
+    startTime: string;
+    endTime: string;
+    source: string;
+  }>;
   energyLevel?: EnergyLevel;
   recentActivity?: {
     tasksCompletedToday: number;
