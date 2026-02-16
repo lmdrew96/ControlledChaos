@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { NotificationBell } from "@/components/features/notifications/notification-bell";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -57,7 +58,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex items-center justify-between border-t border-border p-4">
           <UserNav />
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
@@ -81,6 +85,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        <div className="flex flex-col items-center gap-1 px-2 py-1.5">
+          <NotificationBell />
+          <span className="text-xs text-muted-foreground">Alerts</span>
+        </div>
         <div className="flex flex-col items-center gap-1 px-2 py-1.5">
           <UserNav />
           <span className="text-xs text-muted-foreground">Account</span>
