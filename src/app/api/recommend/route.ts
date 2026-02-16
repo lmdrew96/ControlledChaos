@@ -128,6 +128,7 @@ export async function POST(request: Request) {
         source: e.source,
       })),
       energyLevel,
+      energyProfile: (settings?.energyProfile as EnergyProfile) ?? undefined,
       recentActivity: {
         tasksCompletedToday: completedToday.length,
         lastAction: recentActivity[0]?.action,

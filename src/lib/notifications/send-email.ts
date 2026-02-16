@@ -6,8 +6,10 @@ import {
   EVENING_DIGEST_PROMPT,
   formatCurrentDateTime,
 } from "@/lib/ai/prompts";
+import { enforceWordLimit } from "@/lib/ai/validate";
 import {
   getUser,
+  getUserSettings,
   getPendingTasks,
   getTasksCompletedToday,
   getCalendarEventsByDateRange,
@@ -15,6 +17,7 @@ import {
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
+import type { EnergyProfile } from "@/types";
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -29,7 +32,10 @@ const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <digest@controlled
  * Send the morning digest email for a user.
  */
 export async function sendMorningDigest(userId: string): Promise<boolean> {
-  const user = await getUser(userId);
+  const [user, settings] = await Promise.all([
+    getUser(userId),
+    getUserSettings(userId),
+  ]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
@@ -56,13 +62,22 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     (t) => t.deadline && new Date(t.deadline) <= weekEnd
   );
 
+  // Energy profile for context
+  const energyProfile = settings?.energyProfile as EnergyProfile | null;
+
   // Generate AI note
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
+    `User's name: ${user.displayName ?? "there"}`,
+    energyProfile
+      ? `Energy profile: Morning=${energyProfile.morning}, Afternoon=${energyProfile.afternoon}, Evening=${energyProfile.evening}`
+      : null,
     `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})`).join(", ") || "None"}`,
     `Deadlines this week: ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const aiResult = await callHaiku({
     system: MORNING_DIGEST_PROMPT,
@@ -70,10 +85,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     maxTokens: 256,
   });
 
+  const aiNote = enforceWordLimit(aiResult.text, 80);
+
   const html = await render(
     MorningDigestEmail({
       userName: user.displayName ?? "",
-      aiNote: aiResult.text,
+      aiNote,
       todayEvents: events.map((e) => ({
         title: e.title,
         time: formatTime(e.startTime, timezone),
@@ -134,11 +151,23 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   );
   const tomorrowPriority = sorted[0] ?? null;
 
+  // Tomorrow's calendar for context
+  const todayStart = startOfDayInTz(now, timezone);
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowEvents = await getCalendarEventsByDateRange(
+    userId,
+    tomorrowStart,
+    tomorrowEnd
+  );
+
   // Generate AI note
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
+    `User's name: ${user.displayName ?? "there"}`,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `Tomorrow's top priority: ${tomorrowPriority ? `${tomorrowPriority.title} (${tomorrowPriority.priority})` : "Nothing urgent"}`,
+    `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
   ].join("\n");
 
   const aiResult = await callHaiku({
@@ -147,10 +176,12 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     maxTokens: 256,
   });
 
+  const aiNote = enforceWordLimit(aiResult.text, 80);
+
   const html = await render(
     EveningDigestEmail({
       userName: user.displayName ?? "",
-      aiNote: aiResult.text,
+      aiNote,
       completedTasks: completed.map((t) => ({ title: t.title })),
       tomorrowPriority: tomorrowPriority
         ? {

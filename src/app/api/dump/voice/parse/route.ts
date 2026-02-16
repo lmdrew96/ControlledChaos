@@ -1,7 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
-import { getUser, createBrainDump, createTasksFromDump } from "@/lib/db/queries";
+import {
+  getUser,
+  getUserGoals,
+  getPendingTasks,
+  getCalendarEventsByDateRange,
+  createBrainDump,
+  createTasksFromDump,
+} from "@/lib/db/queries";
 
 export async function POST(request: Request) {
   try {
@@ -27,8 +34,38 @@ export async function POST(request: Request) {
     const user = await getUser(userId);
     const timezone = user?.timezone ?? "America/New_York";
 
+    // Fetch context for anti-hallucination grounding
+    const now = new Date();
+    const todayStart = startOfDayInTz(now, timezone);
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const [existingGoals, existingTasks, todayEvents] = await Promise.all([
+      getUserGoals(userId),
+      getPendingTasks(userId),
+      getCalendarEventsByDateRange(userId, todayStart, todayEnd),
+    ]);
+
+    const calendarSummary =
+      todayEvents.length > 0
+        ? todayEvents
+            .map((e) => {
+              const time = new Date(e.startTime).toLocaleTimeString("en-US", {
+                timeZone: timezone,
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              });
+              return `${time}: ${e.title}`;
+            })
+            .join(", ")
+        : undefined;
+
     // Parse with AI (voice-aware: filters filler speech)
-    const result = await parseBrainDump(transcript, "voice", timezone);
+    const result = await parseBrainDump(transcript, "voice", timezone, {
+      existingGoals: existingGoals.map((g) => ({ title: g.title })),
+      existingTasks: existingTasks.map((t) => ({ title: t.title })),
+      calendarSummary,
+    });
 
     // Save brain dump record with voice metadata
     const dump = await createBrainDump({
@@ -59,4 +96,18 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : "Failed to parse brain dump";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function startOfDayInTz(date: Date, timezone: string): Date {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  return new Date(`${year}-${month}-${day}T00:00:00`);
 }

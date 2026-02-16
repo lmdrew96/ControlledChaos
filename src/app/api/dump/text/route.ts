@@ -1,7 +1,16 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
-import { ensureUser, getUser, createBrainDump, createTasksFromDump } from "@/lib/db/queries";
+import {
+  ensureUser,
+  getUser,
+  getUserGoals,
+  getPendingTasks,
+  getCalendarEventsByDateRange,
+  createBrainDump,
+  createTasksFromDump,
+} from "@/lib/db/queries";
+import { formatCurrentDateTime } from "@/lib/ai/prompts";
 
 export async function POST(request: Request) {
   try {
@@ -39,8 +48,38 @@ export async function POST(request: Request) {
     const user = await getUser(userId);
     const timezone = user?.timezone ?? "America/New_York";
 
+    // Fetch context for anti-hallucination grounding
+    const now = new Date();
+    const todayStart = startOfDayInTz(now, timezone);
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const [existingGoals, existingTasks, todayEvents] = await Promise.all([
+      getUserGoals(userId),
+      getPendingTasks(userId),
+      getCalendarEventsByDateRange(userId, todayStart, todayEnd),
+    ]);
+
+    const calendarSummary =
+      todayEvents.length > 0
+        ? todayEvents
+            .map((e) => {
+              const time = new Date(e.startTime).toLocaleTimeString("en-US", {
+                timeZone: timezone,
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              });
+              return `${time}: ${e.title}`;
+            })
+            .join(", ")
+        : undefined;
+
     // Parse with AI
-    const result = await parseBrainDump(content, "text", timezone);
+    const result = await parseBrainDump(content, "text", timezone, {
+      existingGoals: existingGoals.map((g) => ({ title: g.title })),
+      existingTasks: existingTasks.map((t) => ({ title: t.title })),
+      calendarSummary,
+    });
 
     // Save brain dump record
     const dump = await createBrainDump({
@@ -70,4 +109,18 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : "Something went wrong";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function startOfDayInTz(date: Date, timezone: string): Date {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  return new Date(`${year}-${month}-${day}T00:00:00`);
 }

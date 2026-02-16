@@ -2,6 +2,7 @@ import { db } from "./index";
 import {
   brainDumps,
   calendarEvents,
+  goals,
   locations,
   notifications,
   pushSubscriptions,
@@ -219,6 +220,17 @@ export async function deleteTask(taskId: string, userId: string) {
     .returning();
 
   return deleted;
+}
+
+// ============================================================
+// Goals
+// ============================================================
+export async function getUserGoals(userId: string) {
+  return db
+    .select()
+    .from(goals)
+    .where(and(eq(goals.userId, userId), eq(goals.status, "active")))
+    .orderBy(goals.createdAt);
 }
 
 // ============================================================

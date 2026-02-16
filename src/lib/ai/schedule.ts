@@ -1,5 +1,6 @@
 import { callHaiku } from "./index";
 import { SCHEDULING_SYSTEM_PROMPT, formatCurrentDateTime } from "./prompts";
+import { extractJSON } from "./validate";
 import type {
   Task,
   CalendarEvent,
@@ -119,12 +120,14 @@ function buildSchedulingPrompt(
   const taskList = input.pendingTasks.map((t) => ({
     id: t.id,
     title: t.title,
+    description: t.description,
     priority: t.priority,
     energyLevel: t.energyLevel,
     estimatedMinutes: t.estimatedMinutes,
     category: t.category,
     locationTags: t.locationTags,
     deadline: fmtDeadline(t.deadline),
+    scheduledFor: fmtDeadline(t.scheduledFor),
   }));
 
   const wakeHour = input.wakeTime ?? 7;
@@ -143,7 +146,7 @@ ${input.timezone}
 ${fmtHour(wakeHour)} – ${fmtHour(sleepHour)}. NEVER schedule outside this window.
 
 ## Energy Profile
-${input.energyProfile ? JSON.stringify(input.energyProfile) : "Not set (assume medium energy throughout the day)"}
+${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
 
 ## Free Time Blocks (next ${input.scheduleDays} days)
 ${JSON.stringify(freeBlocks, null, 2)}
@@ -183,16 +186,9 @@ export async function generateSchedule(
     maxTokens: 2048,
   });
 
-  // Extract JSON from response (may be wrapped in ```json blocks)
-  let jsonText = result.text.trim();
-  const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    jsonText = jsonMatch[1].trim();
-  }
-
   let parsed: { blocks: ScheduledBlock[] };
   try {
-    parsed = JSON.parse(jsonText);
+    parsed = extractJSON(result.text);
   } catch {
     console.error("[AI Schedule] Failed to parse response:", result.text);
     throw new Error("AI returned an invalid schedule. Please try again.");

@@ -1,6 +1,7 @@
 import { callHaiku } from "./index";
 import { TASK_RECOMMENDATION_SYSTEM_PROMPT } from "./prompts";
-import type { UserContext, TaskRecommendation, Task } from "@/types";
+import { extractJSON } from "./validate";
+import type { UserContext, TaskRecommendation, Task, EnergyProfile } from "@/types";
 
 interface RecommendationInput {
   context: UserContext;
@@ -28,18 +29,30 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     });
   };
 
-  const taskList = pendingTasks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    priority: t.priority,
-    energyLevel: t.energyLevel,
-    estimatedMinutes: t.estimatedMinutes,
-    category: t.category,
-    locationTags: t.locationTags,
-    deadline: fmtDeadline(t.deadline),
-    scheduledFor: fmtDeadline(t.scheduledFor),
-    status: t.status,
-  }));
+  // Include descriptions, with truncation for large task lists
+  const taskList = pendingTasks.map((t) => {
+    let description = t.description;
+    if (pendingTasks.length > 30 && description && description.length > 80) {
+      description = description.slice(0, 80) + "...";
+    }
+    if (pendingTasks.length > 50) {
+      description = null; // Omit descriptions entirely for very large lists
+    }
+
+    return {
+      id: t.id,
+      title: t.title,
+      description,
+      priority: t.priority,
+      energyLevel: t.energyLevel,
+      estimatedMinutes: t.estimatedMinutes,
+      category: t.category,
+      locationTags: t.locationTags,
+      deadline: fmtDeadline(t.deadline),
+      scheduledFor: fmtDeadline(t.scheduledFor),
+      status: t.status,
+    };
+  });
 
   const locationLine = context.location
     ? `${context.location.name} (${context.location.latitude}, ${context.location.longitude})`
@@ -59,11 +72,13 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       ? `\n\n## Upcoming Calendar (today + tomorrow)\n${context.upcomingEvents
           .map((e) => {
             const start = new Date(e.startTime).toLocaleTimeString("en-US", {
+              timeZone: context.timezone,
               hour: "numeric",
               minute: "2-digit",
               hour12: true,
             });
             const end = new Date(e.endTime).toLocaleTimeString("en-US", {
+              timeZone: context.timezone,
               hour: "numeric",
               minute: "2-digit",
               hour12: true,
@@ -74,17 +89,27 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
           .join("\n")}`
       : "";
 
+  // Format energy profile as human-readable text
+  const energyProfileLine = context.energyProfile
+    ? `\n- Energy profile: Morning=${context.energyProfile.morning}, Afternoon=${context.energyProfile.afternoon}, Evening=${context.energyProfile.evening}, Night=${context.energyProfile.night}`
+    : "";
+
+  const descriptionNote =
+    pendingTasks.length > 50
+      ? "\n\nNote: Task descriptions omitted due to volume. Prioritize based on title, priority, deadline, and energy."
+      : "";
+
   return `## Current Context
 - Time: ${context.currentTime}
 - Timezone: ${context.timezone}
 - Location: ${locationLine}
-- Energy level: ${context.energyLevel ?? "Unknown"}
+- Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}
 - Next event: ${eventLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}${calendarSection}
 
 ## Pending Tasks (${taskList.length})
-${JSON.stringify(taskList, null, 2)}
+${JSON.stringify(taskList, null, 2)}${descriptionNote}
 
 Pick the single best task. Return valid JSON: { "taskId": "...", "reasoning": "...", "alternatives": [{ "taskId": "...", "reasoning": "..." }, ...] }`;
 }
@@ -116,16 +141,9 @@ export async function getTaskRecommendation(
     maxTokens: 1024,
   });
 
-  // Extract JSON (handle optional markdown code blocks)
-  let jsonText = result.text.trim();
-  const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    jsonText = jsonMatch[1].trim();
-  }
-
   let parsed: TaskRecommendation;
   try {
-    parsed = JSON.parse(jsonText);
+    parsed = extractJSON(result.text);
   } catch {
     console.error("[AI] Failed to parse recommendation response:", result.text);
     throw new Error("AI returned invalid recommendation. Please try again.");
@@ -135,10 +153,28 @@ export async function getTaskRecommendation(
   const validTaskIds = new Set(input.pendingTasks.map((t) => t.id));
   if (!parsed.taskId || !validTaskIds.has(parsed.taskId)) {
     console.warn(
-      "[AI] Recommended unknown taskId, falling back to first pending task"
+      `[AI] HALLUCINATED taskId: "${parsed.taskId}" — not in valid set. Falling back to priority-based selection.`
     );
-    parsed.taskId = input.pendingTasks[0].id;
-    parsed.reasoning = "This is your highest priority pending task.";
+    // Fall back to priority + nearest deadline, not just first task
+    const priorityOrder: Record<string, number> = {
+      urgent: 0,
+      important: 1,
+      normal: 2,
+      someday: 3,
+    };
+    const sorted = [...input.pendingTasks].sort((a, b) => {
+      const pDiff =
+        (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3);
+      if (pDiff !== 0) return pDiff;
+      if (a.deadline && b.deadline)
+        return (
+          new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+        );
+      if (a.deadline) return -1;
+      return 1;
+    });
+    parsed.taskId = sorted[0].id;
+    parsed.reasoning = `This is your highest priority task${sorted[0].deadline ? " with the nearest deadline" : ""}.`;
   }
 
   // Filter alternatives to only valid task IDs

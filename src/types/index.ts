@@ -85,6 +85,7 @@ export interface UserContext {
     source: string;
   }>;
   energyLevel?: EnergyLevel;
+  energyProfile?: EnergyProfile;
   recentActivity?: {
     tasksCompletedToday: number;
     lastAction?: string;
