@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -226,6 +226,15 @@ export function WeekView() {
   const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
   const [endHour, setEndHour] = useState(DEFAULT_END_HOUR);
 
+  // Drag-and-drop state (desktop only, CC events only)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [dragEvent, setDragEvent] = useState<CalendarEvent | null>(null);
+  const [dragGhost, setDragGhost] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [dragDayIdx, setDragDayIdx] = useState<number | null>(null);
+  const [dragTimeSlot, setDragTimeSlot] = useState<number | null>(null);
+  const dragOffsetY = useRef(0);
+  const isDragging = useRef(false);
+
   const dayLabels = weekStartDay === 0 ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY;
 
   useEffect(() => {
@@ -409,6 +418,133 @@ export function WeekView() {
       setIsDeleting(false);
     }
   }
+
+  // ---- Drag-and-drop handlers (desktop, CC events only) ----
+
+  const handleDragStart = useCallback(
+    (e: React.PointerEvent, event: CalendarEvent) => {
+      if (event.source !== "controlledchaos") return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      dragOffsetY.current = e.clientY - rect.top;
+      isDragging.current = false;
+
+      const pos = eventPosition(event, startHour);
+      const gridRect = gridRef.current?.getBoundingClientRect();
+      if (!gridRect) return;
+
+      setDragEvent(event);
+      setDragGhost({
+        top: rect.top - gridRect.top,
+        left: rect.left - gridRect.left,
+        width: rect.width,
+        height: pos.height,
+      });
+
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [startHour]
+  );
+
+  const handleDragMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragEvent || !gridRef.current) return;
+
+      isDragging.current = true;
+      const gridRect = gridRef.current.getBoundingClientRect();
+
+      // Time column is 4rem = 64px
+      const timeColWidth = 64;
+      const dayAreaWidth = gridRect.width - timeColWidth;
+      const colWidth = dayAreaWidth / 7;
+
+      const relX = e.clientX - gridRect.left - timeColWidth;
+      const relY = e.clientY - gridRect.top - dragOffsetY.current;
+
+      const dayIdx = Math.max(0, Math.min(6, Math.floor(relX / colWidth)));
+
+      // Snap to 15-minute increments (half a slot = ROW_HEIGHT/2)
+      const rawSlot = relY / ROW_HEIGHT;
+      const snappedSlot = Math.round(rawSlot * 2) / 2; // Snap to 0.5 (15 min)
+      const clampedSlot = Math.max(0, Math.min(snappedSlot, (endHour - startHour) * 2 - 1));
+
+      setDragDayIdx(dayIdx);
+      setDragTimeSlot(clampedSlot);
+
+      const pos = eventPosition(dragEvent, startHour);
+      setDragGhost({
+        top: clampedSlot * ROW_HEIGHT,
+        left: timeColWidth + dayIdx * colWidth + 2,
+        width: colWidth - 4,
+        height: pos.height,
+      });
+    },
+    [dragEvent, startHour, endHour]
+  );
+
+  const handleDragEnd = useCallback(
+    async (e: React.PointerEvent) => {
+      if (!dragEvent) return;
+
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+
+      if (!isDragging.current || dragDayIdx === null || dragTimeSlot === null) {
+        // No real drag — let the click handler fire
+        setDragEvent(null);
+        setDragGhost(null);
+        setDragDayIdx(null);
+        setDragTimeSlot(null);
+        return;
+      }
+
+      // Calculate new start/end times
+      const targetDay = weekDays[dragDayIdx];
+      const hours = startHour + Math.floor(dragTimeSlot);
+      const minutes = (dragTimeSlot % 1) * 60;
+
+      const originalStart = new Date(dragEvent.startTime);
+      const originalEnd = new Date(dragEvent.endTime);
+      const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+      const newStart = new Date(targetDay);
+      newStart.setHours(hours, minutes, 0, 0);
+      const newEnd = new Date(newStart.getTime() + durationMs);
+
+      // Reset drag state
+      setDragEvent(null);
+      setDragGhost(null);
+      setDragDayIdx(null);
+      setDragTimeSlot(null);
+      isDragging.current = false;
+
+      // Skip if times haven't changed
+      if (newStart.getTime() === originalStart.getTime()) return;
+
+      // PATCH the event
+      try {
+        const res = await fetch(`/api/calendar/events/${dragEvent.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startTime: newStart.toISOString(),
+            endTime: newEnd.toISOString(),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to move event");
+        }
+        toast.success("Event moved!");
+        await fetchEvents(weekStart, weekEnd);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to move event");
+      }
+    },
+    [dragEvent, dragDayIdx, dragTimeSlot, weekDays, startHour, fetchEvents, weekStart, weekEnd]
+  );
 
   // Time labels for the grid
   const timeLabels = useMemo(() => {
@@ -647,7 +783,12 @@ export function WeekView() {
             )}
 
             {/* Time grid */}
-            <div className="relative grid grid-cols-[4rem_repeat(7,1fr)]">
+            <div
+              ref={gridRef}
+              className="relative grid grid-cols-[4rem_repeat(7,1fr)]"
+              onPointerMove={handleDragMove}
+              onPointerUp={handleDragEnd}
+            >
               {/* Time labels */}
               <div className="relative">
                 {timeLabels.map((label, i) => (
@@ -701,12 +842,20 @@ export function WeekView() {
                         const widthPercent = 100 / totalCols;
                         const leftPercent = col * widthPercent;
 
+                        const isCC = event.source === "controlledchaos";
+                        const isBeingDragged = dragEvent?.id === event.id;
+
                         return (
                           <button
                             key={event.id}
-                            onClick={() => setSelectedEvent(event)}
+                            onClick={() => {
+                              if (!isDragging.current) setSelectedEvent(event);
+                            }}
+                            onPointerDown={isCC ? (e) => handleDragStart(e, event) : undefined}
                             className={cn(
                               "absolute z-10 overflow-hidden rounded border-l-2 px-1 py-0.5 text-left transition-opacity hover:opacity-80",
+                              isCC && "cursor-grab active:cursor-grabbing",
+                              isBeingDragged && "opacity-30",
                               sourceColor(event.source as CalendarSource)
                             )}
                             style={{
@@ -744,6 +893,37 @@ export function WeekView() {
                   </div>
                 );
               })}
+
+              {/* Drag ghost overlay */}
+              {dragEvent && dragGhost && (
+                <div
+                  className={cn(
+                    "pointer-events-none absolute z-30 overflow-hidden rounded border-l-2 px-1 py-0.5 opacity-80 shadow-lg ring-2 ring-primary/50",
+                    sourceColor(dragEvent.source as CalendarSource)
+                  )}
+                  style={{
+                    top: dragGhost.top,
+                    left: dragGhost.left,
+                    width: dragGhost.width,
+                    height: dragGhost.height,
+                  }}
+                >
+                  <p className="truncate text-[11px] font-medium leading-tight">
+                    {dragEvent.title}
+                  </p>
+                  {dragTimeSlot !== null && (
+                    <p className="truncate text-[10px] opacity-70">
+                      {(() => {
+                        const h = startHour + Math.floor(dragTimeSlot);
+                        const m = (dragTimeSlot % 1) * 60;
+                        const hr = h % 12 === 0 ? 12 : h % 12;
+                        const ampm = h < 12 ? "AM" : "PM";
+                        return `${hr}:${String(Math.round(m)).padStart(2, "0")} ${ampm}`;
+                      })()}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
