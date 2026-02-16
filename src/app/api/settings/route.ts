@@ -17,6 +17,7 @@ export async function GET() {
       googleCalConnected: settings?.googleCalConnected ?? false,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
+      weekStartDay: settings?.weekStartDay ?? 1,
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -50,6 +51,10 @@ export async function PATCH(request: Request) {
     if (body.sleepTime !== undefined) {
       const h = Number(body.sleepTime);
       if (Number.isInteger(h) && h >= 0 && h <= 23) data.sleepTime = h;
+    }
+    if (body.weekStartDay !== undefined) {
+      const d = Number(body.weekStartDay);
+      if (d === 0 || d === 1) data.weekStartDay = d;
     }
 
     const updated = await updateUserSettings(userId, data);

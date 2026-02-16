@@ -44,11 +44,13 @@ export function CalendarSettings() {
     total: number;
   } | null>(null);
 
-  // Calendar hours
+  // Calendar hours + week start
   const [wakeTime, setWakeTime] = useState(7);
   const [sleepTime, setSleepTime] = useState(22);
   const [savedWakeTime, setSavedWakeTime] = useState(7);
   const [savedSleepTime, setSavedSleepTime] = useState(22);
+  const [weekStartDay, setWeekStartDay] = useState(1);
+  const [savedWeekStartDay, setSavedWeekStartDay] = useState(1);
   const [isSavingHours, setIsSavingHours] = useState(false);
 
   const isDirty = canvasUrl !== original;
@@ -79,6 +81,10 @@ export function CalendarSettings() {
             setSleepTime(data.sleepTime);
             setSavedSleepTime(data.sleepTime);
           }
+          if (data.weekStartDay != null) {
+            setWeekStartDay(data.weekStartDay);
+            setSavedWeekStartDay(data.weekStartDay);
+          }
         }
       } catch {
         // defaults
@@ -104,7 +110,7 @@ export function CalendarSettings() {
   }, [googleAccounts.length, googleConnected, isLoading]);
 
   // ── Calendar hours handlers ─────────────────────────────────
-  const hoursDirty = wakeTime !== savedWakeTime || sleepTime !== savedSleepTime;
+  const hoursDirty = wakeTime !== savedWakeTime || sleepTime !== savedSleepTime || weekStartDay !== savedWeekStartDay;
 
   async function handleSaveHours() {
     setIsSavingHours(true);
@@ -112,12 +118,13 @@ export function CalendarSettings() {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wakeTime, sleepTime }),
+        body: JSON.stringify({ wakeTime, sleepTime, weekStartDay }),
       });
       if (!res.ok) throw new Error("Failed to save");
       setSavedWakeTime(wakeTime);
       setSavedSleepTime(sleepTime);
-      toast.success("Calendar hours updated!");
+      setSavedWeekStartDay(weekStartDay);
+      toast.success("Calendar settings updated!");
     } catch {
       toast.error("Failed to save calendar hours");
     } finally {
@@ -282,6 +289,20 @@ export function CalendarSettings() {
           scheduling will respect this window.
         </p>
         <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1.5">
+            <label htmlFor="week-start" className="text-xs text-muted-foreground">
+              Week starts on
+            </label>
+            <select
+              id="week-start"
+              value={weekStartDay}
+              onChange={(e) => setWeekStartDay(Number(e.target.value))}
+              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value={0}>Sunday</option>
+              <option value={1}>Monday</option>
+            </select>
+          </div>
           <div className="space-y-1.5">
             <label htmlFor="wake-time" className="text-xs text-muted-foreground">
               Day starts

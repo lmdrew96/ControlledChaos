@@ -32,17 +32,19 @@ import type { CalendarEvent, CalendarSource } from "@/types";
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 22;
 const ROW_HEIGHT = 48; // px per 30-min slot
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ============================================================
 // Helpers
 // ============================================================
 
-function getMonday(date: Date): Date {
+/** Get the start of the week containing `date`. startDay: 0=Sunday, 1=Monday */
+function getWeekStart(date: Date, startDay: number = 1): Date {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  const day = d.getDay(); // 0=Sun, 1=Mon, ...
+  const diff = (day - startDay + 7) % 7;
+  d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -202,7 +204,9 @@ export function WeekView() {
   const { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks } =
     useCalendarEvents();
 
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
+  // Week start day preference: 0=Sunday, 1=Monday
+  const [weekStartDay, setWeekStartDay] = useState(1);
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date(), 1));
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
@@ -222,6 +226,8 @@ export function WeekView() {
   const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
   const [endHour, setEndHour] = useState(DEFAULT_END_HOUR);
 
+  const dayLabels = weekStartDay === 0 ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY;
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
@@ -229,6 +235,9 @@ export function WeekView() {
         if (data) {
           setStartHour(data.wakeTime ?? DEFAULT_START_HOUR);
           setEndHour(data.sleepTime ?? DEFAULT_END_HOUR);
+          const startDay = data.weekStartDay ?? 1;
+          setWeekStartDay(startDay);
+          setWeekStart(getWeekStart(new Date(), startDay));
         }
       })
       .catch(() => {});
@@ -302,8 +311,7 @@ export function WeekView() {
   }
 
   function goToToday() {
-    const monday = getMonday(new Date());
-    setWeekStart(monday);
+    setWeekStart(getWeekStart(new Date(), weekStartDay));
     setSelectedDay(new Date());
   }
 
@@ -422,7 +430,7 @@ export function WeekView() {
   }, [startHour, totalSlots]);
 
   // Is this week the current week?
-  const isCurrentWeek = isSameDay(weekStart, getMonday(today));
+  const isCurrentWeek = isSameDay(weekStart, getWeekStart(today, weekStartDay));
 
   // Events for the selected day (mobile)
   const selectedDayEvents = eventsByDay.get(selectedDay.toDateString()) ?? [];
@@ -510,7 +518,7 @@ export function WeekView() {
                   : "text-muted-foreground hover:bg-accent"
             )}
           >
-            <span className="font-medium">{DAY_LABELS[weekDays.indexOf(day)]}</span>
+            <span className="font-medium">{dayLabels[weekDays.indexOf(day)]}</span>
             <span className="text-lg font-bold">{day.getDate()}</span>
           </button>
         ))}
@@ -589,7 +597,7 @@ export function WeekView() {
                   )}
                 >
                   <p className="text-xs text-muted-foreground">
-                    {DAY_LABELS[i]}
+                    {dayLabels[i]}
                   </p>
                   <p
                     className={cn(

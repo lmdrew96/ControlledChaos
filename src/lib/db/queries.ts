@@ -98,6 +98,7 @@ export async function updateUserSettings(
     notificationPrefs: NotificationPrefs | null;
     wakeTime: number;
     sleepTime: number;
+    weekStartDay: number;
   }>
 ) {
   const [updated] = await db
