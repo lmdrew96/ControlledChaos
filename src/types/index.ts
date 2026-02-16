@@ -121,6 +121,14 @@ export interface NotificationPrefs {
   quietHoursEnd: string; // "07:00"
 }
 
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+
 // ============================================================
 // Calendar Types
 // ============================================================

@@ -3,6 +3,8 @@ import {
   brainDumps,
   calendarEvents,
   locations,
+  notifications,
+  pushSubscriptions,
   taskActivity,
   tasks,
   users,
@@ -493,4 +495,100 @@ export async function deleteLocation(locationId: string, userId: string) {
     .returning();
 
   return deleted;
+}
+
+// ============================================================
+// Push Subscriptions
+// ============================================================
+
+export async function createPushSubscription(
+  userId: string,
+  endpoint: string,
+  keysP256dh: string,
+  keysAuth: string
+) {
+  const [sub] = await db
+    .insert(pushSubscriptions)
+    .values({ userId, endpoint, keysP256dh, keysAuth })
+    .onConflictDoUpdate({
+      target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
+      set: { keysP256dh, keysAuth },
+    })
+    .returning();
+  return sub;
+}
+
+export async function deletePushSubscription(userId: string, endpoint: string) {
+  const [deleted] = await db
+    .delete(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, endpoint)
+      )
+    )
+    .returning();
+  return deleted;
+}
+
+export async function getPushSubscriptions(userId: string) {
+  return db
+    .select()
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.userId, userId));
+}
+
+// ============================================================
+// Notifications
+// ============================================================
+
+export async function createNotification(
+  userId: string,
+  type: string,
+  content: Record<string, unknown>
+) {
+  const [notif] = await db
+    .insert(notifications)
+    .values({ userId, type, content, sentAt: new Date() })
+    .returning();
+  return notif;
+}
+
+export async function markNotificationOpened(
+  notificationId: string,
+  userId: string
+) {
+  const [updated] = await db
+    .update(notifications)
+    .set({ openedAt: new Date() })
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId)
+      )
+    )
+    .returning();
+  return updated;
+}
+
+export async function getRecentNotifications(userId: string, limit = 50) {
+  return db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
+export async function getUnreadNotificationCount(userId: string) {
+  const result = await db
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.openedAt, null as unknown as Date)
+      )
+    );
+  return result.filter((n) => n.sentAt !== null && n.openedAt === null).length;
 }

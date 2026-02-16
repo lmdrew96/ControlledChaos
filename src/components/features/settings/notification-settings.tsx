@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Moon } from "lucide-react";
+import { Bell, Mail, Moon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { usePushSubscription } from "@/hooks/use-push-subscription";
 import type { NotificationPrefs } from "@/types";
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -22,6 +23,13 @@ export function NotificationSettings() {
   const [savedPrefs, setSavedPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
+  const {
+    isSupported: pushSupported,
+    isSubscribed: pushSubscribed,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+  } = usePushSubscription();
 
   useEffect(() => {
     fetch("/api/settings")
@@ -77,15 +85,60 @@ export function NotificationSettings() {
           <div>
             <p className="text-sm font-medium">Push Notifications</p>
             <p className="text-xs text-muted-foreground">
-              Deadline reminders, scheduled task alerts, and check-ins
+              {!pushSupported
+                ? "Not supported in this browser"
+                : "Deadline reminders, scheduled task alerts, and check-ins"}
             </p>
           </div>
         </div>
-        <Switch
-          checked={prefs.pushEnabled}
-          onCheckedChange={(checked) => update({ pushEnabled: checked })}
-        />
+        {isTogglingPush ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          <Switch
+            checked={prefs.pushEnabled && pushSubscribed}
+            disabled={!pushSupported}
+            onCheckedChange={async (checked) => {
+              setIsTogglingPush(true);
+              try {
+                if (checked) {
+                  const ok = await subscribePush();
+                  if (ok) {
+                    update({ pushEnabled: true });
+                    toast.success("Push notifications enabled!");
+                  } else {
+                    toast.error("Failed to enable push notifications. Check browser permissions.");
+                  }
+                } else {
+                  await unsubscribePush();
+                  update({ pushEnabled: false });
+                  toast.success("Push notifications disabled.");
+                }
+              } finally {
+                setIsTogglingPush(false);
+              }
+            }}
+          />
+        )}
       </div>
+
+      {prefs.pushEnabled && pushSubscribed && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-7"
+          onClick={async () => {
+            const res = await fetch("/api/notifications/test", { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+              toast.success("Test notification sent!");
+            } else {
+              toast.error(data.message || "Failed to send test notification");
+            }
+          }}
+        >
+          Send Test Notification
+        </Button>
+      )}
 
       <div className="h-px bg-border" />
 

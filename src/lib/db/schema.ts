@@ -196,3 +196,23 @@ export const notifications = pgTable("notifications", {
   openedAt: timestamp("opened_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ============================================================
+// Push Subscriptions (one per device per user)
+// ============================================================
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    endpoint: text("endpoint").notNull(),
+    keysP256dh: text("keys_p256dh").notNull(),
+    keysAuth: text("keys_auth").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_push_sub_user_endpoint").on(table.userId, table.endpoint),
+  ]
+);
