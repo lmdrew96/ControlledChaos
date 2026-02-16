@@ -9,7 +9,8 @@ import {
   updateTask,
 } from "@/lib/db/queries";
 import { generateSchedule } from "@/lib/ai/schedule";
-import { writeEventToGoogle } from "@/lib/calendar/sync-google";
+import { syncGoogleCalendar, writeEventToGoogle } from "@/lib/calendar/sync-google";
+import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import type { EnergyProfile } from "@/types";
 
 export async function POST() {
@@ -36,6 +37,25 @@ export async function POST() {
 
     const timezone = user?.timezone ?? "America/New_York";
     const scheduleDays = 3;
+
+    // Sync calendars first so we have the latest events
+    const syncPromises: Promise<unknown>[] = [];
+    if (settings?.canvasIcalUrl) {
+      syncPromises.push(
+        syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
+          console.error("[Schedule] Canvas pre-sync failed:", err)
+        )
+      );
+    }
+    if (settings?.googleCalConnected) {
+      const calIds = (settings.googleCalendarIds as string[] | null) ?? null;
+      syncPromises.push(
+        syncGoogleCalendar(userId, calIds).catch((err) =>
+          console.error("[Schedule] Google pre-sync failed:", err)
+        )
+      );
+    }
+    await Promise.all(syncPromises);
 
     // Get existing events for the scheduling window
     const now = new Date();
