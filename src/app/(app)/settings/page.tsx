@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppearanceSettings } from "@/components/features/settings/appearance-settings";
 import { EnergyProfileEditor } from "@/components/features/settings/energy-profile";
 import { SavedLocations } from "@/components/features/settings/saved-locations";
 import { CalendarSettings } from "@/components/features/settings/calendar-settings";
@@ -12,6 +13,16 @@ export default function SettingsPage() {
           Preferences, integrations, and locations.
         </p>
       </div>
+
+      {/* Appearance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Appearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AppearanceSettings />
+        </CardContent>
+      </Card>
 
       {/* Energy Profile */}
       <Card>
