@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserSettings, updateUserSettings } from "@/lib/db/queries";
-import type { EnergyProfile } from "@/types";
+import type { EnergyProfile, NotificationPrefs } from "@/types";
 
 export async function GET() {
   try {
@@ -19,6 +19,7 @@ export async function GET() {
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       weekStartDay: settings?.weekStartDay ?? 1,
+      notificationPrefs: settings?.notificationPrefs ?? null,
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -61,6 +62,22 @@ export async function PATCH(request: Request) {
     if (body.weekStartDay !== undefined) {
       const d = Number(body.weekStartDay);
       if (d === 0 || d === 1) data.weekStartDay = d;
+    }
+    if (body.notificationPrefs !== undefined) {
+      const prefs = body.notificationPrefs as NotificationPrefs;
+      // Validate time format (HH:MM)
+      const timeRegex = /^\d{2}:\d{2}$/;
+      if (
+        typeof prefs.pushEnabled === "boolean" &&
+        typeof prefs.emailMorningDigest === "boolean" &&
+        typeof prefs.emailEveningDigest === "boolean" &&
+        timeRegex.test(prefs.morningDigestTime) &&
+        timeRegex.test(prefs.eveningDigestTime) &&
+        timeRegex.test(prefs.quietHoursStart) &&
+        timeRegex.test(prefs.quietHoursEnd)
+      ) {
+        data.notificationPrefs = prefs;
+      }
     }
 
     const updated = await updateUserSettings(userId, data);
