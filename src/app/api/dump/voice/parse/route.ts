@@ -8,7 +8,9 @@ import {
   getCalendarEventsByDateRange,
   createBrainDump,
   createTasksFromDump,
+  createCalendarEventsFromDump,
 } from "@/lib/db/queries";
+import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 
 export async function POST(request: Request) {
   try {
@@ -83,12 +85,42 @@ export async function POST(request: Request) {
       result.tasks
     );
 
+    // Create calendar events from parsed output
+    let createdEventsCount = 0;
+    if (result.events && result.events.length > 0) {
+      const expandedEvents: Array<{
+        title: string;
+        description: string | null;
+        startTime: Date;
+        endTime: Date;
+        location: string | null;
+        isAllDay: boolean;
+        seriesId: string | null;
+      }> = [];
+
+      for (const parsedEvent of result.events) {
+        const instances = expandRecurrence(parsedEvent);
+        const seriesId = instances.length > 1 ? crypto.randomUUID() : null;
+        for (const instance of instances) {
+          expandedEvents.push({ ...instance, seriesId });
+        }
+      }
+
+      const created = await createCalendarEventsFromDump(
+        userId,
+        dump.id,
+        expandedEvents
+      );
+      createdEventsCount = created.length;
+    }
+
     return NextResponse.json({
       dump: {
         id: dump.id,
         summary: result.summary,
       },
       tasks: createdTasks,
+      eventsCreated: createdEventsCount,
     });
   } catch (error) {
     console.error("[API] POST /api/dump/voice/parse error:", error);

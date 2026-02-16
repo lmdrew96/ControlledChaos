@@ -6,7 +6,7 @@ import {
   formatCurrentDateTime,
 } from "./prompts";
 import { extractJSON, validateISODate } from "./validate";
-import type { BrainDumpResult, DumpInputType, ParsedTask } from "@/types";
+import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask } from "@/types";
 
 export interface BrainDumpContext {
   existingGoals: Array<{ title: string }>;
@@ -75,7 +75,7 @@ export async function parseBrainDump(
     maxTokens: 4096,
   });
 
-  let parsed: { tasks: ParsedTask[]; summary: string };
+  let parsed: { tasks: ParsedTask[]; events?: ParsedCalendarEvent[]; summary: string };
   try {
     parsed = extractJSON(result.text);
   } catch {
@@ -143,9 +143,59 @@ export async function parseBrainDump(
     };
   });
 
+  // Validate and sanitize each calendar event
+  const events: ParsedCalendarEvent[] = (parsed.events ?? [])
+    .map((evt) => {
+      const startTime = validateISODate(evt.startTime);
+      if (!startTime) return null; // Skip events without valid start
+
+      const endTime =
+        validateISODate(evt.endTime) ||
+        new Date(new Date(startTime).getTime() + 3600000).toISOString();
+
+      const result: ParsedCalendarEvent = {
+        title: evt.title || "Untitled Event",
+        description: evt.description || undefined,
+        location: evt.location || undefined,
+        startTime,
+        endTime,
+        isAllDay: evt.isAllDay ?? false,
+      };
+
+      if (evt.recurrence && evt.recurrence.type) {
+        const recType = validateEnum(
+          evt.recurrence.type,
+          ["daily", "weekly"],
+          undefined
+        );
+        if (recType) {
+          result.recurrence = {
+            type: recType,
+            daysOfWeek: Array.isArray(evt.recurrence.daysOfWeek)
+              ? evt.recurrence.daysOfWeek.filter(
+                  (d: number) => typeof d === "number" && d >= 0 && d <= 6
+                )
+              : undefined,
+            endDate:
+              validateISODate(evt.recurrence.endDate) ||
+              // Default to 16 weeks from start for recurring events
+              new Date(
+                new Date(startTime).getTime() + 16 * 7 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+          };
+        }
+      }
+
+      return result;
+    })
+    .filter((evt): evt is ParsedCalendarEvent => evt !== null);
+
   return {
     tasks,
-    summary: parsed.summary || `Parsed ${tasks.length} tasks from brain dump`,
+    events,
+    summary:
+      parsed.summary ||
+      `Parsed ${tasks.length} task${tasks.length !== 1 ? "s" : ""}${events.length > 0 ? ` and ${events.length} event${events.length !== 1 ? "s" : ""}` : ""} from brain dump`,
   };
 }
 

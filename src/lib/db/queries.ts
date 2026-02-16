@@ -449,6 +449,7 @@ export async function updateCalendarEvent(
     description: string | null;
     startTime: Date;
     endTime: Date;
+    location: string | null;
   }>
 ) {
   const [updated] = await db
@@ -457,6 +458,76 @@ export async function updateCalendarEvent(
     .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)))
     .returning();
   return updated ?? null;
+}
+
+export async function createManualCalendarEvent(params: {
+  userId: string;
+  title: string;
+  description: string | null;
+  startTime: Date;
+  endTime: Date;
+  location: string | null;
+  isAllDay: boolean;
+  seriesId: string | null;
+}) {
+  const externalId = `manual-${crypto.randomUUID()}`;
+  const [event] = await db
+    .insert(calendarEvents)
+    .values({
+      userId: params.userId,
+      source: "controlledchaos",
+      externalId,
+      title: params.title,
+      description: params.description,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      location: params.location,
+      isAllDay: params.isAllDay,
+      seriesId: params.seriesId,
+      syncedAt: new Date(),
+    })
+    .returning();
+  return event;
+}
+
+export async function createCalendarEventsFromDump(
+  userId: string,
+  dumpId: string,
+  events: Array<{
+    title: string;
+    description: string | null;
+    startTime: Date;
+    endTime: Date;
+    location: string | null;
+    isAllDay: boolean;
+    seriesId: string | null;
+  }>
+) {
+  if (events.length === 0) return [];
+  const values = events.map((evt) => ({
+    userId,
+    source: "controlledchaos" as const,
+    externalId: `dump-${crypto.randomUUID()}`,
+    ...evt,
+    sourceDumpId: dumpId,
+    syncedAt: new Date(),
+  }));
+  return db.insert(calendarEvents).values(values).returning();
+}
+
+export async function deleteCalendarEventsBySeries(
+  seriesId: string,
+  userId: string
+) {
+  return db
+    .delete(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.seriesId, seriesId),
+        eq(calendarEvents.userId, userId)
+      )
+    )
+    .returning();
 }
 
 // ============================================================

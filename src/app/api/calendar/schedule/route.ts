@@ -80,6 +80,8 @@ export async function POST() {
       endTime: e.endTime.toISOString(),
       location: e.location,
       isAllDay: e.isAllDay ?? false,
+      seriesId: e.seriesId ?? null,
+      sourceDumpId: e.sourceDumpId ?? null,
       syncedAt: e.syncedAt.toISOString(),
     }));
 

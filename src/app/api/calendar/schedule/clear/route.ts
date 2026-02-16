@@ -1,8 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { deleteStaleCalendarEvents } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { calendarEvents } from "@/lib/db/schema";
+import { eq, and, like } from "drizzle-orm";
 
-/** DELETE /api/calendar/schedule/clear — remove all AI-scheduled events */
+/** DELETE /api/calendar/schedule/clear — remove only AI-scheduled events (cc- prefix) */
 export async function DELETE() {
   try {
     const { userId } = await auth();
@@ -10,12 +12,18 @@ export async function DELETE() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Passing an empty array deletes ALL events for the given source
-    const deleted = await deleteStaleCalendarEvents(
-      userId,
-      "controlledchaos",
-      []
-    );
+    // Only delete events with "cc-" externalId prefix (AI scheduler)
+    // Preserve manual- and dump- events created by users/brain dumps
+    const deleted = await db
+      .delete(calendarEvents)
+      .where(
+        and(
+          eq(calendarEvents.userId, userId),
+          eq(calendarEvents.source, "controlledchaos"),
+          like(calendarEvents.externalId, "cc-%")
+        )
+      )
+      .returning();
 
     return NextResponse.json({
       success: true,

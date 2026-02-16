@@ -56,5 +56,53 @@ export function useCalendarEvents() {
     return data;
   }, []);
 
-  return { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks, clearScheduled };
+  const createEvent = useCallback(
+    async (input: {
+      title: string;
+      description?: string;
+      location?: string;
+      startTime: string;
+      endTime: string;
+      isAllDay?: boolean;
+      recurrence?: {
+        type: "daily" | "weekly";
+        daysOfWeek?: number[];
+        endDate?: string;
+      };
+    }): Promise<{ count: number; seriesId: string | null }> => {
+      const res = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create event");
+      return data;
+    },
+    []
+  );
+
+  const deleteEventSeries = useCallback(
+    async (eventId: string): Promise<{ deleted: number }> => {
+      const res = await fetch(`/api/calendar/events/${eventId}/series`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete series");
+      return data;
+    },
+    []
+  );
+
+  return {
+    events,
+    isLoading,
+    error,
+    fetchEvents,
+    syncCalendar,
+    scheduleTasks,
+    clearScheduled,
+    createEvent,
+    deleteEventSeries,
+  };
 }

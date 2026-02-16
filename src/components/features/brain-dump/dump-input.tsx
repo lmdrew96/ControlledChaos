@@ -76,7 +76,7 @@ export function DumpInput() {
             <div className="text-center">
               <p className="font-medium">Parsing your brain dump...</p>
               <p className="text-sm text-muted-foreground">
-                Turning chaos into tasks
+                Turning chaos into tasks and events
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function DumpInput() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" />
-          <span>AI will parse your thoughts into structured tasks</span>
+          <span>AI will parse your thoughts into tasks and calendar events</span>
         </div>
 
         <div className="flex items-center gap-3">

@@ -13,6 +13,8 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  Plus,
+  Repeat,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
+import { CreateEventDialog } from "./create-event-dialog";
 import type { CalendarEvent, CalendarSource } from "@/types";
 
 // ============================================================
@@ -99,13 +102,15 @@ function sourceColor(source: CalendarSource) {
   }
 }
 
-function sourceLabel(source: CalendarSource): string {
+function sourceLabel(source: CalendarSource, externalId?: string | null): string {
   switch (source) {
     case "canvas":
       return "Canvas";
     case "google":
       return "Google";
     case "controlledchaos":
+      if (externalId?.startsWith("manual-")) return "Manual";
+      if (externalId?.startsWith("dump-")) return "Brain Dump";
       return "Scheduled";
     default:
       return source;
@@ -202,8 +207,17 @@ function layoutOverlappingEvents(
 // ============================================================
 
 export function WeekView() {
-  const { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks, clearScheduled } =
-    useCalendarEvents();
+  const {
+    events,
+    isLoading,
+    error,
+    fetchEvents,
+    syncCalendar,
+    scheduleTasks,
+    clearScheduled,
+    createEvent,
+    deleteEventSeries,
+  } = useCalendarEvents();
 
   // Week start day preference: 0=Sunday, 1=Monday
   const [weekStartDay, setWeekStartDay] = useState(1);
@@ -216,6 +230,8 @@ export function WeekView() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [isDeletingSeries, setIsDeletingSeries] = useState(false);
 
   // Event edit/delete state
   const [isEditing, setIsEditing] = useState(false);
@@ -384,6 +400,36 @@ export function WeekView() {
       );
     } finally {
       setIsClearing(false);
+    }
+  }
+
+  async function handleCreateEvent(input: Parameters<typeof createEvent>[0]) {
+    const result = await createEvent(input);
+    toast.success(
+      result.count === 1
+        ? "Event created!"
+        : `Created ${result.count} events!`
+    );
+    await fetchEvents(weekStart, weekEnd);
+    return result;
+  }
+
+  async function handleDeleteSeries() {
+    if (!selectedEvent?.seriesId) return;
+    setIsDeletingSeries(true);
+    try {
+      const result = await deleteEventSeries(selectedEvent.id);
+      toast.success(
+        `Deleted ${result.deleted} event${result.deleted !== 1 ? "s" : ""} in series.`
+      );
+      setSelectedEvent(null);
+      await fetchEvents(weekStart, weekEnd);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete series"
+      );
+    } finally {
+      setIsDeletingSeries(false);
     }
   }
 
@@ -630,6 +676,14 @@ export function WeekView() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateDialog(true)}
+          >
+            <Plus className="mr-2 h-3 w-3" />
+            Add Event
+          </Button>
           <Button
             variant="default"
             size="sm"
@@ -990,8 +1044,14 @@ export function WeekView() {
                       sourceColor(selectedEvent.source as CalendarSource)
                     )}
                   >
-                    {sourceLabel(selectedEvent.source as CalendarSource)}
+                    {sourceLabel(selectedEvent.source as CalendarSource, selectedEvent.externalId)}
                   </span>
+                  {selectedEvent.seriesId && (
+                    <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <Repeat className="mr-1 inline h-2.5 w-2.5" />
+                      Series
+                    </span>
+                  )}
                 </DialogDescription>
               </DialogHeader>
 
@@ -1114,6 +1174,22 @@ export function WeekView() {
                         )}
                         Delete
                       </Button>
+                      {selectedEvent.seriesId && (
+                        <Button
+                          onClick={handleDeleteSeries}
+                          disabled={isDeletingSeries}
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          {isDeletingSeries ? (
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Repeat className="mr-2 h-3 w-3" />
+                          )}
+                          Delete Series
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1132,8 +1208,8 @@ export function WeekView() {
               Clear All Scheduled Tasks
             </DialogTitle>
             <DialogDescription>
-              This will remove all AI-scheduled events from your calendar. External
-              events (Canvas, Google) will not be affected.
+              This will remove all AI-scheduled events from your calendar. Manual events,
+              brain dump events, and external events (Canvas, Google) will not be affected.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -1161,6 +1237,14 @@ export function WeekView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Event dialog */}
+      <CreateEventDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSubmit={handleCreateEvent}
+        defaultDate={selectedDay}
+      />
     </div>
   );
 }

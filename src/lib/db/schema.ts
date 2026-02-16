@@ -133,6 +133,8 @@ export const calendarEvents = pgTable(
     endTime: timestamp("end_time").notNull(),
     location: text("location"),
     isAllDay: boolean("is_all_day").default(false),
+    seriesId: text("series_id"), // UUID linking recurring event instances
+    sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
     syncedAt: timestamp("synced_at").defaultNow().notNull(),
   },
   (table) => [

@@ -57,8 +57,23 @@ export interface ParsedTask {
   goalConnection?: string;
 }
 
+export interface ParsedCalendarEvent {
+  title: string;
+  description?: string;
+  location?: string;
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
+  isAllDay?: boolean;
+  recurrence?: {
+    type: "daily" | "weekly";
+    daysOfWeek?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+    endDate?: string; // ISO 8601
+  };
+}
+
 export interface BrainDumpResult {
   tasks: ParsedTask[];
+  events: ParsedCalendarEvent[];
   summary: string;
 }
 
@@ -146,6 +161,8 @@ export interface CalendarEvent {
   endTime: string;
   location: string | null;
   isAllDay: boolean;
+  seriesId: string | null;
+  sourceDumpId: string | null;
   syncedAt: string;
 }
 
