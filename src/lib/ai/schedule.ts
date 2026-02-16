@@ -190,8 +190,46 @@ export async function generateSchedule(
       validTaskIds.has(block.taskId) && block.startTime && block.endTime
   );
 
-  // Remove overlapping blocks — keep earlier blocks, drop later ones that conflict
-  return removeOverlappingBlocks(validBlocks);
+  // Drop any blocks that overlap with existing calendar events
+  const safeBlocks = removeConflictsWithEvents(validBlocks, input.calendarEvents);
+
+  // Remove overlapping blocks between AI's own scheduled blocks
+  return removeOverlappingBlocks(safeBlocks);
+}
+
+/**
+ * Drop any AI-scheduled blocks that overlap with existing calendar events.
+ * This is the hard safety net — even if the AI ignores free blocks,
+ * we never create a scheduled block that conflicts with a real event.
+ */
+function removeConflictsWithEvents(
+  blocks: ScheduledBlock[],
+  events: CalendarEvent[]
+): ScheduledBlock[] {
+  // Build a list of busy intervals from all non-all-day events
+  const busy = events
+    .filter((e) => !e.isAllDay)
+    .map((e) => ({
+      start: new Date(e.startTime).getTime(),
+      end: new Date(e.endTime).getTime(),
+    }));
+
+  return blocks.filter((block) => {
+    const bStart = new Date(block.startTime).getTime();
+    const bEnd = new Date(block.endTime).getTime();
+
+    const hasConflict = busy.some(
+      (event) => bStart < event.end && bEnd > event.start
+    );
+
+    if (hasConflict) {
+      console.warn(
+        `[AI Schedule] Dropped block for task ${block.taskId}: ${block.startTime}–${block.endTime} conflicts with an existing event`
+      );
+    }
+
+    return !hasConflict;
+  });
 }
 
 /**
