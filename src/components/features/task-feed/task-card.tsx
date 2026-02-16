@@ -141,10 +141,10 @@ export function TaskCard({
               </Badge>
             )}
 
-            {task.locationTag && task.locationTag !== "anywhere" && (
+            {task.locationTags && task.locationTags.length > 0 && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3" />
-                {task.locationTag}
+                {task.locationTags.join(", ")}
               </span>
             )}
 

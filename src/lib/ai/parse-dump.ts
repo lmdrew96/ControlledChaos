@@ -66,11 +66,9 @@ export async function parseBrainDump(
           undefined
         )
       : undefined,
-    locationTag: task.locationTag
-      ? validateEnum(
-          task.locationTag,
-          ["home", "campus", "work", "anywhere"],
-          undefined
+    locationTags: Array.isArray(task.locationTags)
+      ? task.locationTags.filter((t: string) =>
+          ["home", "campus", "work"].includes(t)
         )
       : undefined,
     deadline: task.deadline || undefined,

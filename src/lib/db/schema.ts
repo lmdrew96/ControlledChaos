@@ -95,7 +95,7 @@ export const tasks = pgTable(
     energyLevel: text("energy_level").default("medium").notNull(), // low, medium, high
     estimatedMinutes: integer("estimated_minutes"),
     category: text("category"), // school, work, personal, errands, health
-    locationTag: text("location_tag"), // home, campus, work, anywhere
+    locationTags: jsonb("location_tags").$type<string[]>(), // ["home", "campus"] — null or [] = anywhere
     deadline: timestamp("deadline"),
     scheduledFor: timestamp("scheduled_for"),
     completedAt: timestamp("completed_at"),

@@ -21,7 +21,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     energyLevel: t.energyLevel,
     estimatedMinutes: t.estimatedMinutes,
     category: t.category,
-    locationTag: t.locationTag,
+    locationTags: t.locationTags,
     deadline: t.deadline,
     status: t.status,
   }));

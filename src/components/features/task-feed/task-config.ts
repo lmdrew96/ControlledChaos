@@ -53,7 +53,6 @@ export const categoryOptions: { value: TaskCategory; label: string }[] = [
 ];
 
 export const locationOptions: { value: LocationTag; label: string }[] = [
-  { value: "anywhere", label: "Anywhere" },
   { value: "home", label: "Home" },
   { value: "campus", label: "Campus" },
   { value: "work", label: "Work" },

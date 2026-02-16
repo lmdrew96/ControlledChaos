@@ -95,5 +95,6 @@ export function inferLocationTag(name: string): LocationTag {
     lower.includes("job")
   )
     return "work";
-  return "anywhere";
+  // Default to "home" when we can't infer — "anywhere" is no longer a valid tag
+  return "home";
 }

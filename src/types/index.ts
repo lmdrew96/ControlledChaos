@@ -12,7 +12,7 @@ export interface Task {
   energyLevel: string;
   estimatedMinutes: number | null;
   category: string | null;
-  locationTag: string | null;
+  locationTags: string[] | null;
   deadline: string | null;
   scheduledFor: string | null;
   completedAt: string | null;
@@ -38,7 +38,7 @@ export type TaskCategory =
   | "errands"
   | "health";
 
-export type LocationTag = "home" | "campus" | "work" | "anywhere";
+export type LocationTag = "home" | "campus" | "work";
 
 // ============================================================
 // Brain Dump Types
@@ -52,7 +52,7 @@ export interface ParsedTask {
   energyLevel: EnergyLevel;
   estimatedMinutes?: number;
   category?: TaskCategory;
-  locationTag?: LocationTag;
+  locationTags?: LocationTag[];
   deadline?: string;
   goalConnection?: string;
 }

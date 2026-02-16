@@ -42,7 +42,7 @@ interface FormState {
   priority: string;
   energyLevel: string;
   category: string;
-  locationTag: string;
+  locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
   status: string;
@@ -62,7 +62,7 @@ function formFromTask(task: Task): FormState {
     priority: task.priority,
     energyLevel: task.energyLevel,
     category: task.category ?? "",
-    locationTag: task.locationTag ?? "anywhere",
+    locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline) : "",
     status: task.status,
@@ -80,7 +80,7 @@ export function TaskDetailModal({
     priority: "normal",
     energyLevel: "medium",
     category: "",
-    locationTag: "anywhere",
+    locationTags: [],
     estimatedMinutes: "",
     deadline: "",
     status: "pending",
@@ -102,7 +102,12 @@ export function TaskDetailModal({
   // Dirty check — has form changed from original task?
   const original = formFromTask(task);
   const hasChanges = (Object.keys(original) as (keyof FormState)[]).some(
-    (key) => form[key] !== original[key]
+    (key) => {
+      if (key === "locationTags") {
+        return JSON.stringify(form.locationTags) !== JSON.stringify(original.locationTags);
+      }
+      return form[key] !== original[key];
+    }
   );
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -127,8 +132,8 @@ export function TaskDetailModal({
         payload.energyLevel = form.energyLevel;
       if (form.category !== original.category)
         payload.category = form.category || null;
-      if (form.locationTag !== original.locationTag)
-        payload.locationTag = form.locationTag || null;
+      if (JSON.stringify(form.locationTags) !== JSON.stringify(original.locationTags))
+        payload.locationTags = form.locationTags.length ? form.locationTags : null;
       if (form.estimatedMinutes !== original.estimatedMinutes)
         payload.estimatedMinutes = form.estimatedMinutes
           ? parseInt(form.estimatedMinutes)
@@ -292,21 +297,33 @@ export function TaskDetailModal({
 
             <div className="space-y-2">
               <Label>Location</Label>
-              <Select
-                value={form.locationTag}
-                onValueChange={(v) => updateField("locationTag", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {locationOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
+              <div className="flex flex-wrap gap-3 pt-1">
+                {locationOptions.map((opt) => {
+                  const checked = form.locationTags.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-1.5 text-sm cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? form.locationTags.filter((t) => t !== opt.value)
+                            : [...form.locationTags, opt.value];
+                          updateField("locationTags", next);
+                        }}
+                        className="accent-primary h-4 w-4 rounded"
+                      />
                       {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                None checked = can be done anywhere
+              </p>
             </div>
           </div>
 

@@ -152,7 +152,7 @@ export async function createTasksFromDump(
     energyLevel: task.energyLevel,
     estimatedMinutes: task.estimatedMinutes ?? null,
     category: task.category ?? null,
-    locationTag: task.locationTag ?? null,
+    locationTags: task.locationTags?.length ? task.locationTags : null,
     deadline: task.deadline ? new Date(task.deadline) : null,
     sourceDumpId: dumpId,
     sortOrder: index,
@@ -193,7 +193,7 @@ export async function updateTask(
     energyLevel: string;
     estimatedMinutes: number | null;
     category: string | null;
-    locationTag: string | null;
+    locationTags: string[] | null;
     deadline: Date | null;
     scheduledFor: Date | null;
     completedAt: Date | null;

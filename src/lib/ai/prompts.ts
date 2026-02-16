@@ -22,7 +22,7 @@ For each task, output:
 - energyLevel: "low" | "medium" | "high"
 - estimatedMinutes: Your best estimate
 - category: "school" | "work" | "personal" | "errands" | "health"
-- locationTag: "home" | "campus" | "work" | "anywhere"
+- locationTags: Array of where this can be done: "home", "campus", "work". Use [] (empty array) if it can be done anywhere. Example: ["home", "campus"] means doable at home or campus but not work.
 - deadline: ISO date string if mentioned or inferable (optional)
 - goalConnection: Name of related goal if identifiable (optional)
 
