@@ -139,10 +139,10 @@ export default function TermsOfServicePage() {
           <p>
             Questions? Reach out at{" "}
             <a
-              href="mailto:nae@controlledchaos.app"
+              href="mailto:nae@adhdesigns.dev"
               className="text-foreground underline underline-offset-4"
             >
-              nae@controlledchaos.app
+              nae@adhdesigns.dev
             </a>
           </p>
         </section>
