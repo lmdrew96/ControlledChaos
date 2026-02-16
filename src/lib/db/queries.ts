@@ -94,6 +94,7 @@ export async function updateUserSettings(
     energyProfile: EnergyProfile | null;
     canvasIcalUrl: string | null;
     googleCalConnected: boolean;
+    googleCalendarIds: string[] | null;
     onboardingComplete: boolean;
     notificationPrefs: NotificationPrefs | null;
     wakeTime: number;

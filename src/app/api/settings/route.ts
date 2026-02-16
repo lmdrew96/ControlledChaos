@@ -15,6 +15,7 @@ export async function GET() {
       energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       googleCalConnected: settings?.googleCalConnected ?? false,
+      googleCalendarIds: settings?.googleCalendarIds ?? null,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       weekStartDay: settings?.weekStartDay ?? 1,
@@ -51,6 +52,11 @@ export async function PATCH(request: Request) {
     if (body.sleepTime !== undefined) {
       const h = Number(body.sleepTime);
       if (Number.isInteger(h) && h >= 0 && h <= 23) data.sleepTime = h;
+    }
+    if (body.googleCalendarIds !== undefined) {
+      data.googleCalendarIds = Array.isArray(body.googleCalendarIds)
+        ? body.googleCalendarIds
+        : null;
     }
     if (body.weekStartDay !== undefined) {
       const d = Number(body.weekStartDay);

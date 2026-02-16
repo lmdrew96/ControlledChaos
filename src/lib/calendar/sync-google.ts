@@ -16,7 +16,8 @@ const MAX_EVENTS = 500;
  * Each account's events get a prefixed externalId to avoid conflicts.
  */
 export async function syncGoogleCalendar(
-  userId: string
+  userId: string,
+  calendarIds?: string[] | null
 ): Promise<CalendarSyncResult> {
   const accounts = await getAllGoogleAccessTokens(userId);
   if (accounts.length === 0) {
@@ -44,6 +45,7 @@ export async function syncGoogleCalendar(
         timeMin: timeMin.toISOString(),
         timeMax: timeMax.toISOString(),
         maxResults: MAX_EVENTS,
+        calendarIds: calendarIds?.length ? calendarIds : undefined,
       });
     } catch (err) {
       console.error(

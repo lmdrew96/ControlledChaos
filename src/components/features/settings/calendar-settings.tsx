@@ -44,6 +44,15 @@ export function CalendarSettings() {
     total: number;
   } | null>(null);
 
+  // Google calendar selection
+  const [availableCalendars, setAvailableCalendars] = useState<
+    { id: string; name: string; primary: boolean }[]
+  >([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[] | null>(null);
+  const [savedCalendarIds, setSavedCalendarIds] = useState<string[] | null>(null);
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
+  const [isSavingCalendars, setIsSavingCalendars] = useState(false);
+
   // Calendar hours + week start
   const [wakeTime, setWakeTime] = useState(7);
   const [sleepTime, setSleepTime] = useState(22);
@@ -73,6 +82,10 @@ export function CalendarSettings() {
             setOriginal(data.canvasIcalUrl);
           }
           setGoogleConnected(data.googleCalConnected ?? false);
+          if (data.googleCalendarIds) {
+            setSelectedCalendarIds(data.googleCalendarIds);
+            setSavedCalendarIds(data.googleCalendarIds);
+          }
           if (data.wakeTime != null) {
             setWakeTime(data.wakeTime);
             setSavedWakeTime(data.wakeTime);
@@ -108,6 +121,51 @@ export function CalendarSettings() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleAccounts.length, googleConnected, isLoading]);
+
+  // Fetch available Google calendars when connected
+  useEffect(() => {
+    if (!googleConnected || isLoading) return;
+    setIsLoadingCalendars(true);
+    fetch("/api/calendar/google/calendars")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.calendars) {
+          setAvailableCalendars(data.calendars);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingCalendars(false));
+  }, [googleConnected, isLoading]);
+
+  function toggleCalendar(calId: string) {
+    setSelectedCalendarIds((prev) => {
+      const current = prev ?? availableCalendars.map((c) => c.id);
+      return current.includes(calId)
+        ? current.filter((id) => id !== calId)
+        : [...current, calId];
+    });
+  }
+
+  const calendarsDirty =
+    JSON.stringify(selectedCalendarIds) !== JSON.stringify(savedCalendarIds);
+
+  async function handleSaveCalendars() {
+    setIsSavingCalendars(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ googleCalendarIds: selectedCalendarIds }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSavedCalendarIds(selectedCalendarIds);
+      toast.success("Calendar selection saved!");
+    } catch {
+      toast.error("Failed to save calendar selection");
+    } finally {
+      setIsSavingCalendars(false);
+    }
+  }
 
   // ── Calendar hours handlers ─────────────────────────────────
   const hoursDirty = wakeTime !== savedWakeTime || sleepTime !== savedSleepTime || weekStartDay !== savedWeekStartDay;
@@ -467,6 +525,60 @@ export function CalendarSettings() {
                 {googleSyncResult.total} events synced
               </p>
             )}
+
+            {/* Calendar selection */}
+            {isLoadingCalendars ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading calendars...
+              </div>
+            ) : availableCalendars.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Synced calendars
+                </p>
+                <div className="space-y-1.5">
+                  {availableCalendars.map((cal) => {
+                    const effectiveSelected = selectedCalendarIds
+                      ?? availableCalendars.map((c) => c.id);
+                    const checked = effectiveSelected.includes(cal.id);
+                    return (
+                      <label
+                        key={cal.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCalendar(cal.id)}
+                          className="accent-primary h-4 w-4 rounded"
+                        />
+                        <span className={checked ? "text-foreground" : "text-muted-foreground"}>
+                          {cal.name}
+                          {cal.primary && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              (primary)
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {calendarsDirty && (
+                  <Button
+                    onClick={handleSaveCalendars}
+                    disabled={isSavingCalendars}
+                    size="sm"
+                  >
+                    {isSavingCalendars && (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    )}
+                    Save Selection
+                  </Button>
+                )}
+              </div>
+            ) : null}
 
             <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 p-3">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />

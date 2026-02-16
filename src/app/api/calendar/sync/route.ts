@@ -36,7 +36,8 @@ export async function POST() {
     // Sync Google if connected
     if (settings?.googleCalConnected) {
       try {
-        googleResult = await syncGoogleCalendar(userId);
+        const calIds = (settings.googleCalendarIds as string[] | null) ?? null;
+        googleResult = await syncGoogleCalendar(userId, calIds);
       } catch (err) {
         console.error("[API] Google sync failed:", err);
         errors.push(

@@ -47,33 +47,51 @@ export function createGoogleCalendarClient(accessToken: string) {
   };
 
   return {
+    /** Fetch the user's visible calendar list. */
+    async listCalendars(): Promise<GoogleCalendarListEntry[]> {
+      const res = await fetch(
+        `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
+        { headers }
+      );
+      if (!res.ok) return [];
+      const data: GoogleCalendarListResponse = await res.json();
+      return data.items ?? [];
+    },
+
     /**
-     * List events from ALL visible calendars within a time range.
-     * Fetches the user's calendar list first, then queries each one.
-     * This picks up subscribed calendars (e.g. school calendar added to personal account).
+     * List events from visible calendars within a time range.
+     * If calendarIds is provided, only fetches from those calendars.
+     * Otherwise fetches from ALL visible calendars.
      */
     async listEvents(params: {
       timeMin: string;
       timeMax: string;
       maxResults?: number;
+      calendarIds?: string[];
     }): Promise<GoogleCalendarEvent[]> {
-      // 1. Get all calendars the user can see
-      const calListRes = await fetch(
-        `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
-        { headers }
-      );
-      if (!calListRes.ok) {
-        // Fall back to just primary if calendarList fails
-        return this.listEventsFromCalendar("primary", params);
+      let calendars: { id: string }[];
+
+      if (params.calendarIds && params.calendarIds.length > 0) {
+        // Use only selected calendars
+        calendars = params.calendarIds.map((id) => ({ id }));
+      } else {
+        // Fetch all visible calendars
+        const calListRes = await fetch(
+          `${GCAL_BASE}/users/me/calendarList?minAccessRole=reader`,
+          { headers }
+        );
+        if (!calListRes.ok) {
+          return this.listEventsFromCalendar("primary", params);
+        }
+        const calList: GoogleCalendarListResponse = await calListRes.json();
+        calendars = calList.items ?? [];
       }
-      const calList: GoogleCalendarListResponse = await calListRes.json();
-      const calendars = calList.items ?? [];
 
       if (calendars.length === 0) {
         return this.listEventsFromCalendar("primary", params);
       }
 
-      // 2. Fetch events from each calendar in parallel
+      // Fetch events from each calendar in parallel
       const perCalendar = Math.max(
         50,
         Math.floor((params.maxResults ?? 250) / calendars.length)
