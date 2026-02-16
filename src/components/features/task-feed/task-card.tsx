@@ -9,6 +9,8 @@ import {
   Calendar,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,7 @@ export function TaskCard({
     try {
       if (action === "delete") {
         await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+        toast.success("Task deleted");
       } else {
         const status = action === "complete" ? "completed" : "pending";
         await fetch(`/api/tasks/${task.id}`, {
@@ -46,6 +49,10 @@ export function TaskCard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status }),
         });
+        if (action === "complete") {
+          toast.success("Task completed!");
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
+        }
       }
       onUpdate();
     } catch (error) {
