@@ -10,7 +10,7 @@ import {
   users,
   userSettings,
 } from "./schema";
-import { eq, and, desc, ne, gt, gte, lte, inArray, notInArray } from "drizzle-orm";
+import { eq, and, desc, ne, gt, gte, lte, inArray, notInArray, sql } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -591,4 +591,23 @@ export async function getUnreadNotificationCount(userId: string) {
       )
     );
   return result.filter((n) => n.sentAt !== null && n.openedAt === null).length;
+}
+
+/**
+ * Get all users who have at least one active push subscription.
+ * Returns userId + timezone for cron trigger processing.
+ */
+export async function getAllUsersWithPushEnabled() {
+  const rows = await db
+    .selectDistinctOn([pushSubscriptions.userId], {
+      userId: pushSubscriptions.userId,
+      timezone: users.timezone,
+    })
+    .from(pushSubscriptions)
+    .innerJoin(users, eq(pushSubscriptions.userId, users.id));
+
+  return rows.map((r) => ({
+    userId: r.userId,
+    timezone: r.timezone ?? "America/New_York",
+  }));
 }

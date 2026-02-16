@@ -115,6 +115,7 @@ export async function sendPushToUser(
       body: payload.body,
       url: payload.url,
       tag: payload.tag,
+      dedupKey: payload.tag,
     });
   }
 
