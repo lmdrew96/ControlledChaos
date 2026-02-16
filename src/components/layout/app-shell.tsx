@@ -62,25 +62,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card backdrop-blur-xl py-2 md:hidden">
-        {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs transition-colors",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center border-t border-border bg-card backdrop-blur-xl py-2 md:hidden">
+        <div className="flex flex-1 items-center justify-around">
+          {navItems.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs transition-colors",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 border-l border-border px-3">
+          <ThemeToggle />
+          <UserNav />
+        </div>
       </nav>
 
       {/* Main content */}
