@@ -12,6 +12,7 @@ import {
   Sparkles,
   Pencil,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -201,7 +202,7 @@ function layoutOverlappingEvents(
 // ============================================================
 
 export function WeekView() {
-  const { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks } =
+  const { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks, clearScheduled } =
     useCalendarEvents();
 
   // Week start day preference: 0=Sunday, 1=Monday
@@ -213,6 +214,8 @@ export function WeekView() {
   );
   const [isSyncing, setIsSyncing] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Event edit/delete state
   const [isEditing, setIsEditing] = useState(false);
@@ -358,6 +361,29 @@ export function WeekView() {
       toast.error(err instanceof Error ? err.message : "Scheduling failed");
     } finally {
       setIsScheduling(false);
+    }
+  }
+
+  // Count how many CC events are on the current view
+  const scheduledCount = events.filter(
+    (e) => e.source === "controlledchaos"
+  ).length;
+
+  async function handleClearScheduled() {
+    setIsClearing(true);
+    try {
+      const result = await clearScheduled();
+      toast.success(
+        `Cleared ${result.deleted} scheduled event${result.deleted !== 1 ? "s" : ""}.`
+      );
+      setShowClearConfirm(false);
+      await fetchEvents(weekStart, weekEnd);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to clear events"
+      );
+    } finally {
+      setIsClearing(false);
     }
   }
 
@@ -617,6 +643,17 @@ export function WeekView() {
             )}
             Schedule Tasks
           </Button>
+          {scheduledCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowClearConfirm(true)}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="mr-2 h-3 w-3" />
+              Clear
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -1083,6 +1120,45 @@ export function WeekView() {
               )}
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear all scheduled events confirmation */}
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Clear All Scheduled Tasks
+            </DialogTitle>
+            <DialogDescription>
+              This will remove all AI-scheduled events from your calendar. External
+              events (Canvas, Google) will not be affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowClearConfirm(false)}
+              disabled={isClearing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClearScheduled}
+              disabled={isClearing}
+            >
+              {isClearing ? (
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-3 w-3" />
+              )}
+              Clear All
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

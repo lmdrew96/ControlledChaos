@@ -49,5 +49,12 @@ export function useCalendarEvents() {
     return data;
   }, []);
 
-  return { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks };
+  const clearScheduled = useCallback(async (): Promise<{ deleted: number }> => {
+    const res = await fetch("/api/calendar/schedule/clear", { method: "DELETE" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to clear events");
+    return data;
+  }, []);
+
+  return { events, isLoading, error, fetchEvents, syncCalendar, scheduleTasks, clearScheduled };
 }
