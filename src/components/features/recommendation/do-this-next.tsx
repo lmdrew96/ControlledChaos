@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import confetti from "canvas-confetti";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -104,6 +105,11 @@ export function DoThisNext() {
       }
       await sendFeedback(taskId, "completed");
       toast.success("Task completed!");
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.7 },
+      });
       await refresh();
     },
     [sendFeedback, refresh]

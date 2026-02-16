@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import confetti from "canvas-confetti";
 import {
   Dialog,
   DialogContent,
@@ -173,6 +174,9 @@ export function TaskDetailModal({
       });
       if (!res.ok) throw new Error();
       toast.success(isCompleted ? "Task reopened" : "Task completed!");
+      if (!isCompleted) {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
+      }
       onUpdate();
       onClose();
     } catch {
