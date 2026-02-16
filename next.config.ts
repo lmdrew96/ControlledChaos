@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
-  serverExternalPackages: ["node-ical"],
+  serverExternalPackages: ["node-ical", "@react-email/components", "resend"],
 };
 
 export default nextConfig;
