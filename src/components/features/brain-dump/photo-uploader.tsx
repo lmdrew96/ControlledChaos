@@ -18,6 +18,55 @@ const ALLOWED_TYPES = new Set([
   "image/webp",
 ]);
 
+/**
+ * Resize an image to fit within maxWidth while maintaining aspect ratio.
+ * Returns a compressed JPEG blob. Keeps text perfectly readable at 1500px.
+ */
+function compressImage(
+  file: File,
+  maxWidth = 1500,
+  quality = 0.8
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas not supported"));
+
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error("Compression failed"));
+          resolve(
+            new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+              type: "image/jpeg",
+            })
+          );
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = url;
+  });
+}
+
 export function PhotoUploader() {
   const router = useRouter();
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -49,13 +98,22 @@ export function PhotoUploader() {
 
     setError(null);
 
+    // Compress before upload — phone cameras produce 5-15MB images,
+    // but text extraction only needs ~1500px wide
+    let processedFile = file;
+    try {
+      processedFile = await compressImage(file);
+    } catch {
+      // Fall back to original if compression fails
+    }
+
     // Create preview
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(processedFile);
 
     // Upload and extract
-    await uploadAndExtract(file);
+    await uploadAndExtract(processedFile);
   }
 
   async function uploadAndExtract(file: File) {
