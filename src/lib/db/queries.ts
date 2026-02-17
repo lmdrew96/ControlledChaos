@@ -756,9 +756,9 @@ export async function getAllUsersWithCalendars() {
  */
 export async function getLastCalendarSync(userId: string): Promise<Date | null> {
   const [row] = await db
-    .select({ lastSync: sql<Date>`MAX(${calendarEvents.syncedAt})` })
+    .select({ lastSync: sql<string>`MAX(${calendarEvents.syncedAt})` })
     .from(calendarEvents)
     .where(eq(calendarEvents.userId, userId));
 
-  return row?.lastSync ?? null;
+  return row?.lastSync ? new Date(row.lastSync) : null;
 }
