@@ -12,14 +12,14 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 
 | # | Milestone | Target | Status |
 |---|---|---|---|
-| 1 | Users can sign up, onboard, and set preferences | Month 1 | 🟡 Scaffolding complete, onboarding flow not yet built |
-| 2 | Brain dump (text) → AI parses into structured tasks | Month 1 | ✅ Core loop working |
-| 3 | Voice + photo brain dumps work end-to-end | Month 2 | ⬜ |
-| 4 | AI recommends tasks based on context (energy, time, location, priority) | Month 2 | ⬜ |
-| 5 | Calendar integration live (Canvas iCal + Google Calendar read/write) | Month 3 | ⬜ |
-| 6 | Notifications system complete (push + morning/evening email digests) | Month 3–4 | ⬜ |
+| 1 | Users can sign up, onboard, and set preferences | Month 1 | ✅ Complete |
+| 2 | Brain dump (text) → AI parses into structured tasks | Month 1 | ✅ Complete |
+| 3 | Voice + photo brain dumps work end-to-end | Month 2 | ✅ Complete |
+| 4 | AI recommends tasks based on context (energy, time, location, priority) | Month 2 | ✅ Complete |
+| 5 | Calendar integration live (Canvas iCal + Google Calendar read/write) | Month 3 | ✅ Complete |
+| 6 | Notifications system complete (push + morning/evening email digests) | Month 3–4 | ✅ Complete |
 
-**When all 6 are checked: 🎉 MVP LAUNCH 🎉**
+**All 6 milestones complete! Now in Month 4: Polish + Launch**
 
 ---
 
@@ -33,9 +33,9 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 - [x] Set up Clerk authentication (sign up, sign in, Google OAuth)
 - [x] Set up Neon database + Drizzle ORM
 - [x] Create initial schema (users, user_settings, goals, brain_dumps, tasks, calendar_events, locations, task_activity, notifications)
-- [ ] Set up Cloudflare R2 bucket (for media storage later)
-- [ ] Configure Vercel deployment + environment variables
-- [ ] PWA manifest + basic service worker setup
+- [x] Set up Cloudflare R2 bucket (for media storage)
+- [x] Configure Vercel deployment + environment variables
+- [x] PWA manifest + basic service worker setup
 - [x] CLAUDE.md in `.claude/` directory
 
 ### Week 3–4: Text Brain Dump + Task Display
@@ -45,8 +45,8 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 - [x] Task storage: parsed tasks saved to database
 - [x] Task feed UI: clean list of tasks with status indicators
 - [x] Task actions: mark complete, edit, snooze, delete
-- [ ] Basic task detail view
-- [ ] User onboarding flow (name, timezone, energy patterns, Canvas iCal URL)
+- [x] Task detail modal
+- [x] User onboarding flow (name, timezone, energy patterns, Canvas iCal URL)
 
 ### Milestone Checks:
 - ✅ **Milestone 1:** User can sign up via Clerk, complete onboarding, set preferences
@@ -65,20 +65,20 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 **Theme:** "The AI actually helps"
 
 ### Week 5–6: Multi-Modal Brain Dump
-- [ ] Voice brain dump: record audio in browser → upload to R2 → Groq Whisper STT → transcript to Haiku for parsing
-- [ ] Photo brain dump: capture/upload photo → R2 → OCR (Tesseract.js or Claude Vision) → extracted text to Haiku for parsing
-- [ ] Brain dump history: view past dumps and their parsed results
-- [ ] Improve AI parsing: handle messy input, partial thoughts, mixed languages, abbreviations
-- [ ] Batch parsing: handle dumps with 10+ tasks efficiently
+- [x] Voice brain dump: record audio in browser → upload to R2 → Groq Whisper STT → transcript to Haiku for parsing
+- [x] Photo brain dump: capture/upload photo → R2 → Claude Vision → extracted text to Haiku for parsing
+- [x] Brain dump history: view past dumps and their parsed results
+- [x] Improve AI parsing: handle messy input, partial thoughts, filler speech, OCR artifacts
+- [x] Brain dump → calendar event detection (AI detects classes, meetings, appointments)
 
 ### Week 7–8: Task Recommendation Engine
-- [ ] Context gathering: current time, location (geolocation API), next calendar event, energy profile
-- [ ] `/api/recommend` route: sends context + pending tasks to Haiku → returns single recommendation with reasoning
-- [ ] Recommendation UI: prominent "Do This Next" card with reasoning, accept/snooze/alternative buttons
-- [ ] Feedback loop: log user responses (accepted, snoozed, rejected) to `task_activity` table
-- [ ] Location setup: saved locations UI (add/edit/delete locations with geofencing radius)
-- [ ] Location matching: detect current location → match to nearest saved location
-- [ ] Energy self-report: quick "How's your energy?" prompt (optional, improves recs)
+- [x] Context gathering: current time, location (geolocation API), next calendar event, energy profile
+- [x] `/api/recommend` route: sends context + pending tasks to Haiku → returns single recommendation with reasoning
+- [x] Recommendation UI: prominent "Do This Next" card with reasoning, accept/snooze/alternative buttons
+- [x] Feedback loop: log user responses (accepted, snoozed, rejected) to `task_activity` table
+- [x] Location setup: saved locations UI (add/edit/delete locations with geofencing radius)
+- [x] Location matching: detect current location → match to nearest saved location
+- [x] Energy self-report: quick "How's your energy?" prompt (optional, improves recs)
 
 ### Milestone Checks:
 - ✅ **Milestone 3:** User can voice-record or photograph a brain dump → gets structured tasks
@@ -97,32 +97,34 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 **Theme:** "It knows your schedule and reaches out to you"
 
 ### Week 9–10: Calendar Integration
-- [ ] Canvas iCal parser: fetch + parse .ics feed → upsert `calendar_events`
-- [ ] Vercel cron job: auto-sync Canvas iCal daily (and on-demand)
-- [ ] Google Calendar OAuth flow (via Clerk's Google OAuth)
-- [ ] Google Calendar read: fetch existing events → store in `calendar_events`
-- [ ] Google Calendar write: AI creates time blocks for tasks
-- [ ] Unified calendar view UI: all events from all sources
-- [ ] AI scheduling: analyze free time blocks → suggest/create task time blocks
-- [ ] "Time available" calculation: how long until next event?
+- [x] Canvas iCal parser: fetch + parse .ics feed → upsert `calendar_events`
+- [x] Vercel cron job: auto-sync Canvas iCal every 15 minutes (and on-demand)
+- [x] Google Calendar OAuth flow (via Clerk's Google OAuth)
+- [x] Google Calendar read: fetch existing events → store in `calendar_events`
+- [x] Google Calendar write: AI creates time blocks for tasks
+- [x] Unified calendar view UI: week view with all events from all sources
+- [x] AI scheduling: analyze free time blocks → create task time blocks
+- [x] "Time available" calculation: how long until next event?
+- [x] Manual event creation with recurrence support (daily/weekly)
+- [x] Drag-and-drop event rescheduling (desktop)
 
 ### Week 11–12: Notification System
-- [ ] Service worker: push notification subscription + handling
-- [ ] `/api/notifications/subscribe` route: store push subscription
-- [ ] Push notification triggers via Vercel cron:
-  - Upcoming deadline (24h, 2h warnings)
+- [x] Service worker: push notification subscription + handling
+- [x] `/api/notifications/subscribe` route: store push subscription
+- [x] Push notification triggers via Vercel cron:
+  - Upcoming deadline (24h, 2h, 30min warnings)
   - Scheduled task start time
   - Daily check-in if no activity
-- [ ] Location-aware notifications (if location data available)
-- [ ] Morning email digest (Resend + React Email):
+- [x] Morning email digest (Resend + React Email):
   - Today's calendar events
   - AI-prioritized task list
   - Upcoming deadlines this week
-- [ ] Evening email digest:
+- [x] Evening email digest:
   - Completed tasks (celebration!)
-  - What shifts to tomorrow
   - Tomorrow's top priority
-- [ ] Notification preferences UI: toggle channels, set quiet hours, configure digest times
+- [x] Notification preferences UI: toggle channels, set quiet hours, configure digest times
+- [x] Notification bell with unread count + popover
+- [x] AI prompt redesign: anti-hallucination rules across all prompts
 
 ### Milestone Checks:
 - ✅ **Milestone 5:** Canvas deadlines + Google Calendar events visible; AI creates scheduled time blocks
@@ -208,6 +210,7 @@ You're juggling:
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0
 **Created:** February 2026
+**Updated:** February 16, 2026
 **Author:** Lanae Drew

@@ -117,6 +117,18 @@ export async function updateUserSettings(
 // ============================================================
 // Brain Dumps
 // ============================================================
+export async function getBrainDumpsByUser(
+  userId: string,
+  limit: number = 20
+) {
+  return db
+    .select()
+    .from(brainDumps)
+    .where(eq(brainDumps.userId, userId))
+    .orderBy(desc(brainDumps.createdAt))
+    .limit(limit);
+}
+
 export async function createBrainDump(params: {
   userId: string;
   inputType: DumpInputType;

@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   title: "ControlledChaos",
   description:
     "AI-powered ADHD executive function companion. Your brain has the ideas. I'll handle the rest.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ControlledChaos",
+  },
 };
 
 export const viewport: Viewport = {

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { DumpInput } from "@/components/features/brain-dump/dump-input";
 import { VoiceRecorder } from "@/components/features/brain-dump/voice-recorder";
 import { PhotoUploader } from "@/components/features/brain-dump/photo-uploader";
+import { DumpHistory } from "@/components/features/brain-dump/dump-history";
 
 type InputMode = "text" | "voice" | "photo";
 
@@ -75,6 +76,8 @@ export default function BrainDumpPage() {
       ) : (
         <PhotoUploader />
       )}
+
+      <DumpHistory />
     </div>
   );
 }
