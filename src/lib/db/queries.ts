@@ -11,7 +11,7 @@ import {
   users,
   userSettings,
 } from "./schema";
-import { eq, and, desc, ne, gt, gte, lte, inArray, notInArray, sql } from "drizzle-orm";
+import { eq, and, desc, ne, gt, gte, lt, lte, or, inArray, notInArray, sql } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -352,6 +352,29 @@ export async function getNextCalendarEvent(userId: string) {
   return event ?? null;
 }
 
+/**
+ * Get the calendar event happening RIGHT NOW (started before now, ends after now).
+ * Returns null if user is not currently in any event.
+ */
+export async function getCurrentCalendarEvent(userId: string) {
+  const now = new Date();
+  const [event] = await db
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.userId, userId),
+        lte(calendarEvents.startTime, now),
+        gt(calendarEvents.endTime, now),
+        eq(calendarEvents.isAllDay, false)
+      )
+    )
+    .orderBy(calendarEvents.startTime)
+    .limit(1);
+
+  return event ?? null;
+}
+
 export async function upsertCalendarEvent(params: {
   userId: string;
   source: string;
@@ -403,14 +426,17 @@ export async function getCalendarEventsByDateRange(
   start: Date,
   end: Date
 ) {
+  // Include events that overlap with the range:
+  // - events starting within the range, OR
+  // - events that started before `start` but haven't ended yet (currently happening)
   return db
     .select()
     .from(calendarEvents)
     .where(
       and(
         eq(calendarEvents.userId, userId),
-        gte(calendarEvents.startTime, start),
-        lte(calendarEvents.startTime, end)
+        lte(calendarEvents.startTime, end),
+        gt(calendarEvents.endTime, start)
       )
     )
     .orderBy(calendarEvents.startTime);

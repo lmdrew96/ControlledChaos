@@ -5,6 +5,7 @@ import {
   getUser,
   getUserSettings,
   getPendingTasks,
+  getCurrentCalendarEvent,
   getNextCalendarEvent,
   getCalendarEventsByDateRange,
   getTasksCompletedToday,
@@ -64,10 +65,11 @@ export async function POST(request: Request) {
     endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
     endOfTomorrow.setHours(23, 59, 59, 999);
 
-    const [user, pendingTasks, nextEvent, upcomingEvents, recentActivity] =
+    const [user, pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity] =
       await Promise.all([
         getUser(userId),
         getPendingTasks(userId),
+        getCurrentCalendarEvent(userId),
         getNextCalendarEvent(userId),
         getCalendarEventsByDateRange(userId, now, endOfTomorrow),
         getRecentTaskActivity(userId, 10),
@@ -109,6 +111,16 @@ export async function POST(request: Request) {
       energyOverride
     );
 
+    // Minutes until current event ends (if in one right now)
+    const minutesUntilFree = currentEvent
+      ? Math.max(
+          0,
+          Math.round(
+            (new Date(currentEvent.endTime).getTime() - Date.now()) / 60000
+          )
+        )
+      : undefined;
+
     // Minutes until next event
     const minutesUntil = nextEvent
       ? Math.max(
@@ -141,6 +153,13 @@ export async function POST(request: Request) {
       currentTime: localTime,
       timezone,
       location: locationContext,
+      currentEvent: currentEvent
+        ? {
+            title: currentEvent.title,
+            endTime: currentEvent.endTime.toISOString(),
+            minutesUntilFree: minutesUntilFree!,
+          }
+        : undefined,
       nextEvent: nextEvent
         ? {
             title: nextEvent.title,

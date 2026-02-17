@@ -49,7 +49,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       category: t.category,
       locationTags: t.locationTags,
       deadline: fmtDeadline(t.deadline),
-      scheduledFor: fmtDeadline(t.scheduledFor),
+      originallyPlannedFor: fmtDeadline(t.scheduledFor),
       status: t.status,
     };
   });
@@ -57,6 +57,10 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
   const locationLine = context.location
     ? `${context.location.name} (${context.location.latitude}, ${context.location.longitude})`
     : "Unknown";
+
+  const currentEventLine = context.currentEvent
+    ? `\n- CURRENTLY IN: "${context.currentEvent.title}" — free in ${context.currentEvent.minutesUntilFree} minutes`
+    : "";
 
   const eventLine = context.nextEvent
     ? `"${context.nextEvent.title}" in ${context.nextEvent.minutesUntil} minutes`
@@ -103,7 +107,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 - Time: ${context.currentTime}
 - Timezone: ${context.timezone}
 - Location: ${locationLine}
-- Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}
+- Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}${currentEventLine}
 - Next event: ${eventLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}${calendarSection}

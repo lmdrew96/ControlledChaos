@@ -88,6 +88,11 @@ export interface UserContext {
     latitude: number;
     longitude: number;
   };
+  currentEvent?: {
+    title: string;
+    endTime: string;
+    minutesUntilFree: number;
+  };
   nextEvent?: {
     title: string;
     startTime: string;
