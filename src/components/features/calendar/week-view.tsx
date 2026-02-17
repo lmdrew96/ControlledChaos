@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Plus,
   Repeat,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -645,23 +652,25 @@ export function WeekView() {
 
   return (
     <div className="space-y-4">
-      {/* Header: nav + sync */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
+      {/* Header: nav + actions */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Navigation */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant={isCurrentWeek ? "default" : "outline"}
             size="sm"
+            className="h-8 px-2 text-xs sm:px-3 sm:text-sm"
             onClick={goToToday}
           >
             Today
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <span className="ml-2 text-sm font-medium text-muted-foreground">
+          <span className="hidden text-sm font-medium text-muted-foreground sm:inline">
             {weekDays[0].toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -670,57 +679,69 @@ export function WeekView() {
             {weekDays[6].toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
-              year: "numeric",
             })}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Add Event — icon on mobile, labeled on desktop */}
           <Button
             variant="outline"
             size="sm"
+            className="h-8 px-2 sm:px-3"
             onClick={() => setShowCreateDialog(true)}
           >
-            <Plus className="mr-2 h-3 w-3" />
-            Add Event
+            <Plus className="h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
+            <span className="hidden sm:inline">Add Event</span>
           </Button>
+
+          {/* Schedule Tasks — always visible, primary action */}
           <Button
             variant="default"
             size="sm"
+            className="h-8 px-2 sm:px-3"
             onClick={handleSchedule}
             disabled={isScheduling}
           >
             {isScheduling ? (
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin sm:mr-1.5 sm:h-3 sm:w-3" />
             ) : (
-              <Sparkles className="mr-2 h-3 w-3" />
+              <Sparkles className="h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
             )}
-            Schedule Tasks
+            <span className="hidden sm:inline">Schedule</span>
           </Button>
-          {scheduledCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowClearConfirm(true)}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="mr-2 h-3 w-3" />
-              Clear
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={isSyncing}
-          >
-            {isSyncing ? (
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-3 w-3" />
-            )}
-            Sync
-          </Button>
+
+          {/* Overflow menu for Sync + Clear */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleSync}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Sync Calendars
+              </DropdownMenuItem>
+              {scheduledCount > 0 && (
+                <DropdownMenuItem
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Scheduled
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
