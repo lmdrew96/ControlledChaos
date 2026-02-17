@@ -22,6 +22,7 @@ export function NotificationSettings() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [savedPrefs, setSavedPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingPush, setIsTogglingPush] = useState(false);
   const {
@@ -33,14 +34,17 @@ export function NotificationSettings() {
 
   useEffect(() => {
     fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
       .then((data) => {
         if (data?.notificationPrefs) {
           setPrefs(data.notificationPrefs);
           setSavedPrefs(data.notificationPrefs);
         }
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -70,8 +74,41 @@ export function NotificationSettings() {
 
   if (isLoading) {
     return (
-      <div className="py-4 text-center text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
         Loading notification preferences...
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="py-4 text-center text-sm text-muted-foreground">
+        <p>Failed to load notification preferences.</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2"
+          onClick={() => {
+            setLoadError(false);
+            setIsLoading(true);
+            fetch("/api/settings")
+              .then((r) => {
+                if (!r.ok) throw new Error();
+                return r.json();
+              })
+              .then((data) => {
+                if (data?.notificationPrefs) {
+                  setPrefs(data.notificationPrefs);
+                  setSavedPrefs(data.notificationPrefs);
+                }
+              })
+              .catch(() => setLoadError(true))
+              .finally(() => setIsLoading(false));
+          }}
+        >
+          Retry
+        </Button>
       </div>
     );
   }

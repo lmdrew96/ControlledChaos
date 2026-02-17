@@ -80,7 +80,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className="w-80 p-0"
+        className="w-[calc(100vw-2rem)] sm:w-80 p-0"
         sideOffset={8}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

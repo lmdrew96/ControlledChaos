@@ -50,19 +50,23 @@ function timeAgo(dateStr: string): string {
 export function DumpHistory() {
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/dump/history")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
       .then((data) => {
         if (data?.dumps) setDumps(data.dumps);
       })
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setIsLoading(false));
   }, []);
 
-  if (isLoading) return null;
+  if (isLoading || loadError) return null;
   if (dumps.length === 0) return null;
 
   return (

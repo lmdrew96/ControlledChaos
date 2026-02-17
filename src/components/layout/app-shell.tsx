@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,12 +9,15 @@ import {
   ListTodo,
   Calendar,
   Settings,
+  Download,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -25,9 +29,36 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { canInstall, promptInstall } = useInstallPrompt();
+  const [installDismissed, setInstallDismissed] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
+      {/* PWA install banner — mobile only */}
+      {canInstall && !installDismissed && (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-2.5 md:hidden">
+          <button
+            onClick={async () => {
+              const accepted = await promptInstall();
+              if (!accepted) setInstallDismissed(true);
+            }}
+            className="flex items-center gap-2 text-sm"
+          >
+            <Download className="h-4 w-4 text-primary" />
+            <span>
+              Install <span className="font-medium">ControlledChaos</span> for a better experience
+            </span>
+          </button>
+          <button
+            onClick={() => setInstallDismissed(true)}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-1">
       {/* Sidebar — hidden on mobile, shown on md+ */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card backdrop-blur-xl sticky top-0 h-screen">
         <div className="flex h-14 items-center gap-2 border-b border-border px-6">
@@ -97,8 +128,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto pb-20 md:pb-0">
-        <div className="mx-auto max-w-4xl p-6">{children}</div>
+        <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
+      </div>
     </div>
   );
 }
