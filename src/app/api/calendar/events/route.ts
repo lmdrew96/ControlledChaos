@@ -3,10 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getCalendarEventsByDateRange,
   getUserSettings,
+  getLastCalendarSync,
   createManualCalendarEvent,
 } from "@/lib/db/queries";
+import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { writeEventToGoogle } from "@/lib/calendar/sync-google";
+
+const SYNC_STALENESS_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,6 +38,38 @@ export async function GET(request: NextRequest) {
         { error: "Invalid date format. Use ISO 8601." },
         { status: 400 }
       );
+    }
+
+    // Auto-sync if stale (> 15 minutes since last sync)
+    const settings = await getUserSettings(userId);
+    if (settings && (settings.canvasIcalUrl || settings.googleCalConnected)) {
+      const lastSync = await getLastCalendarSync(userId);
+      const isStale =
+        !lastSync ||
+        Date.now() - lastSync.getTime() > SYNC_STALENESS_MS;
+
+      if (isStale) {
+        const syncPromises: Promise<unknown>[] = [];
+        if (settings.canvasIcalUrl) {
+          syncPromises.push(
+            syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
+              console.error("[Calendar] Auto-sync Canvas failed:", err)
+            )
+          );
+        }
+        if (settings.googleCalConnected) {
+          const calIds =
+            (settings.googleCalendarIds as string[] | null) ?? null;
+          syncPromises.push(
+            syncGoogleCalendar(userId, calIds).catch((err) =>
+              console.error("[Calendar] Auto-sync Google failed:", err)
+            )
+          );
+        }
+        if (syncPromises.length > 0) {
+          await Promise.all(syncPromises);
+        }
+      }
     }
 
     const events = await getCalendarEventsByDateRange(
