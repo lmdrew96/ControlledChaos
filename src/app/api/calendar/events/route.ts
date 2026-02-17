@@ -6,10 +6,7 @@ import {
   getLastCalendarSync,
   createManualCalendarEvent,
 } from "@/lib/db/queries";
-import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
-import { writeEventToGoogle } from "@/lib/calendar/sync-google";
 
 const SYNC_STALENESS_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -52,18 +49,26 @@ export async function GET(request: NextRequest) {
         const syncPromises: Promise<unknown>[] = [];
         if (settings.canvasIcalUrl) {
           syncPromises.push(
-            syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
-              console.error("[Calendar] Auto-sync Canvas failed:", err)
-            )
+            import("@/lib/calendar/sync-canvas")
+              .then(({ syncCanvasCalendar }) =>
+                syncCanvasCalendar(userId, settings.canvasIcalUrl!)
+              )
+              .catch((err) =>
+                console.error("[Calendar] Auto-sync Canvas failed:", err)
+              )
           );
         }
         if (settings.googleCalConnected) {
           const calIds =
             (settings.googleCalendarIds as string[] | null) ?? null;
           syncPromises.push(
-            syncGoogleCalendar(userId, calIds).catch((err) =>
-              console.error("[Calendar] Auto-sync Google failed:", err)
-            )
+            import("@/lib/calendar/sync-google")
+              .then(({ syncGoogleCalendar }) =>
+                syncGoogleCalendar(userId, calIds)
+              )
+              .catch((err) =>
+                console.error("[Calendar] Auto-sync Google failed:", err)
+              )
           );
         }
         if (syncPromises.length > 0) {
@@ -166,6 +171,9 @@ export async function POST(request: Request) {
       // Write to Google Calendar if connected
       if (syncToGoogle) {
         try {
+          const { writeEventToGoogle } = await import(
+            "@/lib/calendar/sync-google"
+          );
           await writeEventToGoogle(userId, {
             title: instance.title,
             description: instance.description || undefined,
