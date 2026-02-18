@@ -75,6 +75,10 @@ export function TaskList() {
 
   return (
     <div className="space-y-4">
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
+        {activeTasks.length} active task{activeTasks.length !== 1 ? "s" : ""}
+      </p>
+
       {/* Filter tabs */}
       <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
         {(

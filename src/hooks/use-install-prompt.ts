@@ -47,9 +47,16 @@ export function useInstallPrompt() {
     return outcome === "accepted";
   }
 
+  // Detect iOS Safari (no beforeinstallprompt support)
+  const isIOS =
+    typeof navigator !== "undefined" &&
+    /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+    !isInstalled;
+
   return {
     canInstall: !!deferredPrompt && !isInstalled,
     isInstalled,
+    isIOS,
     promptInstall,
   };
 }

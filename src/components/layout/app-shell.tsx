@@ -29,8 +29,16 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { canInstall, promptInstall } = useInstallPrompt();
-  const [installDismissed, setInstallDismissed] = useState(false);
+  const { canInstall, isIOS, isInstalled, promptInstall } = useInstallPrompt();
+  const [installDismissed, setInstallDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("cc-install-dismissed") === "1";
+  });
+
+  function dismissInstall() {
+    localStorage.setItem("cc-install-dismissed", "1");
+    setInstallDismissed(true);
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -40,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={async () => {
               const accepted = await promptInstall();
-              if (!accepted) setInstallDismissed(true);
+              if (!accepted) dismissInstall();
             }}
             className="flex items-center gap-2 text-sm"
           >
@@ -50,8 +58,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </button>
           <button
-            onClick={() => setInstallDismissed(true)}
+            onClick={dismissInstall}
             className="shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss install prompt"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* iOS Safari install instructions */}
+      {isIOS && !isInstalled && !installDismissed && !canInstall && (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-2.5 md:hidden">
+          <p className="text-sm">
+            <Download className="mr-1.5 inline h-4 w-4 text-primary" />
+            Tap <span className="font-medium">Share</span> then{" "}
+            <span className="font-medium">Add to Home Screen</span> to install
+          </p>
+          <button
+            onClick={dismissInstall}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss install prompt"
           >
             <X className="h-4 w-4" />
           </button>

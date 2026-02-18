@@ -656,7 +656,7 @@ export function WeekView() {
       <div className="flex items-center justify-between gap-2">
         {/* Navigation */}
         <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)} aria-label="Previous week">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
@@ -667,7 +667,7 @@ export function WeekView() {
           >
             Today
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(1)} aria-label="Next week">
             <ChevronRight className="h-4 w-4" />
           </Button>
           <span className="hidden text-sm font-medium text-muted-foreground sm:inline">
@@ -715,7 +715,7 @@ export function WeekView() {
           {/* Overflow menu for Sync + Clear */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+              <Button variant="outline" size="sm" className="h-8 w-8 p-0" aria-label="More calendar options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

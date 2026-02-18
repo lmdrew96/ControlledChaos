@@ -11,6 +11,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DumpSummary {
   id: string;
@@ -66,8 +67,34 @@ export function DumpHistory() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  if (isLoading || loadError) return null;
-  if (dumps.length === 0) return null;
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-14 w-full rounded-lg" />
+        <Skeleton className="h-14 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <p className="py-4 text-center text-sm text-muted-foreground">
+        Couldn&apos;t load recent dumps.
+      </p>
+    );
+  }
+
+  if (dumps.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+        <p className="text-sm font-medium text-muted-foreground">No dumps yet</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Your brain dumps will appear here after you submit one.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

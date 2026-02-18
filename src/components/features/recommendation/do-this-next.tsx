@@ -187,6 +187,7 @@ export function DoThisNext() {
       )}
 
       {/* The hero recommendation card */}
+      <div aria-live="polite">
       <RecommendationCard
         task={recommendation.task}
         reasoning={recommendation.reasoning}
@@ -197,6 +198,7 @@ export function DoThisNext() {
         onSelectAlternative={handleSelectAlternative}
         isRefreshing={isRefreshing}
       />
+      </div>
     </div>
   );
 }

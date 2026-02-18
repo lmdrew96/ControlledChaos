@@ -33,6 +33,7 @@ export default function BrainDumpPage() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setMode("text")}
+          aria-pressed={mode === "text"}
           className={cn(
             "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
             mode === "text"
@@ -45,6 +46,7 @@ export default function BrainDumpPage() {
         </button>
         <button
           onClick={() => setMode("voice")}
+          aria-pressed={mode === "voice"}
           className={cn(
             "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
             mode === "voice"
@@ -57,6 +59,7 @@ export default function BrainDumpPage() {
         </button>
         <button
           onClick={() => setMode("photo")}
+          aria-pressed={mode === "photo"}
           className={cn(
             "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
             mode === "photo"

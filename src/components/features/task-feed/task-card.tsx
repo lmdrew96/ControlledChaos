@@ -57,6 +57,13 @@ export function TaskCard({
       onUpdate();
     } catch (error) {
       console.error("Task action failed:", error);
+      toast.error(
+        action === "delete"
+          ? "Couldn't delete task. Try again."
+          : action === "complete"
+            ? "Couldn't complete task. Try again."
+            : "Couldn't update task. Try again."
+      );
     } finally {
       setIsUpdating(false);
     }
@@ -78,6 +85,7 @@ export function TaskCard({
             handleAction(isCompleted ? "undo" : "complete");
           }}
           disabled={isUpdating}
+          aria-label={isCompleted ? `Mark "${task.title}" incomplete` : `Complete "${task.title}"`}
           className={cn(
             "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
             isCompleted
@@ -113,6 +121,7 @@ export function TaskCard({
                 handleAction("delete");
               }}
               disabled={isUpdating}
+              aria-label={`Delete "${task.title}"`}
             >
               <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
