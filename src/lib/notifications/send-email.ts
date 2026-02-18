@@ -25,8 +25,8 @@ function getResend() {
   return new Resend(key);
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://controlledchaos.app";
-const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <digest@controlledchaos.app>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://controlledchaos.adhdesigns.dev";
+const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <noreply@controlledchaos.adhdesigns.dev>";
 
 /**
  * Send the morning digest email for a user.
@@ -109,12 +109,19 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   );
 
   try {
-    await getResend().emails.send({
+    const result = await getResend().emails.send({
       from: FROM_EMAIL,
       to: user.email,
       subject: `Your morning game plan — ${formatShortDate(now, timezone)}`,
       html,
     });
+
+    console.log(`[Email] Morning digest for ${userId}: from=${FROM_EMAIL} to=${user.email}`, JSON.stringify(result));
+
+    if (result.error) {
+      console.error(`[Email] Resend rejected morning digest:`, result.error);
+      return false;
+    }
 
     await createNotification(userId, "email", {
       type: "morning_digest",
@@ -196,12 +203,19 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   );
 
   try {
-    await getResend().emails.send({
+    const result = await getResend().emails.send({
       from: FROM_EMAIL,
       to: user.email,
       subject: `Your evening wrap-up — ${formatShortDate(now, timezone)}`,
       html,
     });
+
+    console.log(`[Email] Evening digest for ${userId}: from=${FROM_EMAIL} to=${user.email}`, JSON.stringify(result));
+
+    if (result.error) {
+      console.error(`[Email] Resend rejected evening digest:`, result.error);
+      return false;
+    }
 
     await createNotification(userId, "email", {
       type: "evening_digest",
