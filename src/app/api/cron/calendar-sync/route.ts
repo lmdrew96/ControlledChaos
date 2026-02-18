@@ -4,11 +4,11 @@ import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 
 /**
- * POST /api/cron/calendar-sync
+ * GET /api/cron/calendar-sync
  * Runs every 15 minutes via Vercel cron.
  * Syncs all users' connected calendars so the AI always has fresh data.
  */
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

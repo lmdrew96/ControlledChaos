@@ -9,12 +9,12 @@ import {
 } from "@/lib/notifications/triggers";
 
 /**
- * POST /api/cron/push-triggers
+ * GET /api/cron/push-triggers
  * Runs every 15 minutes via Vercel cron.
  * Checks all push-enabled users for deadline warnings, scheduled task alerts,
  * and idle check-ins. Sends push notifications with dedup.
  */
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
