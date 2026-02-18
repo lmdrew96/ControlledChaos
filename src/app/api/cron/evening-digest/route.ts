@@ -15,6 +15,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const force = new URL(request.url).searchParams.get("force") === "true";
+
   try {
     const users = await getAllUsersWithDigestEnabled();
     let sent = 0;
@@ -23,11 +25,11 @@ export async function GET(request: Request) {
       if (!prefs?.emailEveningDigest) continue;
 
       // Check if current time is within ±15min of their configured digest time
-      if (!isWithinWindow(prefs.eveningDigestTime, timezone, 15)) continue;
+      if (!force && !isWithinWindow(prefs.eveningDigestTime, timezone, 15)) continue;
 
-      // Dedup: don't send twice in the same day
+      // Dedup: don't send twice in the same day (skip in force mode)
       const dedupKey = `evening-digest-${new Date().toISOString().slice(0, 10)}`;
-      if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
+      if (!force && await hasBeenNotifiedToday(userId, dedupKey)) continue;
 
       const ok = await sendEveningDigest(userId);
       if (ok) sent++;
