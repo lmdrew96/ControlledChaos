@@ -15,6 +15,8 @@ interface RecommendationInput {
 function buildRecommendationPrompt(input: RecommendationInput): string {
   const { context, pendingTasks, recentlyRejectedTaskIds = [] } = input;
 
+  const now = new Date();
+
   // Format deadlines in the user's timezone so the AI doesn't misread UTC times
   const fmtDeadline = (iso: string | null) => {
     if (!iso) return null;
@@ -27,6 +29,18 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       minute: "2-digit",
       hour12: true,
     });
+  };
+
+  // Pre-compute hours until deadline so the AI doesn't need to do date math
+  const hoursUntilDeadline = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const deadlineMs = new Date(iso).getTime();
+    const hoursLeft = Math.round((deadlineMs - now.getTime()) / 3_600_000);
+    if (hoursLeft < 0) return "OVERDUE";
+    if (hoursLeft === 0) return "< 1 hour";
+    if (hoursLeft < 24) return `${hoursLeft} hours`;
+    const days = Math.round(hoursLeft / 24);
+    return `${days} day${days !== 1 ? "s" : ""}`;
   };
 
   // Include descriptions, with truncation for large task lists
@@ -49,6 +63,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       category: t.category,
       locationTags: t.locationTags,
       deadline: fmtDeadline(t.deadline),
+      deadlineIn: hoursUntilDeadline(t.deadline),
       originallyPlannedFor: fmtDeadline(t.scheduledFor),
       status: t.status,
     };
