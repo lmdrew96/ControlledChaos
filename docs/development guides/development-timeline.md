@@ -143,13 +143,14 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 **Theme:** "Make it shine"
 
 ### Week 13–14: Polish & Edge Cases
-- [ ] Offline support: service worker caches app shell + recent data
-- [ ] PWA install prompt: encourage installation on mobile
-- [ ] Empty states: beautiful, helpful empty states for every view
-- [ ] Error handling: graceful failures for AI calls, network issues, API limits
-- [ ] Loading states: skeleton loaders, optimistic updates
-- [ ] Responsive design audit: works beautifully on mobile + tablet + desktop
-- [ ] Accessibility audit: keyboard navigation, screen reader support, color contrast
+- [x] Offline support: service worker caches app shell, network-first with cache fallback for navigation
+- [x] PWA install prompt: mobile install banner with localStorage persistence, iOS Safari fallback instructions
+- [x] PWA icons: generated 192px + 512px PNGs from logo, stable manifest id
+- [x] Empty states: DumpHistory first-use message, all major views covered
+- [x] Error handling: TaskCard surfaces toast on failure, global-error.tsx root boundary
+- [x] Loading states: skeleton loading.tsx for all 5 routes, DumpHistory shimmer + error state
+- [x] Accessibility: aria-label on all icon-only buttons, aria-pressed on mode toggles, aria-live regions for dynamic content (task count, recommendations, notification badge)
+- [x] Production bug fixes: manifest.json 404 (middleware blocking), calendar API 500 (Neon timestamp string → Date conversion, dynamic imports for sync modules)
 - [ ] Performance audit: Lighthouse score, bundle size, API response times
 
 ### Week 15–16: Testing + Launch
@@ -210,7 +211,7 @@ You're juggling:
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **Created:** February 2026
-**Updated:** February 16, 2026
+**Updated:** February 17, 2026
 **Author:** Lanae Drew

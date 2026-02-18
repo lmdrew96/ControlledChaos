@@ -229,14 +229,14 @@ Monthly cost must stay under $5 for MVP. Use free tiers aggressively. Cache AI r
 
 Your north star when Nae asks "what should I build next?"
 
-1. 🟡 **Users can sign up, onboard, and set preferences** (Clerk scaffolded, onboarding flow not yet built)
-2. ✅ **Brain dump (text) → AI parses into structured tasks** (Core loop working)
-3. ⬜ **Voice + photo brain dumps work end-to-end** (Multi-modal input)
-4. ⬜ **AI recommends tasks based on context** (Intelligence layer)
-5. ⬜ **Calendar integration live** (Canvas iCal + Google Calendar read/write)
-6. ⬜ **Notifications system complete** (Push + morning/evening email digests)
+1. ✅ **Users can sign up, onboard, and set preferences**
+2. ✅ **Brain dump (text) → AI parses into structured tasks**
+3. ✅ **Voice + photo brain dumps work end-to-end**
+4. ✅ **AI recommends tasks based on context**
+5. ✅ **Calendar integration live**
+6. ✅ **Notifications system complete**
 
-**When all 6 are checked: 🎉 MVP LAUNCH 🎉**
+**All 6 milestones complete! Month 4 polish in progress — performance audit + testing + launch remaining.**
 
 ---
 
