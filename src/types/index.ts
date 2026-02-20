@@ -38,7 +38,7 @@ export type TaskCategory =
   | "errands"
   | "health";
 
-export type LocationTag = "home" | "campus" | "work";
+export type LocationTag = string;
 
 // ============================================================
 // Brain Dump Types

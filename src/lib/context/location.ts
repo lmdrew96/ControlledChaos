@@ -1,5 +1,3 @@
-import type { LocationTag } from "@/types";
-
 interface GeoCoords {
   latitude: number;
   longitude: number;
@@ -15,7 +13,6 @@ export interface SavedLocation {
 
 export interface LocationMatch {
   name: string;
-  locationTag: LocationTag;
   latitude: number;
   longitude: number;
   distanceMeters: number;
@@ -63,7 +60,6 @@ export function matchLocation(
       closestDistance = distance;
       closest = {
         name: loc.name,
-        locationTag: inferLocationTag(loc.name),
         latitude: lat,
         longitude: lng,
         distanceMeters: Math.round(distance),
@@ -74,27 +70,3 @@ export function matchLocation(
   return closest;
 }
 
-/**
- * Infer a LocationTag from a location name using keyword matching.
- */
-export function inferLocationTag(name: string): LocationTag {
-  const lower = name.toLowerCase();
-  if (lower.includes("home") || lower.includes("apartment") || lower.includes("dorm"))
-    return "home";
-  if (
-    lower.includes("campus") ||
-    lower.includes("university") ||
-    lower.includes("library") ||
-    lower.includes("class")
-  )
-    return "campus";
-  if (
-    lower.includes("work") ||
-    lower.includes("office") ||
-    lower.includes("eagle") ||
-    lower.includes("job")
-  )
-    return "work";
-  // Default to "home" when we can't infer — "anywhere" is no longer a valid tag
-  return "home";
-}

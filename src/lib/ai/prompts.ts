@@ -47,7 +47,7 @@ For each NEW task (not a duplicate), output:
 - energyLevel: "low" | "medium" | "high"
 - estimatedMinutes: Your best estimate as an integer
 - category: "school" | "work" | "personal" | "errands" | "health"
-- locationTags: Array from ["home", "campus", "work"]. Use [] if doable anywhere.
+- locationTags: Array of location names where this task must be done. Use the exact names from the user's saved locations list (provided below). Use [] if doable anywhere.
 - deadline: ISO 8601 date string ONLY if mentioned or clearly inferable from the current date. Omit if uncertain.
 - goalConnection: Exact title from the provided goals list, or omit.
 

@@ -12,6 +12,7 @@ export interface BrainDumpContext {
   existingGoals: Array<{ title: string }>;
   existingTasks: Array<{ title: string }>;
   calendarSummary?: string;
+  savedLocationNames?: string[];
 }
 
 export async function parseBrainDump(
@@ -59,6 +60,12 @@ export async function parseBrainDump(
     );
   } else {
     sections.push("\n## Current Pending Tasks\nNone");
+  }
+
+  if (context?.savedLocationNames && context.savedLocationNames.length > 0) {
+    sections.push(
+      `\n## User's Saved Locations\n${context.savedLocationNames.map((n) => `- ${n}`).join("\n")}`
+    );
   }
 
   if (context?.calendarSummary) {
@@ -134,8 +141,14 @@ export async function parseBrainDump(
           )
         : undefined,
       locationTags: Array.isArray(task.locationTags)
-        ? task.locationTags.filter((t: string) =>
-            ["home", "campus", "work"].includes(t)
+        ? task.locationTags.filter(
+            (t: string) =>
+              typeof t === "string" &&
+              t.length > 0 &&
+              (!context?.savedLocationNames?.length ||
+                context.savedLocationNames.some(
+                  (n) => n.toLowerCase() === t.toLowerCase()
+                ))
           )
         : undefined,
       deadline: validateISODate(task.deadline),

@@ -27,7 +27,6 @@ import {
   priorityOptions,
   energyOptions,
   categoryOptions,
-  locationOptions,
   statusOptions,
 } from "./task-config";
 
@@ -88,6 +87,15 @@ export function TaskDetailModal({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
+
+  // Fetch user's saved locations
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((data) => setSavedLocations(data.locations ?? []))
+      .catch(() => {});
+  }, []);
 
   // Reset form when task changes
   useEffect(() => {
@@ -301,30 +309,36 @@ export function TaskDetailModal({
 
             <div className="space-y-2">
               <Label>Location</Label>
-              <div className="flex flex-wrap gap-3 pt-1">
-                {locationOptions.map((opt) => {
-                  const checked = form.locationTags.includes(opt.value);
-                  return (
-                    <label
-                      key={opt.value}
-                      className="flex items-center gap-1.5 text-sm cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          const next = checked
-                            ? form.locationTags.filter((t) => t !== opt.value)
-                            : [...form.locationTags, opt.value];
-                          updateField("locationTags", next);
-                        }}
-                        className="accent-primary h-4 w-4 rounded"
-                      />
-                      {opt.label}
-                    </label>
-                  );
-                })}
-              </div>
+              {savedLocations.length === 0 ? (
+                <p className="text-xs text-muted-foreground pt-1">
+                  No saved locations. Add them in Settings.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {savedLocations.map((loc) => {
+                    const checked = form.locationTags.includes(loc.name);
+                    return (
+                      <label
+                        key={loc.id}
+                        className="flex items-center gap-1.5 text-sm cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? form.locationTags.filter((t) => t !== loc.name)
+                              : [...form.locationTags, loc.name];
+                            updateField("locationTags", next);
+                          }}
+                          className="accent-primary h-4 w-4 rounded"
+                        />
+                        {loc.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 None checked = can be done anywhere
               </p>

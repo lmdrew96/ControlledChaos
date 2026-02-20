@@ -2,7 +2,6 @@ import type {
   TaskPriority,
   EnergyLevel,
   TaskCategory,
-  LocationTag,
   TaskStatus,
 } from "@/types";
 
@@ -50,12 +49,6 @@ export const categoryOptions: { value: TaskCategory; label: string }[] = [
   { value: "personal", label: "Personal" },
   { value: "errands", label: "Errands" },
   { value: "health", label: "Health" },
-];
-
-export const locationOptions: { value: LocationTag; label: string }[] = [
-  { value: "home", label: "Home" },
-  { value: "campus", label: "Campus" },
-  { value: "work", label: "Work" },
 ];
 
 export const statusOptions: { value: TaskStatus; label: string }[] = [

@@ -7,6 +7,7 @@ import {
   getUserGoals,
   getPendingTasks,
   getCalendarEventsByDateRange,
+  getSavedLocations,
   createBrainDump,
   createTasksFromDump,
   createCalendarEventsFromDump,
@@ -55,10 +56,11 @@ export async function POST(request: Request) {
     const todayStart = startOfDayInTz(now, timezone);
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const [existingGoals, existingTasks, todayEvents] = await Promise.all([
+    const [existingGoals, existingTasks, todayEvents, savedLocs] = await Promise.all([
       getUserGoals(userId),
       getPendingTasks(userId),
       getCalendarEventsByDateRange(userId, todayStart, todayEnd),
+      getSavedLocations(userId),
     ]);
 
     const calendarSummary =
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
       existingGoals: existingGoals.map((g) => ({ title: g.title })),
       existingTasks: existingTasks.map((t) => ({ title: t.title })),
       calendarSummary,
+      savedLocationNames: savedLocs.map((l) => l.name),
     });
 
     // Save brain dump record
