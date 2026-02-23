@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
+import { AIUnavailableError } from "@/lib/ai";
 import {
   ensureUser,
   getUser,
@@ -140,6 +141,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[API] POST /api/dump/text error:", error);
+    if (error instanceof AIUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const message =
       error instanceof Error ? error.message : "Something went wrong";
     return NextResponse.json({ error: message }, { status: 500 });

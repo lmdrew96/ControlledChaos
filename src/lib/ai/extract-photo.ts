@@ -1,8 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import { anthropic, callWithRetry } from "@/lib/ai";
 
 interface ExtractPhotoResult {
   text: string;
@@ -37,30 +33,32 @@ export async function extractTextFromPhoto(
 ): Promise<ExtractPhotoResult> {
   const start = Date.now();
 
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
-    system: PHOTO_EXTRACTION_SYSTEM,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType,
-              data: base64Data,
+  const response = await callWithRetry(() =>
+    anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 4096,
+      system: PHOTO_EXTRACTION_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType,
+                data: base64Data,
+              },
             },
-          },
-          {
-            type: "text",
-            text: "Extract all text from this image.",
-          },
-        ],
-      },
-    ],
-  });
+            {
+              type: "text",
+              text: "Extract all text from this image.",
+            },
+          ],
+        },
+      ],
+    })
+  );
 
   const durationMs = Date.now() - start;
   const text =

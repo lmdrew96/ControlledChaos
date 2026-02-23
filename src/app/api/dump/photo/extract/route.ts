@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { uploadPhoto } from "@/lib/storage/r2";
 import { extractTextFromPhoto } from "@/lib/ai/extract-photo";
+import { AIUnavailableError } from "@/lib/ai";
 import { ensureUser } from "@/lib/db/queries";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[API] POST /api/dump/photo/extract error:", error);
+    if (error instanceof AIUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const message =
       error instanceof Error ? error.message : "Photo processing failed";
     return NextResponse.json({ error: message }, { status: 500 });

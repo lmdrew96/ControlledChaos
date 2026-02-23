@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { AIUnavailableError } from "@/lib/ai";
 import {
   getUser,
   getUserSettings,
@@ -189,6 +190,9 @@ export async function POST() {
     });
   } catch (error) {
     console.error("[API] POST /api/calendar/schedule error:", error);
+    if (error instanceof AIUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const message =
       error instanceof Error ? error.message : "Failed to schedule tasks";
     return NextResponse.json({ error: message }, { status: 500 });

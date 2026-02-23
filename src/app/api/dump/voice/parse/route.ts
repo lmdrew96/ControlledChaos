@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
+import { AIUnavailableError } from "@/lib/ai";
 import {
   getUser,
   getUserGoals,
@@ -127,6 +128,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[API] POST /api/dump/voice/parse error:", error);
+    if (error instanceof AIUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
     const message =
       error instanceof Error ? error.message : "Failed to parse brain dump";
     return NextResponse.json({ error: message }, { status: 500 });
