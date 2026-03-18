@@ -66,13 +66,13 @@ For each detected event, output:
 - title: Event name (e.g., "Biology Class", "Team Meeting")
 - description: Additional context if any (optional)
 - location: If mentioned (optional)
-- startTime: ISO 8601 datetime of the FIRST occurrence
-- endTime: ISO 8601 datetime of when the FIRST occurrence ends. If no end time is mentioned, assume 1 hour after start.
+- startTime: Local datetime of the FIRST occurrence in the user's timezone. Format: "YYYY-MM-DDTHH:MM:SS" — NO timezone suffix, NO "Z". The time should be exactly what the user said (e.g., if they said 9am, output "2026-03-17T09:00:00").
+- endTime: Same format. If no end time mentioned, assume 1 hour after start.
 - isAllDay: true ONLY if no time is specified and it's clearly a full-day event
 - recurrence: Include ONLY if the event repeats. Object with:
   - type: "daily" | "weekly"
   - daysOfWeek: Array of day numbers (0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday) for weekly recurrence
-  - endDate: ISO 8601 date. For class schedules, default to 16 weeks from the current date.
+  - endDate: "YYYY-MM-DD" only (no time). For class schedules, default to 16 weeks from the current date.
 
 Do NOT create events from:
 - Existing calendar events shown in context (duplicates)
