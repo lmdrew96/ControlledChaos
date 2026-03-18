@@ -35,14 +35,21 @@ export function CalendarSettings() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Calendar hours + week start
+  // Calendar display hours + week start
+  const [calendarStartHour, setCalendarStartHour] = useState(7);
+  const [calendarEndHour, setCalendarEndHour] = useState(22);
+  const [savedCalendarStartHour, setSavedCalendarStartHour] = useState(7);
+  const [savedCalendarEndHour, setSavedCalendarEndHour] = useState(22);
+  const [weekStartDay, setWeekStartDay] = useState(1);
+  const [savedWeekStartDay, setSavedWeekStartDay] = useState(1);
+  const [isSavingCalendar, setIsSavingCalendar] = useState(false);
+
+  // AI scheduling window
   const [wakeTime, setWakeTime] = useState(7);
   const [sleepTime, setSleepTime] = useState(22);
   const [savedWakeTime, setSavedWakeTime] = useState(7);
   const [savedSleepTime, setSavedSleepTime] = useState(22);
-  const [weekStartDay, setWeekStartDay] = useState(1);
-  const [savedWeekStartDay, setSavedWeekStartDay] = useState(1);
-  const [isSavingHours, setIsSavingHours] = useState(false);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
   const isDirty = canvasUrl !== original;
   const hasUrl = original.trim().length > 0;
@@ -56,6 +63,14 @@ export function CalendarSettings() {
           if (data.canvasIcalUrl) {
             setCanvasUrl(data.canvasIcalUrl);
             setOriginal(data.canvasIcalUrl);
+          }
+          if (data.calendarStartHour != null) {
+            setCalendarStartHour(data.calendarStartHour);
+            setSavedCalendarStartHour(data.calendarStartHour);
+          }
+          if (data.calendarEndHour != null) {
+            setCalendarEndHour(data.calendarEndHour);
+            setSavedCalendarEndHour(data.calendarEndHour);
           }
           if (data.wakeTime != null) {
             setWakeTime(data.wakeTime);
@@ -92,29 +107,52 @@ export function CalendarSettings() {
       .finally(() => setIsLoadingExport(false));
   }, [isLoading]);
 
-  // ── Calendar hours handlers ─────────────────────────────────
-  const hoursDirty =
-    wakeTime !== savedWakeTime ||
-    sleepTime !== savedSleepTime ||
+  // ── Calendar display handlers ────────────────────────────────
+  const calendarDirty =
+    calendarStartHour !== savedCalendarStartHour ||
+    calendarEndHour !== savedCalendarEndHour ||
     weekStartDay !== savedWeekStartDay;
 
-  async function handleSaveHours() {
-    setIsSavingHours(true);
+  async function handleSaveCalendar() {
+    setIsSavingCalendar(true);
     try {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wakeTime, sleepTime, weekStartDay }),
+        body: JSON.stringify({ calendarStartHour, calendarEndHour, weekStartDay }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSavedCalendarStartHour(calendarStartHour);
+      setSavedCalendarEndHour(calendarEndHour);
+      setSavedWeekStartDay(weekStartDay);
+      toast.success("Calendar view updated!");
+    } catch {
+      toast.error("Failed to save calendar view settings");
+    } finally {
+      setIsSavingCalendar(false);
+    }
+  }
+
+  // ── AI scheduling window handlers ────────────────────────────
+  const scheduleDirty =
+    wakeTime !== savedWakeTime || sleepTime !== savedSleepTime;
+
+  async function handleSaveSchedule() {
+    setIsSavingSchedule(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wakeTime, sleepTime }),
       });
       if (!res.ok) throw new Error("Failed to save");
       setSavedWakeTime(wakeTime);
       setSavedSleepTime(sleepTime);
-      setSavedWeekStartDay(weekStartDay);
-      toast.success("Calendar settings updated!");
+      toast.success("Scheduling window updated!");
     } catch {
-      toast.error("Failed to save calendar hours");
+      toast.error("Failed to save scheduling window");
     } finally {
-      setIsSavingHours(false);
+      setIsSavingSchedule(false);
     }
   }
 
@@ -224,15 +262,14 @@ export function CalendarSettings() {
 
   return (
     <div className="space-y-6">
-      {/* ── Calendar Hours ──────────────────────────────── */}
+      {/* ── Calendar View ───────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Calendar Hours</span>
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Calendar View</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Set when your day starts and ends. The calendar view and AI
-          scheduling will respect this window.
+          Controls which hours are visible in the calendar grid.
         </p>
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1.5">
@@ -250,8 +287,66 @@ export function CalendarSettings() {
             </select>
           </div>
           <div className="space-y-1.5">
+            <label htmlFor="calendar-start" className="text-xs text-muted-foreground">
+              Show from
+            </label>
+            <select
+              id="calendar-start"
+              value={calendarStartHour}
+              onChange={(e) => setCalendarStartHour(Number(e.target.value))}
+              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{formatHour(h)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="calendar-end" className="text-xs text-muted-foreground">
+              Show until
+            </label>
+            <select
+              id="calendar-end"
+              value={calendarEndHour}
+              onChange={(e) => setCalendarEndHour(Number(e.target.value))}
+              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>{formatHour(h)}</option>
+              ))}
+            </select>
+          </div>
+          {calendarDirty && (
+            <Button
+              onClick={handleSaveCalendar}
+              disabled={isSavingCalendar || calendarStartHour >= calendarEndHour}
+              size="sm"
+            >
+              {isSavingCalendar && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+              Save
+            </Button>
+          )}
+        </div>
+        {calendarStartHour >= calendarEndHour && (
+          <p className="text-xs text-destructive">Start must be before end.</p>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* ── AI Scheduling Window ─────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">AI Scheduling Window</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The AI will only schedule tasks within this window. Set it to your waking hours.
+        </p>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1.5">
             <label htmlFor="wake-time" className="text-xs text-muted-foreground">
-              Day starts
+              Earliest
             </label>
             <select
               id="wake-time"
@@ -260,15 +355,13 @@ export function CalendarSettings() {
               className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {formatHour(h)}
-                </option>
+                <option key={h} value={h}>{formatHour(h)}</option>
               ))}
             </select>
           </div>
           <div className="space-y-1.5">
             <label htmlFor="sleep-time" className="text-xs text-muted-foreground">
-              Day ends
+              Latest
             </label>
             <select
               id="sleep-time"
@@ -277,29 +370,23 @@ export function CalendarSettings() {
               className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {formatHour(h)}
-                </option>
+                <option key={h} value={h}>{formatHour(h)}</option>
               ))}
             </select>
           </div>
-          {hoursDirty && (
+          {scheduleDirty && (
             <Button
-              onClick={handleSaveHours}
-              disabled={isSavingHours || wakeTime >= sleepTime}
+              onClick={handleSaveSchedule}
+              disabled={isSavingSchedule || wakeTime >= sleepTime}
               size="sm"
             >
-              {isSavingHours && (
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-              )}
+              {isSavingSchedule && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
               Save
             </Button>
           )}
         </div>
         {wakeTime >= sleepTime && (
-          <p className="text-xs text-destructive">
-            Day start must be before day end.
-          </p>
+          <p className="text-xs text-destructive">Earliest must be before latest.</p>
         )}
       </div>
 

@@ -38,8 +38,10 @@ export const userSettings = pgTable("user_settings", {
   googleCalConnected: boolean("google_cal_connected").default(false),
   googleCalendarIds: jsonb("google_calendar_ids").$type<string[]>(), // selected calendar IDs to sync, null = all
   onboardingComplete: boolean("onboarding_complete").default(false),
-  wakeTime: integer("wake_time").default(7), // Hour 0-23 when the day starts (default 7am)
-  sleepTime: integer("sleep_time").default(22), // Hour 0-23 when the day ends (default 10pm)
+  wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)
+  sleepTime: integer("sleep_time").default(22), // Hour 0-23 — AI scheduling window end (default 10pm)
+  calendarStartHour: integer("calendar_start_hour").default(7), // Hour 0-23 — calendar display start (default 7am)
+  calendarEndHour: integer("calendar_end_hour").default(22), // Hour 0-23 — calendar display end (default 10pm)
   weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
   calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
 });

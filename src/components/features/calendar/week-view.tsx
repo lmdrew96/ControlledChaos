@@ -255,8 +255,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
-          setStartHour(data.wakeTime ?? DEFAULT_START_HOUR);
-          setEndHour(data.sleepTime ?? DEFAULT_END_HOUR);
+          setStartHour(data.calendarStartHour ?? DEFAULT_START_HOUR);
+          setEndHour(data.calendarEndHour ?? DEFAULT_END_HOUR);
           const startDay = data.weekStartDay ?? 1;
           setWeekStartDay(startDay);
           setWeekStart(getWeekStart(new Date(), startDay));

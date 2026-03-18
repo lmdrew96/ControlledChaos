@@ -18,6 +18,8 @@ export async function GET() {
       googleCalendarIds: settings?.googleCalendarIds ?? null,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
+      calendarStartHour: settings?.calendarStartHour ?? settings?.wakeTime ?? 7,
+      calendarEndHour: settings?.calendarEndHour ?? settings?.sleepTime ?? 22,
       weekStartDay: settings?.weekStartDay ?? 1,
       notificationPrefs: settings?.notificationPrefs ?? null,
     });
@@ -53,6 +55,14 @@ export async function PATCH(request: Request) {
     if (body.sleepTime !== undefined) {
       const h = Number(body.sleepTime);
       if (Number.isInteger(h) && h >= 0 && h <= 23) data.sleepTime = h;
+    }
+    if (body.calendarStartHour !== undefined) {
+      const h = Number(body.calendarStartHour);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) data.calendarStartHour = h;
+    }
+    if (body.calendarEndHour !== undefined) {
+      const h = Number(body.calendarEndHour);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) data.calendarEndHour = h;
     }
     if (body.googleCalendarIds !== undefined) {
       data.googleCalendarIds = Array.isArray(body.googleCalendarIds)
