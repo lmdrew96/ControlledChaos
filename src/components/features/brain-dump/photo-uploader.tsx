@@ -159,12 +159,19 @@ export function PhotoUploader() {
         body: JSON.stringify({ extractedText: text, mediaUrl: url }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || "Failed to parse brain dump");
       }
 
-      toast.success("Photo dump parsed into tasks!");
+      const taskCount = data.tasks?.length ?? 0;
+      const eventCount = data.eventsCreated ?? 0;
+      const parts = [];
+      if (taskCount > 0) parts.push(`${taskCount} task${taskCount !== 1 ? "s" : ""}`);
+      if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
+      toast.success(parts.length > 0 ? `Created ${parts.join(" and ")}!` : "Photo dump parsed!");
+
       router.push("/tasks");
       router.refresh();
     } catch (err) {

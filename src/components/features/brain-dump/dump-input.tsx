@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Sparkles, Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -31,9 +32,21 @@ export function DumpInput() {
         body: JSON.stringify({ content }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.error || "Failed to process brain dump");
+      }
+
+      const taskCount = data.tasks?.length ?? 0;
+      const eventCount = data.eventsCreated ?? 0;
+
+      const parts = [];
+      if (taskCount > 0) parts.push(`${taskCount} task${taskCount !== 1 ? "s" : ""}`);
+      if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
+
+      if (parts.length > 0) {
+        toast.success(`Created ${parts.join(" and ")}!`);
       }
 
       setContent("");
