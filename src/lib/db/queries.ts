@@ -256,6 +256,9 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string, userId: string) {
+  // Delete FK-constrained child rows first
+  await db.delete(taskActivity).where(eq(taskActivity.taskId, taskId));
+
   const [deleted] = await db
     .delete(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
