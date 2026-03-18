@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
+import { EditEventDialog } from "./edit-event-dialog";
 import type { CalendarEvent, CalendarSource } from "@/types";
 
 // ============================================================
@@ -84,12 +85,6 @@ function formatTime(date: Date): string {
   });
 }
 
-/** Convert an ISO string to a datetime-local input value (YYYY-MM-DDTHH:MM) */
-function toLocalDatetime(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function formatDateRange(start: Date, end: Date, isAllDay: boolean): string {
   if (isAllDay) return "All day";
@@ -100,8 +95,6 @@ function sourceColor(source: CalendarSource) {
   switch (source) {
     case "canvas":
       return "bg-blue-100 dark:bg-blue-500/25 border-blue-300 dark:border-blue-400/60 text-blue-800 dark:text-blue-100";
-    case "google":
-      return "bg-green-100 dark:bg-green-500/25 border-green-300 dark:border-green-400/60 text-green-800 dark:text-green-100";
     case "controlledchaos":
       return "bg-purple-100 dark:bg-purple-500/25 border-purple-300 dark:border-purple-400/60 text-purple-800 dark:text-purple-100";
     default:
@@ -213,7 +206,7 @@ function layoutOverlappingEvents(
 // Component
 // ============================================================
 
-export function WeekView() {
+export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const {
     events,
     isLoading,
@@ -228,7 +221,7 @@ export function WeekView() {
 
   // Week start day preference: 0=Sunday, 1=Monday
   const [weekStartDay, setWeekStartDay] = useState(1);
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date(), 1));
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(initialDate ?? new Date(), 1));
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
@@ -239,14 +232,8 @@ export function WeekView() {
   const [isClearing, setIsClearing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [isDeletingSeries, setIsDeletingSeries] = useState(false);
-
-  // Event edit/delete state
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editStart, setEditStart] = useState("");
-  const [editEnd, setEditEnd] = useState("");
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Calendar hour boundaries from user settings
   const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
@@ -356,7 +343,6 @@ export function WeekView() {
       const result = await syncCalendar();
       const parts: string[] = [];
       if (result.canvas) parts.push(`${result.canvas.total} Canvas`);
-      if (result.google) parts.push(`${result.google.total} Google`);
       toast.success(
         parts.length > 0
           ? `Synced ${parts.join(" + ")} events!`
@@ -437,43 +423,6 @@ export function WeekView() {
       );
     } finally {
       setIsDeletingSeries(false);
-    }
-  }
-
-  function startEditing() {
-    if (!selectedEvent) return;
-    setEditTitle(selectedEvent.title.replace(/^\[CC\]\s*/, ""));
-    // Format as datetime-local value: YYYY-MM-DDTHH:MM
-    setEditStart(toLocalDatetime(selectedEvent.startTime));
-    setEditEnd(toLocalDatetime(selectedEvent.endTime));
-    setIsEditing(true);
-  }
-
-  async function handleSaveEdit() {
-    if (!selectedEvent) return;
-    setIsSavingEdit(true);
-    try {
-      const res = await fetch(`/api/calendar/events/${selectedEvent.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `[CC] ${editTitle}`,
-          startTime: new Date(editStart).toISOString(),
-          endTime: new Date(editEnd).toISOString(),
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to update");
-      }
-      toast.success("Event updated!");
-      setSelectedEvent(null);
-      setIsEditing(false);
-      await fetchEvents(weekStart, weekEnd);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update");
-    } finally {
-      setIsSavingEdit(false);
     }
   }
 
@@ -1045,19 +994,14 @@ export function WeekView() {
       <Dialog
         open={!!selectedEvent}
         onOpenChange={(open) => {
-          if (!open) {
-            setSelectedEvent(null);
-            setIsEditing(false);
-          }
+          if (!open) setSelectedEvent(null);
         }}
       >
         <DialogContent className="sm:max-w-md">
           {selectedEvent && (
             <>
               <DialogHeader>
-                <DialogTitle>
-                  {isEditing ? "Edit Scheduled Event" : selectedEvent.title}
-                </DialogTitle>
+                <DialogTitle>{selectedEvent.title}</DialogTitle>
                 <DialogDescription>
                   <span
                     className={cn(
@@ -1076,64 +1020,7 @@ export function WeekView() {
                 </DialogDescription>
               </DialogHeader>
 
-              {isEditing ? (
-                <div className="space-y-4 pt-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">
-                      Title
-                    </label>
-                    <input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">
-                        Start
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={editStart}
-                        onChange={(e) => setEditStart(e.target.value)}
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">
-                        End
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={editEnd}
-                        onChange={(e) => setEditEnd(e.target.value)}
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      onClick={handleSaveEdit}
-                      disabled={isSavingEdit || !editTitle.trim()}
-                      size="sm"
-                    >
-                      {isSavingEdit && (
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      )}
-                      Save
-                    </Button>
-                    <Button
-                      onClick={() => setIsEditing(false)}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
+              <div className="space-y-3 pt-2">
                   <div className="flex items-start gap-3 text-sm">
                     <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                     <div>
@@ -1174,7 +1061,10 @@ export function WeekView() {
                   {selectedEvent.source === "controlledchaos" && (
                     <div className="flex items-center gap-2 border-t border-border pt-3">
                       <Button
-                        onClick={startEditing}
+                        onClick={() => {
+                          setEditingEvent(selectedEvent);
+                          setSelectedEvent(null);
+                        }}
                         variant="outline"
                         size="sm"
                       >
@@ -1214,7 +1104,6 @@ export function WeekView() {
                     </div>
                   )}
                 </div>
-              )}
             </>
           )}
         </DialogContent>
@@ -1230,7 +1119,7 @@ export function WeekView() {
             </DialogTitle>
             <DialogDescription>
               This will remove all AI-scheduled events from your calendar. Manual events,
-              brain dump events, and external events (Canvas, Google) will not be affected.
+              brain dump events, and Canvas events will not be affected.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -1265,6 +1154,20 @@ export function WeekView() {
         onOpenChange={setShowCreateDialog}
         onSubmit={handleCreateEvent}
         defaultDate={selectedDay}
+      />
+
+      {/* Edit Event dialog */}
+      <EditEventDialog
+        event={editingEvent}
+        onClose={() => setEditingEvent(null)}
+        onSaved={async () => {
+          setEditingEvent(null);
+          await fetchEvents(weekStart, weekEnd);
+        }}
+        onDeleted={async () => {
+          setEditingEvent(null);
+          await fetchEvents(weekStart, weekEnd);
+        }}
       />
     </div>
   );

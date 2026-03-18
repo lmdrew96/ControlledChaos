@@ -153,7 +153,7 @@ export interface PushSubscriptionData {
 // ============================================================
 // Calendar Types
 // ============================================================
-export type CalendarSource = "canvas" | "google" | "controlledchaos";
+export type CalendarSource = "canvas" | "google" | "controlledchaos"; // "google" kept for backward compat with existing DB rows
 
 export interface CalendarEvent {
   id: string;
@@ -191,7 +191,6 @@ export interface ScheduledBlock {
 export interface ScheduleResult {
   blocks: ScheduledBlock[];
   eventsCreated: number;
-  googleEventsCreated: number;
   message: string;
 }
 

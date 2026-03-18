@@ -598,6 +598,23 @@ export async function deleteCalendarEventsBySeries(
     .returning();
 }
 
+export async function updateCalendarEventSeries(
+  seriesId: string,
+  userId: string,
+  data: { title?: string; description?: string | null; location?: string | null }
+) {
+  return db
+    .update(calendarEvents)
+    .set({ ...data, syncedAt: new Date() })
+    .where(
+      and(
+        eq(calendarEvents.seriesId, seriesId),
+        eq(calendarEvents.userId, userId)
+      )
+    )
+    .returning();
+}
+
 // ============================================================
 // Saved Locations
 // ============================================================
@@ -788,22 +805,53 @@ export async function getAllUsersWithDigestEnabled() {
 }
 
 /**
- * Get all users who have at least one calendar source configured.
+ * Get all users who have Canvas iCal configured.
  */
 export async function getAllUsersWithCalendars() {
   const rows = await db
     .select({
       userId: userSettings.userId,
       canvasIcalUrl: userSettings.canvasIcalUrl,
-      googleCalConnected: userSettings.googleCalConnected,
-      googleCalendarIds: userSettings.googleCalendarIds,
     })
     .from(userSettings)
-    .where(
-      sql`${userSettings.canvasIcalUrl} IS NOT NULL OR ${userSettings.googleCalConnected} = true`
-    );
+    .where(sql`${userSettings.canvasIcalUrl} IS NOT NULL`);
 
   return rows;
+}
+
+// ============================================================
+// Calendar Export Token
+// ============================================================
+
+export async function getOrCreateCalendarExportToken(userId: string): Promise<string> {
+  const settings = await getUserSettings(userId);
+  if (settings?.calendarExportToken) {
+    return settings.calendarExportToken;
+  }
+  const token = crypto.randomUUID();
+  await db
+    .update(userSettings)
+    .set({ calendarExportToken: token })
+    .where(eq(userSettings.userId, userId));
+  return token;
+}
+
+export async function regenerateCalendarExportToken(userId: string): Promise<string> {
+  const token = crypto.randomUUID();
+  await db
+    .update(userSettings)
+    .set({ calendarExportToken: token })
+    .where(eq(userSettings.userId, userId));
+  return token;
+}
+
+export async function getUserIdByCalendarToken(token: string): Promise<string | null> {
+  const [row] = await db
+    .select({ userId: userSettings.userId })
+    .from(userSettings)
+    .where(eq(userSettings.calendarExportToken, token))
+    .limit(1);
+  return row?.userId ?? null;
 }
 
 /**

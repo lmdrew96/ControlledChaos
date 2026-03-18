@@ -41,6 +41,7 @@ export const userSettings = pgTable("user_settings", {
   wakeTime: integer("wake_time").default(7), // Hour 0-23 when the day starts (default 7am)
   sleepTime: integer("sleep_time").default(22), // Hour 0-23 when the day ends (default 10pm)
   weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
+  calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
 });
 
 // ============================================================

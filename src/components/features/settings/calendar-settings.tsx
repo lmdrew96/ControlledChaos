@@ -1,30 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Clock,
   Loader2,
   RefreshCw,
   X,
-  CheckCircle2,
-  ExternalLink,
-  Info,
+  Link2,
+  Copy,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
-const GOOGLE_CALENDAR_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.readonly",
-  "https://www.googleapis.com/auth/calendar.events",
-];
-
 export function CalendarSettings() {
-  const { user } = useUser();
-
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
   const [original, setOriginal] = useState("");
@@ -36,22 +29,11 @@ export function CalendarSettings() {
     syncedAt: string;
   } | null>(null);
 
-  // Google state
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
-  const [googleSyncResult, setGoogleSyncResult] = useState<{
-    total: number;
-  } | null>(null);
-
-  // Google calendar selection
-  const [availableCalendars, setAvailableCalendars] = useState<
-    { id: string; name: string; primary: boolean }[]
-  >([]);
-  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[] | null>(null);
-  const [savedCalendarIds, setSavedCalendarIds] = useState<string[] | null>(null);
-  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
-  const [isSavingCalendars, setIsSavingCalendars] = useState(false);
+  // iCal export state
+  const [subscribeUrl, setSubscribeUrl] = useState<string | null>(null);
+  const [isLoadingExport, setIsLoadingExport] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Calendar hours + week start
   const [wakeTime, setWakeTime] = useState(7);
@@ -65,12 +47,6 @@ export function CalendarSettings() {
   const isDirty = canvasUrl !== original;
   const hasUrl = original.trim().length > 0;
 
-  const googleAccounts = useMemo(
-    () =>
-      user?.externalAccounts?.filter((ea) => ea.provider === "google") ?? [],
-    [user?.externalAccounts]
-  );
-
   useEffect(() => {
     async function load() {
       try {
@@ -80,11 +56,6 @@ export function CalendarSettings() {
           if (data.canvasIcalUrl) {
             setCanvasUrl(data.canvasIcalUrl);
             setOriginal(data.canvasIcalUrl);
-          }
-          setGoogleConnected(data.googleCalConnected ?? false);
-          if (data.googleCalendarIds) {
-            setSelectedCalendarIds(data.googleCalendarIds);
-            setSavedCalendarIds(data.googleCalendarIds);
           }
           if (data.wakeTime != null) {
             setWakeTime(data.wakeTime);
@@ -108,67 +79,24 @@ export function CalendarSettings() {
     load();
   }, []);
 
-  // Auto-connect after Google OAuth redirect
+  // Load the iCal export URL on mount
   useEffect(() => {
-    if (googleAccounts.length > 0 && !googleConnected && !isLoading) {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has("__clerk_status")) {
-        handleConnectGoogle();
-        url.searchParams.delete("__clerk_status");
-        url.searchParams.delete("__clerk_created_session");
-        window.history.replaceState({}, "", url.pathname);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleAccounts.length, googleConnected, isLoading]);
-
-  // Fetch available Google calendars when connected
-  useEffect(() => {
-    if (!googleConnected || isLoading) return;
-    setIsLoadingCalendars(true);
-    fetch("/api/calendar/google/calendars")
-      .then((r) => (r.ok ? r.json() : null))
+    if (isLoading) return;
+    setIsLoadingExport(true);
+    fetch("/api/calendar/export", { method: "POST" })
+      .then((r) => r.json())
       .then((data) => {
-        if (data?.calendars) {
-          setAvailableCalendars(data.calendars);
-        }
+        if (data.subscribeUrl) setSubscribeUrl(data.subscribeUrl);
       })
       .catch(() => {})
-      .finally(() => setIsLoadingCalendars(false));
-  }, [googleConnected, isLoading]);
-
-  function toggleCalendar(calId: string) {
-    setSelectedCalendarIds((prev) => {
-      const current = prev ?? availableCalendars.map((c) => c.id);
-      return current.includes(calId)
-        ? current.filter((id) => id !== calId)
-        : [...current, calId];
-    });
-  }
-
-  const calendarsDirty =
-    JSON.stringify(selectedCalendarIds) !== JSON.stringify(savedCalendarIds);
-
-  async function handleSaveCalendars() {
-    setIsSavingCalendars(true);
-    try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ googleCalendarIds: selectedCalendarIds }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      setSavedCalendarIds(selectedCalendarIds);
-      toast.success("Calendar selection saved!");
-    } catch {
-      toast.error("Failed to save calendar selection");
-    } finally {
-      setIsSavingCalendars(false);
-    }
-  }
+      .finally(() => setIsLoadingExport(false));
+  }, [isLoading]);
 
   // ── Calendar hours handlers ─────────────────────────────────
-  const hoursDirty = wakeTime !== savedWakeTime || sleepTime !== savedSleepTime || weekStartDay !== savedWeekStartDay;
+  const hoursDirty =
+    wakeTime !== savedWakeTime ||
+    sleepTime !== savedSleepTime ||
+    weekStartDay !== savedWeekStartDay;
 
   async function handleSaveHours() {
     setIsSavingHours(true);
@@ -220,20 +148,9 @@ export function CalendarSettings() {
       if (!res.ok) throw new Error(data.error || "Sync failed");
 
       const canvasTotal = data.canvas?.total ?? 0;
-      const googleTotal = data.google?.total ?? 0;
-
       setSyncResult({ total: canvasTotal, syncedAt: data.syncedAt });
-      if (googleTotal > 0) {
-        setGoogleSyncResult({ total: googleTotal });
-      }
-
-      const parts: string[] = [];
-      if (canvasTotal > 0) parts.push(`${canvasTotal} Canvas`);
-      if (googleTotal > 0) parts.push(`${googleTotal} Google`);
       toast.success(
-        parts.length > 0
-          ? `Synced ${parts.join(" + ")} events!`
-          : "Sync complete!"
+        canvasTotal > 0 ? `Synced ${canvasTotal} Canvas events!` : "Sync complete!"
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
@@ -258,64 +175,35 @@ export function CalendarSettings() {
     }
   }
 
-  // ── Google handlers ──────────────────────────────────────────
-  async function handleAddGoogleAccount() {
-    if (!user) return;
-
+  // ── iCal export handlers ────────────────────────────────────
+  async function handleCopyUrl() {
+    if (!subscribeUrl) return;
     try {
-      const result = await user.createExternalAccount({
-        strategy: "oauth_google",
-        redirectUrl: window.location.href,
-        additionalScopes: GOOGLE_CALENDAR_SCOPES,
-      });
-
-      const url = result.verification?.externalVerificationRedirectURL;
-      if (url) {
-        window.location.href = url.toString();
-      }
-    } catch (err) {
-      console.error("[Settings] Google link error:", err);
-      toast.error("Failed to start Google sign-in");
+      await navigator.clipboard.writeText(subscribeUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy to clipboard");
     }
   }
 
-  async function handleConnectGoogle() {
-    setIsConnecting(true);
+  async function handleRegenerateToken() {
+    if (!confirm("Regenerate your calendar link? The old link will stop working.")) return;
+    setIsRegenerating(true);
     try {
-      const res = await fetch("/api/calendar/google/connect", {
+      const res = await fetch("/api/calendar/export", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regenerate: true }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setGoogleConnected(true);
-      setGoogleSyncResult({ total: data.total ?? 0 });
-      toast.success(
-        `Google Calendar connected! Synced ${data.total ?? 0} events.`
-      );
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to connect"
-      );
-    } finally {
-      setIsConnecting(false);
-    }
-  }
-
-  async function handleDisconnectGoogle() {
-    setIsDisconnecting(true);
-    try {
-      const res = await fetch("/api/calendar/google/disconnect", {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to disconnect");
-      setGoogleConnected(false);
-      setGoogleSyncResult(null);
-      toast.success("Google Calendar disconnected.");
+      if (!res.ok) throw new Error("Failed to regenerate");
+      setSubscribeUrl(data.subscribeUrl);
+      toast.success("Calendar link regenerated. Update your subscriptions.");
     } catch {
-      toast.error("Failed to disconnect Google Calendar");
+      toast.error("Failed to regenerate link");
     } finally {
-      setIsDisconnecting(false);
+      setIsRegenerating(false);
     }
   }
 
@@ -423,7 +311,7 @@ export function CalendarSettings() {
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <label htmlFor="canvas-url" className="text-sm font-medium">
-              Canvas Calendar URL
+              Canvas Calendar
             </label>
           </div>
           <Input
@@ -487,158 +375,63 @@ export function CalendarSettings() {
 
       <Separator />
 
-      {/* ── Google Calendar ──────────────────────────────── */}
+      {/* ── iCal Export ──────────────────────────────────── */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24h12.632v-5.684H5.684V24zM0 5.684h5.684V24H0V5.684zM5.684 0v5.684H24V0H5.684z" />
-          </svg>
-          <span className="text-sm font-medium">Google Calendar</span>
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Your Calendar Feed</span>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Subscribe to your ControlledChaos calendar from any app — Apple
+          Calendar, Google Calendar, Outlook, or anything that supports iCal.
+        </p>
 
-        {googleConnected ? (
+        {isLoadingExport ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Generating your link...
+          </div>
+        ) : subscribeUrl ? (
           <div className="space-y-3">
-            {/* Show connected Google account */}
-            {googleAccounts.length > 0 ? (
-              <div className="space-y-2">
-                {googleAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
-                    <span className="text-muted-foreground">
-                      {account.emailAddress}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-sm text-green-400">
-                <CheckCircle2 className="h-4 w-4" />
-                Google Calendar connected
-              </div>
-            )}
-
-            {googleSyncResult && (
-              <p className="text-xs text-muted-foreground">
-                {googleSyncResult.total} events synced
-              </p>
-            )}
-
-            {/* Calendar selection */}
-            {isLoadingCalendars ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading calendars...
-              </div>
-            ) : availableCalendars.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Synced calendars
-                </p>
-                <div className="space-y-1.5">
-                  {availableCalendars.map((cal) => {
-                    const effectiveSelected = selectedCalendarIds
-                      ?? availableCalendars.map((c) => c.id);
-                    const checked = effectiveSelected.includes(cal.id);
-                    return (
-                      <label
-                        key={cal.id}
-                        className="flex items-center gap-2 text-sm cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCalendar(cal.id)}
-                          className="accent-primary h-4 w-4 rounded"
-                        />
-                        <span className={checked ? "text-foreground" : "text-muted-foreground"}>
-                          {cal.name}
-                          {cal.primary && (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              (primary)
-                            </span>
-                          )}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {calendarsDirty && (
-                  <Button
-                    onClick={handleSaveCalendars}
-                    disabled={isSavingCalendars}
-                    size="sm"
-                  >
-                    {isSavingCalendars && (
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                    )}
-                    Save Selection
-                  </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                value={subscribeUrl}
+                readOnly
+                className="font-mono text-xs"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyUrl}
+                className="shrink-0"
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-green-400" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
                 )}
-              </div>
-            ) : null}
-
-            <div className="flex items-start gap-2 rounded-md border border-border/50 bg-muted/30 p-3">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">
-                To see events from another Google account (e.g. school), open{" "}
-                <a
-                  href="https://calendar.google.com/calendar/r/settings/addcalendar"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-foreground"
-                >
-                  Google Calendar settings
-                </a>{" "}
-                and subscribe to it. Synced calendars show up here automatically.
-              </p>
+              </Button>
             </div>
-
+            <p className="text-xs text-muted-foreground">
+              Paste this URL as a &ldquo;calendar subscription&rdquo; or &ldquo;Add calendar from URL&rdquo; in your calendar app.
+            </p>
             <Button
-              onClick={handleDisconnectGoogle}
-              disabled={isDisconnecting}
-              variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-destructive"
+              variant="ghost"
+              onClick={handleRegenerateToken}
+              disabled={isRegenerating}
+              className="text-muted-foreground text-xs h-7"
             >
-              {isDisconnecting ? (
-                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              {isRegenerating ? (
+                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
               ) : (
-                <X className="mr-2 h-3 w-3" />
+                <RotateCcw className="mr-1.5 h-3 w-3" />
               )}
-              Disconnect
+              Regenerate link
             </Button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Connect Google Calendar to see your events and let AI schedule
-              tasks into free time blocks.
-            </p>
-
-            {googleAccounts.length > 0 ? (
-              <Button
-                onClick={handleConnectGoogle}
-                disabled={isConnecting}
-                size="sm"
-              >
-                {isConnecting ? (
-                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                ) : (
-                  <ExternalLink className="mr-2 h-3 w-3" />
-                )}
-                Connect Google Calendar
-              </Button>
-            ) : (
-              <Button onClick={handleAddGoogleAccount} size="sm">
-                <ExternalLink className="mr-2 h-3 w-3" />
-                Sign in with Google
-              </Button>
-            )}
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

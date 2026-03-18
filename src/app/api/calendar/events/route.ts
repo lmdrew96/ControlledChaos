@@ -37,43 +37,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Auto-sync if stale (> 15 minutes since last sync)
+    // Auto-sync Canvas if stale (> 15 minutes since last sync)
     const settings = await getUserSettings(userId);
-    if (settings && (settings.canvasIcalUrl || settings.googleCalConnected)) {
+    if (settings?.canvasIcalUrl) {
       const lastSync = await getLastCalendarSync(userId);
       const isStale =
         !lastSync ||
         Date.now() - lastSync.getTime() > SYNC_STALENESS_MS;
 
       if (isStale) {
-        const syncPromises: Promise<unknown>[] = [];
-        if (settings.canvasIcalUrl) {
-          syncPromises.push(
-            import("@/lib/calendar/sync-canvas")
-              .then(({ syncCanvasCalendar }) =>
-                syncCanvasCalendar(userId, settings.canvasIcalUrl!)
-              )
-              .catch((err) =>
-                console.error("[Calendar] Auto-sync Canvas failed:", err)
-              )
+        import("@/lib/calendar/sync-canvas")
+          .then(({ syncCanvasCalendar }) =>
+            syncCanvasCalendar(userId, settings.canvasIcalUrl!)
+          )
+          .catch((err) =>
+            console.error("[Calendar] Auto-sync Canvas failed:", err)
           );
-        }
-        if (settings.googleCalConnected) {
-          const calIds =
-            (settings.googleCalendarIds as string[] | null) ?? null;
-          syncPromises.push(
-            import("@/lib/calendar/sync-google")
-              .then(({ syncGoogleCalendar }) =>
-                syncGoogleCalendar(userId, calIds)
-              )
-              .catch((err) =>
-                console.error("[Calendar] Auto-sync Google failed:", err)
-              )
-          );
-        }
-        if (syncPromises.length > 0) {
-          await Promise.all(syncPromises);
-        }
       }
     }
 
@@ -161,31 +140,9 @@ export async function POST(request: Request) {
     const seriesId =
       instances.length > 1 ? crypto.randomUUID() : null;
 
-    // Check if Google is connected for syncing
-    const settings = await getUserSettings(userId);
-    const syncToGoogle = settings?.googleCalConnected ?? false;
-
     const createdEvents = [];
 
     for (const instance of instances) {
-      // Write to Google Calendar if connected
-      if (syncToGoogle) {
-        try {
-          const { writeEventToGoogle } = await import(
-            "@/lib/calendar/sync-google"
-          );
-          await writeEventToGoogle(userId, {
-            title: instance.title,
-            description: instance.description || undefined,
-            startTime: instance.startTime.toISOString(),
-            endTime: instance.endTime.toISOString(),
-            timezone: "America/New_York",
-          });
-        } catch {
-          // Non-critical — local creation continues
-        }
-      }
-
       const event = await createManualCalendarEvent({
         userId,
         title: instance.title,

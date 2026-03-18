@@ -15,7 +15,6 @@ import {
   logTaskActivity,
 } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, EnergyProfile } from "@/types";
@@ -43,15 +42,6 @@ export async function POST(request: Request) {
         syncPromises.push(
           syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
             console.error("[Recommend] Canvas sync failed:", err)
-          )
-        );
-      }
-      if (settings.googleCalConnected) {
-        const calIds =
-          (settings.googleCalendarIds as string[] | null) ?? null;
-        syncPromises.push(
-          syncGoogleCalendar(userId, calIds).catch((err) =>
-            console.error("[Recommend] Google sync failed:", err)
           )
         );
       }

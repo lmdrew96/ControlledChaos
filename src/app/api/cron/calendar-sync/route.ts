@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { getAllUsersWithCalendars } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 
 /**
  * GET /api/cron/calendar-sync
  * Runs every 15 minutes via Vercel cron.
- * Syncs all users' connected calendars so the AI always has fresh data.
+ * Syncs all users' Canvas calendars so the AI always has fresh data.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -21,7 +20,6 @@ export async function GET(request: Request) {
     let failed = 0;
 
     for (const user of usersWithCalendars) {
-      // Canvas sync
       if (user.canvasIcalUrl) {
         try {
           await syncCanvasCalendar(user.userId, user.canvasIcalUrl);
@@ -29,22 +27,6 @@ export async function GET(request: Request) {
         } catch (err) {
           console.error(
             `[Cron] Canvas sync failed for ${user.userId}:`,
-            err
-          );
-          failed++;
-        }
-      }
-
-      // Google sync
-      if (user.googleCalConnected) {
-        try {
-          const calIds =
-            (user.googleCalendarIds as string[] | null) ?? null;
-          await syncGoogleCalendar(user.userId, calIds);
-          synced++;
-        } catch (err) {
-          console.error(
-            `[Cron] Google sync failed for ${user.userId}:`,
             err
           );
           failed++;

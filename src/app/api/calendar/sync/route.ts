@@ -2,7 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserSettings } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import { syncGoogleCalendar } from "@/lib/calendar/sync-google";
 import type { CalendarSyncResult } from "@/types";
 
 export async function POST() {
@@ -15,7 +14,6 @@ export async function POST() {
     const settings = await getUserSettings(userId);
 
     let canvasResult: CalendarSyncResult | null = null;
-    let googleResult: CalendarSyncResult | null = null;
     const errors: string[] = [];
 
     // Sync Canvas if configured
@@ -33,24 +31,11 @@ export async function POST() {
       }
     }
 
-    // Sync Google if connected
-    if (settings?.googleCalConnected) {
-      try {
-        const calIds = (settings.googleCalendarIds as string[] | null) ?? null;
-        googleResult = await syncGoogleCalendar(userId, calIds);
-      } catch (err) {
-        console.error("[API] Google sync failed:", err);
-        errors.push(
-          `Google: ${err instanceof Error ? err.message : "sync failed"}`
-        );
-      }
-    }
-
-    if (!canvasResult && !googleResult && errors.length === 0) {
+    if (!canvasResult && errors.length === 0) {
       return NextResponse.json(
         {
           error:
-            "No calendars configured. Add Canvas iCal URL or connect Google Calendar in Settings.",
+            "No calendars configured. Add your Canvas iCal URL in Settings.",
         },
         { status: 400 }
       );
@@ -59,7 +44,6 @@ export async function POST() {
     return NextResponse.json({
       success: errors.length === 0,
       canvas: canvasResult,
-      google: googleResult,
       errors: errors.length > 0 ? errors : undefined,
       syncedAt: new Date().toISOString(),
     });

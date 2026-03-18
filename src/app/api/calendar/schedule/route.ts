@@ -10,7 +10,6 @@ import {
   updateTask,
 } from "@/lib/db/queries";
 import { generateSchedule } from "@/lib/ai/schedule";
-import { syncGoogleCalendar, writeEventToGoogle } from "@/lib/calendar/sync-google";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import type { EnergyProfile } from "@/types";
 
@@ -31,7 +30,6 @@ export async function POST() {
       return NextResponse.json({
         blocks: [],
         eventsCreated: 0,
-        googleEventsCreated: 0,
         message: "No pending tasks to schedule.",
       });
     }
@@ -39,24 +37,12 @@ export async function POST() {
     const timezone = user?.timezone ?? "America/New_York";
     const scheduleDays = 3;
 
-    // Sync calendars first so we have the latest events
-    const syncPromises: Promise<unknown>[] = [];
+    // Sync Canvas before scheduling so we have the latest events
     if (settings?.canvasIcalUrl) {
-      syncPromises.push(
-        syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
-          console.error("[Schedule] Canvas pre-sync failed:", err)
-        )
+      await syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
+        console.error("[Schedule] Canvas pre-sync failed:", err)
       );
     }
-    if (settings?.googleCalConnected) {
-      const calIds = (settings.googleCalendarIds as string[] | null) ?? null;
-      syncPromises.push(
-        syncGoogleCalendar(userId, calIds).catch((err) =>
-          console.error("[Schedule] Google pre-sync failed:", err)
-        )
-      );
-    }
-    await Promise.all(syncPromises);
 
     // Get existing events for the scheduling window
     const now = new Date();
@@ -73,7 +59,7 @@ export async function POST() {
     const serializedEvents = existingEvents.map((e) => ({
       id: e.id,
       userId: e.userId,
-      source: e.source as "canvas" | "google" | "controlledchaos",
+      source: e.source as "canvas" | "controlledchaos",
       externalId: e.externalId,
       title: e.title,
       description: e.description,
@@ -122,14 +108,12 @@ export async function POST() {
       return NextResponse.json({
         blocks: [],
         eventsCreated: 0,
-        googleEventsCreated: 0,
         message: "No free time blocks available or no tasks fit the schedule.",
       });
     }
 
     // Create calendar events for each scheduled block
     let eventsCreated = 0;
-    let googleEventsCreated = 0;
     const createdBlocks = [];
 
     const taskMap = new Map(pendingTasks.map((t) => [t.id, t]));
@@ -139,25 +123,12 @@ export async function POST() {
       if (!task) continue;
 
       const eventTitle = `[CC] ${task.title}`;
-      let googleEventId: string | null = null;
-
-      // Write to Google Calendar if connected
-      if (settings?.googleCalConnected) {
-        googleEventId = await writeEventToGoogle(userId, {
-          title: eventTitle,
-          description: `Scheduled by ControlledChaos: ${block.reasoning}`,
-          startTime: block.startTime,
-          endTime: block.endTime,
-          timezone,
-        });
-        if (googleEventId) googleEventsCreated++;
-      }
 
       // Save to local DB
       await upsertCalendarEvent({
         userId,
         source: "controlledchaos",
-        externalId: googleEventId ?? `cc-${task.id}-${block.startTime}`,
+        externalId: `cc-${task.id}-${block.startTime}`,
         title: eventTitle,
         description: block.reasoning,
         startTime: new Date(block.startTime),
@@ -181,12 +152,7 @@ export async function POST() {
     return NextResponse.json({
       blocks: createdBlocks,
       eventsCreated,
-      googleEventsCreated,
-      message: `Scheduled ${eventsCreated} task${eventsCreated !== 1 ? "s" : ""}${
-        googleEventsCreated > 0
-          ? ` (${googleEventsCreated} synced to Google Calendar)`
-          : ""
-      }.`,
+      message: `Scheduled ${eventsCreated} task${eventsCreated !== 1 ? "s" : ""}.`,
     });
   } catch (error) {
     console.error("[API] POST /api/calendar/schedule error:", error);
