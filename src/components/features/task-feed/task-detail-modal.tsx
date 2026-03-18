@@ -87,6 +87,7 @@ export function TaskDetailModal({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch user's saved locations
@@ -194,7 +195,13 @@ export function TaskDetailModal({
 
   async function handleDelete() {
     if (!task) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+      return;
+    }
     setIsDeleting(true);
+    setConfirmDelete(false);
     try {
       const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
@@ -412,18 +419,18 @@ export function TaskDetailModal({
               )}
             </Button>
             <Button
-              variant="outline"
+              variant={confirmDelete ? "destructive" : "outline"}
               size="sm"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="text-destructive hover:text-destructive"
+              className={confirmDelete ? undefined : "text-destructive hover:text-destructive"}
             >
               {isDeleting ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Delete
+              {confirmDelete ? "Confirm delete?" : "Delete"}
             </Button>
           </div>
 

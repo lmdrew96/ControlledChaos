@@ -28,6 +28,7 @@ export function TaskCard({
   onClick?: () => void;
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isCompleted = task.status === "completed";
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
@@ -38,17 +39,20 @@ export function TaskCard({
 
   async function handleAction(action: "complete" | "undo" | "delete") {
     setIsUpdating(true);
+    setConfirmDelete(false);
     try {
       if (action === "delete") {
-        await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+        const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Delete failed");
         toast.success("Task deleted");
       } else {
         const status = action === "complete" ? "completed" : "pending";
-        await fetch(`/api/tasks/${task.id}`, {
+        const res = await fetch(`/api/tasks/${task.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status }),
         });
+        if (!res.ok) throw new Error("Update failed");
         if (action === "complete") {
           toast.success("Task completed!");
           confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
@@ -66,6 +70,16 @@ export function TaskCard({
       );
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  function handleDeleteClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (confirmDelete) {
+      handleAction("delete");
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
     }
   }
 
@@ -113,17 +127,23 @@ export function TaskCard({
             </h3>
 
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAction("delete");
-              }}
+              variant={confirmDelete ? "destructive" : "ghost"}
+              size={confirmDelete ? "sm" : "icon"}
+              className={cn(
+                "shrink-0 transition-all",
+                confirmDelete
+                  ? "h-7 px-2 text-xs opacity-100"
+                  : "h-7 w-7 opacity-0 group-hover:opacity-100"
+              )}
+              onClick={handleDeleteClick}
               disabled={isUpdating}
-              aria-label={`Delete "${task.title}"`}
+              aria-label={confirmDelete ? "Confirm delete" : `Delete "${task.title}"`}
             >
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              {confirmDelete ? (
+                "Delete?"
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
             </Button>
           </div>
 
