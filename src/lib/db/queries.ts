@@ -154,6 +154,36 @@ export async function createBrainDump(params: {
 // ============================================================
 // Tasks
 // ============================================================
+export async function createTask(
+  userId: string,
+  params: {
+    title: string;
+    description?: string | null;
+    priority?: string;
+    energyLevel?: string;
+    estimatedMinutes?: number | null;
+    category?: string | null;
+    locationTags?: string[] | null;
+    deadline?: Date | null;
+  }
+) {
+  const [task] = await db
+    .insert(tasks)
+    .values({
+      userId,
+      title: params.title,
+      description: params.description ?? null,
+      priority: params.priority ?? "normal",
+      energyLevel: params.energyLevel ?? "medium",
+      estimatedMinutes: params.estimatedMinutes ?? null,
+      category: params.category ?? null,
+      locationTags: params.locationTags?.length ? params.locationTags : null,
+      deadline: params.deadline ?? null,
+    })
+    .returning();
+  return task;
+}
+
 export async function createTasksFromDump(
   userId: string,
   dumpId: string,

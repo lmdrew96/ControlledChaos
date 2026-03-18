@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Brain, ListTodo } from "lucide-react";
+import { Loader2, Brain, ListTodo, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TaskCard } from "./task-card";
 import { TaskDetailModal } from "./task-detail-modal";
+import { CreateTaskModal } from "./create-task-modal";
 import Link from "next/link";
 import type { Task } from "@/types";
 
@@ -15,6 +16,7 @@ export function TaskList() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("active");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -55,21 +57,34 @@ export function TaskList() {
 
   if (tasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border py-16">
-        <ListTodo className="h-10 w-10 text-muted-foreground/50" />
-        <div className="text-center">
-          <p className="font-medium">No tasks yet</p>
-          <p className="text-sm text-muted-foreground">
-            Start with a brain dump to get your tasks flowing
-          </p>
+      <>
+        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border py-16">
+          <ListTodo className="h-10 w-10 text-muted-foreground/50" />
+          <div className="text-center">
+            <p className="font-medium">No tasks yet</p>
+            <p className="text-sm text-muted-foreground">
+              Start with a brain dump or add a task directly
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild>
+              <Link href="/dump">
+                <Brain className="mr-2 h-4 w-4" />
+                Brain Dump
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Task
+            </Button>
+          </div>
         </div>
-        <Button asChild>
-          <Link href="/dump">
-            <Brain className="mr-2 h-4 w-4" />
-            Brain Dump
-          </Link>
-        </Button>
-      </div>
+        <CreateTaskModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={fetchTasks}
+        />
+      </>
     );
   }
 
@@ -79,8 +94,9 @@ export function TaskList() {
         {activeTasks.length} active task{activeTasks.length !== 1 ? "s" : ""}
       </p>
 
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+      {/* Filter tabs + New Task button */}
+      <div className="flex items-center gap-2">
+      <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1">
         {(
           [
             { key: "active", label: `Active (${activeTasks.length})` },
@@ -100,6 +116,11 @@ export function TaskList() {
             {label}
           </button>
         ))}
+      </div>
+        <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          New Task
+        </Button>
       </div>
 
       {/* Task list */}
@@ -127,6 +148,13 @@ export function TaskList() {
         task={selectedTask}
         onClose={() => setSelectedTaskId(null)}
         onUpdate={fetchTasks}
+      />
+
+      {/* Create task modal */}
+      <CreateTaskModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={fetchTasks}
       />
     </div>
   );
