@@ -108,13 +108,15 @@ export function CreateEventDialog({
       return;
     }
 
-    // Build ISO timestamps
+    // Build UTC ISO timestamps from local browser time
+    // new Date("YYYY-MM-DDTHH:MM:SS") in a browser is treated as LOCAL time,
+    // so .toISOString() correctly converts to UTC.
     const startISO = isAllDay
       ? `${date}T00:00:00`
-      : `${date}T${startTime}:00`;
+      : new Date(`${date}T${startTime}:00`).toISOString();
     const endISO = isAllDay
       ? `${date}T23:59:59`
-      : `${date}T${endTime}:00`;
+      : new Date(`${date}T${endTime}:00`).toISOString();
 
     if (new Date(endISO) <= new Date(startISO) && !isAllDay) {
       setError("End time must be after start time");
@@ -128,7 +130,7 @@ export function CreateEventDialog({
             type: recurrenceType as "daily" | "weekly",
             daysOfWeek:
               recurrenceType === "weekly" ? selectedDays : undefined,
-            endDate: `${recurrenceEndDate}T23:59:59`,
+            endDate: new Date(`${recurrenceEndDate}T23:59:59`).toISOString(),
           };
 
     setIsSubmitting(true);

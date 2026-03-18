@@ -36,7 +36,12 @@ interface FormState {
 }
 
 function toDateInput(isoString: string): string {
-  return isoString.slice(0, 10);
+  // Use local date (not UTC date) so date/time fields are consistent
+  const d = new Date(isoString);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function toTimeInput(isoString: string): string {
@@ -45,7 +50,9 @@ function toTimeInput(isoString: string): string {
 }
 
 function buildIso(date: string, time: string): string {
-  return `${date}T${time}:00`;
+  // Construct as local time and convert to UTC via .toISOString()
+  // new Date("YYYY-MM-DDTHH:MM:SS") in a browser = local time
+  return new Date(`${date}T${time}:00`).toISOString();
 }
 
 export function EditEventDialog({
