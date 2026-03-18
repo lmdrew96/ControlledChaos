@@ -157,8 +157,9 @@ Your job: Given a user's free time blocks and pending tasks, create an optimal s
 
 ## CRITICAL: Anti-Hallucination Rules
 - taskId MUST exactly match one of the IDs in the Pending Tasks list. Do NOT invent IDs.
-- startTime and endTime MUST be valid ISO 8601 timestamps (e.g., "2026-02-16T14:00:00.000Z").
-- Every scheduled block MUST fit entirely within one of the provided free time blocks. Double-check: block.startTime >= freeBlock.start AND block.endTime <= freeBlock.end.
+- startTime and endTime MUST be valid ISO 8601 UTC timestamps ending in "Z" (e.g., "2026-02-16T14:00:00.000Z"). NEVER output local time strings.
+- All timestamps in "Free Time Blocks" are UTC (Z suffix). The "localTime" field shows the same window in the user's timezone for reference only — use it to reason about the time of day, but your output MUST be UTC.
+- Every scheduled block MUST fit entirely within one of the provided free time blocks. Double-check: block.startTime >= freeBlock.start AND block.endTime <= freeBlock.end (UTC comparison).
 - NEVER schedule the same task twice.
 - Check duration math: if a task needs 45 minutes and the free block is only 30 minutes, DO NOT schedule it there.
 

@@ -20,12 +20,47 @@ interface SchedulingInput {
 }
 
 /**
+ * Convert a local hour (0-23) on a specific date to a UTC Date.
+ * Uses the timezone offset at 1pm UTC on that day as a DST-safe reference.
+ *
+ * Example: localHourToUTC("2026-03-18", 7, "America/New_York")
+ *   → 2026-03-18T11:00:00.000Z  (7am EDT = 11am UTC)
+ */
+function localHourToUTC(dateStr: string, hour: number, timezone: string): Date {
+  // Use 1pm UTC as the reference — well clear of any DST transition (which happens at ~2am local)
+  const refUTC = new Date(`${dateStr}T13:00:00.000Z`);
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const localTimeStr = formatter.format(refUTC); // e.g. "09:00" for EDT
+  const [localH, localM] = localTimeStr.split(":").map(Number);
+
+  // offsetMinutes = how many minutes UTC is ahead of this timezone
+  // For EDT (UTC-4): 13*60 - 9*60 = 240 min ahead
+  // For IST (UTC+5:30): 13*60 - 18*60 - 30 = -330 min (UTC is behind)
+  const refUTCMinutes = 13 * 60;
+  const refLocalMinutes = localH * 60 + localM;
+  const offsetMinutes = refUTCMinutes - refLocalMinutes;
+
+  // Target UTC time = desired local hour (in minutes) + offset
+  const targetUTCMinutes = hour * 60 + offsetMinutes;
+
+  const dateBase = new Date(`${dateStr}T00:00:00.000Z`);
+  return new Date(dateBase.getTime() + targetUTCMinutes * 60 * 1000);
+}
+
+/**
  * Find free time blocks between existing calendar events.
- * Only considers blocks >= 20 minutes during waking hours.
+ * Only considers blocks >= 20 minutes during waking hours, in the user's timezone.
  */
 export function findFreeBlocks(
   events: CalendarEvent[],
   days: number,
+  timezone: string,
   wakeTime = 7,
   sleepTime = 22
 ): FreeTimeBlock[] {
@@ -33,17 +68,24 @@ export function findFreeBlocks(
   const now = new Date();
 
   for (let d = 0; d < days; d++) {
-    const dayStart = new Date(now);
-    dayStart.setDate(dayStart.getDate() + d);
-    dayStart.setHours(wakeTime, 0, 0, 0);
+    // Get the calendar date string (YYYY-MM-DD) for day d in the user's timezone.
+    // Adding d*24h in ms is approximate but accurate enough for day-level math.
+    const approxDay = new Date(now.getTime() + d * 24 * 60 * 60 * 1000);
+    const dateStr = approxDay.toLocaleDateString("en-CA", { timeZone: timezone }); // "YYYY-MM-DD"
 
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(sleepTime, 0, 0, 0);
+    // Compute wake/sleep boundaries as correct UTC timestamps for the user's timezone
+    const dayStart = localHourToUTC(dateStr, wakeTime, timezone);
+    const dayEnd = localHourToUTC(dateStr, sleepTime, timezone);
 
-    // On the first day, start from now if it's already past 7am
+    // On the first day, start from now if it's already past wake time
     const effectiveStart = d === 0 && now > dayStart ? now : dayStart;
 
-    // Filter timed events for this day, sorted by start
+    // If it's already past sleep time for this day, skip it entirely
+    if (effectiveStart >= dayEnd) {
+      continue;
+    }
+
+    // Filter timed events for this day's window, sorted by start
     const dayEvents = events
       .filter((e) => {
         if (e.isAllDay) return false;
@@ -136,6 +178,34 @@ function buildSchedulingPrompt(
 
   const currentDateTime = formatCurrentDateTime(input.timezone);
 
+  // Attach human-readable local time labels so the AI reasons in local time
+  const fmtLocalRange = (startISO: string, endISO: string) => {
+    const opts: Intl.DateTimeFormatOptions = {
+      timeZone: input.timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    };
+    const startLabel = new Date(startISO).toLocaleString("en-US", opts);
+    const endLabel = new Date(endISO).toLocaleString("en-US", {
+      timeZone: input.timezone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${startLabel} – ${endLabel}`;
+  };
+
+  const freeBlocksWithLabels = freeBlocks.map((b) => ({
+    start: b.start,
+    end: b.end,
+    durationMinutes: b.durationMinutes,
+    localTime: fmtLocalRange(b.start, b.end),
+  }));
+
   return `## Current Date and Time
 ${currentDateTime}
 
@@ -149,7 +219,7 @@ ${fmtHour(wakeHour)} – ${fmtHour(sleepHour)}. NEVER schedule outside this wind
 ${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
 
 ## Free Time Blocks (next ${input.scheduleDays} days)
-${JSON.stringify(freeBlocks, null, 2)}
+${JSON.stringify(freeBlocksWithLabels, null, 2)}
 
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}
@@ -170,6 +240,7 @@ export async function generateSchedule(
   const freeBlocks = findFreeBlocks(
     input.calendarEvents,
     input.scheduleDays,
+    input.timezone,
     input.wakeTime,
     input.sleepTime
   );
