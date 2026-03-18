@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Check, Trash2, Undo2 } from "lucide-react";
+import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { Task } from "@/types";
 import {
@@ -88,6 +88,8 @@ export function TaskDetailModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isBreakingDown, setIsBreakingDown] = useState(false);
+  const [breakdown, setBreakdown] = useState<{ id: string; title: string; estimatedMinutes: number | null }[] | null>(null);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch user's saved locations
@@ -98,10 +100,11 @@ export function TaskDetailModal({
       .catch(() => {});
   }, []);
 
-  // Reset form when task changes
+  // Reset form and breakdown when task changes
   useEffect(() => {
     if (task) {
       setForm(formFromTask(task));
+      setBreakdown(null);
     }
   }, [task]);
 
@@ -212,6 +215,24 @@ export function TaskDetailModal({
       toast.error("Failed to delete task");
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function handleBreakdown() {
+    if (!task) return;
+    setIsBreakingDown(true);
+    setBreakdown(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/breakdown`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to break down task");
+      setBreakdown(data.subtasks);
+      toast.success(`Broke into ${data.subtasks.length} subtasks!`);
+      onUpdate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't break down task");
+    } finally {
+      setIsBreakingDown(false);
     }
   }
 
@@ -396,6 +417,26 @@ export function TaskDetailModal({
               onChange={(e) => updateField("deadline", e.target.value)}
             />
           </div>
+
+          {/* Breakdown results */}
+          {breakdown && breakdown.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Subtasks created — find them in your task list
+              </p>
+              <ul className="space-y-1.5">
+                {breakdown.map((sub) => (
+                  <li key={sub.id} className="flex items-start gap-2 text-sm">
+                    <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="flex-1">{sub.title}</span>
+                    {sub.estimatedMinutes && (
+                      <span className="shrink-0 text-xs text-muted-foreground">{sub.estimatedMinutes}m</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -435,6 +476,19 @@ export function TaskDetailModal({
           </div>
 
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBreakdown}
+              disabled={isBreakingDown || !!breakdown}
+            >
+              {isBreakingDown ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Scissors className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {isBreakingDown ? "Breaking down..." : breakdown ? "Broken down!" : "Break it down"}
+            </Button>
             <Button variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>

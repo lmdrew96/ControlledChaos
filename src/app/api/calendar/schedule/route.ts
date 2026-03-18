@@ -86,6 +86,7 @@ export async function POST() {
       deadline: t.deadline?.toISOString() ?? null,
       scheduledFor: t.scheduledFor?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,
+      parentTaskId: t.parentTaskId ?? null,
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
     }));

@@ -16,6 +16,7 @@ export interface Task {
   deadline: string | null;
   scheduledFor: string | null;
   completedAt: string | null;
+  parentTaskId: string | null;
   createdAt: string;
   updatedAt: string;
 }
