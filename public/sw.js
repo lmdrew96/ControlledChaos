@@ -3,10 +3,12 @@
 const CACHE_NAME = "cc-shell-v1";
 const SHELL_ASSETS = ["/dashboard", "/dump", "/tasks", "/calendar", "/settings"];
 
-// Cache app shell on install
+// Cache app shell on install — non-critical, don't block SW activation
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(SHELL_ASSETS.map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });

@@ -15,6 +15,9 @@ if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
+  console.log("[Push] VAPID configured OK");
+} else {
+  console.error("[Push] VAPID keys missing — push notifications will not work. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.");
 }
 
 interface PushPayload {
@@ -66,9 +69,13 @@ export async function sendPushToUser(
 
   if (subscriptions.length === 0) return false;
 
-  // Check quiet hours
+  // Check push enabled + quiet hours
   const prefs = settings?.notificationPrefs as NotificationPrefs | null;
   const timezone = user?.timezone ?? "America/New_York";
+
+  if (prefs && !prefs.pushEnabled) {
+    return false;
+  }
 
   if (prefs && isQuietHours(prefs, timezone)) {
     return false;
@@ -97,13 +104,13 @@ export async function sendPushToUser(
       );
       sent = true;
     } catch (err: unknown) {
-      const statusCode = (err as { statusCode?: number }).statusCode;
-      if (statusCode === 410 || statusCode === 404) {
+      const e = err as { statusCode?: number; body?: string; message?: string };
+      if (e.statusCode === 410 || e.statusCode === 404) {
         // Subscription expired — clean up
         await deletePushSubscription(userId, sub.endpoint);
         console.log(`[Push] Removed expired subscription for ${userId}`);
       } else {
-        console.error(`[Push] Failed to send to ${userId}:`, err);
+        console.error(`[Push] Failed to send to ${userId}: status=${e.statusCode} body=${e.body} msg=${e.message}`);
       }
     }
   }
