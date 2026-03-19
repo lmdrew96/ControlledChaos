@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import webpush from "@/lib/notifications/webpush-client";
-import { getPushSubscriptions, getUserSettings, getUser } from "@/lib/db/queries";
+import { getPushSubscriptions, getUserSettings, getUser, createNotification } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
 
 /** POST — send a test push notification and return diagnostic info */
@@ -76,6 +76,15 @@ export async function POST() {
 
     diag.sendResults = results;
     const anySent = results.some((r) => r.success);
+
+    if (anySent) {
+      await createNotification(userId, "push", {
+        title: "ControlledChaos",
+        body: "Push notifications are working! You're all set.",
+        url: "/settings",
+        tag: "cc-test",
+      });
+    }
 
     return NextResponse.json({
       success: anySent,
