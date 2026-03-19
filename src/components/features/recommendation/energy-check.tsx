@@ -9,8 +9,8 @@ const energyOptions: {
   label: string;
   icon: typeof Battery;
 }[] = [
-  { value: "low", label: "Low", icon: BatteryLow },
-  { value: "medium", label: "Medium", icon: Battery },
+  { value: "low", label: "Low", icon: Battery },
+  { value: "medium", label: "Medium", icon: BatteryLow },
   { value: "high", label: "High", icon: BatteryFull },
 ];
 
