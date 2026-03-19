@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import webpush from "web-push";
+import webpush from "@/lib/notifications/webpush-client";
 import { getPushSubscriptions, getUserSettings, getUser } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
 

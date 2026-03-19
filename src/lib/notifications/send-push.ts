@@ -1,4 +1,4 @@
-import webpush from "web-push";
+import webpush from "@/lib/notifications/webpush-client";
 import {
   getPushSubscriptions,
   getUserSettings,
@@ -7,18 +7,6 @@ import {
   deletePushSubscription,
 } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
-
-// Configure VAPID keys
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT ?? "mailto:noreply@controlledchaos.app",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-  console.log("[Push] VAPID configured OK");
-} else {
-  console.error("[Push] VAPID keys missing — push notifications will not work. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY.");
-}
 
 interface PushPayload {
   title: string;
