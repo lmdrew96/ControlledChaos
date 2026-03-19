@@ -41,14 +41,11 @@ self.addEventListener("fetch", (event) => {
 
 // Push notifications
 self.addEventListener("push", (event) => {
-  console.log("[SW] Push event received", event.data ? "with data" : "no data");
-
   if (!event.data) return;
 
   let payload;
   try {
     payload = event.data.json();
-    console.log("[SW] Push payload:", payload);
   } catch {
     payload = {
       title: "ControlledChaos",
@@ -69,11 +66,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(
       payload.title || "ControlledChaos",
       options
-    ).then(() => {
-      console.log("[SW] showNotification called successfully");
-    }).catch((err) => {
-      console.error("[SW] showNotification failed:", err);
-    })
+    )
   );
 });
 
