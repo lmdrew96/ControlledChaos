@@ -1,5 +1,5 @@
 import { callHaiku } from "./index";
-import { SCHEDULING_SYSTEM_PROMPT, formatCurrentDateTime } from "./prompts";
+import { SCHEDULING_SYSTEM_PROMPT, SINGLE_TASK_SCHEDULING_PROMPT, formatCurrentDateTime } from "./prompts";
 import { extractJSON } from "./validate";
 import type {
   Task,
@@ -281,6 +281,146 @@ export async function generateSchedule(
 
   // Remove overlapping blocks between AI's own scheduled blocks
   return removeOverlappingBlocks(safeBlocks);
+}
+
+interface SingleTaskSchedulingInput {
+  task: Task;
+  calendarEvents: CalendarEvent[];
+  energyProfile: EnergyProfile | null;
+  timezone: string;
+  wakeTime?: number;
+  sleepTime?: number;
+}
+
+/**
+ * Schedule a single task by finding the best available time slot.
+ * Checks calendar events for related events (same subject/context)
+ * and schedules before them when found.
+ */
+export async function scheduleOneTask(
+  input: SingleTaskSchedulingInput
+): Promise<ScheduledBlock | null> {
+  const wakeTime = input.wakeTime ?? 7;
+  const sleepTime = input.sleepTime ?? 22;
+  const scheduleDays = 3;
+
+  const freeBlocks = findFreeBlocks(
+    input.calendarEvents,
+    scheduleDays,
+    input.timezone,
+    wakeTime,
+    sleepTime
+  );
+
+  if (freeBlocks.length === 0) {
+    return null;
+  }
+
+  const fmtHour = (h: number) =>
+    h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
+
+  const fmtLocalRange = (startISO: string, endISO: string) => {
+    const opts: Intl.DateTimeFormatOptions = {
+      timeZone: input.timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    };
+    const startLabel = new Date(startISO).toLocaleString("en-US", opts);
+    const endLabel = new Date(endISO).toLocaleString("en-US", {
+      timeZone: input.timezone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${startLabel} – ${endLabel}`;
+  };
+
+  const freeBlocksWithLabels = freeBlocks.map((b) => ({
+    start: b.start,
+    end: b.end,
+    durationMinutes: b.durationMinutes,
+    localTime: fmtLocalRange(b.start, b.end),
+  }));
+
+  const calendarSummary = input.calendarEvents
+    .filter((e) => !e.isAllDay)
+    .map((e) => ({
+      title: e.title,
+      start: e.startTime,
+      end: e.endTime,
+      localTime: fmtLocalRange(e.startTime, e.endTime),
+      location: e.location,
+    }));
+
+  const userPrompt = `## Current Date and Time
+${formatCurrentDateTime(input.timezone)}
+
+## User's Timezone
+${input.timezone}
+
+## Active Hours
+${fmtHour(wakeTime)} – ${fmtHour(sleepTime)}. NEVER schedule outside this window.
+
+## Energy Profile
+${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
+
+## Task to Schedule
+${JSON.stringify({
+  id: input.task.id,
+  title: input.task.title,
+  description: input.task.description,
+  priority: input.task.priority,
+  energyLevel: input.task.energyLevel,
+  estimatedMinutes: input.task.estimatedMinutes,
+  category: input.task.category,
+  deadline: input.task.deadline,
+}, null, 2)}
+
+## All Calendar Events (next 3 days) — check for related events
+${JSON.stringify(calendarSummary, null, 2)}
+
+## Free Time Blocks (next 3 days)
+${JSON.stringify(freeBlocksWithLabels, null, 2)}
+
+Find the best time for this task. Check calendar events for a related event first.`;
+
+  const result = await callHaiku({
+    system: SINGLE_TASK_SCHEDULING_PROMPT,
+    user: userPrompt,
+    maxTokens: 512,
+  });
+
+  let parsed: { block: { startTime: string; endTime: string; reasoning: string } | null };
+  try {
+    parsed = extractJSON(result.text);
+  } catch {
+    console.error("[AI ScheduleOne] Failed to parse response:", result.text);
+    throw new Error("AI returned an invalid schedule. Please try again.");
+  }
+
+  if (!parsed.block) {
+    return null;
+  }
+
+  const { startTime, endTime, reasoning } = parsed.block;
+  if (!startTime || !endTime) {
+    return null;
+  }
+
+  const candidate: ScheduledBlock = {
+    taskId: input.task.id,
+    startTime,
+    endTime,
+    reasoning,
+  };
+
+  // Hard safety: ensure block doesn't overlap any real events
+  const safe = removeConflictsWithEvents([candidate], input.calendarEvents);
+  return safe.length > 0 ? safe[0] : null;
 }
 
 /**

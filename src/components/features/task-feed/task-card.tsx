@@ -7,6 +7,7 @@ import {
   Clock,
   MapPin,
   Calendar,
+  CalendarClock,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ export function TaskCard({
   onClick?: () => void;
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isCompleted = task.status === "completed";
   const priority =
@@ -70,6 +72,35 @@ export function TaskCard({
       );
     } finally {
       setIsUpdating(false);
+    }
+  }
+
+  async function handleFindTime(e: React.MouseEvent) {
+    e.stopPropagation();
+    setIsScheduling(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/schedule`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Scheduling failed");
+      if (!data.block) {
+        toast.info(data.message ?? "No free time found in the next 3 days.");
+      } else {
+        const scheduledDate = new Date(data.scheduledFor);
+        const timeStr = scheduledDate.toLocaleString("en-US", {
+          weekday: "short",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        });
+        const reasoning = data.block.reasoning ?? "";
+        toast.success(`Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`);
+        onUpdate();
+      }
+    } catch (error) {
+      console.error("Find time failed:", error);
+      toast.error("Couldn't find a time. Try again.");
+    } finally {
+      setIsScheduling(false);
     }
   }
 
@@ -126,25 +157,44 @@ export function TaskCard({
               {task.title}
             </h3>
 
-            <Button
-              variant={confirmDelete ? "destructive" : "ghost"}
-              size={confirmDelete ? "sm" : "icon"}
-              className={cn(
-                "shrink-0 transition-all",
-                confirmDelete
-                  ? "h-7 px-2 text-xs opacity-100"
-                  : "h-7 w-7 opacity-0 group-hover:opacity-100"
+            <div className="flex items-center gap-1">
+              {!isCompleted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={handleFindTime}
+                  disabled={isScheduling || isUpdating}
+                  aria-label={`Find a time for "${task.title}"`}
+                  title="Find a time"
+                >
+                  {isScheduling ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  ) : (
+                    <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </Button>
               )}
-              onClick={handleDeleteClick}
-              disabled={isUpdating}
-              aria-label={confirmDelete ? "Confirm delete" : `Delete "${task.title}"`}
-            >
-              {confirmDelete ? (
-                "Delete?"
-              ) : (
-                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </Button>
+              <Button
+                variant={confirmDelete ? "destructive" : "ghost"}
+                size={confirmDelete ? "sm" : "icon"}
+                className={cn(
+                  "shrink-0 transition-all",
+                  confirmDelete
+                    ? "h-7 px-2 text-xs opacity-100"
+                    : "h-7 w-7 opacity-0 group-hover:opacity-100"
+                )}
+                onClick={handleDeleteClick}
+                disabled={isUpdating}
+                aria-label={confirmDelete ? "Confirm delete" : `Delete "${task.title}"`}
+              >
+                {confirmDelete ? (
+                  "Delete?"
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </Button>
+            </div>
           </div>
 
           {task.description && (
@@ -188,6 +238,18 @@ export function TaskCard({
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
                 {new Date(task.deadline).toLocaleDateString()}
+              </span>
+            )}
+
+            {task.scheduledFor && (
+              <span className="flex items-center gap-1 text-xs text-primary/80 font-medium">
+                <CalendarClock className="h-3 w-3" />
+                {new Date(task.scheduledFor).toLocaleString("en-US", {
+                  weekday: "short",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
               </span>
             )}
           </div>
