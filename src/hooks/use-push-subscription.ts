@@ -54,6 +54,15 @@ export function usePushSubscription() {
     }
 
     try {
+      // Force-clear any existing subscription so we always get a fresh one.
+      // pushManager.subscribe() returns the cached subscription if one exists,
+      // which can be stale (especially on iOS after a SW update).
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        console.log("[Push] Clearing existing subscription before re-subscribing");
+        await existing.unsubscribe();
+      }
+
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,

@@ -21,9 +21,10 @@ export async function POST() {
     // 2. Subscriptions in DB?
     const subscriptions = await getPushSubscriptions(userId);
     diag.subscriptionCount = subscriptions.length;
-    diag.subscriptionEndpoints = subscriptions.map((s) =>
-      s.endpoint.slice(0, 60) + "…"
-    );
+    diag.subscriptions = subscriptions.map((s) => ({
+      endpoint: s.endpoint.slice(0, 60) + "…",
+      createdAt: s.createdAt,
+    }));
 
     if (subscriptions.length === 0) {
       return NextResponse.json({
