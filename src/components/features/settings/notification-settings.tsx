@@ -140,14 +140,34 @@ export function NotificationSettings() {
                 if (checked) {
                   const ok = await subscribePush();
                   if (ok) {
-                    update({ pushEnabled: true });
-                    toast.success("Push notifications enabled!");
+                    // Immediately persist pushEnabled: true — don't wait for Save button
+                    const newPrefs = { ...prefs, pushEnabled: true };
+                    const res = await fetch("/api/settings", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ notificationPrefs: newPrefs }),
+                    });
+                    if (res.ok) {
+                      setPrefs(newPrefs);
+                      setSavedPrefs(newPrefs);
+                      toast.success("Push notifications enabled!");
+                    } else {
+                      toast.error("Subscribed but failed to save preference. Try again.");
+                    }
                   } else {
                     toast.error("Failed to enable push notifications. Check browser permissions.");
                   }
                 } else {
                   await unsubscribePush();
-                  update({ pushEnabled: false });
+                  // Immediately persist pushEnabled: false
+                  const newPrefs = { ...prefs, pushEnabled: false };
+                  await fetch("/api/settings", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationPrefs: newPrefs }),
+                  });
+                  setPrefs(newPrefs);
+                  setSavedPrefs(newPrefs);
                   toast.success("Push notifications disabled.");
                 }
               } finally {

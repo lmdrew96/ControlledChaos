@@ -15,13 +15,14 @@ export async function POST() {
       body: "Push notifications are working! You're all set.",
       url: "/settings",
       tag: "cc-test",
+      bypassQuietHours: true,
     });
 
     return NextResponse.json({
       success: sent,
       message: sent
         ? "Test notification sent!"
-        : "No push subscriptions found. Enable push notifications in Settings first.",
+        : "No push subscriptions found or push not enabled. Try toggling push notifications off and on again in Settings.",
     });
   } catch (error) {
     console.error("[API] POST /api/notifications/test error:", error);

@@ -25,6 +25,7 @@ interface PushPayload {
   body: string;
   url?: string;
   tag?: string;
+  bypassQuietHours?: boolean;
 }
 
 /**
@@ -73,12 +74,14 @@ export async function sendPushToUser(
   const prefs = settings?.notificationPrefs as NotificationPrefs | null;
   const timezone = user?.timezone ?? "America/New_York";
 
-  if (prefs && !prefs.pushEnabled) {
-    return false;
-  }
+  if (!payload.bypassQuietHours) {
+    if (prefs && !prefs.pushEnabled) {
+      return false;
+    }
 
-  if (prefs && isQuietHours(prefs, timezone)) {
-    return false;
+    if (prefs && isQuietHours(prefs, timezone)) {
+      return false;
+    }
   }
 
   const pushPayload = JSON.stringify({
