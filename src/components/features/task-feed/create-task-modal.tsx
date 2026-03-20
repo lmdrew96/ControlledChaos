@@ -109,13 +109,13 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New Task</DialogTitle>
           <DialogDescription>Add a task directly to your list.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="create-task-title">Title</Label>

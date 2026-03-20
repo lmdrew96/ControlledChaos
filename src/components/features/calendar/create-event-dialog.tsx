@@ -169,7 +169,8 @@ export function CreateEventDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 gap-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="event-title">Title</Label>
@@ -329,9 +330,10 @@ export function CreateEventDialog({
           {error && (
             <p className="text-sm text-destructive">{error}</p>
           )}
+        </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
             <Button
               type="button"
               variant="ghost"

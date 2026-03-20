@@ -238,7 +238,7 @@ export function TaskDetailModal({
 
   return (
     <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
           <DialogDescription>
@@ -246,7 +246,7 @@ export function TaskDetailModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="task-title">Title</Label>
@@ -440,8 +440,8 @@ export function TaskDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col gap-2 pt-4 border-t border-border sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 pt-4 border-t border-border sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
