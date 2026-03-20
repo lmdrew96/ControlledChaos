@@ -142,7 +142,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           </div>
 
           {/* Priority + Energy */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={form.priority} onValueChange={(v) => updateField("priority", v)}>
@@ -177,7 +177,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           </div>
 
           {/* Category + Location */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Category</Label>
               <Select

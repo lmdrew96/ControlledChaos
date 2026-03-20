@@ -246,7 +246,7 @@ export function EditEventDialog({
           </div>
 
           {/* Date + times */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label htmlFor="edit-date">Date</Label>
               <Input
@@ -315,7 +315,7 @@ export function EditEventDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex flex-col gap-2 pt-4 border-t border-border sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2">
             <Button
               variant="outline"

@@ -271,7 +271,7 @@ export function TaskDetailModal({
           </div>
 
           {/* Priority + Energy */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select
@@ -312,7 +312,7 @@ export function TaskDetailModal({
           </div>
 
           {/* Category + Location */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Category</Label>
               <Select
@@ -374,7 +374,7 @@ export function TaskDetailModal({
           </div>
 
           {/* Time Estimate + Status */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="task-time">Time Estimate (min)</Label>
               <Input
@@ -440,7 +440,7 @@ export function TaskDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex flex-col gap-2 pt-4 border-t border-border sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2">
             <Button
               variant="outline"
