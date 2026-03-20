@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Check,
   Trash2,
@@ -31,6 +31,42 @@ export function TaskCard({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const isSwiping = useRef(false);
+
+  const SWIPE_THRESHOLD = 80;
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    isSwiping.current = false;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    // Only track horizontal swipes; ignore if vertical-ish
+    if (!isSwiping.current && Math.abs(dx) > 8) {
+      isSwiping.current = true;
+    }
+    if (!isSwiping.current) return;
+    // Cap offset so it doesn't fly too far
+    const capped = Math.max(-120, Math.min(120, dx));
+    setSwipeOffset(capped);
+  }
+
+  function handleTouchEnd() {
+    if (swipeOffset <= -SWIPE_THRESHOLD) {
+      // Swiped left → delete
+      handleAction("delete");
+    } else if (swipeOffset >= SWIPE_THRESHOLD && !isCompleted) {
+      // Swiped right → schedule
+      void handleFindTimeAction();
+    }
+    setSwipeOffset(0);
+    touchStartX.current = null;
+    isSwiping.current = false;
+  }
   const isCompleted = task.status === "completed";
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
@@ -75,8 +111,7 @@ export function TaskCard({
     }
   }
 
-  async function handleFindTime(e: React.MouseEvent) {
-    e.stopPropagation();
+  async function handleFindTimeAction() {
     setIsScheduling(true);
     try {
       const res = await fetch(`/api/tasks/${task.id}/schedule`, { method: "POST" });
@@ -104,6 +139,11 @@ export function TaskCard({
     }
   }
 
+  function handleFindTime(e: React.MouseEvent) {
+    e.stopPropagation();
+    void handleFindTimeAction();
+  }
+
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (confirmDelete) {
@@ -114,14 +154,47 @@ export function TaskCard({
     }
   }
 
+  const isSwipingLeft = swipeOffset < -20;
+  const isSwipingRight = swipeOffset > 20;
+
   return (
-    <Card
-      className={cn(
-        "group relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
-        isCompleted && "opacity-60"
+    <div className="relative overflow-hidden rounded-lg">
+      {/* Swipe backgrounds */}
+      <div
+        className={cn(
+          "absolute inset-0 flex items-center justify-end pr-5 bg-destructive/90 transition-opacity",
+          isSwipingLeft ? "opacity-100" : "opacity-0"
+        )}
+        aria-hidden
+      >
+        <Trash2 className="h-5 w-5 text-white" />
+      </div>
+      {!isCompleted && (
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-start pl-5 bg-primary/80 transition-opacity",
+            isSwipingRight ? "opacity-100" : "opacity-0"
+          )}
+          aria-hidden
+        >
+          <CalendarClock className="h-5 w-5 text-white" />
+        </div>
       )}
-      onClick={onClick}
-    >
+
+      <Card
+        className={cn(
+          "group relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
+          isCompleted && "opacity-60"
+        )}
+        style={{
+          transform: `translateX(${swipeOffset}px)`,
+          transition: swipeOffset === 0 ? "transform 0.2s ease" : "none",
+        }}
+        onClick={isSwiping.current ? undefined : onClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
       <div className="flex items-start gap-3">
         {/* Complete/undo button */}
         <button
@@ -162,7 +235,7 @@ export function TaskCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
                   onClick={handleFindTime}
                   disabled={isScheduling || isUpdating}
                   aria-label={`Find a time for "${task.title}"`}
@@ -179,7 +252,7 @@ export function TaskCard({
                 variant={confirmDelete ? "destructive" : "ghost"}
                 size={confirmDelete ? "sm" : "icon"}
                 className={cn(
-                  "shrink-0 transition-all",
+                  "shrink-0 transition-all hidden sm:flex",
                   confirmDelete
                     ? "h-7 px-2 text-xs opacity-100"
                     : "h-7 w-7 opacity-0 group-hover:opacity-100"
@@ -255,6 +328,7 @@ export function TaskCard({
           </div>
         </div>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 }
