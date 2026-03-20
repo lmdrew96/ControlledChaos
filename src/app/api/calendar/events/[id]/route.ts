@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteCalendarEvent,
   updateCalendarEvent,
+  updateTask,
 } from "@/lib/db/queries";
 
 interface RouteContext {
@@ -28,6 +29,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { error: "Only scheduled events can be deleted" },
         { status: 403 }
+      );
+    }
+
+    // Clear scheduledFor on the linked task (externalId format: cc-{taskId}-{startTime})
+    if (deleted.externalId?.startsWith("cc-")) {
+      const taskId = deleted.externalId.split("-").slice(1, 6).join("-"); // UUID is 5 parts
+      await updateTask(taskId, userId, { scheduledFor: null }).catch((err) =>
+        console.error("[API] Failed to clear task.scheduledFor:", err)
       );
     }
 
