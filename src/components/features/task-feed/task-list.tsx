@@ -1,20 +1,54 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Brain, ListTodo, Plus } from "lucide-react";
+import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TaskCard } from "./task-card";
 import { TaskDetailModal } from "./task-detail-modal";
 import { CreateTaskModal } from "./create-task-modal";
 import Link from "next/link";
 import type { Task } from "@/types";
+import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
 
 type FilterStatus = "active" | "completed" | "all";
+type SortBy = "none" | "priority" | "deadline";
+
+const PRIORITY_ORDER: Record<string, number> = {
+  urgent: 0,
+  important: 1,
+  normal: 2,
+  someday: 3,
+};
+
+function applySort(tasks: Task[], sortBy: SortBy): Task[] {
+  if (sortBy === "none") return tasks;
+  return [...tasks].sort((a, b) => {
+    if (sortBy === "priority") {
+      return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
+    }
+    // deadline: nulls go last
+    if (!a.deadline && !b.deadline) return 0;
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  });
+}
 
 export function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("active");
+  const [sortBy, setSortBy] = useState<SortBy>("none");
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [filterEnergy, setFilterEnergy] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -36,16 +70,35 @@ export function TaskList() {
     fetchTasks();
   }, [fetchTasks]);
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === "active") return task.status !== "completed";
-    if (filter === "completed") return task.status === "completed";
-    return true;
-  });
+  const filteredTasks = applySort(
+    tasks.filter((task) => {
+      if (filter === "active" && task.status === "completed") return false;
+      if (filter === "completed" && task.status !== "completed") return false;
+      if (filterPriority !== "all" && task.priority !== filterPriority) return false;
+      if (filterEnergy !== "all" && task.energyLevel !== filterEnergy) return false;
+      if (filterCategory !== "all" && task.category !== filterCategory) return false;
+      return true;
+    }),
+    sortBy
+  );
 
   const activeTasks = tasks.filter((t) => t.status !== "completed");
   const completedTasks = tasks.filter((t) => t.status === "completed");
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
+
+  const hasActiveFilters =
+    sortBy !== "none" ||
+    filterPriority !== "all" ||
+    filterEnergy !== "all" ||
+    filterCategory !== "all";
+
+  function clearFilters() {
+    setSortBy("none");
+    setFilterPriority("all");
+    setFilterEnergy("all");
+    setFilterCategory("all");
+  }
 
   if (isLoading) {
     return (
@@ -94,29 +147,101 @@ export function TaskList() {
         {activeTasks.length} active task{activeTasks.length !== 1 ? "s" : ""}
       </p>
 
-      {/* Filter tabs + New Task button */}
-      <div className="flex items-center gap-2">
-      <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1">
-        {(
-          [
-            { key: "active", label: `Active (${activeTasks.length})` },
-            { key: "completed", label: `Done (${completedTasks.length})` },
-            { key: "all", label: "All" },
-          ] as const
-        ).map(({ key, label }) => (
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Status tabs */}
+        <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1 min-w-0">
+          {(
+            [
+              { key: "active", label: `Active (${activeTasks.length})` },
+              { key: "completed", label: `Done (${completedTasks.length})` },
+              { key: "all", label: "All" },
+            ] as const
+          ).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                filter === key
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort */}
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
+            <ArrowUpDown className="h-3 w-3 shrink-0" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sort</SelectItem>
+            <SelectItem value="priority">Priority</SelectItem>
+            <SelectItem value="deadline">Deadline</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Priority filter */}
+        <Select value={filterPriority} onValueChange={setFilterPriority}>
+          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Priority</SelectItem>
+            {priorityOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Energy filter */}
+        <Select value={filterEnergy} onValueChange={setFilterEnergy}>
+          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
+            <Zap className="h-3 w-3 shrink-0" />
+            <SelectValue placeholder="Energy" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Energy</SelectItem>
+            {energyOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Category filter */}
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
+            <Tag className="h-3 w-3 shrink-0" />
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Category</SelectItem>
+            {categoryOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Clear active filters */}
+        {hasActiveFilters && (
           <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              filter === key
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            onClick={clearFilters}
+            className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
           >
-            {label}
+            Clear
           </button>
-        ))}
-      </div>
+        )}
+
         <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           New Task
@@ -138,7 +263,9 @@ export function TaskList() {
           <p className="py-8 text-center text-sm text-muted-foreground">
             {filter === "completed"
               ? "No completed tasks yet. You got this!"
-              : "All caught up!"}
+              : hasActiveFilters
+                ? "No tasks match your current filters."
+                : "All caught up!"}
           </p>
         )}
       </div>
