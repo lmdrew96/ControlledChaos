@@ -31,7 +31,7 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dump", label: "Brain Dump", icon: Brain },
+  { href: "/dump", label: "Brain Dump", mobileLabel: "Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <span className="block text-center leading-tight">{item.mobileLabel ?? item.label}</span>
             </Link>
           );
         })}
@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Open more options"
             >
               <Menu className="h-5 w-5" />
-              <span>More</span>
+              <span className="block text-center leading-tight">More</span>
             </button>
           </SheetTrigger>
           <SheetContent
