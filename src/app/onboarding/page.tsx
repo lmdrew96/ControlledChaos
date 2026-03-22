@@ -177,7 +177,7 @@ export default function OnboardingPage() {
                 {TIME_BLOCKS.map((block) => (
                   <div
                     key={block.key}
-                    className="flex items-center justify-between"
+                    className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <p className="text-sm font-medium">{block.label}</p>
@@ -185,7 +185,7 @@ export default function OnboardingPage() {
                         {block.desc}
                       </p>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap gap-1">
                       {ENERGY_LEVELS.map((level) => (
                         <button
                           key={level.value}

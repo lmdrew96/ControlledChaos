@@ -11,12 +11,22 @@ import {
   Settings,
   Download,
   X,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const navItems = [
@@ -26,6 +36,8 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+const mobileNavItems = navItems.filter((item) => item.href !== "/settings");
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -124,15 +136,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card backdrop-blur-xl py-2 md:hidden">
-        {navItems.map((item) => {
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
+        {mobileNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-xs transition-colors",
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-xs transition-colors",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground"
@@ -143,18 +155,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
-        <div className="flex flex-col items-center gap-1 px-2 py-1.5">
-          <NotificationBell />
-          <span className="text-xs text-muted-foreground">Alerts</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 px-2 py-1.5">
-          <UserNav />
-          <span className="text-xs text-muted-foreground">Account</span>
-        </div>
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Open more options"
+            >
+              <Menu className="h-5 w-5" />
+              <span>More</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden"
+          >
+            <SheetHeader className="pb-2">
+              <SheetTitle>More</SheetTitle>
+              <SheetDescription>
+                Quick access to settings and account controls.
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-2 px-4">
+              <SheetClose asChild>
+                <Link
+                  href="/settings"
+                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </SheetClose>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 px-4 pt-3">
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
+                <NotificationBell />
+                <span className="text-xs text-muted-foreground">Alerts</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
+                <UserNav />
+                <span className="text-xs text-muted-foreground">Account</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
+                <ThemeToggle />
+                <span className="text-xs text-muted-foreground">Theme</span>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </nav>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>

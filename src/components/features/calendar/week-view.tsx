@@ -602,9 +602,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   return (
     <div className="space-y-4">
       {/* Header: nav + actions */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {/* Navigation */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)} aria-label="Previous week">
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -633,7 +633,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           {/* Add Event — icon on mobile, labeled on desktop */}
           <Button
             variant="outline"

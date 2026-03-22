@@ -33,39 +33,67 @@ export function TaskCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
+  const swipeDirection = useRef<"x" | "y" | null>(null);
 
   const SWIPE_THRESHOLD = 80;
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
     isSwiping.current = false;
+    swipeDirection.current = null;
   }
 
   function handleTouchMove(e: React.TouchEvent) {
-    if (touchStartX.current === null) return;
+    if (touchStartX.current === null || touchStartY.current === null) return;
     const dx = e.touches[0].clientX - touchStartX.current;
-    // Only track horizontal swipes; ignore if vertical-ish
-    if (!isSwiping.current && Math.abs(dx) > 8) {
-      isSwiping.current = true;
+    const dy = e.touches[0].clientY - touchStartY.current;
+
+    if (!swipeDirection.current) {
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absX < 8 && absY < 8) return;
+      swipeDirection.current = absX > absY ? "x" : "y";
     }
-    if (!isSwiping.current) return;
+
+    if (swipeDirection.current !== "x") {
+      if (swipeOffset !== 0) setSwipeOffset(0);
+      return;
+    }
+
+    isSwiping.current = true;
     // Cap offset so it doesn't fly too far
     const capped = Math.max(-120, Math.min(120, dx));
     setSwipeOffset(capped);
   }
 
   function handleTouchEnd() {
-    if (swipeOffset <= -SWIPE_THRESHOLD) {
+    if (swipeDirection.current === "x" && swipeOffset <= -SWIPE_THRESHOLD) {
       // Swiped left → delete
       handleAction("delete");
-    } else if (swipeOffset >= SWIPE_THRESHOLD && !isCompleted) {
+    } else if (
+      swipeDirection.current === "x" &&
+      swipeOffset >= SWIPE_THRESHOLD &&
+      !isCompleted
+    ) {
       // Swiped right → schedule
       void handleFindTimeAction();
     }
     setSwipeOffset(0);
     touchStartX.current = null;
+    touchStartY.current = null;
     isSwiping.current = false;
+    swipeDirection.current = null;
+  }
+
+  function handleTouchCancel() {
+    setSwipeOffset(0);
+    touchStartX.current = null;
+    touchStartY.current = null;
+    isSwiping.current = false;
+    swipeDirection.current = null;
   }
   const isCompleted = task.status === "completed";
   const priority =
@@ -139,7 +167,7 @@ export function TaskCard({
     }
   }
 
-  function handleFindTime(e: React.MouseEvent) {
+  function handleFindTime(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation();
     void handleFindTimeAction();
   }
@@ -194,6 +222,7 @@ export function TaskCard({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
       <div className="flex items-start gap-3">
         {/* Complete/undo button */}
@@ -268,6 +297,34 @@ export function TaskCard({
                 )}
               </Button>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:hidden">
+            {!isCompleted && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={handleFindTime}
+                disabled={isScheduling || isUpdating}
+              >
+                {isScheduling ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <CalendarClock className="mr-1 h-3 w-3" />
+                )}
+                Find Time
+              </Button>
+            )}
+            <Button
+              variant={confirmDelete ? "destructive" : "outline"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={handleDeleteClick}
+              disabled={isUpdating}
+            >
+              {confirmDelete ? "Confirm Delete" : "Delete"}
+            </Button>
           </div>
 
           {task.description && (

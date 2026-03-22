@@ -258,21 +258,21 @@ export default function LandingPage() {
 
       {/* ── Nav ── */}
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/6 bg-[oklch(0.145_0_0/80%)] backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-sm tracking-tight">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2 text-xs font-semibold tracking-tight sm:text-sm">
             <span className="text-[oklch(0.75_0.15_75)]">●</span>
             ControlledChaos
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/sign-in"
-              className="text-sm text-white/50 hover:text-white/80 transition-colors px-3 py-1.5"
+              className="px-2.5 py-1.5 text-xs text-white/50 transition-colors hover:text-white/80 sm:px-3 sm:text-sm"
             >
               Sign in
             </Link>
             <Link
               href="/sign-up"
-              className="flex items-center gap-1.5 text-sm bg-[oklch(0.75_0.15_75)] hover:bg-[oklch(0.72_0.16_75)] text-[oklch(0.12_0_0)] font-medium px-4 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-[oklch(0.75_0.15_75)] px-3 py-1.5 text-xs font-medium text-[oklch(0.12_0_0)] transition-colors hover:bg-[oklch(0.72_0.16_75)] sm:px-4 sm:text-sm"
             >
               Get started
               <ChevronRight className="w-3.5 h-3.5" />
@@ -303,7 +303,7 @@ export default function LandingPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
-                  className="text-5xl sm:text-6xl font-bold tracking-tight leading-[1.08] mb-6"
+                  className="mb-6 text-4xl font-bold tracking-tight leading-[1.08] sm:text-6xl"
                 >
                   Your brain has
                   <br />

@@ -116,7 +116,7 @@ export function NotificationSettings() {
   return (
     <div className="space-y-6">
       {/* Push Notifications */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Bell className="h-4 w-4 text-muted-foreground" />
           <div>
@@ -182,7 +182,7 @@ export function NotificationSettings() {
         <Button
           variant="outline"
           size="sm"
-          className="ml-7"
+          className="w-full sm:ml-7 sm:w-auto"
           onClick={async () => {
             const res = await fetch("/api/notifications/test", { method: "POST" });
             const data = await res.json();
@@ -207,14 +207,14 @@ export function NotificationSettings() {
         </div>
 
         {/* Morning Digest */}
-        <div className="flex items-center justify-between pl-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:pl-6">
           <div>
             <p className="text-sm">Morning Digest</p>
             <p className="text-xs text-muted-foreground">
               Today&apos;s events, priorities, and upcoming deadlines
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-normal">
             <input
               type="time"
               value={prefs.morningDigestTime}
@@ -232,14 +232,14 @@ export function NotificationSettings() {
         </div>
 
         {/* Evening Digest */}
-        <div className="flex items-center justify-between pl-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:pl-6">
           <div>
             <p className="text-sm">Evening Digest</p>
             <p className="text-xs text-muted-foreground">
               Completed tasks, tomorrow&apos;s priorities, and a warm wrap-up
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-normal">
             <input
               type="time"
               value={prefs.eveningDigestTime}
@@ -265,11 +265,11 @@ export function NotificationSettings() {
           <Moon className="h-4 w-4 text-muted-foreground" />
           Quiet Hours
         </div>
-        <p className="text-xs text-muted-foreground pl-6">
+        <p className="text-xs text-muted-foreground sm:pl-6">
           No push notifications during these hours. Email digests are
           unaffected.
         </p>
-        <div className="flex items-center gap-2 pl-6">
+        <div className="flex flex-wrap items-center gap-2 sm:pl-6">
           <input
             type="time"
             value={prefs.quietHoursStart}

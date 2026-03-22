@@ -95,12 +95,15 @@ export function EnergyProfileEditor() {
 
       <div className="space-y-3">
         {TIME_BLOCKS.map((block) => (
-          <div key={block.key} className="flex items-center justify-between">
+          <div
+            key={block.key}
+            className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
+          >
             <div>
               <p className="text-sm font-medium">{block.label}</p>
               <p className="text-xs text-muted-foreground">{block.desc}</p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {ENERGY_LEVELS.map((level) => (
                 <button
                   key={level.value}

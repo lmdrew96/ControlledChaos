@@ -20,8 +20,8 @@ export default function DashboardPage() {
 
       {/* Quick brain dump CTA */}
       <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="flex items-center justify-between p-6">
-          <div className="flex items-center gap-4">
+        <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4 sm:items-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Brain className="h-6 w-6 text-primary" />
             </div>
@@ -32,7 +32,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link href="/dump">
               Brain Dump
               <ArrowRight className="ml-2 h-4 w-4" />

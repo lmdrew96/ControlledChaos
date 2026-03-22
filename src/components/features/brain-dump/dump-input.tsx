@@ -102,16 +102,16 @@ export function DumpInput() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="h-3 w-3" />
           <span>AI will parse your thoughts into tasks and calendar events</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
           {charCount > 0 && (
             <span
-              className={`text-xs ${isOverLimit ? "text-destructive" : "text-muted-foreground"}`}
+              className={`text-right text-xs sm:text-left ${isOverLimit ? "text-destructive" : "text-muted-foreground"}`}
             >
               {charCount.toLocaleString()} / 10,000
             </span>
@@ -121,6 +121,7 @@ export function DumpInput() {
             onClick={handleSubmit}
             disabled={!content.trim() || isLoading || isOverLimit}
             size="lg"
+            className="w-full sm:w-auto"
           >
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

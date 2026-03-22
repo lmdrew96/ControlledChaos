@@ -17,7 +17,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
           <p className="text-muted-foreground">
@@ -26,12 +26,12 @@ export default function CalendarPage() {
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+        <div className="flex w-full items-center gap-1 rounded-lg bg-muted p-1 sm:w-auto">
           {(["week", "month"] as CalendarView[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors sm:flex-none ${
                 view === v
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

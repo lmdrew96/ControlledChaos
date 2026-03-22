@@ -272,7 +272,7 @@ export function CalendarSettings() {
           Controls which hours are visible in the calendar grid.
         </p>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1.5">
+          <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="week-start" className="text-xs text-muted-foreground">
               Week starts on
             </label>
@@ -280,13 +280,13 @@ export function CalendarSettings() {
               id="week-start"
               value={weekStartDay}
               onChange={(e) => setWeekStartDay(Number(e.target.value))}
-              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
               <option value={0}>Sunday</option>
               <option value={1}>Monday</option>
             </select>
           </div>
-          <div className="space-y-1.5">
+          <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="calendar-start" className="text-xs text-muted-foreground">
               Show from
             </label>
@@ -294,14 +294,14 @@ export function CalendarSettings() {
               id="calendar-start"
               value={calendarStartHour}
               onChange={(e) => setCalendarStartHour(Number(e.target.value))}
-              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>{formatHour(h)}</option>
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
+          <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="calendar-end" className="text-xs text-muted-foreground">
               Show until
             </label>
@@ -309,7 +309,7 @@ export function CalendarSettings() {
               id="calendar-end"
               value={calendarEndHour}
               onChange={(e) => setCalendarEndHour(Number(e.target.value))}
-              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>{formatHour(h)}</option>
@@ -344,7 +344,7 @@ export function CalendarSettings() {
           The AI will only schedule tasks within this window. Set it to your waking hours.
         </p>
         <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-1.5">
+          <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="wake-time" className="text-xs text-muted-foreground">
               Earliest
             </label>
@@ -352,14 +352,14 @@ export function CalendarSettings() {
               id="wake-time"
               value={wakeTime}
               onChange={(e) => setWakeTime(Number(e.target.value))}
-              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>{formatHour(h)}</option>
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
+          <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="sleep-time" className="text-xs text-muted-foreground">
               Latest
             </label>
@@ -367,7 +367,7 @@ export function CalendarSettings() {
               id="sleep-time"
               value={sleepTime}
               onChange={(e) => setSleepTime(Number(e.target.value))}
-              className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
               {Array.from({ length: 24 }, (_, h) => (
                 <option key={h} value={h}>{formatHour(h)}</option>

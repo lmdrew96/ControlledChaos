@@ -148,9 +148,9 @@ export function TaskList() {
       </p>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-2">
         {/* Status tabs */}
-        <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1 min-w-0">
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
           {(
             [
               { key: "active", label: `Active (${activeTasks.length})` },
@@ -161,7 +161,7 @@ export function TaskList() {
             <button
               key={key}
               onClick={() => setFilter(key)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm ${
                 filter === key
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -172,80 +172,87 @@ export function TaskList() {
           ))}
         </div>
 
-        {/* Sort */}
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
-            <ArrowUpDown className="h-3 w-3 shrink-0" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Sort</SelectItem>
-            <SelectItem value="priority">Priority</SelectItem>
-            <SelectItem value="deadline">Deadline</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+            <SelectTrigger className="h-8 w-full gap-1 px-2 text-xs sm:w-auto">
+              <ArrowUpDown className="h-3 w-3 shrink-0" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sort</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="deadline">Deadline</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Priority filter */}
-        <Select value={filterPriority} onValueChange={setFilterPriority}>
-          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Priority</SelectItem>
-            {priorityOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Priority filter */}
+          <Select value={filterPriority} onValueChange={setFilterPriority}>
+            <SelectTrigger className="h-8 w-full gap-1 px-2 text-xs sm:w-auto">
+              <SelectValue placeholder="Priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Priority</SelectItem>
+              {priorityOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Energy filter */}
-        <Select value={filterEnergy} onValueChange={setFilterEnergy}>
-          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
-            <Zap className="h-3 w-3 shrink-0" />
-            <SelectValue placeholder="Energy" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Energy</SelectItem>
-            {energyOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Energy filter */}
+          <Select value={filterEnergy} onValueChange={setFilterEnergy}>
+            <SelectTrigger className="h-8 w-full gap-1 px-2 text-xs sm:w-auto">
+              <Zap className="h-3 w-3 shrink-0" />
+              <SelectValue placeholder="Energy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Energy</SelectItem>
+              {energyOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Category filter */}
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="h-8 w-auto gap-1 px-2 text-xs">
-            <Tag className="h-3 w-3 shrink-0" />
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Category</SelectItem>
-            {categoryOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {/* Category filter */}
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="h-8 w-full gap-1 px-2 text-xs sm:w-auto">
+              <Tag className="h-3 w-3 shrink-0" />
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Category</SelectItem>
+              {categoryOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {/* Clear active filters */}
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+          {/* Clear active filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="col-span-2 justify-self-start text-xs text-muted-foreground underline transition-colors hover:text-foreground sm:col-auto"
+            >
+              Clear
+            </button>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCreateOpen(true)}
+            className="col-span-2 w-full sm:col-auto sm:ml-auto sm:w-auto"
           >
-            Clear
-          </button>
-        )}
-
-        <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New Task
-        </Button>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       {/* Task list */}
