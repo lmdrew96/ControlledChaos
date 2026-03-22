@@ -222,7 +222,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // Week start day preference: 0=Sunday, 1=Monday
   const [weekStartDay, setWeekStartDay] = useState(1);
   const [weekStart, setWeekStart] = useState(() => getWeekStart(initialDate ?? new Date(), 1));
-  const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState(() => initialDate ?? new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
@@ -259,11 +259,22 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           setEndHour(data.calendarEndHour ?? DEFAULT_END_HOUR);
           const startDay = data.weekStartDay ?? 1;
           setWeekStartDay(startDay);
-          setWeekStart(getWeekStart(new Date(), startDay));
         }
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!initialDate) return;
+    // Keep week/day anchored to the date selected from month view.
+    setSelectedDay(initialDate);
+    setWeekStart(getWeekStart(initialDate, weekStartDay));
+  }, [initialDate, weekStartDay]);
+
+  useEffect(() => {
+    if (initialDate) return;
+    setWeekStart(getWeekStart(selectedDay, weekStartDay));
+  }, [initialDate, selectedDay, weekStartDay]);
 
   const totalSlots = (endHour - startHour) * 2;
 
