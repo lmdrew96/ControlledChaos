@@ -7,7 +7,6 @@ import {
   Trash2,
   Loader2,
   Navigation,
-  Pencil,
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -272,40 +271,38 @@ export function SavedLocations() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,80px))] gap-2">
           {locations.map((loc) => (
-            <Card key={loc.id} className="flex items-center justify-between p-3">
-              <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">{loc.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {loc.radiusMeters ?? 200}m radius
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => openEdit(loc)}
-                >
-                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => handleDelete(loc.id)}
-                  disabled={deletingId === loc.id}
-                >
-                  {deletingId === loc.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                </Button>
+            <Card
+              key={loc.id}
+              className="relative h-20 w-20 cursor-pointer p-1"
+              onClick={() => openEdit(loc)}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-4 w-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(loc.id);
+                }}
+                disabled={deletingId === loc.id}
+              >
+                {deletingId === loc.id ? (
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
+                )}
+              </Button>
+
+              <div
+                className="flex h-full flex-col items-center justify-center gap-0.5"
+                title={`${loc.name} - ${loc.radiusMeters ?? 200}m radius`}
+              >
+                <MapPin className="h-3 w-3 text-muted-foreground" />
+                <p className="max-w-full truncate px-0.5 text-center text-[9px] font-medium leading-none">
+                  {loc.name}
+                </p>
               </div>
             </Card>
           ))}

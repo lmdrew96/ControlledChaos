@@ -16,10 +16,7 @@ export async function sql(
   query: string,
   params: unknown[] = []
 ): Promise<Record<string, unknown>[]> {
-  // neon() supports being called as a regular function under the hood
-  // but TypeScript types only expose the tagged template signature.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (neonSql as any)(query, params);
+  return neonSql.query(query, params) as Promise<Record<string, unknown>[]>;
 }
 
 /**
