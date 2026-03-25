@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
+import { LegalFooter } from "@/components/layout/legal-footer";
 
 export const metadata: Metadata = {
   title: "Terms of Service | ControlledChaos",
@@ -147,6 +148,7 @@ export default function TermsOfServicePage() {
           </p>
         </section>
       </div>
+      <LegalFooter className="mt-12 pt-8 border-t border-border" />
     </div>
   );
 }

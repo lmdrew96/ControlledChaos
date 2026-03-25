@@ -28,6 +28,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { LegalFooter } from "@/components/layout/legal-footer";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -126,12 +127,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="flex items-center justify-between border-t border-border p-4">
-          <UserNav />
-          <div className="flex items-center gap-1">
-            <NotificationBell />
-            <ThemeToggle />
+        <div className="flex flex-col border-t border-border p-4 gap-3">
+          <div className="flex items-center justify-between">
+            <UserNav />
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
+          <LegalFooter />
         </div>
       </aside>
 
@@ -202,6 +206,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ThemeToggle />
                 <span className="text-xs text-muted-foreground">Theme</span>
               </div>
+            </div>
+            <div className="px-4 pt-4 pb-1 border-t border-border mt-2">
+              <LegalFooter />
             </div>
           </SheetContent>
         </Sheet>

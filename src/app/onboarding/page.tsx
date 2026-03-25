@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { EnergyLevel, EnergyProfile } from "@/types";
 import { Logo } from "@/components/ui/logo";
+import { LegalFooter } from "@/components/layout/legal-footer";
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -119,7 +120,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 gap-6">
       <div className="w-full max-w-lg space-y-8">
         {/* Header */}
         <div className="space-y-2 text-center">
@@ -252,6 +253,7 @@ export default function OnboardingPage() {
           </CardContent>
         </Card>
       </div>
+      <LegalFooter />
     </div>
   );
 }
