@@ -14,8 +14,6 @@ export async function GET() {
     return NextResponse.json({
       energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
-      googleCalConnected: settings?.googleCalConnected ?? false,
-      googleCalendarIds: settings?.googleCalendarIds ?? null,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       calendarStartHour: settings?.calendarStartHour ?? settings?.wakeTime ?? 7,
@@ -63,11 +61,6 @@ export async function PATCH(request: Request) {
     if (body.calendarEndHour !== undefined) {
       const h = Number(body.calendarEndHour);
       if (Number.isInteger(h) && h >= 0 && h <= 23) data.calendarEndHour = h;
-    }
-    if (body.googleCalendarIds !== undefined) {
-      data.googleCalendarIds = Array.isArray(body.googleCalendarIds)
-        ? body.googleCalendarIds
-        : null;
     }
     if (body.weekStartDay !== undefined) {
       const d = Number(body.weekStartDay);

@@ -37,7 +37,6 @@ export function useCalendarEvents() {
     return data as {
       success: boolean;
       canvas: { total: number } | null;
-      google: { total: number } | null;
       syncedAt: string;
     };
   }, []);

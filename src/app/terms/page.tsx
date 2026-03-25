@@ -82,9 +82,9 @@ export default function TermsOfServicePage() {
             Third-party integrations
           </h2>
           <p>
-            You can optionally connect Google Calendar and Canvas. When you do,
-            we access only the calendar data needed to sync your events.
-            You can disconnect these integrations at any time from your
+            You can optionally connect Canvas to sync your class schedule.
+            When you do, we access only the calendar data needed to sync your
+            events. You can disconnect this integration at any time from your
             settings, and we&apos;ll stop accessing that data.
           </p>
         </section>

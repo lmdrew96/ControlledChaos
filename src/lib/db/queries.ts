@@ -96,8 +96,6 @@ export async function updateUserSettings(
   data: Partial<{
     energyProfile: EnergyProfile | null;
     canvasIcalUrl: string | null;
-    googleCalConnected: boolean;
-    googleCalendarIds: string[] | null;
     onboardingComplete: boolean;
     notificationPrefs: NotificationPrefs | null;
     wakeTime: number;

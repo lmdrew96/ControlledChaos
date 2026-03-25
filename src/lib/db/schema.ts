@@ -35,8 +35,6 @@ export const userSettings = pgTable("user_settings", {
   savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius}
   notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
   canvasIcalUrl: text("canvas_ical_url"),
-  googleCalConnected: boolean("google_cal_connected").default(false),
-  googleCalendarIds: jsonb("google_calendar_ids").$type<string[]>(), // selected calendar IDs to sync, null = all
   onboardingComplete: boolean("onboarding_complete").default(false),
   wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)
   sleepTime: integer("sleep_time").default(22), // Hour 0-23 — AI scheduling window end (default 10pm)
@@ -119,7 +117,7 @@ export const tasks = pgTable(
 );
 
 // ============================================================
-// Calendar Events (unified from Canvas + Google)
+// Calendar Events (Canvas iCal + ControlledChaos-created)
 // ============================================================
 export const calendarEvents = pgTable(
   "calendar_events",
@@ -128,7 +126,7 @@ export const calendarEvents = pgTable(
     userId: text("user_id")
       .references(() => users.id)
       .notNull(),
-    source: text("source").notNull(), // canvas, google, controlledchaos
+    source: text("source").notNull(), // canvas, controlledchaos
     externalId: text("external_id"),
     title: text("title").notNull(),
     description: text("description"),

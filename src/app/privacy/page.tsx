@@ -121,10 +121,8 @@ export default function PrivacyPolicyPage() {
               voice transcription for voice brain dumps.
             </li>
             <li>
-              <span className="text-foreground">
-                Google Calendar &amp; Canvas
-              </span>{" "}
-              &mdash; optional calendar integrations you can connect and
+              <span className="text-foreground">Canvas</span>{" "}
+              &mdash; optional calendar integration you can connect and
               disconnect at any time.
             </li>
             <li>

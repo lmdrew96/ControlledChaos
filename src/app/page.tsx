@@ -232,8 +232,8 @@ const FEATURES = [
     icon: <CalendarDays className="w-5 h-5" />,
     title: "Your Schedule",
     description:
-      "Canvas iCal and Google Calendar, unified. AI schedules task time blocks around your actual life.",
-    extras: ["Canvas iCal", "Google Calendar", "AI scheduling"],
+      "Canvas iCal synced and unified. AI schedules task time blocks around your actual life.",
+    extras: ["Canvas iCal", "AI scheduling"],
   },
   {
     icon: <BellRing className="w-5 h-5" />,
