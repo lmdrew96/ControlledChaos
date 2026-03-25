@@ -1,4 +1,4 @@
-1import Link from "next/link";
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import { LegalFooter } from "@/components/layout/legal-footer";
