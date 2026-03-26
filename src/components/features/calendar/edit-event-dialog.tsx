@@ -108,7 +108,7 @@ export function EditEventDialog({
     setIsSaving(true);
     try {
       const payload: Record<string, unknown> = {
-        title: `[CC] ${form.title.trim()}`,
+        title: form.title.trim(),
         description: form.description || null,
         location: form.location || null,
       };

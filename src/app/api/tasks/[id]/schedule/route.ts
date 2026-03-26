@@ -118,7 +118,7 @@ export async function POST(_req: Request, context: RouteContext) {
       userId,
       source: "controlledchaos",
       externalId: `cc-${task.id}-${block.startTime}`,
-      title: `[CC] ${task.title}`,
+      title: task.title,
       description: block.reasoning,
       startTime: new Date(block.startTime),
       endTime: new Date(block.endTime),

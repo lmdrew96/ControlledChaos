@@ -123,7 +123,7 @@ export async function POST() {
       const task = taskMap.get(block.taskId);
       if (!task) continue;
 
-      const eventTitle = `[CC] ${task.title}`;
+      const eventTitle = task.title;
 
       // Save to local DB
       await upsertCalendarEvent({
