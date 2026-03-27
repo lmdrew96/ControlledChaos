@@ -207,10 +207,10 @@ export default function PrivacyPolicyPage() {
             You can request complete deletion of your account and all associated
             data at any time. To do so, email us at{" "}
             <a
-              href="mailto:lmdrew96@gmail.com"
+              href="mailto:nae@adhdesigns.dev"
               className="text-foreground underline underline-offset-4"
             >
-              lmdrew96@gmail.com
+              nae@adhdesigns.dev
             </a>{" "}
             with the subject line &ldquo;Delete my account.&rdquo; We will
             wipe your data within 30 days. There are no hidden backups &mdash;
@@ -294,10 +294,10 @@ export default function PrivacyPolicyPage() {
           <p>
             Questions or concerns about this policy? Reach out at{" "}
             <a
-              href="mailto:lmdrew96@gmail.com"
+              href="mailto:nae@adhdesigns.dev"
               className="text-foreground underline underline-offset-4"
             >
-              lmdrew96@gmail.com
+              nae@adhdesigns.dev
             </a>
           </p>
         </section>
