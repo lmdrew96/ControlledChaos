@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles, Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,7 +105,7 @@ export function DumpInput() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="h-3 w-3" />
+          <Logo className="h-3 w-3" />
           <span>AI will parse your thoughts into tasks and calendar events</span>
         </div>
 

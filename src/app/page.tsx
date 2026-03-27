@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import {
   ArrowRight,
   Zap,
@@ -15,7 +16,6 @@ import {
   Clock,
   BatteryMedium,
   MapPin,
-  Sparkles,
   ChevronRight,
 } from "lucide-react";
 
@@ -140,7 +140,7 @@ function BrainDumpDemo() {
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     style={{ borderTopColor: "oklch(0.75 0.15 75)" }}
                   />
-                  <Sparkles className="absolute inset-0 m-auto w-4 h-4 text-amber-400" />
+                  <Logo className="absolute inset-0 m-auto w-4 h-4" />
                 </div>
                 <p className="text-sm text-white/40 font-mono">parsing your chaos…</p>
               </motion.div>
@@ -260,7 +260,7 @@ export default function LandingPage() {
       <header className="fixed top-0 inset-x-0 z-50 border-b border-white/6 bg-[oklch(0.145_0_0/80%)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 text-xs font-semibold tracking-tight sm:text-sm">
-            <span className="text-[oklch(0.75_0.15_75)]">●</span>
+            <Logo className="h-5 w-5" />
             ControlledChaos
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -289,9 +289,18 @@ export default function LandingPage() {
               {/* Left: copy */}
               <div className="flex-1 max-w-xl">
                 <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  className="mb-8"
+                >
+                  <Logo className="h-20 w-20" />
+                </motion.div>
+
+                <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
                 >
                   <span className="inline-flex items-center gap-2 text-xs font-mono text-[oklch(0.75_0.15_75)] border border-[oklch(0.75_0.15_75/30%)] bg-[oklch(0.75_0.15_75/8%)] px-3 py-1.5 rounded-full mb-8">
                     <span className="w-1.5 h-1.5 rounded-full bg-[oklch(0.75_0.15_75)] animate-pulse" />
@@ -302,7 +311,7 @@ export default function LandingPage() {
                 <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1, ease: [0.21, 0.47, 0.32, 0.98] }}
+                  transition={{ duration: 0.6, delay: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
                   className="mb-6 text-4xl font-bold tracking-tight leading-[1.08] sm:text-6xl"
                 >
                   Your brain has
@@ -355,7 +364,7 @@ export default function LandingPage() {
                     </div>
                   ))}
                   <div className="flex items-center gap-1.5 text-xs text-white/30">
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Logo className="w-3.5 h-3.5" />
                     AI-parsed
                   </div>
                 </motion.div>
@@ -586,7 +595,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/6 py-10 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-white/25">
-            <span className="text-[oklch(0.75_0.15_75)]">●</span>
+            <Logo className="h-4 w-4" />
             ControlledChaos
           </div>
           <div className="flex items-center gap-6 text-xs text-white/25">

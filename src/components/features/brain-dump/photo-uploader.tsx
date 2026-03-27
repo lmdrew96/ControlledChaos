@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ImagePlus, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Camera, ImagePlus, Loader2, RotateCcw, Send } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -357,7 +358,7 @@ export function PhotoUploader() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Sparkles className="h-3 w-3" />
+            <Logo className="h-3 w-3" />
             <span>Edit if needed, then parse into tasks</span>
           </div>
 

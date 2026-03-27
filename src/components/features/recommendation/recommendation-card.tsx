@@ -8,9 +8,9 @@ import {
   Shuffle,
   MapPin,
   Calendar,
-  Sparkles,
   Loader2,
 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +61,7 @@ export function RecommendationCard({
         <CardContent className="space-y-4 p-6">
           {/* Header */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Logo className="h-4 w-4" />
             <span className="font-medium">Do this next</span>
           </div>
 

@@ -9,7 +9,6 @@ import {
   MapPin,
   Clock,
   Calendar,
-  Sparkles,
   Pencil,
   Trash2,
   AlertTriangle,
@@ -213,7 +212,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     error,
     fetchEvents,
     syncCalendar,
-    scheduleTasks,
     clearScheduled,
     createEvent,
     deleteEventSeries,
@@ -227,7 +225,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     null
   );
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isScheduling, setIsScheduling] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -364,23 +361,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       toast.error(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setIsSyncing(false);
-    }
-  }
-
-  async function handleSchedule() {
-    setIsScheduling(true);
-    try {
-      const result = await scheduleTasks();
-      if (result.eventsCreated === 0) {
-        toast.info(result.message || "No tasks to schedule right now.");
-      } else {
-        toast.success(result.message);
-      }
-      await fetchEvents(weekStart, weekEnd);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Scheduling failed");
-    } finally {
-      setIsScheduling(false);
     }
   }
 
@@ -654,22 +634,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           >
             <Plus className="h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
             <span className="hidden sm:inline">Add Event</span>
-          </Button>
-
-          {/* Schedule Tasks — always visible, primary action */}
-          <Button
-            variant="default"
-            size="sm"
-            className="h-8 px-2 sm:px-3"
-            onClick={handleSchedule}
-            disabled={isScheduling}
-          >
-            {isScheduling ? (
-              <Loader2 className="h-4 w-4 animate-spin sm:mr-1.5 sm:h-3 sm:w-3" />
-            ) : (
-              <Sparkles className="h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
-            )}
-            <span className="hidden sm:inline">Schedule</span>
           </Button>
 
           {/* Overflow menu for Sync + Clear */}

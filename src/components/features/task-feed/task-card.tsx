@@ -15,6 +15,16 @@ import confetti from "canvas-confetti";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 import { priorityConfig, energyConfig } from "./task-config";
@@ -31,6 +41,7 @@ export function TaskCard({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showSwipeDeleteDialog, setShowSwipeDeleteDialog] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -71,8 +82,8 @@ export function TaskCard({
 
   function handleTouchEnd() {
     if (swipeDirection.current === "x" && swipeOffset <= -SWIPE_THRESHOLD) {
-      // Swiped left → delete
-      handleAction("delete");
+      // Swiped left → show delete confirmation
+      setShowSwipeDeleteDialog(true);
     } else if (
       swipeDirection.current === "x" &&
       swipeOffset >= SWIPE_THRESHOLD &&
@@ -386,6 +397,26 @@ export function TaskCard({
         </div>
       </div>
       </Card>
+
+      <AlertDialog open={showSwipeDeleteDialog} onOpenChange={setShowSwipeDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{task.title}&rdquo; will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => handleAction("delete")}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
