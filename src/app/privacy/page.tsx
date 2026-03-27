@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
         Privacy Policy
       </h1>
       <p className="mb-10 text-sm text-muted-foreground">
-        Last updated: February 16, 2026
+        Last updated: March 26, 2026
       </p>
 
       <div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
@@ -31,35 +31,220 @@ export default function PrivacyPolicyPage() {
             The short version
           </h2>
           <p>
-            We don&apos;t collect, share, or sell your personal data. Your
-            information exists solely to make the app work for you. That&apos;s
-            it.
+            We don&apos;t sell, share, or exploit your data. Your information
+            exists solely to make the app work for you. That&apos;s it.
           </p>
         </section>
 
         <section>
           <h2 className="mb-2 text-lg font-semibold text-foreground">
-            What we store
+            1. Data accessed via Google sign-in
           </h2>
+          <p className="mb-3">
+            ControlledChaos uses Google OAuth (via Clerk, our authentication
+            provider) to let you sign in with your Google account. When you
+            choose this sign-in method, we access the following Google account
+            data:
+          </p>
           <ul className="ml-4 list-disc space-y-2">
             <li>
-              <span className="text-foreground">Account info</span> &mdash;
-              your email address and name, provided through Clerk (our
-              authentication provider) when you sign up.
+              <span className="text-foreground">Email address</span> &mdash;
+              used to identify your account and send optional digest emails.
             </li>
             <li>
-              <span className="text-foreground">Your content</span> &mdash;
-              brain dumps, tasks, calendar events, goals, and preferences you
-              create in the app.
+              <span className="text-foreground">Name</span> &mdash; used to
+              personalize the app interface.
             </li>
             <li>
-              <span className="text-foreground">Settings</span> &mdash; your
-              timezone, energy profile, notification preferences, and connected
-              integrations.
+              <span className="text-foreground">Profile picture</span> &mdash;
+              used as your avatar in the app.
             </li>
           </ul>
           <p className="mt-3">
-            All of this is stored in our database and is only accessible by you.
+            We do <span className="text-foreground">not</span> access your
+            Google Calendar, Gmail, Google Drive, contacts, or any other Google
+            service. Our Google OAuth scope is limited to basic profile
+            information only (
+            <code className="rounded bg-muted px-1 py-0.5 text-xs text-foreground">
+              openid
+            </code>
+            ,{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs text-foreground">
+              email
+            </code>
+            ,{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs text-foreground">
+              profile
+            </code>
+            ).
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            2. How we use your data
+          </h2>
+          <p className="mb-3">
+            Everything we access is used exclusively to operate the app on your
+            behalf:
+          </p>
+          <ul className="ml-4 list-disc space-y-2">
+            <li>
+              <span className="text-foreground">
+                Authenticate and identify your account
+              </span>{" "}
+              &mdash; so you can sign in securely and your data stays yours.
+            </li>
+            <li>
+              <span className="text-foreground">Personalize your dashboard</span>{" "}
+              &mdash; your name and avatar appear in the app interface.
+            </li>
+            <li>
+              <span className="text-foreground">Send optional email digests</span>{" "}
+              &mdash; morning and evening summaries of your tasks, if you enable
+              them. You can turn these off at any time in Settings.
+            </li>
+            <li>
+              <span className="text-foreground">
+                Power AI features (brain dump, task recommendations)
+              </span>{" "}
+              &mdash; the content you type or speak is sent to Anthropic&apos;s
+              Claude API to parse tasks and suggest priorities. Your Google
+              account data is never included in these AI requests.
+            </li>
+          </ul>
+          <p className="mt-3">
+            We do not use your data for advertising, behavioral tracking, or
+            any purpose beyond operating ControlledChaos for you.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            3. Data sharing
+          </h2>
+          <p className="mb-3">
+            We do not sell, rent, or share your personal data with third
+            parties for their own purposes. Full stop.
+          </p>
+          <p className="mb-3">
+            The only data transfers that occur are to infrastructure providers
+            that process data strictly on our behalf to operate the service:
+          </p>
+          <ul className="ml-4 list-disc space-y-2">
+            <li>
+              <span className="text-foreground">Clerk</span> &mdash; handles
+              authentication, including Google OAuth. They manage your login
+              session securely.
+            </li>
+            <li>
+              <span className="text-foreground">Anthropic (Claude)</span> &mdash;
+              receives the content of your brain dumps and task context to
+              generate AI responses. Your name, email, and Google profile are
+              never sent.
+            </li>
+            <li>
+              <span className="text-foreground">Groq (Whisper)</span> &mdash;
+              receives audio recordings for voice brain dumps. Audio is
+              transcribed and immediately discarded — not retained.
+            </li>
+            <li>
+              <span className="text-foreground">Cloudflare R2</span> &mdash;
+              temporarily stores voice recordings during transcription. Files
+              are deleted after processing.
+            </li>
+            <li>
+              <span className="text-foreground">Neon</span> &mdash; hosts our
+              PostgreSQL database where your tasks, goals, and settings are
+              stored.
+            </li>
+            <li>
+              <span className="text-foreground">Resend</span> &mdash; delivers
+              email digests if you have them enabled.
+            </li>
+          </ul>
+          <p className="mt-3">
+            Each provider receives only the minimum data necessary to perform
+            their specific function. None of them receive your full profile or
+            activity history.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            4. Data storage &amp; protection
+          </h2>
+          <p className="mb-3">
+            Your data is stored in a hosted PostgreSQL database (Neon) with
+            SSL-encrypted connections. Authentication is managed by Clerk, which
+            uses industry-standard security practices including encrypted token
+            storage and secure session management.
+          </p>
+          <p className="mb-3">
+            Data stored server-side includes: your tasks, brain dumps, goals,
+            calendar events, and app preferences. This data is only accessible
+            to your authenticated account.
+          </p>
+          <p>
+            Location data (if you enable location-based task recommendations)
+            is processed in your browser only. Your coordinates are compared
+            client-side against your saved location labels &mdash; only the
+            matching label (e.g. &ldquo;home&rdquo; or &ldquo;campus&rdquo;) is
+            sent to the server. Your precise location is never stored.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            5. Data retention &amp; deletion
+          </h2>
+          <p className="mb-3">
+            Your data is retained for as long as your account is active. We do
+            not delete your tasks, goals, or history automatically &mdash; that
+            would defeat the purpose of the app.
+          </p>
+          <p className="mb-3">
+            You can request complete deletion of your account and all associated
+            data at any time. To do so, email us at{" "}
+            <a
+              href="mailto:lmdrew96@gmail.com"
+              className="text-foreground underline underline-offset-4"
+            >
+              lmdrew96@gmail.com
+            </a>{" "}
+            with the subject line &ldquo;Delete my account.&rdquo; We will
+            wipe your data within 30 days. There are no hidden backups &mdash;
+            when it&apos;s gone, it&apos;s gone.
+          </p>
+          <p>
+            Voice recordings are deleted immediately after transcription.
+            Session tokens expire according to Clerk&apos;s standard session
+            lifecycle.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-foreground">
+            AI processing
+          </h2>
+          <p>
+            When you submit a brain dump or request a task recommendation, your
+            input is sent to Anthropic&apos;s Claude API for processing. This is
+            handled according to{" "}
+            <a
+              href="https://www.anthropic.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground underline underline-offset-4"
+            >
+              Anthropic&apos;s privacy policy
+            </a>
+            . Your data is not used to train AI models.
+          </p>
+          <p className="mt-2">
+            Voice brain dumps are transcribed using Groq&apos;s Whisper API.
+            Audio is processed for transcription only and is not retained by
+            Groq after processing.
           </p>
         </section>
 
@@ -73,85 +258,11 @@ export default function PrivacyPolicyPage() {
             <li>We don&apos;t use your data to train AI models.</li>
             <li>We don&apos;t track you across the web.</li>
             <li>We don&apos;t show you ads.</li>
-          </ul>
-        </section>
-
-        <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">
-            AI processing
-          </h2>
-          <p>
-            When you submit a brain dump or request a task recommendation, your
-            input is sent to Anthropic&apos;s Claude API for processing. This
-            data is used solely to generate a response and is handled according
-            to{" "}
-            <a
-              href="https://www.anthropic.com/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground underline underline-offset-4"
-            >
-              Anthropic&apos;s privacy policy
-            </a>
-            . Your data is not used for model training.
-          </p>
-          <p className="mt-2">
-            Voice brain dumps are transcribed using Groq&apos;s Whisper API.
-            Audio is processed for transcription only and is not retained by
-            Groq after processing.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">
-            Third-party services
-          </h2>
-          <ul className="ml-4 list-disc space-y-2">
             <li>
-              <span className="text-foreground">Clerk</span> &mdash;
-              authentication. Handles your login securely.
-            </li>
-            <li>
-              <span className="text-foreground">Anthropic (Claude)</span>{" "}
-              &mdash; AI processing for brain dump parsing and task
-              recommendations.
-            </li>
-            <li>
-              <span className="text-foreground">Groq (Whisper)</span> &mdash;
-              voice transcription for voice brain dumps.
-            </li>
-            <li>
-              <span className="text-foreground">Canvas</span>{" "}
-              &mdash; optional calendar integration you can connect and
-              disconnect at any time.
-            </li>
-            <li>
-              <span className="text-foreground">Cloudflare R2</span> &mdash;
-              temporary storage for voice recordings during transcription.
-            </li>
-            <li>
-              <span className="text-foreground">Neon</span> &mdash; PostgreSQL
-              database hosting.
+              We don&apos;t access your Google Calendar, Gmail, or any Google
+              service beyond basic sign-in.
             </li>
           </ul>
-          <p className="mt-3">
-            Each service processes only the minimum data needed for its
-            function. None of them receive your full profile or activity
-            history.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">
-            Location data
-          </h2>
-          <p>
-            If you enable location-based task recommendations, your approximate
-            location is used in-browser to match tasks to your current context
-            (home, campus, work). Location data is not stored on our servers
-            &mdash; it&apos;s compared client-side against your saved location
-            labels and only the matching label is sent to the API.
-          </p>
         </section>
 
         <section>
@@ -160,20 +271,8 @@ export default function PrivacyPolicyPage() {
           </h2>
           <p>
             We use only essential cookies required for authentication and
-            session management. No tracking cookies, no analytics cookies, no
-            third-party cookies.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="mb-2 text-lg font-semibold text-foreground">
-            Data deletion
-          </h2>
-          <p>
-            You can request complete deletion of your account and all associated
-            data at any time. Email us and we&apos;ll wipe everything within 30
-            days. There are no backups we &quot;forgot&quot; to delete &mdash;
-            when it&apos;s gone, it&apos;s gone.
+            session management (set by Clerk). No tracking cookies, no
+            analytics cookies, no third-party advertising cookies.
           </p>
         </section>
 
@@ -182,8 +281,9 @@ export default function PrivacyPolicyPage() {
             Changes to this policy
           </h2>
           <p>
-            If we change this policy, we&apos;ll notify you through the app.
-            We&apos;ll never quietly reduce your privacy protections.
+            If we change this policy in a meaningful way, we&apos;ll notify you
+            through the app. We&apos;ll never quietly reduce your privacy
+            protections.
           </p>
         </section>
 
@@ -192,12 +292,12 @@ export default function PrivacyPolicyPage() {
             Contact
           </h2>
           <p>
-            Questions or concerns? Reach out at{" "}
+            Questions or concerns about this policy? Reach out at{" "}
             <a
-              href="mailto:nae@adhdesigns.dev"
+              href="mailto:lmdrew96@gmail.com"
               className="text-foreground underline underline-offset-4"
             >
-              nae@adhdesigns.dev
+              lmdrew96@gmail.com
             </a>
           </p>
         </section>
