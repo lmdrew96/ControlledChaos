@@ -4,6 +4,9 @@ import {
   getRecentNotifications,
   getRecentTaskActivity,
 } from "@/lib/db/queries";
+import { callHaiku } from "@/lib/ai";
+import { INACTIVITY_NUDGE_PROMPT } from "@/lib/ai/prompts";
+import { enforceWordLimit } from "@/lib/ai/validate";
 
 interface DeadlineWarning {
   taskId: string;
@@ -157,30 +160,35 @@ export async function hasEverBeenNotified(
 
 export type NudgeTier = 1 | 2 | 3;
 
-const NUDGE_MESSAGES: Record<NudgeTier, string[]> = {
-  1: [
-    "You've been resting for three days. While I applaud your commitment to self care, I do believe you have shit to do.",
-    "Three days of rest. Respectable. But your task list is starting to develop feelings.",
-    "72 hours, zero tasks. I'm not judging. (I'm a little judging.)",
-  ],
-  2: [
-    "Hey. I know things get rough sometimes. Don't let it pile up — let's just do one thing. One step at a time.",
-    "Four days in. The pile is real now. But we've been here before. Pick the smallest thing and just do that.",
-    "Still here. Still rooting for you. But even ONE task would make future-you really happy right now.",
-  ],
-  3: [
-    "BRUH.",
-    "okay. BRUH.",
-    "...BRUH.",
-  ],
+// Fallback messages used when the Haiku call fails
+const NUDGE_FALLBACKS: Record<NudgeTier, string> = {
+  1: "You've been resting for three days. While I applaud your commitment to self care, I do believe you have shit to do.",
+  2: "I know things get rough sometimes. Don't let it pile up — let's just do one thing. One step at a time.",
+  3: "BRUH.",
 };
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+/**
+ * Generate a nudge message for the given inactivity tier using Claude Haiku.
+ * Falls back to a hardcoded message if the AI call fails.
+ */
+export async function generateNudgeMessage(
+  tier: NudgeTier,
+  hoursInactive: number
+): Promise<string> {
+  try {
+    const { text } = await callHaiku({
+      system: INACTIVITY_NUDGE_PROMPT,
+      user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
+      maxTokens: 80,
+    });
 
-export function getNudgeMessage(tier: NudgeTier): string {
-  return pickRandom(NUDGE_MESSAGES[tier]);
+    const cleaned = text.trim().replace(/^["']|["']$/g, "");
+    const wordLimit = tier === 3 ? 10 : 40;
+    return enforceWordLimit(cleaned, wordLimit) || NUDGE_FALLBACKS[tier];
+  } catch (error) {
+    console.error(`[Nudge] Haiku call failed for tier ${tier}, using fallback:`, error);
+    return NUDGE_FALLBACKS[tier];
+  }
 }
 
 /**
@@ -197,7 +205,7 @@ export function getNudgeMessage(tier: NudgeTier): string {
  */
 export async function getInactivityNudgeTier(
   userId: string
-): Promise<{ tier: NudgeTier; streakKey: string } | null> {
+): Promise<{ tier: NudgeTier; streakKey: string; hoursInactive: number } | null> {
   const lastCompletion = await getLastTaskCompletion(userId);
   const now = Date.now();
 
@@ -208,7 +216,7 @@ export async function getInactivityNudgeTier(
     // Never completed — only nudge if they have pending tasks (not a brand-new user)
     const pending = await getPendingTasks(userId);
     if (pending.length === 0) return null;
-    hoursInactive = Infinity;
+    hoursInactive = 999;
     streakKey = "never";
   } else {
     hoursInactive = (now - new Date(lastCompletion).getTime()) / (1000 * 60 * 60);
@@ -219,5 +227,5 @@ export async function getInactivityNudgeTier(
 
   const tier: NudgeTier = hoursInactive >= 120 ? 3 : hoursInactive >= 96 ? 2 : 1;
 
-  return { tier, streakKey };
+  return { tier, streakKey, hoursInactive };
 }

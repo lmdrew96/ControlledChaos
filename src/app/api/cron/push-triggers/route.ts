@@ -8,7 +8,7 @@ import {
   hasBeenNotifiedToday,
   hasEverBeenNotified,
   getInactivityNudgeTier,
-  getNudgeMessage,
+  generateNudgeMessage,
 } from "@/lib/notifications/triggers";
 
 /**
@@ -84,9 +84,10 @@ export async function GET(request: Request) {
         const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
         const alreadySentNudge = await hasEverBeenNotified(userId, nudgeDedupKey);
         if (!alreadySentNudge) {
+          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive);
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
-            body: getNudgeMessage(nudge.tier),
+            body: message,
             url: "/tasks",
             tag: nudgeDedupKey,
           });
