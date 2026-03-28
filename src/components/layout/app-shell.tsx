@@ -12,8 +12,10 @@ import {
   Download,
   X,
   Menu,
+  Siren,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -125,6 +127,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <Separator className="my-1" />
+          <Link
+            href="/crisis"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+              pathname.startsWith("/crisis")
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            )}
+          >
+            <Siren className="h-4 w-4" />
+            Crisis Mode
+          </Link>
         </nav>
 
         <div className="flex flex-col border-t border-border p-4 gap-3">
@@ -189,6 +204,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Settings className="h-4 w-4" />
                   Settings
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
+                  href="/crisis"
+                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium"
+                >
+                  <Siren className="h-4 w-4" />
+                  Crisis Mode
                 </Link>
               </SheetClose>
             </div>

@@ -201,6 +201,33 @@ export const notifications = pgTable("notifications", {
 });
 
 // ============================================================
+// Crisis Plans
+// ============================================================
+export const crisisPlans = pgTable(
+  "crisis_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    taskName: text("task_name").notNull(),
+    deadline: timestamp("deadline").notNull(),
+    completionPct: integer("completion_pct").notNull(),
+    panicLevel: text("panic_level").notNull(), // fine | tight | damage-control
+    panicLabel: text("panic_label").notNull(),
+    summary: text("summary").notNull(),
+    tasks: jsonb("tasks").notNull(), // CrisisTask[]
+    currentTaskIndex: integer("current_task_index").default(0).notNull(),
+    completedAt: timestamp("completed_at"), // null = in-progress
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_crisis_plans_user").on(table.userId, table.createdAt),
+  ]
+);
+
+// ============================================================
 // Push Subscriptions (one per device per user)
 // ============================================================
 export const pushSubscriptions = pgTable(

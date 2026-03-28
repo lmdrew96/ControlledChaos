@@ -205,3 +205,33 @@ export interface FreeTimeBlock {
 // Goal Types
 // ============================================================
 export type GoalStatus = "active" | "completed" | "paused";
+
+// ============================================================
+// Crisis Mode Types
+// ============================================================
+export type PanicLevel = "fine" | "tight" | "damage-control";
+
+export interface CrisisTask {
+  title: string;
+  instruction: string;
+  estimatedMinutes: number;
+  stuckHint: string;
+}
+
+export interface CrisisPlan {
+  panicLevel: PanicLevel;
+  panicLabel: string;
+  summary: string;
+  tasks: CrisisTask[];
+}
+
+export interface CrisisFileAttachment {
+  base64: string;
+  mediaType:
+    | "image/png"
+    | "image/jpeg"
+    | "image/webp"
+    | "image/gif"
+    | "application/pdf";
+  name: string;
+}

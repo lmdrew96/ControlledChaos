@@ -2,6 +2,7 @@ import { db } from "./index";
 import {
   brainDumps,
   calendarEvents,
+  crisisPlans,
   goals,
   locations,
   notifications,
@@ -18,6 +19,7 @@ import type {
   BrainDumpResult,
   EnergyProfile,
   NotificationPrefs,
+  CrisisTask,
 } from "@/types";
 
 // ============================================================
@@ -833,6 +835,82 @@ export async function getAllUsersWithCalendars() {
     .where(sql`${userSettings.canvasIcalUrl} IS NOT NULL`);
 
   return rows;
+}
+
+// ============================================================
+// Crisis Plans
+// ============================================================
+export async function createCrisisPlan(params: {
+  userId: string;
+  taskName: string;
+  deadline: Date;
+  completionPct: number;
+  panicLevel: string;
+  panicLabel: string;
+  summary: string;
+  tasks: CrisisTask[];
+}) {
+  const [plan] = await db
+    .insert(crisisPlans)
+    .values({
+      userId: params.userId,
+      taskName: params.taskName,
+      deadline: params.deadline,
+      completionPct: params.completionPct,
+      panicLevel: params.panicLevel,
+      panicLabel: params.panicLabel,
+      summary: params.summary,
+      tasks: params.tasks,
+    })
+    .returning();
+  return plan;
+}
+
+export async function getActiveCrisisPlan(userId: string) {
+  const now = new Date();
+  const [plan] = await db
+    .select()
+    .from(crisisPlans)
+    .where(
+      and(
+        eq(crisisPlans.userId, userId),
+        sql`${crisisPlans.completedAt} IS NULL`,
+        gt(crisisPlans.deadline, now)
+      )
+    )
+    .orderBy(desc(crisisPlans.createdAt))
+    .limit(1);
+  return plan ?? null;
+}
+
+export async function getCrisisPlanById(planId: string, userId: string) {
+  const [plan] = await db
+    .select()
+    .from(crisisPlans)
+    .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)))
+    .limit(1);
+  return plan ?? null;
+}
+
+export async function updateCrisisPlanProgress(
+  planId: string,
+  currentTaskIndex: number
+) {
+  const [updated] = await db
+    .update(crisisPlans)
+    .set({ currentTaskIndex, updatedAt: new Date() })
+    .where(eq(crisisPlans.id, planId))
+    .returning();
+  return updated;
+}
+
+export async function completeCrisisPlan(planId: string) {
+  const [updated] = await db
+    .update(crisisPlans)
+    .set({ completedAt: new Date(), updatedAt: new Date() })
+    .where(eq(crisisPlans.id, planId))
+    .returning();
+  return updated;
 }
 
 // ============================================================
