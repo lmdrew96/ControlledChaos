@@ -61,6 +61,9 @@ export async function POST(request: Request) {
 
     const now = new Date();
     const deadlineDate = new Date(deadline);
+    if (isNaN(deadlineDate.getTime())) {
+      return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
+    }
 
     const [user, settings, upcomingEvents, pendingTasks] = await Promise.all([
       getUser(userId),

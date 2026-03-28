@@ -96,7 +96,10 @@ export function CrisisIntakeForm({ onSubmit }: Props) {
         }))
       );
 
-      onSubmit({ taskName: taskName.trim(), deadline, completionPct, files });
+      // datetime-local gives "YYYY-MM-DDTHH:mm" (no tz, no seconds).
+      // Convert to full ISO in the browser where this parsing is reliable.
+      const deadlineISO = new Date(deadline).toISOString();
+      onSubmit({ taskName: taskName.trim(), deadline: deadlineISO, completionPct, files });
     } finally {
       setIsSubmitting(false);
     }
