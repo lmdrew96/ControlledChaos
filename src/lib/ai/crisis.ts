@@ -133,10 +133,28 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisPlan> {
       responseText = result.text;
     }
 
-    const parsed = extractJSON<CrisisPlan>(responseText);
+    // Try standard extraction first; fall back to bracket-scanning if that fails
+    let parsed: CrisisPlan;
+    try {
+      parsed = extractJSON<CrisisPlan>(responseText);
+    } catch {
+      // extractJSON failed — try finding the outermost { ... } in the response
+      const start = responseText.indexOf("{");
+      const end = responseText.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) {
+        console.error("[AI] Crisis: no JSON object found in response:", responseText);
+        return FALLBACK_PLAN;
+      }
+      try {
+        parsed = JSON.parse(responseText.slice(start, end + 1)) as CrisisPlan;
+      } catch (innerErr) {
+        console.error("[AI] Crisis: bracket-scan parse failed:", innerErr, "\nRaw:", responseText);
+        return FALLBACK_PLAN;
+      }
+    }
     return parsed;
   } catch (error) {
-    console.error("[AI] Crisis plan parse failed, using fallback:", error);
+    console.error("[AI] Crisis: unexpected error:", error);
     return FALLBACK_PLAN;
   }
 }
