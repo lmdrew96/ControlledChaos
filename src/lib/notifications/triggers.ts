@@ -5,7 +5,7 @@ import {
   getRecentTaskActivity,
 } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
-import { INACTIVITY_NUDGE_PROMPT } from "@/lib/ai/prompts";
+import { INACTIVITY_NUDGE_PROMPT, PUSH_NOTIFICATION_PROMPT } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
 
 interface DeadlineWarning {
@@ -156,6 +156,53 @@ export async function hasEverBeenNotified(
     const content = n.content as Record<string, unknown> | null;
     return content?.dedupKey === dedupKey;
   });
+}
+
+type PushNotificationContext =
+  | { type: "deadline_24h"; taskTitle: string }
+  | { type: "deadline_2h"; taskTitle: string }
+  | { type: "deadline_30min"; taskTitle: string }
+  | { type: "scheduled"; taskTitle: string }
+  | { type: "idle_checkin" };
+
+const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
+  deadline_24h: "Heads up — something's due tomorrow. You've got this.",
+  deadline_2h: "Two hours out. You can still knock this one out.",
+  deadline_30min: "30 minutes. This is happening.",
+  scheduled: "You planned this. Past-you had your back.",
+  idle_checkin: "Got anything on your mind? Quick brain dump?",
+};
+
+/**
+ * Generate a push notification message via Claude Haiku.
+ * Falls back to a hardcoded string if the AI call fails.
+ */
+export async function generatePushMessage(
+  ctx: PushNotificationContext
+): Promise<string> {
+  const userMsg =
+    ctx.type === "idle_checkin"
+      ? `Type: idle_checkin`
+      : `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
+
+  try {
+    const { text } = await callHaiku({
+      system: PUSH_NOTIFICATION_PROMPT,
+      user: userMsg,
+      maxTokens: 60,
+    });
+
+    const cleaned = text.trim().replace(/^["']|["']$/g, "");
+    return enforceWordLimit(cleaned, 35) || PUSH_FALLBACKS[ctx.type];
+  } catch (error) {
+    console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
+    if (ctx.type !== "idle_checkin") {
+      const fallback = PUSH_FALLBACKS[ctx.type];
+      return fallback.replace("something's due", `${ctx.taskTitle} is due`)
+                     .replace("You planned this", `Time for ${ctx.taskTitle}`);
+    }
+    return PUSH_FALLBACKS[ctx.type];
+  }
 }
 
 export type NudgeTier = 1 | 2 | 3;

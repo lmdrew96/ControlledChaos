@@ -9,6 +9,7 @@ import {
   hasEverBeenNotified,
   getInactivityNudgeTier,
   generateNudgeMessage,
+  generatePushMessage,
 } from "@/lib/notifications/triggers";
 
 /**
@@ -36,7 +37,10 @@ export async function GET(request: Request) {
         const alreadySent = await hasBeenNotifiedToday(userId, dedupKey);
         if (alreadySent) continue;
 
-        const message = deadlineMessage(warning.taskTitle, warning.level);
+        const message = await generatePushMessage({
+          type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min",
+          taskTitle: warning.taskTitle,
+        });
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
           body: message,
@@ -53,9 +57,10 @@ export async function GET(request: Request) {
         const alreadySent = await hasBeenNotifiedToday(userId, dedupKey);
         if (alreadySent) continue;
 
+        const message = await generatePushMessage({ type: "scheduled", taskTitle: alert.taskTitle });
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
-          body: `Time for ${alert.taskTitle}! You planned this — past-you had your back.`,
+          body: message,
           url: "/tasks",
           tag: dedupKey,
         });
@@ -68,9 +73,10 @@ export async function GET(request: Request) {
       if (!alreadySentIdle) {
         const shouldNotify = await shouldSendIdleCheckin(userId, timezone);
         if (shouldNotify) {
+          const message = await generatePushMessage({ type: "idle_checkin" });
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
-            body: "Hey! Got anything on your mind? Quick brain dump?",
+            body: message,
             url: "/dump",
             tag: idleDedupKey,
           });
@@ -107,19 +113,5 @@ export async function GET(request: Request) {
       { error: "Cron job failed" },
       { status: 500 }
     );
-  }
-}
-
-function deadlineMessage(
-  taskTitle: string,
-  level: "24h" | "2h" | "30min"
-): string {
-  switch (level) {
-    case "24h":
-      return `Heads up — ${taskTitle} is due tomorrow. You've got this.`;
-    case "2h":
-      return `${taskTitle} is due in about 2 hours. Want to knock it out?`;
-    case "30min":
-      return `${taskTitle} is due in 30 minutes — quick check, is it done?`;
   }
 }
