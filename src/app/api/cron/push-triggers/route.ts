@@ -6,6 +6,9 @@ import {
   getScheduledTaskAlerts,
   shouldSendIdleCheckin,
   hasBeenNotifiedToday,
+  hasEverBeenNotified,
+  getInactivityNudgeTier,
+  getNudgeMessage,
 } from "@/lib/notifications/triggers";
 
 /**
@@ -60,8 +63,8 @@ export async function GET(request: Request) {
       }
 
       // --- Idle Check-in ---
-      const dedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
-      const alreadySentIdle = await hasBeenNotifiedToday(userId, dedupKey);
+      const idleDedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
+      const alreadySentIdle = await hasBeenNotifiedToday(userId, idleDedupKey);
       if (!alreadySentIdle) {
         const shouldNotify = await shouldSendIdleCheckin(userId, timezone);
         if (shouldNotify) {
@@ -69,7 +72,23 @@ export async function GET(request: Request) {
             title: "ControlledChaos",
             body: "Hey! Got anything on your mind? Quick brain dump?",
             url: "/dump",
-            tag: dedupKey,
+            tag: idleDedupKey,
+          });
+          if (sent) totalSent++;
+        }
+      }
+
+      // --- Inactivity Nudge ---
+      const nudge = await getInactivityNudgeTier(userId);
+      if (nudge) {
+        const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
+        const alreadySentNudge = await hasEverBeenNotified(userId, nudgeDedupKey);
+        if (!alreadySentNudge) {
+          const sent = await sendPushToUser(userId, {
+            title: "ControlledChaos",
+            body: getNudgeMessage(nudge.tier),
+            url: "/tasks",
+            tag: nudgeDedupKey,
           });
           if (sent) totalSent++;
         }

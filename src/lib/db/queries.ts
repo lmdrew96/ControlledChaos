@@ -749,6 +749,21 @@ export async function getRecentNotifications(userId: string, limit = 50) {
     .limit(limit);
 }
 
+/**
+ * Returns the most recent completedAt timestamp for a user's tasks.
+ * Returns null if the user has never completed a task.
+ */
+export async function getLastTaskCompletion(userId: string): Promise<Date | null> {
+  const [result] = await db
+    .select({ completedAt: tasks.completedAt })
+    .from(tasks)
+    .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed")))
+    .orderBy(desc(tasks.completedAt))
+    .limit(1);
+
+  return result?.completedAt ?? null;
+}
+
 export async function getUnreadNotificationCount(userId: string) {
   const result = await db
     .select()

@@ -1,4 +1,5 @@
 import {
+  getLastTaskCompletion,
   getPendingTasks,
   getRecentNotifications,
   getRecentTaskActivity,
@@ -137,4 +138,86 @@ export async function hasBeenNotifiedToday(
     const content = n.content as Record<string, unknown> | null;
     return content?.dedupKey === dedupKey;
   });
+}
+
+/**
+ * Check if a notification with the given dedup key has EVER been sent.
+ * Used for nudges where we track per-inactivity-streak, not per-day.
+ */
+export async function hasEverBeenNotified(
+  userId: string,
+  dedupKey: string
+): Promise<boolean> {
+  const recent = await getRecentNotifications(userId, 200);
+  return recent.some((n) => {
+    const content = n.content as Record<string, unknown> | null;
+    return content?.dedupKey === dedupKey;
+  });
+}
+
+export type NudgeTier = 1 | 2 | 3;
+
+const NUDGE_MESSAGES: Record<NudgeTier, string[]> = {
+  1: [
+    "You've been resting for three days. While I applaud your commitment to self care, I do believe you have shit to do.",
+    "Three days of rest. Respectable. But your task list is starting to develop feelings.",
+    "72 hours, zero tasks. I'm not judging. (I'm a little judging.)",
+  ],
+  2: [
+    "Hey. I know things get rough sometimes. Don't let it pile up — let's just do one thing. One step at a time.",
+    "Four days in. The pile is real now. But we've been here before. Pick the smallest thing and just do that.",
+    "Still here. Still rooting for you. But even ONE task would make future-you really happy right now.",
+  ],
+  3: [
+    "BRUH.",
+    "okay. BRUH.",
+    "...BRUH.",
+  ],
+};
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export function getNudgeMessage(tier: NudgeTier): string {
+  return pickRandom(NUDGE_MESSAGES[tier]);
+}
+
+/**
+ * Determines which inactivity nudge tier a user is in based on their last task completion.
+ * Returns null if the user doesn't qualify for a nudge.
+ *
+ * Tiers:
+ *  1 → 72–96h since last completion (empathetic + chaotic)
+ *  2 → 96–120h (urgent but supportive)
+ *  3 → 120h+ (BRUH)
+ *
+ * The streakKey is derived from the last completion date and anchors dedup keys
+ * so each new inactivity streak gets its own set of tier notifications.
+ */
+export async function getInactivityNudgeTier(
+  userId: string
+): Promise<{ tier: NudgeTier; streakKey: string } | null> {
+  const lastCompletion = await getLastTaskCompletion(userId);
+  const now = Date.now();
+
+  let hoursInactive: number;
+  let streakKey: string;
+
+  if (!lastCompletion) {
+    // Never completed — only nudge if they have pending tasks (not a brand-new user)
+    const pending = await getPendingTasks(userId);
+    if (pending.length === 0) return null;
+    hoursInactive = Infinity;
+    streakKey = "never";
+  } else {
+    hoursInactive = (now - new Date(lastCompletion).getTime()) / (1000 * 60 * 60);
+    streakKey = new Date(lastCompletion).toISOString().slice(0, 10);
+  }
+
+  if (hoursInactive < 72) return null;
+
+  const tier: NudgeTier = hoursInactive >= 120 ? 3 : hoursInactive >= 96 ? 2 : 1;
+
+  return { tier, streakKey };
 }
