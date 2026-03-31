@@ -191,7 +191,7 @@ export default function CrisisPage() {
 
   if (phase === "active" && currentPlan && currentPlanId && intakeData) {
     return (
-      <div className="mx-auto max-w-lg">
+      <div className="flex items-center max-w-xl">
         <CrisisWarRoom
           plan={currentPlan}
           planId={currentPlanId}

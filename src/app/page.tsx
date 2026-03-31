@@ -383,6 +383,37 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── About & OAuth ── */}
+        <section className="py-16 px-6">
+          <div className="max-w-3xl mx-auto">
+            <FadeIn>
+              <div className="rounded-2xl border border-white/8 bg-white/3 p-8 sm:p-10">
+                <div className="flex flex-col sm:flex-row gap-8 items-start">
+                  <div className="flex-1">
+                    <p className="text-xs font-mono text-white/30 uppercase tracking-widest mb-3">
+                      About & Privacy
+                    </p>
+                    <h3 className="text-xl font-semibold mb-4">What is ControlledChaos?</h3>
+                    <p className="text-sm text-white/60 leading-relaxed mb-4">
+                      ControlledChaos is an AI-powered executive function companion designed for ADHD brains.
+                      It helps you capture tasks from brain dumps, get task recommendations based on your energy and schedule,
+                      and integrate with your calendar — so you can focus on doing, not managing.
+                    </p>
+                    <p className="text-sm text-white/60 leading-relaxed mb-4">
+                      <span className="font-semibold text-white">We use Google Sign-In</span> to securely authenticate you
+                      and keep your account secure. We only access your basic profile — your name and email — to identify
+                      your account. <span className="font-semibold text-white">No other Google data is accessed, stored, or shared.</span>
+                    </p>
+                    <p className="text-xs text-white/40">
+                      Learn more in our <Link href="/privacy" className="underline hover:text-white/60 transition-colors">Privacy Policy</Link>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
+        </section>
+
         {/* ── Problem ── */}
         <section className="py-24 px-6">
           <div className="max-w-3xl mx-auto text-center">
@@ -576,7 +607,7 @@ export default function LandingPage() {
                   works hard enough.
                 </p>
                 <p className="text-white/45 mb-10 max-w-sm mx-auto leading-relaxed">
-                  Let&apos;s make everything else easier. Free to start, no credit card required.
+                  Let&apos;s make everything else easier. No subscriptions, no ads, no commitments.
                 </p>
                 <Link
                   href="/sign-up"
