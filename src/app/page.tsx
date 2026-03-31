@@ -401,7 +401,7 @@ export default function LandingPage() {
                     </p>
                     <p className="text-sm text-white/60 leading-relaxed mb-4">
                       <span className="font-semibold text-white">We use Google Sign-In</span> to securely authenticate you
-                      and keep your account secure. We only access your basic profile — your name and email — to identify
+                      and keep your account secure. We only access your basic profile — your name, email, and profile picture — to identify
                       your account. <span className="font-semibold text-white">No other Google data is accessed, stored, or shared.</span>
                     </p>
                     <p className="text-xs text-white/40">
