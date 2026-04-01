@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppearanceSettings } from "@/components/features/settings/appearance-settings";
+import { TimezoneSettings } from "@/components/features/settings/timezone-settings";
 import { EnergyProfileEditor } from "@/components/features/settings/energy-profile";
 import { PersonalitySettings } from "@/components/features/settings/personality-settings";
 import { SavedLocations } from "@/components/features/settings/saved-locations";
@@ -23,6 +24,16 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <AppearanceSettings />
+        </CardContent>
+      </Card>
+
+      {/* Timezone */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Timezone</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TimezoneSettings />
         </CardContent>
       </Card>
 

@@ -39,8 +39,9 @@ export async function POST(request: Request) {
     if (settings) {
       const syncPromises: Promise<unknown>[] = [];
       if (settings.canvasIcalUrl) {
+        const timezone = (await getUser(userId))?.timezone ?? "America/New_York";
         syncPromises.push(
-          syncCanvasCalendar(userId, settings.canvasIcalUrl).catch((err) =>
+          syncCanvasCalendar(userId, settings.canvasIcalUrl, timezone).catch((err) =>
             console.error("[Recommend] Canvas sync failed:", err)
           )
         );

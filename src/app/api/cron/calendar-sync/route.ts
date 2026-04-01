@@ -22,7 +22,11 @@ export async function GET(request: Request) {
     for (const user of usersWithCalendars) {
       if (user.canvasIcalUrl) {
         try {
-          await syncCanvasCalendar(user.userId, user.canvasIcalUrl);
+          await syncCanvasCalendar(
+            user.userId,
+            user.canvasIcalUrl,
+            user.timezone ?? "America/New_York"
+          );
           synced++;
         } catch (err) {
           console.error(

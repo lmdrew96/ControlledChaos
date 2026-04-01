@@ -832,12 +832,15 @@ export async function getAllUsersWithCalendars() {
     .select({
       userId: userSettings.userId,
       canvasIcalUrl: userSettings.canvasIcalUrl,
+      timezone: users.timezone,
     })
     .from(userSettings)
+    .innerJoin(users, eq(users.id, userSettings.userId))
     .where(sql`${userSettings.canvasIcalUrl} IS NOT NULL`);
 
   return rows;
 }
+
 
 // ============================================================
 // Crisis Plans

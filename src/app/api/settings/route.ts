@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getUserSettings, updateUserSettings } from "@/lib/db/queries";
+import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
 import type { EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 export async function GET() {
@@ -10,8 +10,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const settings = await getUserSettings(userId);
+    const [user, settings] = await Promise.all([
+      getUser(userId),
+      getUserSettings(userId),
+    ]);
     return NextResponse.json({
+      timezone: user?.timezone ?? "America/New_York",
       energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       wakeTime: settings?.wakeTime ?? 7,
@@ -90,6 +94,10 @@ export async function PATCH(request: Request) {
       if (validAxis(p.supportive) && validAxis(p.formality) && validAxis(p.language)) {
         data.personalityPrefs = p;
       }
+    }
+
+    if (body.timezone !== undefined && typeof body.timezone === "string" && body.timezone.length > 0) {
+      await updateUser(userId, { timezone: body.timezone });
     }
 
     const updated = await updateUserSettings(userId, data);

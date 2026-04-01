@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getCalendarEventsByDateRange,
+  getUser,
   getUserSettings,
   getLastCalendarSync,
   createManualCalendarEvent,
@@ -38,7 +39,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Auto-sync Canvas if stale (> 15 minutes since last sync)
-    const settings = await getUserSettings(userId);
+    const [user, settings] = await Promise.all([
+      getUser(userId),
+      getUserSettings(userId),
+    ]);
+    const tz = user?.timezone ?? "America/New_York";
+
     if (settings?.canvasIcalUrl) {
       const lastSync = await getLastCalendarSync(userId);
       const isStale =
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
       if (isStale) {
         import("@/lib/calendar/sync-canvas")
           .then(({ syncCanvasCalendar }) =>
-            syncCanvasCalendar(userId, settings.canvasIcalUrl!)
+            syncCanvasCalendar(userId, settings.canvasIcalUrl!, tz)
           )
           .catch((err) =>
             console.error("[Calendar] Auto-sync Canvas failed:", err)

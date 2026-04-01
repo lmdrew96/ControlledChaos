@@ -14,11 +14,40 @@ function isAssignmentEvent(uid: string): boolean {
   return ASSIGNMENT_UID_PATTERNS.some((p) => uid.includes(p));
 }
 
-/** Rewrite an all-day date to 23:59:00 UTC on the same calendar date. */
-function toEndOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setUTCHours(23, 59, 0, 0);
-  return d;
+/**
+ * Rewrite an all-day date to 23:59:00 in the user's local timezone.
+ * Canvas assignments default to "due at 11:59 PM" — iCal encodes this as a
+ * VALUE=DATE (all-day) entry, losing the time. We restore it in local time
+ * so EST users see 11:59 PM EST, not 11:59 PM UTC (which would be 7:59 PM EST).
+ */
+function toEndOfDayLocal(date: Date, timezone: string): Date {
+  // Get the calendar date in the user's timezone (e.g. "2026-04-15")
+  const localDateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+  const [year, month, day] = localDateStr.split("-").map(Number);
+
+  // Use noon UTC on that day as a DST-safe reference to find the UTC offset
+  const noonUTC = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const noonLocalHour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      hour12: false,
+    })
+      .formatToParts(noonUTC)
+      .find((p) => p.type === "hour")?.value ?? 12
+  );
+  // utcOffsetMs: positive means local is ahead of UTC (e.g. +5:30 India), negative behind (e.g. -4 EDT)
+  const utcOffsetMs = (noonLocalHour - 12) * 3_600_000;
+
+  // 23:59 local = start of local day (midnight UTC adjusted by offset) + 23h59m
+  const localMidnightUTC = Date.UTC(year, month - 1, day) - utcOffsetMs;
+  return new Date(localMidnightUTC + 23 * 3_600_000 + 59 * 60_000);
 }
 
 /** Extract the string value from a node-ical ParameterValue field. */
@@ -30,7 +59,8 @@ function paramValue(val: ParameterValue | undefined): string | null {
 
 export async function syncCanvasCalendar(
   userId: string,
-  icalUrl: string
+  icalUrl: string,
+  timezone: string = "America/New_York"
 ): Promise<CalendarSyncResult> {
   if (!icalUrl.startsWith("https://")) {
     throw new Error("Canvas iCal URL must use HTTPS");
@@ -90,10 +120,11 @@ export async function syncCanvasCalendar(
 
     let isAllDay = event.datetype === "date";
 
-    // Convert Canvas assignment all-day events to timed events at 23:59 UTC.
-    // Canvas defaults assignments to 11:59 PM — iCal loses the time for VALUE=DATE entries.
+    // Convert Canvas assignment all-day events to timed events at 23:59 LOCAL time.
+    // Canvas defaults assignments to 11:59 PM in the user's timezone — iCal loses
+    // the time for VALUE=DATE entries. We restore it correctly using the user's timezone.
     if (isAllDay && isAssignmentEvent(uid)) {
-      startDate = toEndOfDay(startDate);
+      startDate = toEndOfDayLocal(startDate, timezone);
       endDate = new Date(startDate);
       isAllDay = false;
     }

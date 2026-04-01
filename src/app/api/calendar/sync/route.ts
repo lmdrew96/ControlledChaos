@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getUserSettings } from "@/lib/db/queries";
+import { getUser, getUserSettings } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import type { CalendarSyncResult } from "@/types";
 
@@ -11,7 +11,11 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const settings = await getUserSettings(userId);
+    const [user, settings] = await Promise.all([
+      getUser(userId),
+      getUserSettings(userId),
+    ]);
+    const timezone = user?.timezone ?? "America/New_York";
 
     let canvasResult: CalendarSyncResult | null = null;
     const errors: string[] = [];
@@ -21,7 +25,8 @@ export async function POST() {
       try {
         canvasResult = await syncCanvasCalendar(
           userId,
-          settings.canvasIcalUrl
+          settings.canvasIcalUrl,
+          timezone
         );
       } catch (err) {
         console.error("[API] Canvas sync failed:", err);
