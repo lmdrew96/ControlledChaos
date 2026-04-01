@@ -7,6 +7,20 @@ import type { CalendarSyncResult } from "@/types";
 
 const MAX_EVENTS = 500;
 
+// Canvas assignment/quiz/discussion UIDs contain these substrings
+const ASSIGNMENT_UID_PATTERNS = ["assignment", "quiz", "discussion_topic"];
+
+function isAssignmentEvent(uid: string): boolean {
+  return ASSIGNMENT_UID_PATTERNS.some((p) => uid.includes(p));
+}
+
+/** Rewrite an all-day date to 23:59:00 UTC on the same calendar date. */
+function toEndOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 0, 0);
+  return d;
+}
+
 /** Extract the string value from a node-ical ParameterValue field. */
 function paramValue(val: ParameterValue | undefined): string | null {
   if (!val) return null;
@@ -66,15 +80,23 @@ export async function syncCanvasCalendar(
 
     currentExternalIds.push(uid);
 
-    const startDate =
+    let startDate =
       event.start instanceof Date ? event.start : new Date(event.start);
-    const endDate = event.end
+    let endDate = event.end
       ? event.end instanceof Date
         ? event.end
         : new Date(event.end)
       : startDate;
 
-    const isAllDay = event.datetype === "date";
+    let isAllDay = event.datetype === "date";
+
+    // Convert Canvas assignment all-day events to timed events at 23:59 UTC.
+    // Canvas defaults assignments to 11:59 PM — iCal loses the time for VALUE=DATE entries.
+    if (isAllDay && isAssignmentEvent(uid)) {
+      startDate = toEndOfDay(startDate);
+      endDate = new Date(startDate);
+      isAllDay = false;
+    }
 
     await upsertCalendarEvent({
       userId,

@@ -107,7 +107,6 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1 }: MonthVi
   const eventsByDay = useMemo(() => {
     const map = new Map<string, typeof events>();
     for (const event of events) {
-      if (event.isAllDay) continue; // handled separately or lumped
       const d = new Date(event.startTime);
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       if (!map.has(key)) map.set(key, []);
