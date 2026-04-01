@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   MapPin,
   Plus,
@@ -8,6 +9,7 @@ import {
   Loader2,
   Navigation,
   Search,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
+// Leaflet CSS must be imported globally for the map to render correctly
+import "leaflet/dist/leaflet.css";
+
+// Dynamic import — Leaflet cannot run on the server
+const LocationMap = dynamic(
+  () => import("./location-map").then((m) => ({ default: m.LocationMap })),
+  { ssr: false, loading: () => <div className="h-64 w-full rounded-lg border border-border bg-muted/30 animate-pulse" /> }
+);
 
 interface SavedLocation {
   id: string;
@@ -85,6 +94,8 @@ export function SavedLocations() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Bumped each time data changes so the map remounts with fresh pins
+  const [mapKey, setMapKey] = useState(0);
 
   // Form state
   const [name, setName] = useState("");
@@ -103,6 +114,7 @@ export function SavedLocations() {
       if (res.ok) {
         const data = await res.json();
         setLocations(data.locations);
+        setMapKey((k) => k + 1); // remount map with fresh pins
       }
     } catch {
       // Ignore
@@ -260,6 +272,7 @@ export function SavedLocations() {
         </Button>
       </div>
 
+      {/* Map — always shown; empty state is handled inside */}
       {locations.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center">
           <MapPin className="mx-auto h-8 w-8 text-muted-foreground/40" />
@@ -271,42 +284,60 @@ export function SavedLocations() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,80px))] gap-2">
-          {locations.map((loc) => (
-            <Card
-              key={loc.id}
-              className="relative h-20 w-20 cursor-pointer p-1"
-              onClick={() => openEdit(loc)}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-4 w-4"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(loc.id);
-                }}
-                disabled={deletingId === loc.id}
-              >
-                {deletingId === loc.id ? (
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
-                )}
-              </Button>
+        <>
+          {/* Interactive map — remounts when locations change */}
+          <LocationMap
+            key={mapKey}
+            locations={locations}
+            onSelect={openEdit}
+          />
 
+          {/* Compact location list below the map */}
+          <div className="space-y-1.5">
+            {locations.map((loc) => (
               <div
-                className="flex h-full flex-col items-center justify-center gap-0.5"
-                title={`${loc.name} - ${loc.radiusMeters ?? 200}m radius`}
+                key={loc.id}
+                className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm"
               >
-                <MapPin className="h-3 w-3 text-muted-foreground" />
-                <p className="max-w-full truncate px-0.5 text-center text-[9px] font-medium leading-none">
-                  {loc.name}
-                </p>
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium truncate block">{loc.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {loc.radiusMeters ?? 200}m radius
+                    {loc.latitude && loc.longitude
+                      ? ` · ${parseFloat(loc.latitude).toFixed(4)}, ${parseFloat(loc.longitude).toFixed(4)}`
+                      : " · no coordinates"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => openEdit(loc)}
+                    aria-label={`Edit ${loc.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(loc.id)}
+                    disabled={deletingId === loc.id}
+                    aria-label={`Delete ${loc.name}`}
+                  >
+                    {deletingId === loc.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Add/Edit Dialog */}
