@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import confetti from "canvas-confetti";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Logo } from "@/components/ui/logo";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useRecommendation } from "@/hooks/use-recommendation";
 import { EnergyCheck } from "./energy-check";
@@ -29,31 +31,26 @@ export function DoThisNext() {
   >();
   const [energyDismissed, setEnergyDismissed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
   const hasFetched = useRef(false);
 
-  // Request location on mount
+  // Request location on mount so it's ready when user asks
   useEffect(() => {
     requestLocation();
   }, [requestLocation]);
 
-  // Fetch recommendation once we have location (or after timeout)
-  useEffect(() => {
-    if (hasFetched.current) return;
+  // Fetch recommendation only when user has explicitly requested it
+  const triggerRecommendation = useCallback(() => {
+    setHasRequested(true);
     hasFetched.current = true;
+    fetchRecommendation({
+      latitude: latitude ?? undefined,
+      longitude: longitude ?? undefined,
+      energyOverride,
+    });
+  }, [fetchRecommendation, latitude, longitude, energyOverride]);
 
-    // Small delay to let geolocation settle, then fetch regardless
-    const timer = setTimeout(() => {
-      fetchRecommendation({
-        latitude: latitude ?? undefined,
-        longitude: longitude ?? undefined,
-        energyOverride,
-      });
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Re-fetch when location arrives (if it wasn't available on first fetch)
+  // Re-fetch when location arrives (only if user already requested)
   useEffect(() => {
     if (latitude != null && longitude != null && hasFetched.current) {
       fetchRecommendation({
@@ -141,6 +138,31 @@ export function DoThisNext() {
     },
     [sendFeedback, refresh]
   );
+
+  // Idle state — user hasn't asked yet
+  if (!hasRequested) {
+    return (
+      <Card className="border-primary/20 bg-primary/5 overflow-hidden">
+        <CardContent className="flex flex-col items-center gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <Logo className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold">Need a nudge?</p>
+              <p className="text-sm text-muted-foreground">
+                I&apos;ll pick the best task for right now.
+              </p>
+            </div>
+          </div>
+          <Button onClick={triggerRecommendation} className="w-full sm:w-auto gap-2">
+            <Sparkles className="h-4 w-4" />
+            What should I do?
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Loading state
   if (isLoading && !recommendation) {

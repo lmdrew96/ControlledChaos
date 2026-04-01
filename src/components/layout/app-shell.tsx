@@ -40,7 +40,17 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-const mobileNavItems = navItems.filter((item) => item.href !== "/settings");
+const mobileNavItems = [
+  { href: "/dashboard", label: "Dash", icon: LayoutDashboard },
+  { href: "/crisis", label: "Crisis", icon: Siren },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
+];
+
+const mobileMoreItems = [
+  { href: "/dump", label: "Brain Dump", icon: Brain },
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -170,7 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             >
               <item.icon className="h-5 w-5" />
-              <span className="block text-center leading-tight">{item.mobileLabel ?? item.label}</span>
+              <span className="block text-center leading-tight">{item.label}</span>
             </Link>
           );
         })}
@@ -192,29 +202,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SheetHeader className="pb-2">
               <SheetTitle>More</SheetTitle>
               <SheetDescription>
-                Quick access to settings and account controls.
+                Quick access to all your tools.
               </SheetDescription>
             </SheetHeader>
 
             <div className="space-y-2 px-4">
-              <SheetClose asChild>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium"
-                >
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/crisis"
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium"
-                >
-                  <Siren className="h-4 w-4" />
-                  Crisis Mode
-                </Link>
-              </SheetClose>
+              {mobileMoreItems.map((item) => (
+                <SheetClose asChild key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-colors",
+                      pathname.startsWith(item.href)
+                        ? "border-primary/30 bg-primary/5 text-foreground"
+                        : "hover:bg-accent/50"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                </SheetClose>
+              ))}
             </div>
 
             <div className="grid grid-cols-3 gap-3 px-4 pt-3">
