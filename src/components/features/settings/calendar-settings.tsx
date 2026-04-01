@@ -257,6 +257,7 @@ export function CalendarSettings() {
   const formatHour = (h: number) => {
     if (h === 0) return "12 AM";
     if (h === 12) return "12 PM";
+    if (h === 24) return "Midnight";
     return h < 12 ? `${h} AM` : `${h - 12} PM`;
   };
 
@@ -311,7 +312,7 @@ export function CalendarSettings() {
               onChange={(e) => setCalendarEndHour(Number(e.target.value))}
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
             >
-              {Array.from({ length: 24 }, (_, h) => (
+              {Array.from({ length: 25 }, (_, h) => (
                 <option key={h} value={h}>{formatHour(h)}</option>
               ))}
             </select>

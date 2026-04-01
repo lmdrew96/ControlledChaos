@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
     }
     if (body.calendarEndHour !== undefined) {
       const h = Number(body.calendarEndHour);
-      if (Number.isInteger(h) && h >= 0 && h <= 23) data.calendarEndHour = h;
+      if (Number.isInteger(h) && h >= 0 && h <= 24) data.calendarEndHour = h;
     }
     if (body.weekStartDay !== undefined) {
       const d = Number(body.weekStartDay);
