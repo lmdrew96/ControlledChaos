@@ -7,15 +7,18 @@ import {
   getCalendarEventsByDateRange,
   getPendingTasks,
   createCrisisPlan,
-  getActiveCrisisPlan,
+  getActiveCrisisPlans,
   getCrisisPlanById,
   updateCrisisPlanProgress,
   completeCrisisPlan,
 } from "@/lib/db/queries";
 import { getUser } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { crisisPlans } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import type { CrisisFileAttachment } from "@/types";
 
-// GET — check for an active (in-progress) crisis plan
+// GET — return all active (in-progress) crisis plans
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -23,11 +26,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const plan = await getActiveCrisisPlan(userId);
-    return NextResponse.json({ plan });
+    const plans = await getActiveCrisisPlans(userId);
+    return NextResponse.json({ plans });
   } catch (error) {
     console.error("[API] GET /api/crisis error:", error);
-    return NextResponse.json({ error: "Failed to fetch plan" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch plans" }, { status: 500 });
   }
 }
 
@@ -187,5 +190,36 @@ export async function PATCH(request: Request) {
   } catch (error) {
     console.error("[API] PATCH /api/crisis error:", error);
     return NextResponse.json({ error: "Failed to update plan" }, { status: 500 });
+  }
+}
+// DELETE — abandon (soft-complete) a crisis plan so it no longer shows as active
+export async function DELETE(request: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const planId = searchParams.get("planId");
+    if (!planId) {
+      return NextResponse.json({ error: "planId is required" }, { status: 400 });
+    }
+
+    const plan = await getCrisisPlanById(planId, userId);
+    if (!plan) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    // Mark as completed (abandoned) — use completedAt to remove from active list
+    await db
+      .update(crisisPlans)
+      .set({ completedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)));
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[API] DELETE /api/crisis error:", error);
+    return NextResponse.json({ error: "Failed to abandon plan" }, { status: 500 });
   }
 }

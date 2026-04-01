@@ -885,6 +885,23 @@ export async function getActiveCrisisPlan(userId: string) {
   return plan ?? null;
 }
 
+/** Returns ALL active (incomplete, not past deadline) crisis plans, soonest deadline first. */
+export async function getActiveCrisisPlans(userId: string) {
+  const now = new Date();
+  return db
+    .select()
+    .from(crisisPlans)
+    .where(
+      and(
+        eq(crisisPlans.userId, userId),
+        sql`${crisisPlans.completedAt} IS NULL`,
+        gt(crisisPlans.deadline, now)
+      )
+    )
+    .orderBy(crisisPlans.deadline); // soonest deadline first — most urgent at top
+}
+
+
 export async function getCrisisPlanById(planId: string, userId: string) {
   const [plan] = await db
     .select()
