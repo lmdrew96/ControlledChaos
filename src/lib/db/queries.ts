@@ -604,7 +604,7 @@ export async function deleteCalendarEventsBySeries(
 export async function updateCalendarEventSeries(
   seriesId: string,
   userId: string,
-  data: { title?: string; description?: string | null; location?: string | null }
+  data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean }
 ) {
   return db
     .update(calendarEvents)
