@@ -46,14 +46,25 @@ export function enforceWordLimit(text: string, maxWords: number): string {
 
 /**
  * Extract and parse JSON from an AI response.
- * Handles optional markdown code block wrapping.
+ * Handles optional markdown code block wrapping and <scratchpad> reasoning blocks.
  */
 export function extractJSON<T>(raw: string): T {
   let jsonText = raw.trim();
+  // Strip <scratchpad>...</scratchpad> reasoning blocks if present
+  jsonText = jsonText.replace(/<scratchpad>[\s\S]*?<\/scratchpad>/gi, "").trim();
   // Strip markdown code blocks if present
   const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonMatch) {
     jsonText = jsonMatch[1].trim();
   }
   return JSON.parse(jsonText);
+}
+
+/**
+ * Extract scratchpad reasoning from an AI response, if present.
+ * Returns null if no scratchpad block found.
+ */
+export function extractScratchpad(raw: string): string | null {
+  const match = raw.match(/<scratchpad>([\s\S]*?)<\/scratchpad>/i);
+  return match ? match[1].trim() : null;
 }

@@ -1,6 +1,6 @@
 import { callHaiku } from "./index";
 import { TASK_RECOMMENDATION_SYSTEM_PROMPT } from "./prompts";
-import { extractJSON } from "./validate";
+import { extractJSON, extractScratchpad } from "./validate";
 import type { UserContext, TaskRecommendation, Task, EnergyProfile } from "@/types";
 
 interface RecommendationInput {
@@ -130,7 +130,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}${descriptionNote}
 
-Pick the single best task. Return valid JSON: { "taskId": "...", "reasoning": "...", "alternatives": [{ "taskId": "...", "reasoning": "..." }, ...] }`;
+Pick the single best task.`;
 }
 
 /**
@@ -159,6 +159,12 @@ export async function getTaskRecommendation(
     user: userPrompt,
     maxTokens: 1024,
   });
+
+  // Log scratchpad reasoning if present (useful for debugging recommendation quality)
+  const scratchpad = extractScratchpad(result.text);
+  if (scratchpad) {
+    console.log(`[AI] Recommendation scratchpad:\n${scratchpad}`);
+  }
 
   let parsed: TaskRecommendation;
   try {
