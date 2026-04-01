@@ -1,12 +1,13 @@
 import { callHaiku } from "./index";
-import { TASK_RECOMMENDATION_SYSTEM_PROMPT } from "./prompts";
+import { buildPersonalityBlock, buildTaskRecommendationPrompt } from "./prompts";
 import { extractJSON, extractScratchpad } from "./validate";
-import type { UserContext, TaskRecommendation, Task, EnergyProfile } from "@/types";
+import type { UserContext, TaskRecommendation, Task, EnergyProfile, PersonalityPrefs } from "@/types";
 
 interface RecommendationInput {
   context: UserContext;
   pendingTasks: Task[];
   recentlyRejectedTaskIds?: string[];
+  personalityPrefs?: PersonalityPrefs | null;
 }
 
 /**
@@ -154,8 +155,11 @@ export async function getTaskRecommendation(
 
   const userPrompt = buildRecommendationPrompt(input);
 
+  const personalityBlock = buildPersonalityBlock(input.personalityPrefs ?? null);
+  const systemPrompt = buildTaskRecommendationPrompt(personalityBlock);
+
   const result = await callHaiku({
-    system: TASK_RECOMMENDATION_SYSTEM_PROMPT,
+    system: systemPrompt,
     user: userPrompt,
     maxTokens: 1024,
   });

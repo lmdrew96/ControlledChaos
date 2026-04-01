@@ -143,6 +143,15 @@ export interface NotificationPrefs {
   quietHoursEnd: string; // "07:00"
 }
 
+export interface PersonalityPrefs {
+  /** 0 = strict, 1 = balanced, 2 = supportive */
+  supportive: 0 | 1 | 2;
+  /** 0 = professional, 1 = friendly, 2 = BFF */
+  formality: 0 | 1 | 2;
+  /** 0 = clean, 1 = casual, 2 = unfiltered */
+  language: 0 | 1 | 2;
+}
+
 export interface PushSubscriptionData {
   endpoint: string;
   keys: {

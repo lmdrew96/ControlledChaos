@@ -3,9 +3,39 @@
 // All prompts live here. No inline prompts in other files.
 // ============================================================
 
-// --- Shared constants ---
+import type { PersonalityPrefs } from "@/types";
 
-const NOTIFICATION_PERSONALITY = `Personality: Casual, warm, a little chaotic. Like a supportive friend who keeps it real without being preachy. Honest but never mean. Zero guilt, zero fake hype.`;
+// --- Personality template blocks (3 levels per axis) ---
+
+const SUPPORTIVE_BLOCKS: [string, string, string] = [
+  /* 0 = strict */     "Be direct and task-focused. No hand-holding. State what needs to happen.",
+  /* 1 = balanced */   "Casual, warm, a little chaotic. Like a supportive friend who keeps it real. Honest but never mean. Zero guilt, zero fake hype.",
+  /* 2 = supportive */ "Lead with encouragement before anything else. Celebrate every win, no matter how small. Never push — invite.",
+];
+
+const FORMALITY_BLOCKS: [string, string, string] = [
+  /* 0 = professional */ "Maintain a professional tone. Clear, structured, no slang.",
+  /* 1 = friendly */     "Conversational and natural. Contractions are fine. No corporate-speak.",
+  /* 2 = BFF */          "Texting-a-friend energy. Lowercase is fine. Casual abbreviations okay.",
+];
+
+const LANGUAGE_BLOCKS: [string, string, string] = [
+  /* 0 = clean */      "Keep language entirely clean and professional.",
+  /* 1 = casual */     "Mild casual language okay. Nothing NSFW.",
+  /* 2 = unfiltered */ "Swearing allowed when it adds emphasis. Keep it natural, not forced. Match the chaos energy.",
+];
+
+/**
+ * Build a composed personality block to inject into any system prompt.
+ * Falls back to balanced/friendly/casual defaults if no prefs provided.
+ */
+export function buildPersonalityBlock(prefs: PersonalityPrefs | null): string {
+  const p: PersonalityPrefs = prefs ?? { supportive: 1, formality: 1, language: 1 };
+  return `Personality: ${SUPPORTIVE_BLOCKS[p.supportive]} ${FORMALITY_BLOCKS[p.formality]} ${LANGUAGE_BLOCKS[p.language]}`;
+}
+
+/** Default personality block (balanced on all axes) — used where no user context is available. */
+const DEFAULT_PERSONALITY = buildPersonalityBlock(null);
 
 const ENERGY_SCHEDULING_RULES = `## Energy-Aware Scheduling
 - HIGH energy tasks → schedule during peak energy periods
@@ -128,7 +158,10 @@ Be extra generous in interpreting ambiguous text.`;
 // TASK RECOMMENDATION
 // ============================================================
 
-export const TASK_RECOMMENDATION_SYSTEM_PROMPT = `You are the task recommendation engine for ControlledChaos, an ADHD executive function companion.
+export function buildTaskRecommendationPrompt(personalityBlock: string): string {
+  return `You are the task recommendation engine for ControlledChaos, an ADHD executive function companion.
+
+${personalityBlock}
 
 Your job: Recommend the single best task for this user RIGHT NOW.
 
@@ -176,6 +209,10 @@ Alternatives: Linguistics essay (due soon, high energy), Email prof (quick, low 
 { "taskId": "abc-123", "reasoning": "Bio homework is due in 4 hours and you have 50 minutes before Bio class — knock it out now.", "alternatives": [{ "taskId": "def-456", "reasoning": "Linguistics essay due in 3 days, good to start early" }, { "taskId": "ghi-789", "reasoning": "Quick email to Prof. Chen — 5 minutes" }] }
 
 Be decisive. One clear recommendation. The user's ADHD brain needs a single answer, not a menu.`;
+}
+
+// Static export for places that don't have user context (fallback)
+export const TASK_RECOMMENDATION_SYSTEM_PROMPT = buildTaskRecommendationPrompt(DEFAULT_PERSONALITY);
 
 // ============================================================
 // SCHEDULING (BATCH)
@@ -324,6 +361,8 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 
 export const MORNING_DIGEST_PROMPT = `You are writing a brief, encouraging morning message for an ADHD user of ControlledChaos.
 
+${DEFAULT_PERSONALITY}
+
 Given the user's data, write a short note (2-4 sentences) that:
 - Greets warmly using their name (if provided) without being cheesy
 - Highlights the 1-2 most important things for today — reference specific task/event names
@@ -346,6 +385,8 @@ GOOD: "Good morning, Nae! Your Bio quiz is at 1pm — you've already got the not
 
 export const EVENING_DIGEST_PROMPT = `You are writing a brief, warm evening wrap-up for an ADHD user of ControlledChaos.
 
+${DEFAULT_PERSONALITY}
+
 Given the user's data, write a short note (2-4 sentences) that:
 - Celebrates what they accomplished, no matter how small — reference specific task names
 - If nothing was completed, that's okay — acknowledge the day without judgment
@@ -367,7 +408,7 @@ GOOD: "You knocked out that Bio reading and got your prescriptions picked up —
 
 export const PUSH_NOTIFICATION_PROMPT = `You write push notification messages for ControlledChaos, an ADHD executive function companion.
 
-${NOTIFICATION_PERSONALITY}
+${DEFAULT_PERSONALITY}
 
 You'll receive a notification type and context. Write ONE short push notification.
 
@@ -408,7 +449,7 @@ GOOD: "Quiet day so far. Got anything rattling around in your head? Quick brain 
 
 export const INACTIVITY_NUDGE_PROMPT = `You write push notification messages for ControlledChaos, an ADHD executive function companion. The user hasn't completed any tasks in a while. Write one nudge based on the tier and hours inactive provided.
 
-${NOTIFICATION_PERSONALITY}
+${DEFAULT_PERSONALITY}
 
 ## Tiers
 

@@ -32,8 +32,9 @@ export const userSettings = pgTable("user_settings", {
     .references(() => users.id)
     .notNull(),
   energyProfile: jsonb("energy_profile"), // Typical energy patterns by time of day
-  savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius}
+  savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius} — legacy, kept for safety
   notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
+  personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
   canvasIcalUrl: text("canvas_ical_url"),
   onboardingComplete: boolean("onboarding_complete").default(false),
   wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)

@@ -19,6 +19,7 @@ import type {
   BrainDumpResult,
   EnergyProfile,
   NotificationPrefs,
+  PersonalityPrefs,
   CrisisTask,
 } from "@/types";
 
@@ -100,6 +101,7 @@ export async function updateUserSettings(
     canvasIcalUrl: string | null;
     onboardingComplete: boolean;
     notificationPrefs: NotificationPrefs | null;
+    personalityPrefs: PersonalityPrefs | null;
     wakeTime: number;
     sleepTime: number;
     weekStartDay: number;

@@ -17,7 +17,7 @@ import {
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
-import type { UserContext, EnergyLevel, EnergyProfile } from "@/types";
+import type { UserContext, EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
 
 export async function POST(request: Request) {
   try {
@@ -196,6 +196,7 @@ export async function POST(request: Request) {
       context,
       pendingTasks: serializedTasks,
       recentlyRejectedTaskIds: recentlyRejectedIds,
+      personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
     });
 
     // Log the recommendation

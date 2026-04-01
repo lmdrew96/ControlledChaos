@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUserSettings, updateUserSettings } from "@/lib/db/queries";
-import type { EnergyProfile, NotificationPrefs } from "@/types";
+import type { EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 export async function GET() {
   try {
@@ -20,6 +20,7 @@ export async function GET() {
       calendarEndHour: settings?.calendarEndHour ?? settings?.sleepTime ?? 22,
       weekStartDay: settings?.weekStartDay ?? 1,
       notificationPrefs: settings?.notificationPrefs ?? null,
+      personalityPrefs: settings?.personalityPrefs ?? null,
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -80,6 +81,14 @@ export async function PATCH(request: Request) {
         timeRegex.test(prefs.quietHoursEnd)
       ) {
         data.notificationPrefs = prefs;
+      }
+    }
+
+    if (body.personalityPrefs !== undefined) {
+      const p = body.personalityPrefs as PersonalityPrefs;
+      const validAxis = (v: unknown) => v === 0 || v === 1 || v === 2;
+      if (validAxis(p.supportive) && validAxis(p.formality) && validAxis(p.language)) {
+        data.personalityPrefs = p;
       }
     }
 
