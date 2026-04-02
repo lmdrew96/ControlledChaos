@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { fireTaskConfetti } from "@/lib/utils/confetti";
+import confetti from "canvas-confetti";
 import type { CrisisPlan } from "@/types";
 
 interface Props {
@@ -78,9 +80,20 @@ export function CrisisWarRoom({
     const isLast = currentTaskIndex === plan.tasks.length - 1;
 
     if (isLast) {
+      // Full storm — the big moment
+      fireTaskConfetti();
       await patchProgress(planId, { completed: true });
       onComplete();
     } else {
+      // Mini-burst per step — just enough dopamine
+      confetti({
+        particleCount: 60,
+        spread: 80,
+        startVelocity: 45,
+        origin: { x: 0.5, y: 0.6 },
+        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
+        zIndex: 9999,
+      });
       const next = currentTaskIndex + 1;
       setCurrentTaskIndex(next);
       setIsStuck(false);
