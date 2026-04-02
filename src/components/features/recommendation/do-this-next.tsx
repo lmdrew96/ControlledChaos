@@ -111,8 +111,34 @@ export function DoThisNext() {
   const handleSnooze = useCallback(
     async (taskId: string) => {
       setIsRefreshing(true);
-      await sendFeedback(taskId, "snoozed");
-      toast("Snoozed. Here's something else.");
+      try {
+        const res = await fetch("/api/recommend/snooze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId }),
+        });
+
+        if (res.ok) {
+          const { snoozeMinutes, reason } = await res.json() as {
+            snoozeMinutes: number;
+            reason: string;
+          };
+          const durationLabel =
+            snoozeMinutes < 60
+              ? `${snoozeMinutes} min`
+              : snoozeMinutes % 60 === 0
+                ? `${snoozeMinutes / 60}h`
+                : `${Math.floor(snoozeMinutes / 60)}h ${snoozeMinutes % 60}m`;
+          toast(`Snoozed ${durationLabel} — ${reason}`);
+        } else {
+          // Fallback: old feedback path
+          await sendFeedback(taskId, "snoozed");
+          toast("Snoozed. Here's something else.");
+        }
+      } catch {
+        await sendFeedback(taskId, "snoozed");
+        toast("Snoozed. Here's something else.");
+      }
       await refresh();
     },
     [sendFeedback, refresh]

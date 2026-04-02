@@ -12,7 +12,7 @@ import {
   users,
   userSettings,
 } from "./schema";
-import { eq, and, desc, ne, gt, gte, lt, lte, or, inArray, notInArray, sql } from "drizzle-orm";
+import { eq, and, desc, ne, gt, gte, lt, lte, or, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -358,13 +358,25 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
 // Pending Tasks for Recommendation
 // ============================================================
 export async function getPendingTasks(userId: string) {
+  const now = new Date();
   return db
     .select()
     .from(tasks)
     .where(
       and(
         eq(tasks.userId, userId),
-        inArray(tasks.status, ["pending", "in_progress"])
+        or(
+          // Active tasks
+          inArray(tasks.status, ["pending", "in_progress"]),
+          // Snoozed tasks whose snooze window has expired — wake them up
+          and(
+            eq(tasks.status, "snoozed"),
+            or(
+              isNull(tasks.snoozedUntil),
+              lt(tasks.snoozedUntil, now)
+            )
+          )
+        )
       )
     )
     .orderBy(desc(tasks.createdAt));
