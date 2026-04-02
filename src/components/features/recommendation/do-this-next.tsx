@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import confetti from "canvas-confetti";
+import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -102,14 +102,7 @@ export function DoThisNext() {
       }
       await sendFeedback(taskId, "completed");
       toast.success("Task completed!");
-      confetti({ particleCount: 120, spread: 90, origin: { y: 0.65 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff","#ff9f43"] });
-      setTimeout(() => {
-        confetti({ particleCount: 80, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff"] });
-        confetti({ particleCount: 80, angle: 120, spread: 70, origin: { x: 1, y: 0.7 }, colors: ["#ff9f43","#c77dff","#4d96ff","#6bcb77","#ffd93d"] });
-      }, 150);
-      setTimeout(() => {
-        confetti({ particleCount: 60, spread: 120, startVelocity: 45, decay: 0.92, origin: { y: 0.5 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff","#ff9f43"] });
-      }, 350);
+      fireTaskConfetti();
       await refresh();
     },
     [sendFeedback, refresh]

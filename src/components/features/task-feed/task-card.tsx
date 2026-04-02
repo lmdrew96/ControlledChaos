@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
+import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -132,14 +132,7 @@ export function TaskCard({
         if (!res.ok) throw new Error("Update failed");
         if (action === "complete") {
           toast.success("Task completed!");
-          confetti({ particleCount: 120, spread: 90, origin: { y: 0.65 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff","#ff9f43"] });
-          setTimeout(() => {
-            confetti({ particleCount: 80, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff"] });
-            confetti({ particleCount: 80, angle: 120, spread: 70, origin: { x: 1, y: 0.7 }, colors: ["#ff9f43","#c77dff","#4d96ff","#6bcb77","#ffd93d"] });
-          }, 150);
-          setTimeout(() => {
-            confetti({ particleCount: 60, spread: 120, startVelocity: 45, decay: 0.92, origin: { y: 0.5 }, colors: ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#c77dff","#ff9f43"] });
-          }, 350);
+          fireTaskConfetti();
         }
       }
       onUpdate();
