@@ -106,7 +106,7 @@ export function findFreeBlocks(
         const durationMinutes = Math.round(
           (eventStart.getTime() - cursor.getTime()) / 60000
         );
-        if (durationMinutes >= 20) {
+        if (durationMinutes >= 15) {
           blocks.push({
             start: cursor.toISOString(),
             end: eventStart.toISOString(),
@@ -125,7 +125,7 @@ export function findFreeBlocks(
       const durationMinutes = Math.round(
         (dayEnd.getTime() - cursor.getTime()) / 60000
       );
-      if (durationMinutes >= 20) {
+      if (durationMinutes >= 15) {
         blocks.push({
           start: cursor.toISOString(),
           end: dayEnd.toISOString(),
@@ -302,7 +302,7 @@ export async function scheduleOneTask(
 ): Promise<ScheduledBlock | null> {
   const wakeTime = input.wakeTime ?? 7;
   const sleepTime = input.sleepTime ?? 22;
-  const scheduleDays = 3;
+  const scheduleDays = 5; // Extended from 3 — more chances to find a valid slot
 
   const freeBlocks = findFreeBlocks(
     input.calendarEvents,
@@ -362,9 +362,6 @@ ${formatCurrentDateTime(input.timezone)}
 ## User's Timezone
 ${input.timezone}
 
-## Active Hours
-${fmtHour(wakeTime)} – ${fmtHour(sleepTime)}. NEVER schedule outside this window.
-
 ## Energy Profile
 ${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
 
@@ -380,13 +377,10 @@ ${JSON.stringify({
   deadline: input.task.deadline,
 }, null, 2)}
 
-## All Calendar Events (next 3 days) — check for related events
-${JSON.stringify(calendarSummary, null, 2)}
-
-## Free Time Blocks (next 3 days)
+## Free Time Blocks (next ${scheduleDays} days)
 ${JSON.stringify(freeBlocksWithLabels, null, 2)}
 
-Find the best time for this task. Check calendar events for a related event first.`;
+Find the best time for this task using urgency + energy matching.`;
 
   const result = await callHaiku({
     system: SINGLE_TASK_SCHEDULING_PROMPT,
@@ -403,6 +397,26 @@ Find the best time for this task. Check calendar events for a related event firs
   }
 
   if (!parsed.block) {
+    // Deterministic fallback — Haiku refused to pick but free blocks exist.
+    // Pick the first block that's long enough for the task. No AI needed.
+    const neededMinutes = input.task.estimatedMinutes ?? 30;
+    const fallbackBlock = freeBlocks.find(
+      (b) => b.durationMinutes >= neededMinutes
+    );
+    if (fallbackBlock) {
+      const startTime = fallbackBlock.start;
+      const endTime = new Date(
+        new Date(fallbackBlock.start).getTime() + neededMinutes * 60_000
+      ).toISOString();
+      const candidate: ScheduledBlock = {
+        taskId: input.task.id,
+        startTime,
+        endTime,
+        reasoning: `Scheduled in the first available ${neededMinutes}-minute block.`,
+      };
+      const safe = removeConflictsWithEvents([candidate], input.calendarEvents);
+      return safe.length > 0 ? safe[0] : null;
+    }
     return null;
   }
 

@@ -273,46 +273,55 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 
 export const SINGLE_TASK_SCHEDULING_PROMPT = `You are the scheduling AI for ControlledChaos, an ADHD executive function companion.
 
-Your job: Find the best time to schedule ONE specific task, given the user's calendar and free time.
+Your job: Find the best free time block to schedule ONE specific task.
 
 ## Decision Process
-Step 1: Scan ALL calendar events for one clearly related to this task.
-  Signals: same subject/course, same project, same location, task deadline matches event date.
-Step 2: If a related event is found → pick the free block immediately BEFORE it (with 10-15 min buffer).
-Step 3: If no related event → pick the best free block by energy + priority.
-Step 4: Verify the chosen block's duration ≥ task's estimatedMinutes (default 30 min).
-Step 5: Output the block, or return null if nothing fits.
 
-## Rules
-1. ONLY schedule into the provided free time blocks. NEVER schedule outside them.
-2. The block MUST fit: duration ≥ task's estimatedMinutes.
-3. Respect the user's active hours (provided). NEVER schedule outside this window.
+Step 1 — Assess urgency from deadline + priority:
+  - URGENT: deadline within 24 hours OR priority = "urgent" → pick the EARLIEST block that fits
+  - SOON: deadline within 3 days OR priority = "important" → pick within the next 24-48h, best energy match
+  - FLEXIBLE: no deadline or deadline 3+ days away → pick the block that best matches the task energy level
+  - SOMEDAY: priority = "someday" and no deadline → any block, preferably later in the window
 
+Step 2 — Apply energy matching (urgency overrides energy for URGENT tasks):
 ${ENERGY_SCHEDULING_RULES}
 
-## CRITICAL: Anti-Hallucination Rules
-- startTime and endTime MUST be valid ISO 8601 UTC timestamps ending in "Z". The server will reject any timestamp without a "Z" suffix.
-- The block MUST fit entirely within one of the provided free time blocks.
-- Do NOT invent calendar events — only reference events in the provided list.
-- If no free block fits, return null.
+Step 3 — Verify the block is long enough:
+  - durationMinutes must be >= task estimatedMinutes (default 30 min if not set)
+  - If no energy-optimal block is long enough, pick the first block that IS long enough
 
-## Example
+Step 4 — Output. Return null ONLY if every single free block is shorter than the task needs.
 
-Task: "Study for Bio exam" (estimatedMinutes: 90, energyLevel: high)
-Calendar has: "Bio 207" at 2pm Tuesday
-Free block: Mon 10am-1pm (180 min)
+## Rules
+1. ONLY schedule into the provided free time blocks. Never invent a time.
+2. startTime and endTime MUST fall within one free block's start/end boundaries.
+3. All provided free blocks are already within the user's active hours — no further check needed.
 
-GOOD:
-{ "block": { "startTime": "2026-04-07T14:00:00.000Z", "endTime": "2026-04-07T15:30:00.000Z", "reasoning": "Scheduled before Tuesday's Bio 207 class — 90 min study session with 30 min buffer before class" } }
+## CRITICAL: Anti-Hallucination
+- startTime and endTime MUST be valid ISO 8601 UTC timestamps ending in "Z".
+- Set startTime = the free block's start time. Set endTime = startTime + estimatedMinutes.
+- The full task duration must fit inside one block.
+- Return null ONLY when no block is long enough. Not finding a perfect energy match is NOT a reason.
 
-If no suitable slot:
-{ "block": null, "reasoning": "No free block is long enough for a 90-minute study session within the next 3 days" }
+## Examples
+
+Task: "Write essay outline" (estimatedMinutes: 45, energyLevel: high, priority: important, deadline: tomorrow)
+Free blocks: [Mon 2pm-4pm (120 min), Mon 8pm-9pm (60 min)]
+GOOD: { "block": { "startTime": "2026-04-07T18:00:00.000Z", "endTime": "2026-04-07T18:45:00.000Z", "reasoning": "Deadline tomorrow — first available block during high-energy afternoon" } }
+
+Task: "Organize desk" (estimatedMinutes: 20, energyLevel: low, priority: someday, deadline: null)
+Free blocks: [Mon 10am-11am (60 min), Tue 7pm-8pm (60 min)]
+GOOD: { "block": { "startTime": "2026-04-08T23:00:00.000Z", "endTime": "2026-04-08T23:20:00.000Z", "reasoning": "No deadline, low-energy task — relaxed evening slot" } }
+
+No blocks long enough:
+{ "block": null, "reasoning": "All free blocks are under 20 minutes — too short for this task" }
 
 ## Output
 Respond ONLY with valid JSON (no markdown, no code blocks):
-{ "block": { "startTime": "ISO8601Z", "endTime": "ISO8601Z", "reasoning": "..." } }
+{ "block": { "startTime": "ISO8601Z", "endTime": "ISO8601Z", "reasoning": "One sentence" } }
 or
-{ "block": null, "reasoning": "..." }`;
+{ "block": null, "reasoning": "Specific reason every block was too short" }`;
+
 
 // ============================================================
 // TASK BREAKDOWN
