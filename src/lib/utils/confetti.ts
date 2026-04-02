@@ -8,39 +8,49 @@ const COLORS = [
 ];
 
 /**
- * Full-window confetti storm. Fires ~1200 particles across multiple waves
- * covering the entire viewport. Use this for task completions.
+ * Full-window confetti DETONATION. ~2,000 particles from every direction —
+ * center, all four corners, top shower, AND bottom-up rockets. No escape.
  */
 export function fireTaskConfetti() {
   const fire = (opts: confetti.Options) =>
     confetti({ colors: COLORS, zIndex: 9999, ...opts });
 
-  // Wave 1 (0ms) — massive center cannon
-  fire({ particleCount: 200, spread: 120, startVelocity: 55, origin: { x: 0.5, y: 0.6 } });
+  // Wave 1 (0ms) — massive center explosion
+  fire({ particleCount: 250, spread: 130, startVelocity: 60, origin: { x: 0.5, y: 0.6 } });
 
-  // Wave 2 (100ms) — hard left and right cannons
+  // Wave 2 (100ms) — all four corners firing simultaneously
   setTimeout(() => {
-    fire({ particleCount: 150, angle: 55, spread: 80, startVelocity: 60, origin: { x: 0, y: 0.65 } });
-    fire({ particleCount: 150, angle: 125, spread: 80, startVelocity: 60, origin: { x: 1, y: 0.65 } });
+    fire({ particleCount: 130, angle: 55,  spread: 75, startVelocity: 65, origin: { x: 0,   y: 1   } }); // bottom-left corner → up-right
+    fire({ particleCount: 130, angle: 125, spread: 75, startVelocity: 65, origin: { x: 1,   y: 1   } }); // bottom-right corner → up-left
+    fire({ particleCount: 130, angle: 300, spread: 75, startVelocity: 65, origin: { x: 0,   y: 0   } }); // top-left corner → down-right
+    fire({ particleCount: 130, angle: 240, spread: 75, startVelocity: 65, origin: { x: 1,   y: 0   } }); // top-right corner → down-left
   }, 100);
 
-  // Wave 3 (220ms) — three points across the top mid
+  // Wave 3 (230ms) — bottom-up rockets (THE MISSING DIRECTION)
   setTimeout(() => {
-    fire({ particleCount: 100, spread: 90, startVelocity: 50, origin: { x: 0.2, y: 0.5 } });
-    fire({ particleCount: 100, spread: 90, startVelocity: 50, origin: { x: 0.8, y: 0.5 } });
-    fire({ particleCount: 100, spread: 60, startVelocity: 65, origin: { x: 0.5, y: 0.4 } });
-  }, 220);
+    fire({ particleCount: 130, angle: 90, spread: 60, startVelocity: 80, gravity: 0.8, origin: { x: 0.2, y: 1 } }); // bottom-left up
+    fire({ particleCount: 130, angle: 90, spread: 60, startVelocity: 90, gravity: 0.8, origin: { x: 0.5, y: 1 } }); // bottom-center up
+    fire({ particleCount: 130, angle: 90, spread: 60, startVelocity: 80, gravity: 0.8, origin: { x: 0.8, y: 1 } }); // bottom-right up
+  }, 230);
 
-  // Wave 4 (380ms) — overhead shower raining down across full width
+  // Wave 4 (380ms) — top shower raining down across full width
   setTimeout(() => {
-    fire({ particleCount: 80, spread: 180, startVelocity: 30, gravity: 1.2, decay: 0.93, origin: { x: 0.25, y: 0.1 } });
-    fire({ particleCount: 80, spread: 180, startVelocity: 30, gravity: 1.2, decay: 0.93, origin: { x: 0.75, y: 0.1 } });
+    fire({ particleCount: 120, spread: 180, startVelocity: 20, gravity: 1.3, decay: 0.91, origin: { x: 0.2, y: 0 } });
+    fire({ particleCount: 120, spread: 180, startVelocity: 20, gravity: 1.3, decay: 0.91, origin: { x: 0.8, y: 0 } });
   }, 380);
 
-  // Wave 5 (560ms) — final diagonal crossfire
+  // Wave 5 (520ms) — mid-screen lateral spread + center burst
   setTimeout(() => {
-    fire({ particleCount: 100, angle: 70, spread: 70, startVelocity: 55, origin: { x: 0.1, y: 0.8 } });
-    fire({ particleCount: 100, angle: 110, spread: 70, startVelocity: 55, origin: { x: 0.9, y: 0.8 } });
-    fire({ particleCount: 80, spread: 100, startVelocity: 40, origin: { x: 0.5, y: 0.7 } });
-  }, 560);
+    fire({ particleCount: 100, angle: 0,   spread: 70, startVelocity: 50, origin: { x: 0,   y: 0.5 } }); // left wall → right
+    fire({ particleCount: 100, angle: 180, spread: 70, startVelocity: 50, origin: { x: 1,   y: 0.5 } }); // right wall → left
+    fire({ particleCount: 100, spread: 360, startVelocity: 40, origin: { x: 0.5, y: 0.5 } });              // full 360° center burst
+  }, 520);
+
+  // Wave 6 (680ms) — final upward sweep across the bottom edge
+  setTimeout(() => {
+    fire({ particleCount: 90, angle: 80,  spread: 50, startVelocity: 70, gravity: 0.9, origin: { x: 0.1, y: 1 } });
+    fire({ particleCount: 90, angle: 90,  spread: 50, startVelocity: 75, gravity: 0.9, origin: { x: 0.5, y: 1 } });
+    fire({ particleCount: 90, angle: 100, spread: 50, startVelocity: 70, gravity: 0.9, origin: { x: 0.9, y: 1 } });
+  }, 680);
 }
+// total: 250 + 520 + 390 + 240 + 300 + 270 = ~1,970 particles
