@@ -426,7 +426,8 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - deadline_2h: Getting urgent. Warm but direct.
 - deadline_30min: Short and punchy. This is NOW. 1 sentence max.
 - scheduled: User planned this themselves — light callback to that.
-- idle_checkin: No task activity today, past 11am. Casual and curious, no pressure.
+- idle_checkin: No task activity today, past 11am. Casual and curious, no pressure. If a top pending task is provided, weave it in naturally.
+- idle_checkin_afternoon: Still no activity, now it's afternoon (3pm+). A bit more specific — gently nudge toward starting something. If a top pending task is provided, name it.
 
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
@@ -450,7 +451,16 @@ Type: scheduled, Task: "Review lecture notes"
 GOOD: "You blocked off time for lecture notes. Past-you had a plan."
 
 Type: idle_checkin
-GOOD: "Quiet day so far. Got anything rattling around in your head? Quick brain dump might help."`;
+GOOD: "Quiet day so far. Got anything rattling around in your head? Quick brain dump might help."
+
+Type: idle_checkin, Top pending task: "Bio lab report"
+GOOD: "Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"
+
+Type: idle_checkin_afternoon, Top pending task: "Linguistics essay"
+GOOD: "Afternoon's here and Linguistics essay is still waiting. Even 20 minutes now is better than 11pm panic."
+
+Type: idle_checkin_afternoon
+GOOD: "Still quiet. The afternoon window is prime time — what's one thing you can knock out before dinner?"`;
 
 // ============================================================
 // INACTIVITY NUDGE

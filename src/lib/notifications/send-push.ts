@@ -8,12 +8,23 @@ import {
 } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
 
+export interface PushAction {
+  action: string;
+  title: string;
+}
+
 interface PushPayload {
   title: string;
   body: string;
   url?: string;
   tag?: string;
   bypassQuietHours?: boolean;
+  /** Passed into notification data so the SW can deep-link to the specific task. */
+  taskId?: string;
+  /** Passed into notification data so the SW can call the snooze endpoint without an auth session. */
+  userId?: string;
+  /** Action buttons shown on the notification (Android Chrome / desktop Chrome). */
+  actions?: PushAction[];
 }
 
 /**
@@ -77,6 +88,9 @@ export async function sendPushToUser(
     body: payload.body,
     url: payload.url ?? "/dashboard",
     tag: payload.tag ?? "cc-notification",
+    taskId: payload.taskId,
+    userId: payload.userId,
+    actions: payload.actions ?? [],
   });
 
   let sent = false;

@@ -248,3 +248,23 @@ export const pushSubscriptions = pgTable(
     uniqueIndex("idx_push_sub_user_endpoint").on(table.userId, table.endpoint),
   ]
 );
+
+// ============================================================
+// Snoozed Pushes — re-queue a notification to fire later
+// ============================================================
+export const snoozedPushes = pgTable(
+  "snoozed_pushes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    payload: jsonb("payload").notNull(), // { title, body, url, tag }
+    sendAfter: timestamp("send_after").notNull(),
+    sentAt: timestamp("sent_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_snoozed_pushes_pending").on(table.userId, table.sendAfter),
+  ]
+);

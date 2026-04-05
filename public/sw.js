@@ -59,7 +59,17 @@ self.addEventListener("push", (event) => {
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: payload.tag || "cc-notification",
-    data: { url: payload.url || "/dashboard" },
+    // Store everything we need for action handlers in data
+    data: {
+      url: payload.url || "/dashboard",
+      userId: payload.userId,
+      taskId: payload.taskId,
+      tag: payload.tag,
+      title: payload.title,
+      body: payload.body,
+    },
+    // Action buttons — silently ignored on iOS/Firefox where not supported
+    actions: payload.actions || [],
   };
 
   event.waitUntil(
@@ -73,7 +83,27 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || "/dashboard";
+  const { url, userId, taskId, tag, title, body } = event.notification.data || {};
+  const action = event.action;
+
+  // Snooze: call the API to queue a re-send in 30 min, no navigation
+  if (action === "snooze" && userId) {
+    event.waitUntil(
+      fetch("/api/notifications/snooze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, title, body, url, tag, minutes: 30 }),
+      }).catch(console.error)
+    );
+    return;
+  }
+
+  // Determine where to navigate
+  const navigateTo =
+    action === "brain_dump" ? "/dump"
+    : action === "see_tasks" ? "/tasks"
+    : action === "start_task" && taskId ? `/tasks?taskId=${taskId}`
+    : url || "/dashboard";
 
   event.waitUntil(
     self.clients
@@ -81,11 +111,11 @@ self.addEventListener("notificationclick", (event) => {
       .then((clients) => {
         for (const client of clients) {
           if (client.url.includes(self.location.origin) && "focus" in client) {
-            client.navigate(url);
+            client.navigate(navigateTo);
             return client.focus();
           }
         }
-        return self.clients.openWindow(url);
+        return self.clients.openWindow(navigateTo);
       })
   );
 });

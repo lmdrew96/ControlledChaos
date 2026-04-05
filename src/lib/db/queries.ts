@@ -7,6 +7,7 @@ import {
   locations,
   notifications,
   pushSubscriptions,
+  snoozedPushes,
   taskActivity,
   tasks,
   users,
@@ -993,4 +994,32 @@ export async function getLastCalendarSync(userId: string): Promise<Date | null> 
     .where(eq(calendarEvents.userId, userId));
 
   return row?.lastSync ? new Date(row.lastSync) : null;
+}
+
+// ============================================================
+// Snoozed Pushes
+// ============================================================
+
+export async function createSnoozedPush(
+  userId: string,
+  payload: { title: string; body: string; url?: string; tag?: string },
+  sendAfter: Date
+) {
+  await db.insert(snoozedPushes).values({ userId, payload, sendAfter });
+}
+
+/** Returns all snoozed pushes whose sendAfter has passed and haven't been sent yet. */
+export async function getPendingSnoozedPushes() {
+  const now = new Date();
+  return db
+    .select()
+    .from(snoozedPushes)
+    .where(and(isNull(snoozedPushes.sentAt), lte(snoozedPushes.sendAfter, now)));
+}
+
+export async function markSnoozedPushSent(id: string) {
+  await db
+    .update(snoozedPushes)
+    .set({ sentAt: new Date() })
+    .where(eq(snoozedPushes.id, id));
 }

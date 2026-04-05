@@ -163,7 +163,8 @@ type PushNotificationContext =
   | { type: "deadline_2h"; taskTitle: string }
   | { type: "deadline_30min"; taskTitle: string }
   | { type: "scheduled"; taskTitle: string }
-  | { type: "idle_checkin" };
+  | { type: "idle_checkin"; topTaskTitle?: string }
+  | { type: "idle_checkin_afternoon"; topTaskTitle?: string };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -171,6 +172,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_30min: "30 minutes. This is happening.",
   scheduled: "You planned this. Past-you had your back.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
+  idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
 };
 
 /**
@@ -180,10 +182,18 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
 export async function generatePushMessage(
   ctx: PushNotificationContext
 ): Promise<string> {
-  const userMsg =
-    ctx.type === "idle_checkin"
-      ? `Type: idle_checkin`
-      : `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
+  let userMsg: string;
+  if (ctx.type === "idle_checkin") {
+    userMsg = ctx.topTaskTitle
+      ? `Type: idle_checkin\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin`;
+  } else if (ctx.type === "idle_checkin_afternoon") {
+    userMsg = ctx.topTaskTitle
+      ? `Type: idle_checkin_afternoon\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin_afternoon`;
+  } else {
+    userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
+  }
 
   try {
     const { text } = await callHaiku({
@@ -196,10 +206,16 @@ export async function generatePushMessage(
     return enforceWordLimit(cleaned, 35) || PUSH_FALLBACKS[ctx.type];
   } catch (error) {
     console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
-    if (ctx.type !== "idle_checkin") {
+    if (
+      ctx.type === "deadline_24h" ||
+      ctx.type === "deadline_2h" ||
+      ctx.type === "deadline_30min" ||
+      ctx.type === "scheduled"
+    ) {
       const fallback = PUSH_FALLBACKS[ctx.type];
-      return fallback.replace("something's due", `${ctx.taskTitle} is due`)
-                     .replace("You planned this", `Time for ${ctx.taskTitle}`);
+      return fallback
+        .replace("something's due", `${ctx.taskTitle} is due`)
+        .replace("You planned this", `Time for ${ctx.taskTitle}`);
     }
     return PUSH_FALLBACKS[ctx.type];
   }
@@ -236,6 +252,45 @@ export async function generateNudgeMessage(
     console.error(`[Nudge] Haiku call failed for tier ${tier}, using fallback:`, error);
     return NUDGE_FALLBACKS[tier];
   }
+}
+
+/**
+ * Returns the title of the top pending task to surface in idle check-ins.
+ * Prefers tasks with an upcoming deadline, then falls back to the most recent pending task.
+ */
+export async function getTopPendingTaskTitle(userId: string): Promise<string | undefined> {
+  const pending = await getPendingTasks(userId);
+  if (pending.length === 0) return undefined;
+  const withDeadline = pending.find((t) => t.deadline);
+  return (withDeadline ?? pending[0]).title;
+}
+
+/**
+ * Determine if the user should get an afternoon idle check-in.
+ * Criteria: no task activity today AND it's past 3pm in their timezone.
+ * (Complements the 11am morning check-in with a later nudge.)
+ */
+export async function shouldSendAfternoonCheckin(
+  userId: string,
+  timezone: string
+): Promise<boolean> {
+  const now = new Date();
+  const hourStr = now.toLocaleString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    hour12: false,
+  });
+  const currentHour = parseInt(hourStr, 10);
+  if (currentHour < 15) return false;
+
+  const recentActivity = await getRecentTaskActivity(userId, 1);
+  if (recentActivity.length === 0) return true;
+
+  const lastActivity = new Date(recentActivity[0].createdAt);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  return lastActivity < todayStart;
 }
 
 /**
