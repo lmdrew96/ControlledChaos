@@ -236,7 +236,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
-  idle_checkin_evening: "It's 5pm and today's still open. Want to close one task before tonight?",
+  idle_checkin_evening: "It's 5:30 and today's still open. Want to close one task before tonight?",
 };
 
 /**
@@ -370,20 +370,20 @@ export async function shouldSendAfternoonCheckin(
 
 /**
  * Determine if the user should get an evening idle check-in.
- * Criteria: no task activity today AND it's past 5pm in their timezone.
+ * Criteria: no task activity today AND it's past 5:30pm in their timezone.
  */
 export async function shouldSendEveningCheckin(
   userId: string,
   timezone: string
 ): Promise<boolean> {
   const now = new Date();
-  const hourStr = now.toLocaleString("en-US", {
+  const timeStr = now.toLocaleTimeString("en-US", {
     timeZone: timezone,
     hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   });
-  const currentHour = parseInt(hourStr, 10);
-  if (currentHour < 17) return false;
+  if (timeStr < "17:30") return false;
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) return true;
