@@ -14,6 +14,7 @@ import {
   getPushNotificationsSentToday,
   shouldSendIdleCheckin,
   shouldSendAfternoonCheckin,
+  shouldSendEveningCheckin,
   hasBeenNotifiedToday,
   hasEverBeenNotified,
   getInactivityNudgeTier,
@@ -41,7 +42,7 @@ const MISSED_TASK_ACTIONS = [
  * GET /api/cron/push-triggers
  * Runs every 15 minutes via Vercel cron.
  * Checks all push-enabled users for deadline warnings, scheduled task alerts,
- * idle check-ins (11am + 3pm), inactivity nudges, and pending snoozed pushes.
+ * idle check-ins (11am + 3pm + 5pm), inactivity nudges, and pending snoozed pushes.
  */
 export async function GET(request: Request) {
   // Verify cron secret
@@ -236,6 +237,30 @@ export async function GET(request: Request) {
             url: "/tasks",
             tag: nudgeDedupKey,
             userId,
+          });
+          if (sent) markSent();
+        }
+      }
+
+      // --- Evening Idle Check-in (5pm+) ---
+      const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
+      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, eveningDedupKey))) {
+        const shouldNotify = await shouldSendEveningCheckin(userId, timezone);
+        if (shouldNotify) {
+          const topTask = await getTopPendingTaskTitle(userId);
+          const message = await generatePushMessage(
+            { type: "idle_checkin_evening", topTaskTitle: topTask },
+            personalityPrefs,
+            timezone,
+            mode
+          );
+          const sent = await sendPushToUser(userId, {
+            title: "ControlledChaos",
+            body: message,
+            url: topTask ? "/tasks" : "/dump",
+            tag: eveningDedupKey,
+            userId,
+            actions: IDLE_ACTIONS,
           });
           if (sent) markSent();
         }

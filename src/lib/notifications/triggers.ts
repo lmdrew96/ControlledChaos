@@ -225,7 +225,8 @@ type PushNotificationContext =
   | { type: "scheduled"; taskTitle: string }
   | { type: "scheduled_missed"; taskTitle: string }
   | { type: "idle_checkin"; topTaskTitle?: string }
-  | { type: "idle_checkin_afternoon"; topTaskTitle?: string };
+  | { type: "idle_checkin_afternoon"; topTaskTitle?: string }
+  | { type: "idle_checkin_evening"; topTaskTitle?: string };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -235,6 +236,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
+  idle_checkin_evening: "It's 5pm and today's still open. Want to close one task before tonight?",
 };
 
 /**
@@ -256,6 +258,10 @@ export async function generatePushMessage(
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin_afternoon\nTop pending task: "${ctx.topTaskTitle}"`
       : `Type: idle_checkin_afternoon`;
+  } else if (ctx.type === "idle_checkin_evening") {
+    userMsg = ctx.topTaskTitle
+      ? `Type: idle_checkin_evening\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin_evening`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
   }
@@ -351,6 +357,33 @@ export async function shouldSendAfternoonCheckin(
   });
   const currentHour = parseInt(hourStr, 10);
   if (currentHour < 15) return false;
+
+  const recentActivity = await getRecentTaskActivity(userId, 1);
+  if (recentActivity.length === 0) return true;
+
+  const lastActivity = new Date(recentActivity[0].createdAt);
+  const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
+
+  return lastActivityDateStr !== todayStr;
+}
+
+/**
+ * Determine if the user should get an evening idle check-in.
+ * Criteria: no task activity today AND it's past 5pm in their timezone.
+ */
+export async function shouldSendEveningCheckin(
+  userId: string,
+  timezone: string
+): Promise<boolean> {
+  const now = new Date();
+  const hourStr = now.toLocaleString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    hour12: false,
+  });
+  const currentHour = parseInt(hourStr, 10);
+  if (currentHour < 17) return false;
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) return true;
