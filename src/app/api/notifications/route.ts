@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   getRecentNotifications,
   getUnreadNotificationCount,
+  markAllNotificationsOpened,
   markNotificationOpened,
 } from "@/lib/db/queries";
 
@@ -29,7 +30,26 @@ export async function GET() {
   }
 }
 
-/** PATCH — mark notification(s) as opened */
+/** PUT — mark ALL notifications as read */
+export async function PUT() {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await markAllNotificationsOpened(userId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[API] PUT /api/notifications error:", error);
+    return NextResponse.json(
+      { error: "Failed to mark all notifications" },
+      { status: 500 }
+    );
+  }
+}
+
+/** PATCH — mark a single notification as opened */
 export async function PATCH(request: Request) {
   try {
     const { userId } = await auth();

@@ -61,5 +61,19 @@ export function useNotifications() {
     []
   );
 
-  return { notifications, unreadCount, isLoading, markAsRead, refresh };
+  const markAllAsRead = useCallback(async () => {
+    try {
+      await fetch("/api/notifications", { method: "PUT" });
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.openedAt ? n : { ...n, openedAt: new Date().toISOString() }
+        )
+      );
+      setUnreadCount(0);
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
+  return { notifications, unreadCount, isLoading, markAsRead, markAllAsRead, refresh };
 }

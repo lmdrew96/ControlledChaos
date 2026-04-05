@@ -757,6 +757,15 @@ export async function markNotificationOpened(
   return updated;
 }
 
+export async function markAllNotificationsOpened(userId: string) {
+  await db
+    .update(notifications)
+    .set({ openedAt: new Date() })
+    .where(
+      and(eq(notifications.userId, userId), isNull(notifications.openedAt))
+    );
+}
+
 export async function getRecentNotifications(userId: string, limit = 50) {
   return db
     .select()

@@ -12,7 +12,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 export function NotificationBell() {
-  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const router = useRouter();
 
   function getNotificationIcon(type: string) {
@@ -90,9 +90,12 @@ export function NotificationBell() {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <p className="text-sm font-medium">Notifications</p>
           {unreadCount > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {unreadCount} unread
-            </span>
+            <button
+              onClick={markAllAsRead}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Mark all as read
+            </button>
           )}
         </div>
 
