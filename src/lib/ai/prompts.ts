@@ -34,9 +34,6 @@ export function buildPersonalityBlock(prefs: PersonalityPrefs | null): string {
   return `Personality: ${SUPPORTIVE_BLOCKS[p.supportive]} ${FORMALITY_BLOCKS[p.formality]} ${LANGUAGE_BLOCKS[p.language]}`;
 }
 
-/** Default personality block (balanced on all axes) — used where no user context is available. */
-const DEFAULT_PERSONALITY = buildPersonalityBlock(null);
-
 const ENERGY_SCHEDULING_RULES = `## Energy-Aware Scheduling
 - HIGH energy tasks → schedule during peak energy periods
 - LOW energy tasks → schedule during low energy periods
@@ -212,7 +209,9 @@ Be decisive. One clear recommendation. The user's ADHD brain needs a single answ
 }
 
 // Static export for places that don't have user context (fallback)
-export const TASK_RECOMMENDATION_SYSTEM_PROMPT = buildTaskRecommendationPrompt(DEFAULT_PERSONALITY);
+export const TASK_RECOMMENDATION_SYSTEM_PROMPT = buildTaskRecommendationPrompt(
+  buildPersonalityBlock(null)
+);
 
 // ============================================================
 // SCHEDULING (BATCH)
@@ -368,9 +367,10 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 // MORNING DIGEST
 // ============================================================
 
-export const MORNING_DIGEST_PROMPT = `You are writing a brief, encouraging morning message for an ADHD user of ControlledChaos.
+export function buildMorningDigestPrompt(prefs: PersonalityPrefs | null): string {
+  return `You are writing a brief, encouraging morning message for an ADHD user of ControlledChaos.
 
-${DEFAULT_PERSONALITY}
+${buildPersonalityBlock(prefs)}
 
 Given the user's data, write a short note (2-4 sentences) that:
 - Greets warmly using their name (if provided) without being cheesy
@@ -387,14 +387,16 @@ BAD: "## Good morning!\\n- Bio quiz at 1pm\\n- Study session at 4pm"
 BAD: "Hey there! 👋 Hope you're having an amazing morning!"
 
 GOOD: "Good morning, Nae! Your Bio quiz is at 1pm — you've already got the notes prepped, so a quick review this morning should do it. Your energy peaks early, so front-load the hard stuff. You've got this."`;
+}
 
 // ============================================================
 // EVENING DIGEST
 // ============================================================
 
-export const EVENING_DIGEST_PROMPT = `You are writing a brief, warm evening wrap-up for an ADHD user of ControlledChaos.
+export function buildEveningDigestPrompt(prefs: PersonalityPrefs | null): string {
+  return `You are writing a brief, warm evening wrap-up for an ADHD user of ControlledChaos.
 
-${DEFAULT_PERSONALITY}
+${buildPersonalityBlock(prefs)}
 
 Given the user's data, write a short note (2-4 sentences) that:
 - Celebrates what they accomplished, no matter how small — reference specific task names
@@ -410,14 +412,16 @@ Respond with plain text only. No JSON, no markdown, no bullet points, no headers
 BAD: "Great job today! You completed:\\n- Read Bio Chapter 12\\n- Picked up prescriptions"
 
 GOOD: "You knocked out that Bio reading and got your prescriptions picked up — solid day. Tomorrow's biggest thing is the Linguistics midterm study session, but tonight is for resting. Nice work, Nae."`;
+}
 
 // ============================================================
 // PUSH NOTIFICATIONS
 // ============================================================
 
-export const PUSH_NOTIFICATION_PROMPT = `You write push notification messages for ControlledChaos, an ADHD executive function companion.
+export function buildPushNotificationPrompt(prefs: PersonalityPrefs | null): string {
+  return `You write push notification messages for ControlledChaos, an ADHD executive function companion.
 
-${DEFAULT_PERSONALITY}
+${buildPersonalityBlock(prefs)}
 
 You'll receive a notification type and context. Write ONE short push notification.
 
@@ -461,14 +465,16 @@ GOOD: "Afternoon's here and Linguistics essay is still waiting. Even 20 minutes 
 
 Type: idle_checkin_afternoon
 GOOD: "Still quiet. The afternoon window is prime time — what's one thing you can knock out before dinner?"`;
+}
 
 // ============================================================
 // INACTIVITY NUDGE
 // ============================================================
 
-export const INACTIVITY_NUDGE_PROMPT = `You write push notification messages for ControlledChaos, an ADHD executive function companion. The user hasn't completed any tasks in a while. Write one nudge based on the tier and hours inactive provided.
+export function buildInactivityNudgePrompt(prefs: PersonalityPrefs | null): string {
+  return `You write push notification messages for ControlledChaos, an ADHD executive function companion. The user hasn't completed any tasks in a while. Write one nudge based on the tier and hours inactive provided.
 
-${DEFAULT_PERSONALITY}
+${buildPersonalityBlock(prefs)}
 
 ## Tiers
 
@@ -499,6 +505,7 @@ Tier 3: "...hello??"
 Tier 3: "okay. BRUH."
 
 BAD Tier 3: "It's been 5 days since you completed any tasks and I'm starting to worry about you." (WAY too long)`;
+}
 
 // ============================================================
 // CRISIS MODE

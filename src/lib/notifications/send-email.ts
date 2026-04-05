@@ -2,8 +2,8 @@ import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { callHaiku } from "@/lib/ai";
 import {
-  MORNING_DIGEST_PROMPT,
-  EVENING_DIGEST_PROMPT,
+  buildMorningDigestPrompt,
+  buildEveningDigestPrompt,
   formatCurrentDateTime,
 } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
-import type { EnergyProfile } from "@/types";
+import type { EnergyProfile, PersonalityPrefs } from "@/types";
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -80,7 +80,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     .join("\n");
 
   const aiResult = await callHaiku({
-    system: MORNING_DIGEST_PROMPT,
+    system: buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
     user: context,
     maxTokens: 256,
   });
@@ -139,7 +139,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
  * Send the evening digest email for a user.
  */
 export async function sendEveningDigest(userId: string): Promise<boolean> {
-  const user = await getUser(userId);
+  const [user, settings] = await Promise.all([getUser(userId), getUserSettings(userId)]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
@@ -178,7 +178,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   ].join("\n");
 
   const aiResult = await callHaiku({
-    system: EVENING_DIGEST_PROMPT,
+    system: buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
     user: context,
     maxTokens: 256,
   });

@@ -5,8 +5,9 @@ import {
   getRecentTaskActivity,
 } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
-import { INACTIVITY_NUDGE_PROMPT, PUSH_NOTIFICATION_PROMPT } from "@/lib/ai/prompts";
+import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
+import type { PersonalityPrefs } from "@/types";
 
 interface DeadlineWarning {
   taskId: string;
@@ -180,7 +181,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
  * Falls back to a hardcoded string if the AI call fails.
  */
 export async function generatePushMessage(
-  ctx: PushNotificationContext
+  ctx: PushNotificationContext,
+  prefs: PersonalityPrefs | null = null
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
@@ -197,7 +199,7 @@ export async function generatePushMessage(
 
   try {
     const { text } = await callHaiku({
-      system: PUSH_NOTIFICATION_PROMPT,
+      system: buildPushNotificationPrompt(prefs),
       user: userMsg,
       maxTokens: 60,
     });
@@ -236,11 +238,12 @@ const NUDGE_FALLBACKS: Record<NudgeTier, string> = {
  */
 export async function generateNudgeMessage(
   tier: NudgeTier,
-  hoursInactive: number
+  hoursInactive: number,
+  prefs: PersonalityPrefs | null = null
 ): Promise<string> {
   try {
     const { text } = await callHaiku({
-      system: INACTIVITY_NUDGE_PROMPT,
+      system: buildInactivityNudgePrompt(prefs),
       user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
       maxTokens: 80,
     });

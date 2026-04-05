@@ -66,17 +66,17 @@ export async function GET(request: Request) {
     // --- Per-user triggers ---
     const users = await getAllUsersWithPushEnabled();
 
-    for (const { userId, timezone } of users) {
+    for (const { userId, timezone, personalityPrefs } of users) {
       // --- Deadline Warnings ---
       const warnings = await getDeadlineWarnings(userId);
       for (const warning of warnings) {
         const dedupKey = `deadline-${warning.taskId}-${warning.level}`;
         if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
 
-        const message = await generatePushMessage({
-          type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min",
-          taskTitle: warning.taskTitle,
-        });
+        const message = await generatePushMessage(
+          { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
+          personalityPrefs
+        );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
           body: message,
@@ -95,7 +95,10 @@ export async function GET(request: Request) {
         const dedupKey = `scheduled-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 16)}`;
         if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
 
-        const message = await generatePushMessage({ type: "scheduled", taskTitle: alert.taskTitle });
+        const message = await generatePushMessage(
+          { type: "scheduled", taskTitle: alert.taskTitle },
+          personalityPrefs
+        );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
           body: message,
@@ -114,7 +117,10 @@ export async function GET(request: Request) {
         const shouldNotify = await shouldSendIdleCheckin(userId, timezone);
         if (shouldNotify) {
           const topTask = await getTopPendingTaskTitle(userId);
-          const message = await generatePushMessage({ type: "idle_checkin", topTaskTitle: topTask });
+          const message = await generatePushMessage(
+            { type: "idle_checkin", topTaskTitle: topTask },
+            personalityPrefs
+          );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
             body: message,
@@ -133,7 +139,10 @@ export async function GET(request: Request) {
         const shouldNotify = await shouldSendAfternoonCheckin(userId, timezone);
         if (shouldNotify) {
           const topTask = await getTopPendingTaskTitle(userId);
-          const message = await generatePushMessage({ type: "idle_checkin_afternoon", topTaskTitle: topTask });
+          const message = await generatePushMessage(
+            { type: "idle_checkin_afternoon", topTaskTitle: topTask },
+            personalityPrefs
+          );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
             body: message,
@@ -151,7 +160,7 @@ export async function GET(request: Request) {
       if (nudge) {
         const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
         if (!(await hasEverBeenNotified(userId, nudgeDedupKey))) {
-          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive);
+          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive, personalityPrefs);
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
             body: message,

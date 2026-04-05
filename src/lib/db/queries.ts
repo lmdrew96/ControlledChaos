@@ -796,20 +796,23 @@ export async function getUnreadNotificationCount(userId: string) {
 
 /**
  * Get all users who have at least one active push subscription.
- * Returns userId + timezone for cron trigger processing.
+ * Returns userId, timezone, and personalityPrefs for cron trigger processing.
  */
 export async function getAllUsersWithPushEnabled() {
   const rows = await db
     .selectDistinctOn([pushSubscriptions.userId], {
       userId: pushSubscriptions.userId,
       timezone: users.timezone,
+      personalityPrefs: userSettings.personalityPrefs,
     })
     .from(pushSubscriptions)
-    .innerJoin(users, eq(pushSubscriptions.userId, users.id));
+    .innerJoin(users, eq(pushSubscriptions.userId, users.id))
+    .leftJoin(userSettings, eq(userSettings.userId, users.id));
 
   return rows.map((r) => ({
     userId: r.userId,
     timezone: r.timezone ?? "America/New_York",
+    personalityPrefs: r.personalityPrefs as PersonalityPrefs | null,
   }));
 }
 
