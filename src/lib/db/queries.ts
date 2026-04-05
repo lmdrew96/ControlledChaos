@@ -787,10 +787,10 @@ export async function getUnreadNotificationCount(userId: string) {
     .where(
       and(
         eq(notifications.userId, userId),
-        eq(notifications.openedAt, null as unknown as Date)
+        isNull(notifications.openedAt)
       )
     );
-  return result.filter((n) => n.sentAt !== null && n.openedAt === null).length;
+  return result.length;
 }
 
 /**
