@@ -448,7 +448,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - scheduled_missed: Planned start time passed. Direct re-entry cue; offer immediate restart.
 - idle_checkin: No task activity today, past 11am. Casual and curious, no pressure. If a top pending task is provided, weave it in naturally.
 - idle_checkin_afternoon: Still no activity, now it's afternoon (3pm+). A bit more specific — gently nudge toward starting something. If a top pending task is provided, name it.
-- idle_checkin_evening: Still no activity by evening (5:30pm+). Be clear and action-oriented without shaming. If a top pending task is provided, name it.
+- idle_checkin_evening: Still no activity by evening (6:00pm+). Be clear and action-oriented without shaming. If a top pending task is provided, name it.
 
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
@@ -484,7 +484,7 @@ Type: idle_checkin_afternoon
 GOOD: "Still quiet. The afternoon window is prime time — what's one thing you can knock out before dinner?"
 
 Type: idle_checkin_evening, Top pending task: "Linguistics essay"
-GOOD: "It's 5:30 and Linguistics essay is still open. Give it one focused 20-minute pass before dinner."`;
+GOOD: "It's 6:00 and Linguistics essay is still open. Give it one focused 20-minute pass before dinner."`;
 }
 
 // ============================================================

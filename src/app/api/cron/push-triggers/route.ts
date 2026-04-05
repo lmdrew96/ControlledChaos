@@ -42,7 +42,7 @@ const MISSED_TASK_ACTIONS = [
  * GET /api/cron/push-triggers
  * Runs every 15 minutes via Vercel cron.
  * Checks all push-enabled users for deadline warnings, scheduled task alerts,
- * idle check-ins (11am + 3pm + 5:30pm), inactivity nudges, and pending snoozed pushes.
+ * idle check-ins (11am + 3pm + 6:00pm), inactivity nudges, and pending snoozed pushes.
  */
 export async function GET(request: Request) {
   // Verify cron secret
@@ -219,7 +219,7 @@ export async function GET(request: Request) {
         }
       }
 
-      // --- Evening Idle Check-in (5:30pm+) ---
+      // --- Evening Idle Check-in (6:00pm+) ---
       const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
       if (mode === "gentle") {
         console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
