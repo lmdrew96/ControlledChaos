@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-interface Notification {
+export interface NotificationItem {
   id: string;
   type: string;
   content: Record<string, unknown> | null;
@@ -12,7 +12,7 @@ interface Notification {
 }
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,6 +35,15 @@ export function useNotifications() {
     refresh();
     const interval = setInterval(refresh, 60_000);
     return () => clearInterval(interval);
+  }, [refresh]);
+
+  // Refresh immediately when the user returns to this tab
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [refresh]);
 
   const markAsRead = useCallback(

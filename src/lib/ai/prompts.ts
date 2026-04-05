@@ -3,7 +3,7 @@
 // All prompts live here. No inline prompts in other files.
 // ============================================================
 
-import type { PersonalityPrefs } from "@/types";
+import type { NotificationAssertiveness, PersonalityPrefs } from "@/types";
 
 // --- Personality template blocks (3 levels per axis) ---
 
@@ -418,13 +418,25 @@ GOOD: "You knocked out that Bio reading and got your prescriptions picked up —
 // PUSH NOTIFICATIONS
 // ============================================================
 
-export function buildPushNotificationPrompt(prefs: PersonalityPrefs | null, timezone?: string): string {
+export function buildPushNotificationPrompt(
+  prefs: PersonalityPrefs | null,
+  timezone?: string,
+  mode: NotificationAssertiveness = "balanced"
+): string {
   const timeContext = timezone ? `Current time: ${formatCurrentDateTime(timezone)}\n\n` : "";
+  const assertivenessGuidance =
+    mode === "gentle"
+      ? "Keep language low-pressure and invitational. Avoid hard commands unless it's an immediate deadline."
+      : mode === "assertive"
+        ? "Be direct and action-first. Use concise, clear calls to action while staying respectful and non-shaming."
+        : "Balance warmth with directness. Offer one clear next move without sounding harsh.";
   return `You write push notification messages for ControlledChaos, an ADHD executive function companion.
 
 ${timeContext}
 
 ${buildPersonalityBlock(prefs)}
+
+Assertiveness mode: ${mode}. ${assertivenessGuidance}
 
 You'll receive a notification type and context. Write ONE short push notification.
 
@@ -433,6 +445,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - deadline_2h: Getting urgent. Warm but direct.
 - deadline_30min: Short and punchy. This is NOW. 1 sentence max.
 - scheduled: User planned this themselves — light callback to that.
+- scheduled_missed: Planned start time passed. Direct re-entry cue; offer immediate restart.
 - idle_checkin: No task activity today, past 11am. Casual and curious, no pressure. If a top pending task is provided, weave it in naturally.
 - idle_checkin_afternoon: Still no activity, now it's afternoon (3pm+). A bit more specific — gently nudge toward starting something. If a top pending task is provided, name it.
 
@@ -474,13 +487,25 @@ GOOD: "Still quiet. The afternoon window is prime time — what's one thing you 
 // INACTIVITY NUDGE
 // ============================================================
 
-export function buildInactivityNudgePrompt(prefs: PersonalityPrefs | null, timezone?: string): string {
+export function buildInactivityNudgePrompt(
+  prefs: PersonalityPrefs | null,
+  timezone?: string,
+  mode: NotificationAssertiveness = "balanced"
+): string {
   const timeContext = timezone ? `Current time: ${formatCurrentDateTime(timezone)}\n\n` : "";
+  const assertivenessGuidance =
+    mode === "gentle"
+      ? "For all tiers, keep a soft, compassionate tone."
+      : mode === "assertive"
+        ? "For all tiers, keep wording punchy and direct, but never cruel."
+        : "For all tiers, keep a supportive but clear tone.";
   return `You write push notification messages for ControlledChaos, an ADHD executive function companion. The user hasn't completed any tasks in a while. Write one nudge based on the tier and hours inactive provided.
 
 ${timeContext}
 
 ${buildPersonalityBlock(prefs)}
+
+Assertiveness mode: ${mode}. ${assertivenessGuidance}
 
 ## Tiers
 

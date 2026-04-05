@@ -7,7 +7,11 @@ import {
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import {
   getDeadlineWarnings,
+  getDailyPushCap,
+  getAssertivenessMode,
   getScheduledTaskAlerts,
+  getMissedScheduledTaskAlerts,
+  getPushNotificationsSentToday,
   shouldSendIdleCheckin,
   shouldSendAfternoonCheckin,
   hasBeenNotifiedToday,
@@ -26,6 +30,11 @@ const TASK_ACTIONS = [
 const IDLE_ACTIONS = [
   { action: "brain_dump", title: "✏ Brain Dump" },
   { action: "see_tasks", title: "📋 See Tasks" },
+];
+
+const MISSED_TASK_ACTIONS = [
+  { action: "start_task", title: "▶ Start now" },
+  { action: "snooze", title: "⏰ Snooze 30 min" },
 ];
 
 /**
@@ -66,17 +75,33 @@ export async function GET(request: Request) {
     // --- Per-user triggers ---
     const users = await getAllUsersWithPushEnabled();
 
-    for (const { userId, timezone, personalityPrefs } of users) {
+    for (const { userId, timezone, personalityPrefs, notificationPrefs } of users) {
+      const mode = getAssertivenessMode(notificationPrefs);
+      const dailyCap = getDailyPushCap(mode);
+      let sentToday = await getPushNotificationsSentToday(userId);
+
+      const canSend = (priority: "high" | "normal") =>
+        priority === "high" || sentToday < dailyCap;
+
+      const markSent = () => {
+        sentToday += 1;
+        totalSent += 1;
+      };
+
       // --- Deadline Warnings ---
       const warnings = await getDeadlineWarnings(userId);
       for (const warning of warnings) {
+        const priority = warning.level === "30min" || warning.level === "2h" ? "high" : "normal";
+        if (!canSend(priority)) continue;
+
         const dedupKey = `deadline-${warning.taskId}-${warning.level}`;
         if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
 
         const message = await generatePushMessage(
           { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
           personalityPrefs,
-          timezone
+            timezone,
+            mode
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -86,20 +111,24 @@ export async function GET(request: Request) {
           taskId: warning.taskId,
           userId,
           actions: TASK_ACTIONS,
+          bypassQuietHours: warning.level === "30min",
         });
-        if (sent) totalSent++;
+        if (sent) markSent();
       }
 
       // --- Scheduled Task Alerts ---
       const alerts = await getScheduledTaskAlerts(userId);
       for (const alert of alerts) {
+        if (!canSend("normal")) continue;
+
         const dedupKey = `scheduled-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 16)}`;
         if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
 
         const message = await generatePushMessage(
           { type: "scheduled", taskTitle: alert.taskTitle },
           personalityPrefs,
-          timezone
+          timezone,
+          mode
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -110,19 +139,48 @@ export async function GET(request: Request) {
           userId,
           actions: TASK_ACTIONS,
         });
-        if (sent) totalSent++;
+        if (sent) markSent();
+      }
+
+      // --- Missed Scheduled Task Follow-up (assertive only) ---
+      if (mode === "assertive") {
+        const missedAlerts = await getMissedScheduledTaskAlerts(userId);
+        for (const alert of missedAlerts) {
+          if (!canSend("normal")) continue;
+
+          const dedupKey = `scheduled-missed-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 13)}`;
+          if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
+
+          const message = await generatePushMessage(
+            { type: "scheduled_missed", taskTitle: alert.taskTitle },
+            personalityPrefs,
+            timezone,
+            mode
+          );
+          const sent = await sendPushToUser(userId, {
+            title: "ControlledChaos",
+            body: message,
+            url: `/tasks?taskId=${alert.taskId}`,
+            tag: dedupKey,
+            taskId: alert.taskId,
+            userId,
+            actions: MISSED_TASK_ACTIONS,
+          });
+          if (sent) markSent();
+        }
       }
 
       // --- Morning Idle Check-in (11am+) ---
       const morningDedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
-      if (!(await hasBeenNotifiedToday(userId, morningDedupKey))) {
+      if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey))) {
         const shouldNotify = await shouldSendIdleCheckin(userId, timezone);
         if (shouldNotify) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
             { type: "idle_checkin", topTaskTitle: topTask },
             personalityPrefs,
-            timezone
+            timezone,
+            mode
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -132,20 +190,21 @@ export async function GET(request: Request) {
             userId,
             actions: IDLE_ACTIONS,
           });
-          if (sent) totalSent++;
+          if (sent) markSent();
         }
       }
 
       // --- Afternoon Idle Check-in (3pm+) ---
       const afternoonDedupKey = `idle-checkin-afternoon-${new Date().toISOString().slice(0, 10)}`;
-      if (!(await hasBeenNotifiedToday(userId, afternoonDedupKey))) {
+      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey))) {
         const shouldNotify = await shouldSendAfternoonCheckin(userId, timezone);
         if (shouldNotify) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
             { type: "idle_checkin_afternoon", topTaskTitle: topTask },
             personalityPrefs,
-            timezone
+            timezone,
+            mode
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -155,16 +214,22 @@ export async function GET(request: Request) {
             userId,
             actions: IDLE_ACTIONS,
           });
-          if (sent) totalSent++;
+          if (sent) markSent();
         }
       }
 
       // --- Inactivity Nudge ---
-      const nudge = await getInactivityNudgeTier(userId);
+      const nudge = canSend("normal") ? await getInactivityNudgeTier(userId) : null;
       if (nudge) {
         const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
         if (!(await hasEverBeenNotified(userId, nudgeDedupKey))) {
-          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive, personalityPrefs, timezone);
+          const message = await generateNudgeMessage(
+            nudge.tier,
+            nudge.hoursInactive,
+            personalityPrefs,
+            timezone,
+            mode
+          );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
             body: message,
@@ -172,7 +237,7 @@ export async function GET(request: Request) {
             tag: nudgeDedupKey,
             userId,
           });
-          if (sent) totalSent++;
+          if (sent) markSent();
         }
       }
     }

@@ -7,7 +7,7 @@ import {
 import { callHaiku } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
-import type { PersonalityPrefs } from "@/types";
+import type { NotificationAssertiveness, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 interface DeadlineWarning {
   taskId: string;
@@ -20,6 +20,36 @@ interface ScheduledAlert {
   taskId: string;
   taskTitle: string;
   scheduledFor: Date;
+}
+
+interface MissedScheduledAlert {
+  taskId: string;
+  taskTitle: string;
+  scheduledFor: Date;
+}
+
+const NOTIFICATION_CAPS: Record<NotificationAssertiveness, number> = {
+  gentle: 4,
+  balanced: 6,
+  assertive: 8,
+};
+
+export function getAssertivenessMode(prefs: NotificationPrefs | null | undefined): NotificationAssertiveness {
+  const mode = prefs?.assertivenessMode;
+  if (mode === "gentle" || mode === "balanced" || mode === "assertive") return mode;
+  return "balanced";
+}
+
+export function getDailyPushCap(mode: NotificationAssertiveness): number {
+  return NOTIFICATION_CAPS[mode];
+}
+
+export async function getPushNotificationsSentToday(userId: string): Promise<number> {
+  const recent = await getRecentNotifications(userId, 100);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  return recent.filter((n) => n.type === "push" && n.sentAt && new Date(n.sentAt) >= todayStart).length;
 }
 
 /**
@@ -98,6 +128,35 @@ export async function getScheduledTaskAlerts(
 }
 
 /**
+ * Check for tasks whose scheduled start time has already passed and may need a stronger follow-up.
+ * We only include tasks that are 20-120 minutes overdue to avoid stale noise.
+ */
+export async function getMissedScheduledTaskAlerts(
+  userId: string
+): Promise<MissedScheduledAlert[]> {
+  const tasks = await getPendingTasks(userId);
+  const now = Date.now();
+  const alerts: MissedScheduledAlert[] = [];
+
+  for (const task of tasks) {
+    if (!task.scheduledFor) continue;
+
+    const scheduledMs = new Date(task.scheduledFor).getTime();
+    const overdueMs = now - scheduledMs;
+
+    if (overdueMs >= 20 * 60 * 1000 && overdueMs <= 120 * 60 * 1000) {
+      alerts.push({
+        taskId: task.id,
+        taskTitle: task.title,
+        scheduledFor: task.scheduledFor,
+      });
+    }
+  }
+
+  return alerts;
+}
+
+/**
  * Determine if the user should get an idle check-in.
  * Criteria: no task activity today AND it's past 11am in their timezone.
  */
@@ -164,6 +223,7 @@ type PushNotificationContext =
   | { type: "deadline_2h"; taskTitle: string }
   | { type: "deadline_30min"; taskTitle: string }
   | { type: "scheduled"; taskTitle: string }
+  | { type: "scheduled_missed"; taskTitle: string }
   | { type: "idle_checkin"; topTaskTitle?: string }
   | { type: "idle_checkin_afternoon"; topTaskTitle?: string };
 
@@ -172,6 +232,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_2h: "Two hours out. You can still knock this one out.",
   deadline_30min: "30 minutes. This is happening.",
   scheduled: "You planned this. Past-you had your back.",
+  scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
 };
@@ -183,7 +244,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
 export async function generatePushMessage(
   ctx: PushNotificationContext,
   prefs: PersonalityPrefs | null = null,
-  timezone: string = "America/New_York"
+  timezone: string = "America/New_York",
+  mode: NotificationAssertiveness = "balanced"
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
@@ -200,7 +262,7 @@ export async function generatePushMessage(
 
   try {
     const { text } = await callHaiku({
-      system: buildPushNotificationPrompt(prefs, timezone),
+      system: buildPushNotificationPrompt(prefs, timezone, mode),
       user: userMsg,
       maxTokens: 60,
     });
@@ -213,7 +275,8 @@ export async function generatePushMessage(
       ctx.type === "deadline_24h" ||
       ctx.type === "deadline_2h" ||
       ctx.type === "deadline_30min" ||
-      ctx.type === "scheduled"
+      ctx.type === "scheduled" ||
+      ctx.type === "scheduled_missed"
     ) {
       const fallback = PUSH_FALLBACKS[ctx.type];
       return fallback
@@ -241,11 +304,12 @@ export async function generateNudgeMessage(
   tier: NudgeTier,
   hoursInactive: number,
   prefs: PersonalityPrefs | null = null,
-  timezone: string = "America/New_York"
+  timezone: string = "America/New_York",
+  mode: NotificationAssertiveness = "balanced"
 ): Promise<string> {
   try {
     const { text } = await callHaiku({
-      system: buildInactivityNudgePrompt(prefs, timezone),
+      system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
       maxTokens: 80,
     });

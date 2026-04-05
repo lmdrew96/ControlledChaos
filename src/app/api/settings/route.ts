@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
 import type { EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
+const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
+
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -75,6 +77,11 @@ export async function PATCH(request: Request) {
       const prefs = body.notificationPrefs as NotificationPrefs;
       // Validate time format (HH:MM)
       const timeRegex = /^\d{2}:\d{2}$/;
+      const assertivenessMode =
+        typeof prefs.assertivenessMode === "string" &&
+        VALID_ASSERTIVENESS_MODES.has(prefs.assertivenessMode)
+          ? prefs.assertivenessMode
+          : "balanced";
       if (
         typeof prefs.pushEnabled === "boolean" &&
         typeof prefs.emailMorningDigest === "boolean" &&
@@ -84,7 +91,10 @@ export async function PATCH(request: Request) {
         timeRegex.test(prefs.quietHoursStart) &&
         timeRegex.test(prefs.quietHoursEnd)
       ) {
-        data.notificationPrefs = prefs;
+        data.notificationPrefs = {
+          ...prefs,
+          assertivenessMode,
+        };
       }
     }
 

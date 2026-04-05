@@ -133,6 +133,8 @@ export interface EnergyProfile {
   night: EnergyLevel; // 9pm-12am
 }
 
+export type NotificationAssertiveness = "gentle" | "balanced" | "assertive";
+
 export interface NotificationPrefs {
   pushEnabled: boolean;
   emailMorningDigest: boolean;
@@ -141,6 +143,7 @@ export interface NotificationPrefs {
   eveningDigestTime: string; // "21:00"
   quietHoursStart: string; // "22:00"
   quietHoursEnd: string; // "07:00"
+  assertivenessMode: NotificationAssertiveness;
 }
 
 export interface PersonalityPrefs {

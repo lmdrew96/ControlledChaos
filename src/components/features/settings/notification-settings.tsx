@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
-import type { NotificationPrefs } from "@/types";
+import type { NotificationAssertiveness, NotificationPrefs } from "@/types";
 
 const DEFAULT_PREFS: NotificationPrefs = {
   pushEnabled: false,
@@ -16,7 +16,43 @@ const DEFAULT_PREFS: NotificationPrefs = {
   eveningDigestTime: "21:00",
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00",
+  assertivenessMode: "balanced",
 };
+
+const ASSERTIVENESS_OPTIONS: Array<{
+  value: NotificationAssertiveness;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "gentle",
+    label: "Gentle",
+    description: "Fewer nudges and softer follow-ups.",
+  },
+  {
+    value: "balanced",
+    label: "Balanced",
+    description: "Default: steady reminders without overdoing it.",
+  },
+  {
+    value: "assertive",
+    label: "Assertive",
+    description: "More follow-ups when tasks are time-sensitive.",
+  },
+];
+
+function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): NotificationPrefs {
+  return {
+    ...DEFAULT_PREFS,
+    ...raw,
+    assertivenessMode:
+      raw?.assertivenessMode === "gentle" ||
+      raw?.assertivenessMode === "balanced" ||
+      raw?.assertivenessMode === "assertive"
+        ? raw.assertivenessMode
+        : "balanced",
+  };
+}
 
 export function NotificationSettings() {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
@@ -40,8 +76,9 @@ export function NotificationSettings() {
       })
       .then((data) => {
         if (data?.notificationPrefs) {
-          setPrefs(data.notificationPrefs);
-          setSavedPrefs(data.notificationPrefs);
+          const normalized = normalizePrefs(data.notificationPrefs);
+          setPrefs(normalized);
+          setSavedPrefs(normalized);
         }
       })
       .catch(() => setLoadError(true))
@@ -99,8 +136,9 @@ export function NotificationSettings() {
               })
               .then((data) => {
                 if (data?.notificationPrefs) {
-                  setPrefs(data.notificationPrefs);
-                  setSavedPrefs(data.notificationPrefs);
+                  const normalized = normalizePrefs(data.notificationPrefs);
+                  setPrefs(normalized);
+                  setSavedPrefs(normalized);
                 }
               })
               .catch(() => setLoadError(true))
@@ -258,6 +296,34 @@ export function NotificationSettings() {
       </div>
 
       <div className="h-px bg-border" />
+
+      {/* Push Style */}
+      <div className="space-y-3">
+        <div className="text-sm font-medium">Push Style</div>
+        <p className="text-xs text-muted-foreground sm:pl-6">
+          Choose how firm reminders should feel when tasks are ignored.
+        </p>
+        <div className="grid gap-2 sm:pl-6">
+          {ASSERTIVENESS_OPTIONS.map((option) => {
+            const selected = prefs.assertivenessMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => update({ assertivenessMode: option.value })}
+                className={`rounded-md border p-3 text-left transition-colors ${
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-accent"
+                }`}
+              >
+                <p className="text-sm font-medium">{option.label}</p>
+                <p className="text-xs text-muted-foreground">{option.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Quiet Hours */}
       <div className="space-y-3">
