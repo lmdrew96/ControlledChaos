@@ -219,7 +219,7 @@ export async function GET(request: Request) {
         }
       }
 
-      // --- Evening Idle Check-in (6:00pm+) ---
+      // --- Evening Idle Check-in (7:00pm+) ---
       const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
       if (mode === "gentle") {
         console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);

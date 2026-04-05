@@ -236,7 +236,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
-  idle_checkin_evening: "It's 6:30 and today's still open. Want to close one task before tonight?",
+  idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
 };
 
 /**
@@ -371,7 +371,7 @@ export async function shouldSendAfternoonCheckin(
 
 /**
  * Determine if the user should get an evening idle check-in.
- * Criteria: it's 6:00pm+ and the user has been inactive long enough to benefit from a final nudge.
+ * Criteria: it's 7:00pm+ and the user gets an evening check-in regardless of activity level.
  */
 export async function getEveningCheckinStatus(
   userId: string,
@@ -384,7 +384,7 @@ export async function getEveningCheckinStatus(
     minute: "2-digit",
     hour12: false,
   });
-  if (timeStr < "18:30") {
+  if (timeStr < "19:00") {
     return { shouldSend: false, reason: "before_window", activityLevel: "idle" };
   }
 

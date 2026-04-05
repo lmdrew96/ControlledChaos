@@ -448,7 +448,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - scheduled_missed: Planned start time passed. Direct re-entry cue; offer immediate restart.
 - idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: casual and curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.
 - idle_checkin_afternoon: 3pm check-in. Same active/idle logic. Idle: nudge toward one specific thing before evening. Active: affirm progress, surface what's next.
-- idle_checkin_evening: 6:30pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: warm wrap-up energy — acknowledge what they did, offer one more if there's a task.
+- idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: warm wrap-up energy — acknowledge what they did, offer one more if there's a task.
 
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
@@ -490,7 +490,7 @@ Type: idle_checkin_afternoon, Activity: active
 GOOD: "Solid afternoon so far. What's the one thing that would make today feel complete?"
 
 Type: idle_checkin_evening, Activity: idle, Top pending task: "Linguistics essay"
-GOOD: "It's 6:30 and Linguistics essay is still open. Give it one focused 20-minute pass before dinner."
+GOOD: "It's 7:00 and Linguistics essay is still open. Give it one focused 20-minute pass tonight."
 
 Type: idle_checkin_evening, Activity: active, Top pending task: "Linguistics essay"
 GOOD: "Good work today. Linguistics essay is still there if you want to close it out tonight."
