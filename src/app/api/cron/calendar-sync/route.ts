@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAllUsersWithCalendars } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { sendPushToUser } from "@/lib/notifications/send-push";
+import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 
 /**
  * GET /api/cron/calendar-sync
@@ -34,6 +36,29 @@ export async function GET(request: Request) {
             err
           );
           failed++;
+
+          // If Canvas returned 401, the user's iCal token has expired.
+          // Send them a push notification (once per day) so they know to update it.
+          const is401 =
+            err instanceof Error && err.message.includes("401");
+          if (is401) {
+            const dedupKey = `canvas-expired-${new Date().toISOString().slice(0, 10)}`;
+            hasBeenNotifiedToday(user.userId, dedupKey)
+              .then((alreadyNotified) => {
+                if (!alreadyNotified) {
+                  return sendPushToUser(user.userId, {
+                    title: "ControlledChaos",
+                    body: "Your Canvas calendar link has expired. Tap to update it in Settings.",
+                    url: "/settings",
+                    tag: dedupKey,
+                    bypassQuietHours: false,
+                  });
+                }
+              })
+              .catch((e) =>
+                console.error("[Cron] Failed to send Canvas-expired push:", e)
+              );
+          }
         }
       }
     }
