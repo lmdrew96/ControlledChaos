@@ -172,7 +172,8 @@ export async function shouldSendIdleCheckin(
     hour12: false,
   });
   const currentHour = parseInt(hourStr, 10);
-  if (currentHour < 11) return { shouldSend: false, activityLevel: "idle" };
+  // Morning window: 11am–2:59pm only. Afternoon takes over at 3pm.
+  if (currentHour < 11 || currentHour >= 15) return { shouldSend: false, activityLevel: "idle" };
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
@@ -356,7 +357,8 @@ export async function shouldSendAfternoonCheckin(
     hour12: false,
   });
   const currentHour = parseInt(hourStr, 10);
-  if (currentHour < 15) return { shouldSend: false, activityLevel: "idle" };
+  // Afternoon window: 3pm–6:59pm only. Evening takes over at 7pm.
+  if (currentHour < 15 || currentHour >= 19) return { shouldSend: false, activityLevel: "idle" };
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
