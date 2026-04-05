@@ -14,7 +14,7 @@ import {
   getPushNotificationsSentToday,
   shouldSendIdleCheckin,
   shouldSendAfternoonCheckin,
-  shouldSendEveningCheckin,
+  getEveningCheckinStatus,
   hasBeenNotifiedToday,
   hasEverBeenNotified,
   getInactivityNudgeTier,
@@ -228,10 +228,10 @@ export async function GET(request: Request) {
       } else if (await hasBeenNotifiedToday(userId, eveningDedupKey)) {
         console.log(`[Push][Evening] skip user=${userId} reason=already_notified_today`);
       } else {
-        const shouldNotify = await shouldSendEveningCheckin(userId, timezone);
-        if (!shouldNotify) {
-          console.log(`[Push][Evening] skip user=${userId} reason=criteria_not_met`);
-        } else {
+        const eveningStatus = await getEveningCheckinStatus(userId, timezone);
+        if (!eveningStatus.shouldSend) {
+          console.log(`[Push][Evening] skip user=${userId} reason=${eveningStatus.reason}`);
+        } else if (eveningStatus.shouldSend) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
             { type: "idle_checkin_evening", topTaskTitle: topTask },
