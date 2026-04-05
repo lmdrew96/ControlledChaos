@@ -163,7 +163,7 @@ export async function getMissedScheduledTaskAlerts(
 export async function shouldSendIdleCheckin(
   userId: string,
   timezone: string
-): Promise<boolean> {
+): Promise<{ shouldSend: boolean; activityLevel: "active" | "idle" }> {
   // Check if it's past 11am in user's timezone
   const now = new Date();
   const hourStr = now.toLocaleString("en-US", {
@@ -172,17 +172,17 @@ export async function shouldSendIdleCheckin(
     hour12: false,
   });
   const currentHour = parseInt(hourStr, 10);
-  if (currentHour < 11) return false;
+  if (currentHour < 11) return { shouldSend: false, activityLevel: "idle" };
 
-  // Check for any activity today (in user's local timezone, not UTC)
   const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) return true;
+  if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
 
   const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
-  return lastActivityDateStr !== todayStr;
+  const activityLevel = lastActivityDateStr === todayStr ? "active" : "idle";
+  return { shouldSend: true, activityLevel };
 }
 
 /**
@@ -224,9 +224,9 @@ type PushNotificationContext =
   | { type: "deadline_30min"; taskTitle: string }
   | { type: "scheduled"; taskTitle: string }
   | { type: "scheduled_missed"; taskTitle: string }
-  | { type: "idle_checkin"; topTaskTitle?: string }
-  | { type: "idle_checkin_afternoon"; topTaskTitle?: string }
-  | { type: "idle_checkin_evening"; topTaskTitle?: string };
+  | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
+  | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
+  | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -252,16 +252,16 @@ export async function generatePushMessage(
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
     userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin`;
+      ? `Type: idle_checkin\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin\nActivity: ${ctx.activityLevel}`;
   } else if (ctx.type === "idle_checkin_afternoon") {
     userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin_afternoon\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin_afternoon`;
+      ? `Type: idle_checkin_afternoon\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin_afternoon\nActivity: ${ctx.activityLevel}`;
   } else if (ctx.type === "idle_checkin_evening") {
     userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin_evening\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin_evening`;
+      ? `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
+      : `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
   }
@@ -348,7 +348,7 @@ export async function getTopPendingTaskTitle(userId: string): Promise<string | u
 export async function shouldSendAfternoonCheckin(
   userId: string,
   timezone: string
-): Promise<boolean> {
+): Promise<{ shouldSend: boolean; activityLevel: "active" | "idle" }> {
   const now = new Date();
   const hourStr = now.toLocaleString("en-US", {
     timeZone: timezone,
@@ -356,16 +356,17 @@ export async function shouldSendAfternoonCheckin(
     hour12: false,
   });
   const currentHour = parseInt(hourStr, 10);
-  if (currentHour < 15) return false;
+  if (currentHour < 15) return { shouldSend: false, activityLevel: "idle" };
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) return true;
+  if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
 
   const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
-  return lastActivityDateStr !== todayStr;
+  const activityLevel = lastActivityDateStr === todayStr ? "active" : "idle";
+  return { shouldSend: true, activityLevel };
 }
 
 /**
@@ -375,7 +376,7 @@ export async function shouldSendAfternoonCheckin(
 export async function getEveningCheckinStatus(
   userId: string,
   timezone: string
-): Promise<{ shouldSend: boolean; reason: string; hoursSinceLastActivity?: number }> {
+): Promise<{ shouldSend: boolean; reason: string; activityLevel: "active" | "idle"; hoursSinceLastActivity?: number }> {
   const now = new Date();
   const timeStr = now.toLocaleTimeString("en-US", {
     timeZone: timezone,
@@ -384,12 +385,12 @@ export async function getEveningCheckinStatus(
     hour12: false,
   });
   if (timeStr < "18:30") {
-    return { shouldSend: false, reason: "before_window" };
+    return { shouldSend: false, reason: "before_window", activityLevel: "idle" };
   }
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) {
-    return { shouldSend: true, reason: "no_activity_recorded" };
+    return { shouldSend: true, reason: "no_activity_recorded", activityLevel: "idle" };
   }
 
   const lastActivity = new Date(recentActivity[0].createdAt);
@@ -397,22 +398,15 @@ export async function getEveningCheckinStatus(
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
   if (lastActivityDateStr !== todayStr) {
-    return { shouldSend: true, reason: "no_activity_today" };
+    return { shouldSend: true, reason: "no_activity_today", activityLevel: "idle" };
   }
 
-  // If they were active earlier today, still allow an evening nudge after enough idle time.
   const hoursSinceLastActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-  if (hoursSinceLastActivity >= 3) {
-    return {
-      shouldSend: true,
-      reason: "inactive_3h_plus",
-      hoursSinceLastActivity,
-    };
-  }
-
+  // Active recently — still send, but with encouraging "keep going" energy
   return {
-    shouldSend: false,
-    reason: "recent_activity",
+    shouldSend: true,
+    reason: hoursSinceLastActivity >= 3 ? "inactive_3h_plus" : "active_today",
+    activityLevel: hoursSinceLastActivity >= 3 ? "idle" : "active",
     hoursSinceLastActivity,
   };
 }

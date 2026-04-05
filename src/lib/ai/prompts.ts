@@ -446,9 +446,9 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - deadline_30min: Short and punchy. This is NOW. 1 sentence max.
 - scheduled: User planned this themselves — light callback to that.
 - scheduled_missed: Planned start time passed. Direct re-entry cue; offer immediate restart.
-- idle_checkin: No task activity today, past 11am. Casual and curious, no pressure. If a top pending task is provided, weave it in naturally.
-- idle_checkin_afternoon: Still no activity, now it's afternoon (3pm+). A bit more specific — gently nudge toward starting something. If a top pending task is provided, name it.
-- idle_checkin_evening: Still no activity by evening (6:00pm+). Be clear and action-oriented without shaming. If a top pending task is provided, name it.
+- idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: casual and curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.
+- idle_checkin_afternoon: 3pm check-in. Same active/idle logic. Idle: nudge toward one specific thing before evening. Active: affirm progress, surface what's next.
+- idle_checkin_evening: 6:30pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: warm wrap-up energy — acknowledge what they did, offer one more if there's a task.
 
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
@@ -471,20 +471,32 @@ GOOD: "Essay's due in 30. Send it."
 Type: scheduled, Task: "Review lecture notes"
 GOOD: "You blocked off time for lecture notes. Past-you had a plan."
 
-Type: idle_checkin
+Type: idle_checkin, Activity: idle
 GOOD: "Quiet day so far. Got anything rattling around in your head? Quick brain dump might help."
 
-Type: idle_checkin, Top pending task: "Bio lab report"
+Type: idle_checkin, Activity: idle, Top pending task: "Bio lab report"
 GOOD: "Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"
 
-Type: idle_checkin_afternoon, Top pending task: "Linguistics essay"
+Type: idle_checkin, Activity: active, Top pending task: "Bio lab report"
+GOOD: "You're moving today. Bio lab report is still up — keep the energy going."
+
+Type: idle_checkin_afternoon, Activity: idle, Top pending task: "Linguistics essay"
 GOOD: "Afternoon's here and Linguistics essay is still waiting. Even 20 minutes now is better than 11pm panic."
 
-Type: idle_checkin_afternoon
+Type: idle_checkin_afternoon, Activity: idle
 GOOD: "Still quiet. The afternoon window is prime time — what's one thing you can knock out before dinner?"
 
-Type: idle_checkin_evening, Top pending task: "Linguistics essay"
-GOOD: "It's 6:00 and Linguistics essay is still open. Give it one focused 20-minute pass before dinner."`;
+Type: idle_checkin_afternoon, Activity: active
+GOOD: "Solid afternoon so far. What's the one thing that would make today feel complete?"
+
+Type: idle_checkin_evening, Activity: idle, Top pending task: "Linguistics essay"
+GOOD: "It's 6:30 and Linguistics essay is still open. Give it one focused 20-minute pass before dinner."
+
+Type: idle_checkin_evening, Activity: active, Top pending task: "Linguistics essay"
+GOOD: "Good work today. Linguistics essay is still there if you want to close it out tonight."
+
+Type: idle_checkin_evening, Activity: active
+GOOD: "You put in real work today. Call it here or push a little further — your call."`;
 }
 
 // ============================================================

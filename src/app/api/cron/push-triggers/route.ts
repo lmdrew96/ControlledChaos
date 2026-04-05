@@ -174,11 +174,11 @@ export async function GET(request: Request) {
       // --- Morning Idle Check-in (11am+) ---
       const morningDedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
       if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey))) {
-        const shouldNotify = await shouldSendIdleCheckin(userId, timezone);
-        if (shouldNotify) {
+        const morningStatus = await shouldSendIdleCheckin(userId, timezone);
+        if (morningStatus.shouldSend) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
-            { type: "idle_checkin", topTaskTitle: topTask },
+            { type: "idle_checkin", topTaskTitle: topTask, activityLevel: morningStatus.activityLevel },
             personalityPrefs,
             timezone,
             mode
@@ -198,11 +198,11 @@ export async function GET(request: Request) {
       // --- Afternoon Idle Check-in (3pm+) ---
       const afternoonDedupKey = `idle-checkin-afternoon-${new Date().toISOString().slice(0, 10)}`;
       if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey))) {
-        const shouldNotify = await shouldSendAfternoonCheckin(userId, timezone);
-        if (shouldNotify) {
+        const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
+        if (afternoonStatus.shouldSend) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
-            { type: "idle_checkin_afternoon", topTaskTitle: topTask },
+            { type: "idle_checkin_afternoon", topTaskTitle: topTask, activityLevel: afternoonStatus.activityLevel },
             personalityPrefs,
             timezone,
             mode
@@ -231,10 +231,10 @@ export async function GET(request: Request) {
         const eveningStatus = await getEveningCheckinStatus(userId, timezone);
         if (!eveningStatus.shouldSend) {
           console.log(`[Push][Evening] skip user=${userId} reason=${eveningStatus.reason}`);
-        } else if (eveningStatus.shouldSend) {
+        } else {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
-            { type: "idle_checkin_evening", topTaskTitle: topTask },
+            { type: "idle_checkin_evening", topTaskTitle: topTask, activityLevel: eveningStatus.activityLevel },
             personalityPrefs,
             timezone,
             mode
