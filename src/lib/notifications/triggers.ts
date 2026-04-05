@@ -115,15 +115,15 @@ export async function shouldSendIdleCheckin(
   const currentHour = parseInt(hourStr, 10);
   if (currentHour < 11) return false;
 
-  // Check for any activity today
+  // Check for any activity today (in user's local timezone, not UTC)
   const recentActivity = await getRecentTaskActivity(userId, 1);
   if (recentActivity.length === 0) return true;
 
   const lastActivity = new Date(recentActivity[0].createdAt);
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
-  return lastActivity < todayStart;
+  return lastActivityDateStr !== todayStr;
 }
 
 /**
@@ -182,7 +182,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
  */
 export async function generatePushMessage(
   ctx: PushNotificationContext,
-  prefs: PersonalityPrefs | null = null
+  prefs: PersonalityPrefs | null = null,
+  timezone: string = "America/New_York"
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
@@ -199,7 +200,7 @@ export async function generatePushMessage(
 
   try {
     const { text } = await callHaiku({
-      system: buildPushNotificationPrompt(prefs),
+      system: buildPushNotificationPrompt(prefs, timezone),
       user: userMsg,
       maxTokens: 60,
     });
@@ -239,11 +240,12 @@ const NUDGE_FALLBACKS: Record<NudgeTier, string> = {
 export async function generateNudgeMessage(
   tier: NudgeTier,
   hoursInactive: number,
-  prefs: PersonalityPrefs | null = null
+  prefs: PersonalityPrefs | null = null,
+  timezone: string = "America/New_York"
 ): Promise<string> {
   try {
     const { text } = await callHaiku({
-      system: buildInactivityNudgePrompt(prefs),
+      system: buildInactivityNudgePrompt(prefs, timezone),
       user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
       maxTokens: 80,
     });
@@ -290,10 +292,10 @@ export async function shouldSendAfternoonCheckin(
   if (recentActivity.length === 0) return true;
 
   const lastActivity = new Date(recentActivity[0].createdAt);
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
+  const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
+  const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
-  return lastActivity < todayStart;
+  return lastActivityDateStr !== todayStr;
 }
 
 /**

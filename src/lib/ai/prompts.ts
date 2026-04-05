@@ -418,8 +418,11 @@ GOOD: "You knocked out that Bio reading and got your prescriptions picked up —
 // PUSH NOTIFICATIONS
 // ============================================================
 
-export function buildPushNotificationPrompt(prefs: PersonalityPrefs | null): string {
+export function buildPushNotificationPrompt(prefs: PersonalityPrefs | null, timezone?: string): string {
+  const timeContext = timezone ? `Current time: ${formatCurrentDateTime(timezone)}\n\n` : "";
   return `You write push notification messages for ControlledChaos, an ADHD executive function companion.
+
+${timeContext}
 
 ${buildPersonalityBlock(prefs)}
 
@@ -471,8 +474,11 @@ GOOD: "Still quiet. The afternoon window is prime time — what's one thing you 
 // INACTIVITY NUDGE
 // ============================================================
 
-export function buildInactivityNudgePrompt(prefs: PersonalityPrefs | null): string {
+export function buildInactivityNudgePrompt(prefs: PersonalityPrefs | null, timezone?: string): string {
+  const timeContext = timezone ? `Current time: ${formatCurrentDateTime(timezone)}\n\n` : "";
   return `You write push notification messages for ControlledChaos, an ADHD executive function companion. The user hasn't completed any tasks in a while. Write one nudge based on the tier and hours inactive provided.
+
+${timeContext}
 
 ${buildPersonalityBlock(prefs)}
 

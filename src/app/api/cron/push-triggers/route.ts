@@ -75,7 +75,8 @@ export async function GET(request: Request) {
 
         const message = await generatePushMessage(
           { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
-          personalityPrefs
+          personalityPrefs,
+          timezone
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -97,7 +98,8 @@ export async function GET(request: Request) {
 
         const message = await generatePushMessage(
           { type: "scheduled", taskTitle: alert.taskTitle },
-          personalityPrefs
+          personalityPrefs,
+          timezone
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -119,7 +121,8 @@ export async function GET(request: Request) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
             { type: "idle_checkin", topTaskTitle: topTask },
-            personalityPrefs
+            personalityPrefs,
+            timezone
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -141,7 +144,8 @@ export async function GET(request: Request) {
           const topTask = await getTopPendingTaskTitle(userId);
           const message = await generatePushMessage(
             { type: "idle_checkin_afternoon", topTaskTitle: topTask },
-            personalityPrefs
+            personalityPrefs,
+            timezone
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -160,7 +164,7 @@ export async function GET(request: Request) {
       if (nudge) {
         const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
         if (!(await hasEverBeenNotified(userId, nudgeDedupKey))) {
-          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive, personalityPrefs);
+          const message = await generateNudgeMessage(nudge.tier, nudge.hoursInactive, personalityPrefs, timezone);
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
             body: message,
