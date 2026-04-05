@@ -219,6 +219,44 @@ export async function GET(request: Request) {
         }
       }
 
+      // --- Evening Idle Check-in (5:30pm+) ---
+      const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
+      if (mode === "gentle") {
+        console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
+      } else if (!canSend("normal")) {
+        console.log(`[Push][Evening] skip user=${userId} reason=daily_cap_reached cap=${dailyCap} sentToday=${sentToday}`);
+      } else if (await hasBeenNotifiedToday(userId, eveningDedupKey)) {
+        console.log(`[Push][Evening] skip user=${userId} reason=already_notified_today`);
+      } else {
+        const shouldNotify = await shouldSendEveningCheckin(userId, timezone);
+        if (!shouldNotify) {
+          console.log(`[Push][Evening] skip user=${userId} reason=criteria_not_met`);
+        } else {
+          const topTask = await getTopPendingTaskTitle(userId);
+          const message = await generatePushMessage(
+            { type: "idle_checkin_evening", topTaskTitle: topTask },
+            personalityPrefs,
+            timezone,
+            mode
+          );
+          const sent = await sendPushToUser(userId, {
+            title: "ControlledChaos",
+            body: message,
+            url: topTask ? "/tasks" : "/dump",
+            tag: eveningDedupKey,
+            userId,
+            actions: IDLE_ACTIONS,
+          });
+
+          if (sent) {
+            markSent();
+            console.log(`[Push][Evening] sent user=${userId}`);
+          } else {
+            console.log(`[Push][Evening] not_sent user=${userId} reason=no_active_subscriptions_or_push_blocked`);
+          }
+        }
+      }
+
       // --- Inactivity Nudge ---
       const nudge = canSend("normal") ? await getInactivityNudgeTier(userId) : null;
       if (nudge) {
@@ -237,30 +275,6 @@ export async function GET(request: Request) {
             url: "/tasks",
             tag: nudgeDedupKey,
             userId,
-          });
-          if (sent) markSent();
-        }
-      }
-
-      // --- Evening Idle Check-in (5:30pm+) ---
-      const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
-      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, eveningDedupKey))) {
-        const shouldNotify = await shouldSendEveningCheckin(userId, timezone);
-        if (shouldNotify) {
-          const topTask = await getTopPendingTaskTitle(userId);
-          const message = await generatePushMessage(
-            { type: "idle_checkin_evening", topTaskTitle: topTask },
-            personalityPrefs,
-            timezone,
-            mode
-          );
-          const sent = await sendPushToUser(userId, {
-            title: "ControlledChaos",
-            body: message,
-            url: topTask ? "/tasks" : "/dump",
-            tag: eveningDedupKey,
-            userId,
-            actions: IDLE_ACTIONS,
           });
           if (sent) markSent();
         }

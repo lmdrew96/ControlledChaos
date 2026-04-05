@@ -370,12 +370,12 @@ export async function shouldSendAfternoonCheckin(
 
 /**
  * Determine if the user should get an evening idle check-in.
- * Criteria: no task activity today AND it's past 5:30pm in their timezone.
+ * Criteria: it's 5:30pm+ and the user has been inactive long enough to benefit from a final nudge.
  */
-export async function shouldSendEveningCheckin(
+export async function getEveningCheckinStatus(
   userId: string,
   timezone: string
-): Promise<boolean> {
+): Promise<{ shouldSend: boolean; reason: string; hoursSinceLastActivity?: number }> {
   const now = new Date();
   const timeStr = now.toLocaleTimeString("en-US", {
     timeZone: timezone,
@@ -383,16 +383,46 @@ export async function shouldSendEveningCheckin(
     minute: "2-digit",
     hour12: false,
   });
-  if (timeStr < "17:30") return false;
+  if (timeStr < "17:30") {
+    return { shouldSend: false, reason: "before_window" };
+  }
 
   const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) return true;
+  if (recentActivity.length === 0) {
+    return { shouldSend: true, reason: "no_activity_recorded" };
+  }
 
   const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
-  return lastActivityDateStr !== todayStr;
+  if (lastActivityDateStr !== todayStr) {
+    return { shouldSend: true, reason: "no_activity_today" };
+  }
+
+  // If they were active earlier today, still allow an evening nudge after enough idle time.
+  const hoursSinceLastActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+  if (hoursSinceLastActivity >= 3) {
+    return {
+      shouldSend: true,
+      reason: "inactive_3h_plus",
+      hoursSinceLastActivity,
+    };
+  }
+
+  return {
+    shouldSend: false,
+    reason: "recent_activity",
+    hoursSinceLastActivity,
+  };
+}
+
+export async function shouldSendEveningCheckin(
+  userId: string,
+  timezone: string
+): Promise<boolean> {
+  const status = await getEveningCheckinStatus(userId, timezone);
+  return status.shouldSend;
 }
 
 /**
