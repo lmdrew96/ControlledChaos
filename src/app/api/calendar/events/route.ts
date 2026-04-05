@@ -6,8 +6,11 @@ import {
   getUserSettings,
   getLastCalendarSync,
   createManualCalendarEvent,
+  updateCalendarEvent,
 } from "@/lib/db/queries";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
+import { callHaiku } from "@/lib/ai";
+import { AUTO_NOTE_EVENT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 
 const SYNC_STALENESS_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -146,7 +149,7 @@ export async function POST(request: Request) {
     const seriesId =
       instances.length > 1 ? crypto.randomUUID() : null;
 
-    const createdEvents = [];
+    const createdEvents: Awaited<ReturnType<typeof createManualCalendarEvent>>[] = [];
 
     for (const instance of instances) {
       const event = await createManualCalendarEvent({
@@ -161,6 +164,41 @@ export async function POST(request: Request) {
       });
 
       createdEvents.push(event);
+    }
+
+    // Background: generate AI note for the first event if no description was provided
+    if (!description && createdEvents.length > 0) {
+      const firstEvent = createdEvents[0];
+      const eventTime = new Date(firstEvent.startTime).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const userPrompt = [
+        `Event: "${firstEvent.title}"`,
+        `Time: ${eventTime}`,
+        firstEvent.location ? `Location: ${firstEvent.location}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      callHaiku({
+        system: AUTO_NOTE_EVENT_SYSTEM_PROMPT,
+        user: userPrompt,
+        maxTokens: 150,
+      })
+        .then(({ text }) => {
+          const note = text.trim();
+          if (note && note !== "SKIP") {
+            // Apply the note to all instances in the series
+            return Promise.all(
+              createdEvents.map((evt) =>
+                updateCalendarEvent(evt.id, userId, { description: note })
+              )
+            );
+          }
+        })
+        .catch((err) => console.error("[AutoNote] Event note generation failed:", err));
     }
 
     return NextResponse.json({

@@ -34,21 +34,18 @@ export function DoThisNext() {
   const [hasRequested, setHasRequested] = useState(false);
   const hasFetched = useRef(false);
 
-  // Request location on mount so it's ready when user asks
-  useEffect(() => {
-    requestLocation();
-  }, [requestLocation]);
-
   // Fetch recommendation only when user has explicitly requested it
   const triggerRecommendation = useCallback(() => {
     setHasRequested(true);
     hasFetched.current = true;
+    // Request location now — recommendation re-fetches via the effect below when it arrives
+    requestLocation();
     fetchRecommendation({
       latitude: latitude ?? undefined,
       longitude: longitude ?? undefined,
       energyOverride,
     });
-  }, [fetchRecommendation, latitude, longitude, energyOverride]);
+  }, [fetchRecommendation, latitude, longitude, energyOverride, requestLocation]);
 
   // Re-fetch when location arrives (only if user already requested)
   useEffect(() => {

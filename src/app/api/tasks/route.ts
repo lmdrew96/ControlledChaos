@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksByUser, createTask } from "@/lib/db/queries";
+import { getTasksByUser, createTask, updateTask } from "@/lib/db/queries";
+import { callHaiku } from "@/lib/ai";
+import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,6 +48,30 @@ export async function POST(request: NextRequest) {
       locationTags: locationTags?.length ? locationTags : null,
       deadline: deadline ? new Date(deadline) : null,
     });
+
+    // Background: generate AI note if no description was provided
+    if (!description) {
+      const userPrompt = [
+        `Task: "${task.title}"`,
+        task.category ? `Category: ${task.category}` : null,
+        task.priority !== "normal" ? `Priority: ${task.priority}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      callHaiku({
+        system: AUTO_NOTE_TASK_SYSTEM_PROMPT,
+        user: userPrompt,
+        maxTokens: 150,
+      })
+        .then(({ text }) => {
+          const note = text.trim();
+          if (note && note !== "SKIP") {
+            return updateTask(task.id, userId, { description: note });
+          }
+        })
+        .catch((err) => console.error("[AutoNote] Task note generation failed:", err));
+    }
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {
