@@ -1,7 +1,7 @@
 import { callHaiku } from "./index";
 import { buildPersonalityBlock, buildTaskRecommendationPrompt } from "./prompts";
 import { extractJSON, extractScratchpad } from "./validate";
-import type { UserContext, TaskRecommendation, Task, EnergyProfile, PersonalityPrefs } from "@/types";
+import type { UserContext, TaskRecommendation, Task, PersonalityPrefs } from "@/types";
 
 interface RecommendationInput {
   context: UserContext;
@@ -18,25 +18,13 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   const now = new Date();
 
-  // Format deadlines in the user's timezone so the AI doesn't misread UTC times
-  const fmtDeadline = (iso: string | null) => {
+  // Pre-compute relative time so the AI never does date math
+  const relativeTime = (iso: string | null): string | null => {
     if (!iso) return null;
-    return new Date(iso).toLocaleString("en-US", {
-      timeZone: context.timezone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  // Pre-compute hours until deadline so the AI doesn't need to do date math
-  const hoursUntilDeadline = (iso: string | null): string | null => {
-    if (!iso) return null;
-    const deadlineMs = new Date(iso).getTime();
-    const hoursLeft = Math.round((deadlineMs - now.getTime()) / 3_600_000);
+    const targetMs = new Date(iso).getTime();
+    const diffMs = targetMs - now.getTime();
+    const hoursLeft = Math.round(diffMs / 3_600_000);
+    if (hoursLeft < -1) return `OVERDUE by ${Math.abs(hoursLeft)} hours`;
     if (hoursLeft < 0) return "OVERDUE";
     if (hoursLeft === 0) return "< 1 hour";
     if (hoursLeft < 24) return `${hoursLeft} hours`;
@@ -63,9 +51,8 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       estimatedMinutes: t.estimatedMinutes,
       category: t.category,
       locationTags: t.locationTags,
-      deadline: fmtDeadline(t.deadline),
-      deadlineIn: hoursUntilDeadline(t.deadline),
-      originallyPlannedFor: fmtDeadline(t.scheduledFor),
+      deadlineIn: relativeTime(t.deadline),
+      plannedIn: relativeTime(t.scheduledFor),
       status: t.status,
     };
   });
@@ -134,14 +121,23 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       ? "\n\nNote: Task descriptions omitted due to volume. Prioritize based on title, priority, deadline, and energy."
       : "";
 
+  // Extract just time-of-day to prevent Haiku from hallucinating date context
+  const timeOfDay = new Date().toLocaleTimeString("en-US", {
+    timeZone: context.timezone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
   return `## Current Context
-- Time: ${context.currentTime}
-- Timezone: ${context.timezone}
+- Time of day: ${timeOfDay}
 - Location: ${locationLine}
 - Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}${currentEventLine}
 - Next event: ${eventLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
-- Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}${calendarSection}
+- Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}
+
+NOTE: All deadline/timing info is pre-computed in the "deadlineIn" and "plannedIn" fields. Do NOT attempt to derive dates or days from any other context.${calendarSection}
 
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}${descriptionNote}
