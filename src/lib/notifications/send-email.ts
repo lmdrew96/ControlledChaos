@@ -46,14 +46,25 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const events = await getCalendarEventsByDateRange(userId, todayStart, todayEnd);
 
-  // Pending tasks (sorted by priority)
+  // Pending tasks (sorted by deadline first, then priority)
   const pending = await getPendingTasks(userId);
   const priorityOrder = { urgent: 0, important: 1, normal: 2, someday: 3 };
-  const sorted = [...pending].sort(
-    (a, b) =>
+  const sorted = [...pending].sort((a, b) => {
+    // Deadline-first: tasks with deadlines beat tasks without
+    const aHas = a.deadline ? 0 : 1;
+    const bHas = b.deadline ? 0 : 1;
+    if (aHas !== bHas) return aHas - bHas;
+    // Among tasks with deadlines, nearest first
+    if (a.deadline && b.deadline) {
+      const diff = new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      if (diff !== 0) return diff;
+    }
+    // Then by priority
+    return (
       (priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3) -
       (priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3)
-  );
+    );
+  });
   const topTasks = sorted.slice(0, 5);
 
   // Deadlines this week
@@ -148,14 +159,22 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   // Tasks completed today
   const completed = await getTasksCompletedToday(userId, timezone);
 
-  // Pending tasks for tomorrow's priority
+  // Pending tasks for tomorrow's priority (deadline-first, then priority)
   const pending = await getPendingTasks(userId);
   const priorityOrder = { urgent: 0, important: 1, normal: 2, someday: 3 };
-  const sorted = [...pending].sort(
-    (a, b) =>
+  const sorted = [...pending].sort((a, b) => {
+    const aHas = a.deadline ? 0 : 1;
+    const bHas = b.deadline ? 0 : 1;
+    if (aHas !== bHas) return aHas - bHas;
+    if (a.deadline && b.deadline) {
+      const diff = new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      if (diff !== 0) return diff;
+    }
+    return (
       (priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3) -
       (priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3)
-  );
+    );
+  });
   const tomorrowPriority = sorted[0] ?? null;
 
   // Tomorrow's calendar for context

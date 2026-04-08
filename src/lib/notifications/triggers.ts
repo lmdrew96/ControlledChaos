@@ -95,6 +95,9 @@ export async function getDeadlineWarnings(
     }
   }
 
+  // Sort by nearest deadline first so the most urgent warnings fire first
+  warnings.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+
   return warnings;
 }
 
@@ -332,13 +335,11 @@ export async function generateNudgeMessage(
 
 /**
  * Returns the title of the top pending task to surface in idle check-ins.
- * Prefers tasks with an upcoming deadline, then falls back to the most recent pending task.
+ * getPendingTasks already sorts deadline-first (nearest deadline → no deadline → newest).
  */
 export async function getTopPendingTaskTitle(userId: string): Promise<string | undefined> {
   const pending = await getPendingTasks(userId);
-  if (pending.length === 0) return undefined;
-  const withDeadline = pending.find((t) => t.deadline);
-  return (withDeadline ?? pending[0]).title;
+  return pending[0]?.title;
 }
 
 /**

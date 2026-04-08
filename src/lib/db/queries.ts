@@ -13,7 +13,7 @@ import {
   users,
   userSettings,
 } from "./schema";
-import { eq, and, desc, ne, gt, gte, lt, lte, or, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import type {
   ParsedTask,
   DumpInputType,
@@ -380,7 +380,11 @@ export async function getPendingTasks(userId: string) {
         )
       )
     )
-    .orderBy(desc(tasks.createdAt));
+    .orderBy(
+      sql`CASE WHEN ${tasks.deadline} IS NULL THEN 1 ELSE 0 END`,
+      asc(tasks.deadline),
+      desc(tasks.createdAt)
+    );
 }
 
 // ============================================================
