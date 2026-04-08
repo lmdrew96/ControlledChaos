@@ -437,6 +437,7 @@ export async function upsertCalendarEvent(params: {
   endTime: Date;
   location: string | null;
   isAllDay: boolean;
+  category?: string | null;
 }) {
   const [result] = await db
     .insert(calendarEvents)
@@ -450,6 +451,7 @@ export async function upsertCalendarEvent(params: {
       endTime: params.endTime,
       location: params.location,
       isAllDay: params.isAllDay,
+      category: params.category ?? null,
       syncedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -540,6 +542,7 @@ export async function updateCalendarEvent(
     startTime: Date;
     endTime: Date;
     location: string | null;
+    category: string | null;
   }>
 ) {
   const [updated] = await db
@@ -559,6 +562,7 @@ export async function createManualCalendarEvent(params: {
   location: string | null;
   isAllDay: boolean;
   seriesId: string | null;
+  category?: string | null;
 }) {
   const externalId = `manual-${crypto.randomUUID()}`;
   const [event] = await db
@@ -573,6 +577,7 @@ export async function createManualCalendarEvent(params: {
       endTime: params.endTime,
       location: params.location,
       isAllDay: params.isAllDay,
+      category: params.category ?? null,
       seriesId: params.seriesId,
       syncedAt: new Date(),
     })
@@ -591,6 +596,7 @@ export async function createCalendarEventsFromDump(
     location: string | null;
     isAllDay: boolean;
     seriesId: string | null;
+    category?: string | null;
   }>
 ) {
   if (events.length === 0) return [];
@@ -599,6 +605,7 @@ export async function createCalendarEventsFromDump(
     source: "controlledchaos" as const,
     externalId: `dump-${crypto.randomUUID()}`,
     ...evt,
+    category: evt.category ?? null,
     sourceDumpId: dumpId,
     syncedAt: new Date(),
   }));
@@ -623,7 +630,7 @@ export async function deleteCalendarEventsBySeries(
 export async function updateCalendarEventSeries(
   seriesId: string,
   userId: string,
-  data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean }
+  data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null }
 ) {
   return db
     .update(calendarEvents)

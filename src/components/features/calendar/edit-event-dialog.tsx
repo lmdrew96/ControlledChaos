@@ -13,8 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, Trash2, Copy } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import type { CalendarEvent } from "@/types";
+import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
+import type { CalendarEvent, EventCategory } from "@/types";
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -32,6 +40,7 @@ interface FormState {
   startTime: string;
   endTime: string;
   isAllDay: boolean;
+  category: EventCategory;
   editMode: "single" | "series";
 }
 
@@ -70,6 +79,7 @@ export function EditEventDialog({
     startTime: "09:00",
     endTime: "10:00",
     isAllDay: false,
+    category: "personal",
     editMode: "single",
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -85,6 +95,7 @@ export function EditEventDialog({
         startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime),
         endTime: event.isAllDay ? "23:59" : toTimeInput(event.endTime),
         isAllDay: event.isAllDay,
+        category: (event.category as EventCategory) ?? "personal",
         editMode: "single",
       });
     }
@@ -111,6 +122,7 @@ export function EditEventDialog({
         title: form.title.trim(),
         description: form.description || null,
         location: form.location || null,
+        category: form.category,
       };
 
       if (!form.isAllDay) {
@@ -229,6 +241,26 @@ export function EditEventDialog({
               onChange={(e) => updateField("location", e.target.value)}
               placeholder="Add location..."
             />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={form.category}
+              onValueChange={(v) => updateField("category", v as EventCategory)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVENT_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.key} value={cat.key}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* All-day toggle */}

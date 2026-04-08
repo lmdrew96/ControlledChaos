@@ -35,8 +35,8 @@ import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
-import { sourceColor } from "@/lib/calendar/colors";
-import type { CalendarColors, CalendarEvent, CalendarSource } from "@/types";
+import { categoryColor } from "@/lib/calendar/colors";
+import type { CalendarColors, CalendarEvent, CalendarSource, EventCategory } from "@/types";
 
 // ============================================================
 // Constants
@@ -713,7 +713,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                 onClick={() => setSelectedEvent(event)}
                 className={cn(
                   "w-full rounded-lg border-l-4 px-3 py-2 text-left transition-colors hover:bg-accent/50",
-                  sourceColor(event.source as CalendarSource, calendarColors)
+                  categoryColor(event.category as EventCategory, calendarColors)
                 )}
               >
                 <p className="text-sm font-medium">{event.title}</p>
@@ -799,7 +799,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                           onClick={() => setSelectedEvent(event)}
                           className={cn(
                             "mb-0.5 w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium",
-                            sourceColor(event.source as CalendarSource, calendarColors)
+                            categoryColor(event.category as EventCategory, calendarColors)
                           )}
                         >
                           {event.title}
@@ -885,7 +885,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               "absolute z-10 overflow-hidden rounded border-l-2 px-1 py-0.5 text-left transition-opacity hover:opacity-80",
                               isCC && "cursor-grab active:cursor-grabbing",
                               isBeingDragged && "opacity-30",
-                              sourceColor(event.source as CalendarSource, calendarColors)
+                              categoryColor(event.category as EventCategory, calendarColors)
                             )}
                             style={{
                               top: pos.top,
@@ -928,7 +928,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                 <div
                   className={cn(
                     "pointer-events-none absolute z-30 overflow-hidden rounded border-l-2 px-1 py-0.5 opacity-80 shadow-lg ring-2 ring-primary/50",
-                    sourceColor(dragEvent.source as CalendarSource, calendarColors)
+                    categoryColor(dragEvent.category as EventCategory, calendarColors)
                   )}
                   style={{
                     top: dragGhost.top,
@@ -974,7 +974,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   <span
                     className={cn(
                       "inline-block rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      sourceColor(selectedEvent.source as CalendarSource, calendarColors)
+                      categoryColor(selectedEvent.category as EventCategory, calendarColors)
                     )}
                   >
                     {sourceLabel(selectedEvent.source as CalendarSource, selectedEvent.externalId)}

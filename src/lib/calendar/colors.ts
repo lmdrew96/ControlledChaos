@@ -1,8 +1,11 @@
-import type { CalendarColorKey, CalendarColors, CalendarSource } from "@/types";
+import type { CalendarColorKey, CalendarColors, EventCategory } from "@/types";
 
 export const DEFAULT_CALENDAR_COLORS: CalendarColors = {
-  canvas: "blue",
-  controlledchaos: "purple",
+  school: "blue",
+  work: "purple",
+  personal: "green",
+  errands: "orange",
+  health: "red",
 };
 
 export const CALENDAR_COLOR_OPTIONS: { key: CalendarColorKey; label: string; swatch: string }[] = [
@@ -14,6 +17,14 @@ export const CALENDAR_COLOR_OPTIONS: { key: CalendarColorKey; label: string; swa
   { key: "pink",   label: "Pink",   swatch: "bg-pink-500" },
   { key: "teal",   label: "Teal",   swatch: "bg-teal-500" },
   { key: "yellow", label: "Yellow", swatch: "bg-yellow-500" },
+];
+
+export const EVENT_CATEGORIES: { key: EventCategory; label: string }[] = [
+  { key: "school",   label: "School" },
+  { key: "work",     label: "Work" },
+  { key: "personal", label: "Personal" },
+  { key: "errands",  label: "Errands" },
+  { key: "health",   label: "Health" },
 ];
 
 /** Week-view: border-l-4 style classes (light + dark) */
@@ -28,7 +39,7 @@ const WEEK_VIEW_CLASSES: Record<CalendarColorKey, string> = {
   yellow: "bg-yellow-100 dark:bg-yellow-500/25 border-yellow-300 dark:border-yellow-400/60 text-yellow-800 dark:text-yellow-100",
 };
 
-/** Month-view: small dot/pill color */
+/** Month-view: small dot color */
 const MONTH_VIEW_CLASSES: Record<CalendarColorKey, string> = {
   blue:   "bg-blue-500/80",
   purple: "bg-purple-500/80",
@@ -52,23 +63,22 @@ const MONTH_PILL_CLASSES: Record<CalendarColorKey, string> = {
   yellow: "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-200",
 };
 
-function resolveColor(source: CalendarSource, colors: CalendarColors): CalendarColorKey {
-  if (source === "canvas" || source === "google") return colors.canvas;
-  if (source === "controlledchaos") return colors.controlledchaos;
-  return "blue";
+function resolveColor(category: EventCategory | null | undefined, colors: CalendarColors): CalendarColorKey {
+  if (category && category in colors) return colors[category];
+  return colors.personal; // fallback for events with no category
 }
 
-export function sourceColor(source: CalendarSource, colors?: CalendarColors | null): string {
-  const c = resolveColor(source, colors ?? DEFAULT_CALENDAR_COLORS);
-  return WEEK_VIEW_CLASSES[c] ?? WEEK_VIEW_CLASSES.blue;
+export function categoryColor(category: EventCategory | null | undefined, colors?: CalendarColors | null): string {
+  const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
+  return WEEK_VIEW_CLASSES[c];
 }
 
-export function sourceEventColor(source: CalendarSource, colors?: CalendarColors | null): string {
-  const c = resolveColor(source, colors ?? DEFAULT_CALENDAR_COLORS);
-  return MONTH_VIEW_CLASSES[c] ?? MONTH_VIEW_CLASSES.blue;
+export function categoryDotColor(category: EventCategory | null | undefined, colors?: CalendarColors | null): string {
+  const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
+  return MONTH_VIEW_CLASSES[c];
 }
 
-export function sourcePillColor(source: CalendarSource, colors?: CalendarColors | null): string {
-  const c = resolveColor(source, colors ?? DEFAULT_CALENDAR_COLORS);
-  return MONTH_PILL_CLASSES[c] ?? MONTH_PILL_CLASSES.blue;
+export function categoryPillColor(category: EventCategory | null | undefined, colors?: CalendarColors | null): string {
+  const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
+  return MONTH_PILL_CLASSES[c];
 }

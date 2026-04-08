@@ -139,6 +139,7 @@ export async function syncCanvasCalendar(
       endTime: endDate,
       location: paramValue(event.location),
       isAllDay,
+      category: "school",
     });
 
     synced++;

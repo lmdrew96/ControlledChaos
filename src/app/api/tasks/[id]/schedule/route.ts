@@ -72,6 +72,7 @@ export async function POST(_req: Request, context: RouteContext) {
       startTime: e.startTime.toISOString(),
       endTime: e.endTime.toISOString(),
       location: e.location,
+      category: (e.category as "school" | "work" | "personal" | "errands" | "health") ?? null,
       isAllDay: e.isAllDay ?? false,
       seriesId: e.seriesId ?? null,
       sourceDumpId: e.sourceDumpId ?? null,

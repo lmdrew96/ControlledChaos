@@ -40,11 +40,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Event is not part of a series" }, { status: 400 });
     }
 
-    const data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean } = {};
+    const data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null } = {};
     if (body.title !== undefined) data.title = body.title;
     if (body.description !== undefined) data.description = body.description;
     if (body.location !== undefined) data.location = body.location;
     if (body.isAllDay !== undefined) data.isAllDay = body.isAllDay;
+    if (body.category !== undefined) {
+      const valid = new Set(["school", "work", "personal", "errands", "health"]);
+      data.category = valid.has(body.category) ? body.category : null;
+    }
 
     // Apply bulk fields (title, description, location, isAllDay)
     if (Object.keys(data).length > 0) {

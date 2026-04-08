@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, description, location, startTime, endTime, isAllDay, recurrence } =
+    const { title, description, location, startTime, endTime, isAllDay, recurrence, category } =
       body as {
         title?: string;
         description?: string;
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
           daysOfWeek?: number[];
           endDate?: string;
         };
+        category?: string;
       };
 
     if (!title?.trim()) {
@@ -152,6 +153,7 @@ export async function POST(request: Request) {
     const createdEvents: Awaited<ReturnType<typeof createManualCalendarEvent>>[] = [];
 
     for (const instance of instances) {
+      const validCategories = new Set(["school", "work", "personal", "errands", "health"]);
       const event = await createManualCalendarEvent({
         userId,
         title: instance.title,
@@ -161,6 +163,7 @@ export async function POST(request: Request) {
         location: instance.location,
         isAllDay: instance.isAllDay,
         seriesId,
+        category: category && validCategories.has(category) ? category : null,
       });
 
       createdEvents.push(event);

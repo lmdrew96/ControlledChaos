@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
-import { sourceEventColor, sourcePillColor } from "@/lib/calendar/colors";
-import type { CalendarColors, CalendarSource } from "@/types";
+import { categoryDotColor, categoryPillColor } from "@/lib/calendar/colors";
+import type { CalendarColors, EventCategory } from "@/types";
 
 interface MonthViewProps {
   initialDate?: Date;
@@ -202,13 +202,13 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
                           key={event.id}
                           className={cn(
                             "flex items-center gap-1 text-[10px] rounded px-1 py-0.5 truncate w-full",
-                            sourcePillColor(event.source as CalendarSource, calendarColors)
+                            categoryPillColor(event.category as EventCategory, calendarColors)
                           )}
                         >
                           <span
                             className={cn(
                               "w-1.5 h-1.5 rounded-full shrink-0",
-                              sourceEventColor(event.source as CalendarSource, calendarColors)
+                              categoryDotColor(event.category as EventCategory, calendarColors)
                             )}
                           />
                           <span className="truncate">{event.title.replace(/^\[CC\] /, "")}</span>

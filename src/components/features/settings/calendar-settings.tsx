@@ -17,9 +17,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
+import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS, EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import { cn } from "@/lib/utils";
-import type { CalendarColorKey, CalendarColors } from "@/types";
+import type { CalendarColorKey, CalendarColors, EventCategory } from "@/types";
 
 export function CalendarSettings() {
   // Canvas state
@@ -170,9 +170,9 @@ export function CalendarSettings() {
   }
 
   // ── Calendar color handlers ──────────────────────────────────
-  const colorsDirty =
-    calendarColors.canvas !== savedCalendarColors.canvas ||
-    calendarColors.controlledchaos !== savedCalendarColors.controlledchaos;
+  const colorsDirty = EVENT_CATEGORIES.some(
+    (cat) => calendarColors[cat.key] !== savedCalendarColors[cat.key]
+  );
 
   async function handleSaveColors() {
     setIsSavingColors(true);
@@ -381,10 +381,7 @@ export function CalendarSettings() {
           Choose a color for each calendar source on the calendar grid.
         </p>
         <div className="flex flex-col gap-4">
-          {([
-            { key: "canvas" as const, label: "Canvas" },
-            { key: "controlledchaos" as const, label: "ControlledChaos" },
-          ]).map(({ key, label }) => (
+          {EVENT_CATEGORIES.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
               <label className="text-xs text-muted-foreground">{label}</label>
               <div className="flex flex-wrap gap-2">

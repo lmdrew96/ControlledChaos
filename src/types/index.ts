@@ -170,9 +170,14 @@ export type CalendarSource = "canvas" | "google" | "controlledchaos"; // "google
 
 export type CalendarColorKey = "blue" | "purple" | "green" | "orange" | "red" | "pink" | "teal" | "yellow";
 
+export type EventCategory = TaskCategory; // Same categories: school, work, personal, errands, health
+
 export interface CalendarColors {
-  canvas: CalendarColorKey;
-  controlledchaos: CalendarColorKey;
+  school: CalendarColorKey;
+  work: CalendarColorKey;
+  personal: CalendarColorKey;
+  errands: CalendarColorKey;
+  health: CalendarColorKey;
 }
 
 export interface CalendarEvent {
@@ -185,6 +190,7 @@ export interface CalendarEvent {
   startTime: string;
   endTime: string;
   location: string | null;
+  category: EventCategory | null;
   isAllDay: boolean;
   seriesId: string | null;
   sourceDumpId: string | null;

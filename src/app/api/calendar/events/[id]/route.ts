@@ -68,6 +68,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (body.startTime !== undefined) data.startTime = new Date(body.startTime);
     if (body.endTime !== undefined) data.endTime = new Date(body.endTime);
     if (body.isAllDay !== undefined) data.isAllDay = body.isAllDay;
+    if (body.category !== undefined) {
+      const valid = new Set(["school", "work", "personal", "errands", "health"]);
+      data.category = valid.has(body.category) ? body.category : null;
+    }
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json(

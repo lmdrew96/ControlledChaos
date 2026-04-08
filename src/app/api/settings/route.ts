@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
-import type { CalendarColors, CalendarColorKey, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
+import type { CalendarColorKey, CalendarColors, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
 
@@ -112,7 +112,13 @@ export async function PATCH(request: Request) {
       const validColor = (v: unknown): v is CalendarColorKey =>
         typeof v === "string" &&
         ["blue", "purple", "green", "orange", "red", "pink", "teal", "yellow"].includes(v);
-      if (validColor(cc.canvas) && validColor(cc.controlledchaos)) {
+      if (
+        validColor(cc.school) &&
+        validColor(cc.work) &&
+        validColor(cc.personal) &&
+        validColor(cc.errands) &&
+        validColor(cc.health)
+      ) {
         data.calendarColors = cc;
       }
     }

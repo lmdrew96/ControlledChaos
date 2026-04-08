@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
+import type { EventCategory } from "@/types";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -35,6 +37,7 @@ interface CreateEventDialogProps {
     startTime: string;
     endTime: string;
     isAllDay?: boolean;
+    category?: EventCategory;
     recurrence?: {
       type: "daily" | "weekly";
       daysOfWeek?: number[];
@@ -69,6 +72,7 @@ export function CreateEventDialog({
     end.setDate(end.getDate() + 16 * 7);
     return formatDateInput(end);
   });
+  const [category, setCategory] = useState<EventCategory>("personal");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +91,7 @@ export function CreateEventDialog({
     const end = new Date(now);
     end.setDate(end.getDate() + 16 * 7);
     setRecurrenceEndDate(formatDateInput(end));
+    setCategory("personal");
     setShowDescription(false);
     setError(null);
   }
@@ -142,6 +147,7 @@ export function CreateEventDialog({
         startTime: startISO,
         endTime: endISO,
         isAllDay,
+        category,
         recurrence,
       });
       resetForm();
@@ -246,6 +252,26 @@ export function CreateEventDialog({
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={category}
+              onValueChange={(v) => setCategory(v as EventCategory)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVENT_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.key} value={cat.key}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Recurrence */}
