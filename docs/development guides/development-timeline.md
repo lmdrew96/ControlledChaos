@@ -16,7 +16,7 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 | 2 | Brain dump (text) → AI parses into structured tasks | Month 1 | ✅ Complete |
 | 3 | Voice + photo brain dumps work end-to-end | Month 2 | ✅ Complete |
 | 4 | AI recommends tasks based on context (energy, time, location, priority) | Month 2 | ✅ Complete |
-| 5 | Calendar integration live (Canvas iCal + Google Calendar read/write) | Month 3 | ✅ Complete |
+| 5 | Calendar integration live (Canvas iCal sync + manual events + AI scheduling) | Month 3 | ✅ Complete |
 | 6 | Notifications system complete (push + morning/evening email digests) | Month 3–4 | ✅ Complete |
 
 **All 6 milestones complete! Now in Month 4: Polish + Launch**
@@ -99,14 +99,13 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 ### Week 9–10: Calendar Integration
 - [x] Canvas iCal parser: fetch + parse .ics feed → upsert `calendar_events`
 - [x] Vercel cron job: auto-sync Canvas iCal every 15 minutes (and on-demand)
-- [x] Google Calendar OAuth flow (via Clerk's Google OAuth)
-- [x] Google Calendar read: fetch existing events → store in `calendar_events`
-- [x] Google Calendar write: AI creates time blocks for tasks
-- [x] Unified calendar view UI: week view with all events from all sources
+- [x] Unified calendar view UI: week + month views with all events
 - [x] AI scheduling: analyze free time blocks → create task time blocks
 - [x] "Time available" calculation: how long until next event?
 - [x] Manual event creation with recurrence support (daily/weekly)
-- [x] Drag-and-drop event rescheduling (desktop)
+- [x] Calendar event colors by category (school, work, personal, errands, health)
+- [x] Personal iCal export/subscribe URL for external calendar apps
+- [x] Recurring event series management (edit/delete all instances)
 
 ### Week 11–12: Notification System
 - [x] Service worker: push notification subscription + handling
@@ -127,7 +126,7 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 - [x] AI prompt redesign: anti-hallucination rules across all prompts
 
 ### Milestone Checks:
-- ✅ **Milestone 5:** Canvas deadlines + Google Calendar events visible; AI creates scheduled time blocks
+- ✅ **Milestone 5:** Canvas deadlines visible; AI creates scheduled time blocks; manual events with recurrence
 - ✅ **Milestone 6:** User receives push notifications + morning/evening email digests
 
 ### Design Targets:
@@ -157,10 +156,58 @@ These are your north star. Order within a month is flexible (follow the hyperfoc
 - [ ] End-to-end testing of all core flows
 - [ ] Beta testing (invite 3–5 ADHD friends/classmates)
 - [ ] Bug fixes from beta feedback
-- [ ] Landing page / marketing page
-- [ ] README.md with setup instructions
+- [x] Landing page with animated brain dump demo
+- [x] README.md with setup instructions
 - [ ] Launch on r/ADHD, r/productivity, Product Hunt
 - [ ] 🎉 **MVP LAUNCH** 🎉
+
+---
+
+## Beyond Milestones: Features Built During Polish
+
+These features weren't in the original milestones but emerged from real usage and testing:
+
+### Crisis Mode
+- Emergency task breakdown for hard deadlines
+- AI assesses panic level (fine / tight / damage-control)
+- Generates 5-8 concrete micro-tasks with stuck hints
+- Supports file attachments (rubrics, assignment PDFs)
+- Multiple concurrent crisis plans, individually deletable
+
+### Personality System
+- Three-axis AI personality tuning: supportive↔strict, professional↔BFF, clean↔unfiltered
+- Affects all notifications, digests, and recommendation reasoning
+- Unfiltered mode actively uses casual swearing for authenticity
+
+### Multi-Model AI Strategy
+- **Haiku** for heavy lifting (parsing, scheduling, recommendations, breakdowns)
+- **Sonnet** for personality-heavy outputs (notifications, digests, nudges)
+- Pre-computed temporal values prevent date hallucinations across all prompts
+
+### Location-Aware Geofence Notifications
+- Foreground watchPosition tracker (battery-friendly, 100m debounce)
+- Server-side geofence detection with hysteresis buffer (GPS bounce prevention)
+- Arrival notifications: "You're at CVS — pick up your prescription"
+- Departure notifications: nearby locations with pending tasks
+- 3-layer dedup: client distance, server state machine, 2-hour cooldown
+
+### Advanced Notification Intelligence
+- AI-determined snooze durations (not fixed intervals)
+- Assertiveness modes: gentle / balanced / assertive
+- Daily push caps per assertiveness level
+- Inactivity nudges at 72h / 96h / 120h tiers
+- Morning (11am) + afternoon (3pm) + evening (7pm) idle check-ins
+- Push action buttons (Start, Snooze) on notifications
+
+### Recommendation Persistence
+- Recommendations survive page navigation and reload (localStorage)
+- Auto-expire after 4 hours to prevent stale recommendations
+- Cleared only on explicit user action (Done / Not Now / Something Else)
+
+### Auto AI Notes
+- Haiku generates prep notes for manually created tasks and events
+- "Bring your insurance card" for pharmacy tasks, "Check course site for readings" for classes
+- Fires in background after creation, surfaces on delayed refetch
 
 ---
 
@@ -211,7 +258,7 @@ You're juggling:
 
 ---
 
-**Document Version:** 2.1
+**Document Version:** 3.0
 **Created:** February 2026
-**Updated:** February 17, 2026
+**Updated:** April 8, 2026
 **Author:** Lanae Drew
