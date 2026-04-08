@@ -67,6 +67,7 @@ self.addEventListener("push", (event) => {
       tag: payload.tag,
       title: payload.title,
       body: payload.body,
+      locationName: payload.locationName,
     },
     // Action buttons — silently ignored on iOS/Firefox where not supported
     actions: payload.actions || [],
@@ -83,7 +84,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const { url, userId, taskId, tag, title, body } = event.notification.data || {};
+  const { url, userId, taskId, tag, title, body, locationName } = event.notification.data || {};
   const action = event.action;
 
   // Snooze: call the API to queue a re-send in 30 min, no navigation
@@ -102,6 +103,7 @@ self.addEventListener("notificationclick", (event) => {
   const navigateTo =
     action === "brain_dump" ? "/dump"
     : action === "see_tasks" ? "/tasks"
+    : action === "see_location_tasks" && locationName ? `/tasks?location=${encodeURIComponent(locationName)}`
     : action === "start_task" && taskId ? `/tasks?taskId=${taskId}`
     : url || "/dashboard";
 

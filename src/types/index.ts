@@ -137,6 +137,7 @@ export type NotificationAssertiveness = "gentle" | "balanced" | "assertive";
 
 export interface NotificationPrefs {
   pushEnabled: boolean;
+  locationNotificationsEnabled: boolean;
   emailMorningDigest: boolean;
   emailEveningDigest: boolean;
   morningDigestTime: string; // "07:30"

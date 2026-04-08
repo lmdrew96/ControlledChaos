@@ -230,7 +230,9 @@ type PushNotificationContext =
   | { type: "scheduled_missed"; taskTitle: string }
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
-  | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" };
+  | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" }
+  | { type: "location_arrival"; locationName: string; taskTitle: string; taskCount: number }
+  | { type: "location_departure_nearby"; locationName: string; nearbyLocationName: string; taskTitle: string };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -241,6 +243,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
+  location_arrival: "You're here — might as well knock this out.",
+  location_departure_nearby: "Before you head home, there's something nearby.",
 };
 
 /**
@@ -266,6 +270,10 @@ export async function generatePushMessage(
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
       : `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}`;
+  } else if (ctx.type === "location_arrival") {
+    userMsg = `Type: location_arrival\nLocation: "${ctx.locationName}"\nTask: "${ctx.taskTitle}"\nTotal matching tasks: ${ctx.taskCount}`;
+  } else if (ctx.type === "location_departure_nearby") {
+    userMsg = `Type: location_departure_nearby\nLeft: "${ctx.locationName}"\nNearby: "${ctx.nearbyLocationName}"\nTask: "${ctx.taskTitle}"`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
   }

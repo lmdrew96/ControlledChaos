@@ -168,6 +168,48 @@ export const locations = pgTable("locations", {
 });
 
 // ============================================================
+// User Locations (last known position for geofence notifications)
+// ============================================================
+export const userLocations = pgTable("user_locations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .references(() => users.id)
+    .notNull()
+    .unique(),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  matchedLocationId: uuid("matched_location_id").references(() => locations.id),
+  matchedLocationName: text("matched_location_name"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================
+// Location Notification Log (dedup for geofence triggers)
+// ============================================================
+export const locationNotificationLog = pgTable(
+  "location_notification_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    locationId: uuid("location_id")
+      .references(() => locations.id)
+      .notNull(),
+    taskId: uuid("task_id").references(() => tasks.id),
+    event: text("event").notNull(), // "arrival" | "departure"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_loc_notif_log_user_loc").on(
+      table.userId,
+      table.locationId,
+      table.createdAt
+    ),
+  ]
+);
+
+// ============================================================
 // Task Activity Log (for AI learning)
 // ============================================================
 export const taskActivity = pgTable(

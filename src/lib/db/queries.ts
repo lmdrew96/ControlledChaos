@@ -5,11 +5,13 @@ import {
   crisisPlans,
   goals,
   locations,
+  locationNotificationLog,
   notifications,
   pushSubscriptions,
   snoozedPushes,
   taskActivity,
   tasks,
+  userLocations,
   users,
   userSettings,
 } from "./schema";
@@ -693,6 +695,97 @@ export async function deleteLocation(locationId: string, userId: string) {
     .returning();
 
   return deleted;
+}
+
+// ============================================================
+// User Location Tracking (geofence notifications)
+// ============================================================
+
+export async function getUserLocation(userId: string) {
+  const [row] = await db
+    .select()
+    .from(userLocations)
+    .where(eq(userLocations.userId, userId));
+  return row ?? null;
+}
+
+export async function upsertUserLocation(
+  userId: string,
+  data: {
+    latitude: string;
+    longitude: string;
+    matchedLocationId: string | null;
+    matchedLocationName: string | null;
+  }
+) {
+  const [row] = await db
+    .insert(userLocations)
+    .values({
+      userId,
+      ...data,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: userLocations.userId,
+      set: {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        matchedLocationId: data.matchedLocationId,
+        matchedLocationName: data.matchedLocationName,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  return row;
+}
+
+export async function getPendingTasksForLocation(
+  userId: string,
+  locationName: string
+) {
+  const pending = await getPendingTasks(userId);
+  return pending.filter((task) =>
+    task.locationTags?.some(
+      (tag) => tag.toLowerCase() === locationName.toLowerCase()
+    )
+  );
+}
+
+export async function getRecentLocationNotification(
+  userId: string,
+  locationId: string,
+  event: "arrival" | "departure",
+  withinHours = 2
+) {
+  const cutoff = new Date(Date.now() - withinHours * 60 * 60 * 1000);
+  const [row] = await db
+    .select()
+    .from(locationNotificationLog)
+    .where(
+      and(
+        eq(locationNotificationLog.userId, userId),
+        eq(locationNotificationLog.locationId, locationId),
+        eq(locationNotificationLog.event, event),
+        gt(locationNotificationLog.createdAt, cutoff)
+      )
+    )
+    .orderBy(desc(locationNotificationLog.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function logLocationNotification(
+  userId: string,
+  locationId: string,
+  taskId: string | null,
+  event: "arrival" | "departure"
+) {
+  await db.insert(locationNotificationLog).values({
+    userId,
+    locationId,
+    taskId,
+    event,
+  });
 }
 
 // ============================================================

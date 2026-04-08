@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
 import {
   LayoutDashboard,
   Brain,
@@ -59,6 +60,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("cc-install-dismissed") === "1";
   });
+
+  // Geofence tracker — fetch setting once, then track passively
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.notificationPrefs?.locationNotificationsEnabled) {
+          setLocationEnabled(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+  useGeofenceTracker(locationEnabled);
 
   function dismissInstall() {
     localStorage.setItem("cc-install-dismissed", "1");

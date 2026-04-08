@@ -468,6 +468,8 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.
 - idle_checkin_afternoon: 3pm check-in. Same active/idle logic. Idle: nudge toward one specific thing before evening. Active: affirm progress, surface what's next.
 - idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: wrap-up energy — acknowledge what they did, offer one more if there's a task.
+- location_arrival: User just arrived at a saved location that matches task locationTags. Mention the place naturally. Keep it actionable — they're already there. 1-2 sentences.
+- location_departure_nearby: User is leaving a location. Another saved location with pending tasks is nearby. Frame as an easy add-on — "while you're out" energy. Never guilt.
 
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
@@ -506,7 +508,15 @@ BFF+Unfiltered: "it's 7pm and linguistics essay is just vibing undone. one pass,
 
 Type: idle_checkin_evening, Activity: active, Top pending task: "Linguistics essay"
 GOOD (Friendly): "Good work today. Linguistics essay is still there if you want to close it out tonight."
-BFF+Unfiltered: "solid day fr. linguistics essay's still there if you wanna kill it before bed."`;
+BFF+Unfiltered: "solid day fr. linguistics essay's still there if you wanna kill it before bed."
+
+Type: location_arrival, Location: "CVS", Task: "Pick up prescription", Total matching tasks: 1
+GOOD (Friendly): "You're at CVS. That prescription isn't going to pick itself up — knock it out while you're here."
+BFF+Unfiltered: "you're literally at cvs right now. grab that prescription and be done with it."
+
+Type: location_departure_nearby, Left: "Home", Nearby: "CVS", Task: "Pick up prescription"
+GOOD (Friendly): "While you're out — CVS is nearby and that prescription is still waiting."
+BFF+Unfiltered: "since you're already out, cvs is right there. prescription run, let's go."`;
 }
 
 // ============================================================
