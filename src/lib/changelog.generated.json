@@ -1,0 +1,172 @@
+[
+  {
+    "weekOf": "2026-04-06",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Delayed refetch after task/event creation to surface AI-generated notes"
+      },
+      {
+        "type": "fixed",
+        "text": "Add missing calendarColors, calendarStartHour, calendarEndHour to updateUserSettings"
+      },
+      {
+        "type": "added",
+        "text": "Persist task recommendations across navigation and page reloads"
+      },
+      {
+        "type": "added",
+        "text": "Use Sonnet for notifications and digests for better personality"
+      },
+      {
+        "type": "added",
+        "text": "Add location-aware geofence notifications"
+      },
+      {
+        "type": "fixed",
+        "text": "Pre-compute available time and add day labels to prevent calendar hallucinations"
+      },
+      {
+        "type": "fixed",
+        "text": "Strip absolute dates from recommendation context to prevent AI hallucinations"
+      },
+      {
+        "type": "fixed",
+        "text": "Format next event duration as human-readable and ignore distant events"
+      },
+      {
+        "type": "fixed",
+        "text": "Prevent AI from hallucinating location/event context in recommendations"
+      },
+      {
+        "type": "fixed",
+        "text": "Include category in canvas event upsert conflict update"
+      },
+      {
+        "type": "added",
+        "text": "Color calendar events by category instead of source"
+      },
+      {
+        "type": "added",
+        "text": "Add customizable calendar event colors per source"
+      },
+      {
+        "type": "added",
+        "text": "Prioritize tasks by deadline first across notifications and emails"
+      },
+      {
+        "type": "added",
+        "text": "Make unfiltered personality actually cuss"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-03-30",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Enforce personality block over examples in push notification prompt"
+      },
+      {
+        "type": "fixed",
+        "text": "Enforce exclusive time windows for check-in notifications"
+      },
+      {
+        "type": "fixed",
+        "text": "Move evening check-in window to 7:00pm local time"
+      },
+      {
+        "type": "added",
+        "text": "Send check-in notifications regardless of activity, adapt content to context"
+      },
+      {
+        "type": "fixed",
+        "text": "Surface evening check-in skip sub-reason in logs"
+      },
+      {
+        "type": "fixed",
+        "text": "Move evening idle check-in window to 6:30pm local time"
+      },
+      {
+        "type": "fixed",
+        "text": "Notify users via push when Canvas iCal token expires (401)"
+      },
+      {
+        "type": "added",
+        "text": "Enhance evening idle check-in logic and criteria for notifications"
+      },
+      {
+        "type": "added",
+        "text": "Add evening idle check-in notification and related logic"
+      },
+      {
+        "type": "added",
+        "text": "Add assertiveness mode to notification preferences and update related logic"
+      },
+      {
+        "type": "fixed",
+        "text": "Use user timezone for today comparison in idle checkins + pass timezone to Haiku prompts"
+      },
+      {
+        "type": "added",
+        "text": "Auto AI notes for manual tasks/events + fix location permission on every load"
+      },
+      {
+        "type": "added",
+        "text": "Add mark all as read to notification bell"
+      },
+      {
+        "type": "fixed",
+        "text": "Wire personality prefs into all AI notification calls"
+      },
+      {
+        "type": "added",
+        "text": "Push notification action buttons, snooze, and smarter idle check-ins"
+      },
+      {
+        "type": "fixed",
+        "text": "Update query to use isNull for openedAt and simplify result length calculation"
+      },
+      {
+        "type": "fixed",
+        "text": "Overhaul single-task scheduler — fewer refusals, better slot selection"
+      },
+      {
+        "type": "added",
+        "text": "Haiku intelligently decides how long to snooze tasks 🧠⏰"
+      },
+      {
+        "type": "added",
+        "text": "Crisis mode now has confetti AND lasers 🚀🎊⚡"
+      },
+      {
+        "type": "added",
+        "text": "Okay fine, ~2000 particles from EVERY direction 🚀🎊💥"
+      },
+      {
+        "type": "added",
+        "text": "MOAR CONFETTI 🎊🎉🎊"
+      },
+      {
+        "type": "added",
+        "text": "Enhance task completion confetti animation with multi-stage effects and custom color palettes"
+      },
+      {
+        "type": "added",
+        "text": "Implement timezone-aware Canvas calendar synchronization and add user timezone settings UI"
+      },
+      {
+        "type": "added",
+        "text": "Transition from single-plan to multi-plan crisis dashboard with support for abandoning crisis plans"
+      },
+      {
+        "type": "added",
+        "text": "Add configurable AI personality settings for task recommendations"
+      },
+      {
+        "type": "added",
+        "text": "Integrate Leaflet map for visualizing saved locations with interactive markers and radius circles"
+      }
+    ]
+  }
+]

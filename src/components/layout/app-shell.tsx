@@ -21,6 +21,7 @@ import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
+import { WhatsNewDialog } from "@/components/features/changelog/whats-new-dialog";
 import {
   Sheet,
   SheetClose,
@@ -171,6 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <UserNav />
             <div className="flex items-center gap-1">
+              <WhatsNewDialog />
               <NotificationBell />
               <ThemeToggle />
             </div>
@@ -240,7 +242,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 px-4 pt-3">
+            <div className="grid grid-cols-4 gap-3 px-4 pt-3">
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
+                <WhatsNewDialog />
+                <span className="text-xs text-muted-foreground">New</span>
+              </div>
               <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
                 <NotificationBell />
                 <span className="text-xs text-muted-foreground">Alerts</span>
