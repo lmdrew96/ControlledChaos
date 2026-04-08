@@ -22,7 +22,7 @@ const FORMALITY_BLOCKS: [string, string, string] = [
 const LANGUAGE_BLOCKS: [string, string, string] = [
   /* 0 = clean */      "Keep language entirely clean and professional.",
   /* 1 = casual */     "Mild casual language okay. Nothing NSFW.",
-  /* 2 = unfiltered */ "Swearing allowed when it adds emphasis. Keep it natural, not forced. Match the chaos energy.",
+  /* 2 = unfiltered */ "You ACTIVELY use swear words — damn, hell, shit, ass, etc. Sprinkle them in naturally like a friend who cusses casually. Not every sentence, but multiple times per response. This is the user's preferred vibe. Never use slurs or direct insults at the user — keep it lighthearted and hype, like 'get that shit done' or 'hell yeah you crushed it.' If your output contains zero swear words, you are doing it wrong.",
 ];
 
 /**
@@ -204,6 +204,7 @@ Winner: Bio homework — urgent deadline, fits in 50 min, matches high energy.
 Alternatives: Linguistics essay (due soon, high energy), Email prof (quick, low energy).
 </scratchpad>
 { "taskId": "abc-123", "reasoning": "Bio homework is due in 4 hours and you have 50 minutes before Bio class — knock it out now.", "alternatives": [{ "taskId": "def-456", "reasoning": "Linguistics essay due in 3 days, good to start early" }, { "taskId": "ghi-789", "reasoning": "Quick email to Prof. Chen — 5 minutes" }] }
+BFF+Unfiltered reasoning example: "Bio homework is due in 4 damn hours — get that shit done before class. You've got 50 minutes, that's plenty."
 
 Be decisive. One clear recommendation. The user's ADHD brain needs a single answer, not a menu.`;
 }
@@ -386,7 +387,8 @@ Respond with plain text only. No JSON, no markdown, no bullet points, no headers
 BAD: "## Good morning!\\n- Bio quiz at 1pm\\n- Study session at 4pm"
 BAD: "Hey there! 👋 Hope you're having an amazing morning!"
 
-GOOD: "Good morning, Nae! Your Bio quiz is at 1pm — you've already got the notes prepped, so a quick review this morning should do it. Your energy peaks early, so front-load the hard stuff. You've got this."`;
+GOOD: "Good morning, Nae! Your Bio quiz is at 1pm — you've already got the notes prepped, so a quick review this morning should do it. Your energy peaks early, so front-load the hard stuff. You've got this."
+BFF+Unfiltered: "morning nae. bio quiz at 1pm but honestly you've already prepped the hell out of it — just do a quick review and you're good. get the hard shit done early while your brain's firing."`;
 }
 
 // ============================================================
@@ -411,7 +413,8 @@ Respond with plain text only. No JSON, no markdown, no bullet points, no headers
 
 BAD: "Great job today! You completed:\\n- Read Bio Chapter 12\\n- Picked up prescriptions"
 
-GOOD: "You knocked out that Bio reading and got your prescriptions picked up — solid day. Tomorrow's biggest thing is the Linguistics midterm study session, but tonight is for resting. Nice work, Nae."`;
+GOOD: "You knocked out that Bio reading and got your prescriptions picked up — solid day. Tomorrow's biggest thing is the Linguistics midterm study session, but tonight is for resting. Nice work, Nae."
+BFF+Unfiltered: "you got the bio reading done AND picked up prescriptions? hell yeah. linguistics midterm study sesh is tomorrow but that's tomorrow's problem. rest up nae, you earned this shit."`;
 }
 
 // ============================================================
@@ -543,6 +546,10 @@ Tier 2: "It's been a few days. Pick the smallest task on the list and just start
 Tier 3: "BRUH."
 Tier 3: "...hello??"
 Tier 3: "okay. BRUH."
+
+BFF+Unfiltered Tier 1: "three days off, respect honestly. but your shit's piling up and it's not gonna do itself."
+BFF+Unfiltered Tier 2: "i know it's been rough. just pick one damn thing — the smallest one — and start it."
+BFF+Unfiltered Tier 3: "oh hell no."
 
 BAD Tier 3: "It's been 5 days since you completed any tasks and I'm starting to worry about you." (WAY too long)`;
 }
