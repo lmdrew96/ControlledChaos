@@ -78,9 +78,24 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     ? `\n- CURRENTLY IN: "${context.currentEvent.title}" — free in ${context.currentEvent.minutesUntilFree} minutes`
     : "";
 
-  const eventLine = context.nextEvent
-    ? `"${context.nextEvent.title}" in ${context.nextEvent.minutesUntil} minutes`
-    : "None upcoming (open schedule — do NOT reference any class or event)";
+  // Format minutes as human-readable duration to prevent AI misreading large numbers
+  const formatMinutes = (mins: number): string => {
+    if (mins < 60) return `${mins} minutes`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (m === 0) return `${h} hour${h !== 1 ? "s" : ""}`;
+    return `${h} hour${h !== 1 ? "s" : ""} ${m} min`;
+  };
+
+  let eventLine: string;
+  if (!context.nextEvent) {
+    eventLine = "None upcoming (open schedule — do NOT reference any class or event)";
+  } else if (context.nextEvent.minutesUntil > 180) {
+    // More than 3 hours away — don't treat as a time constraint
+    eventLine = `"${context.nextEvent.title}" in ${formatMinutes(context.nextEvent.minutesUntil)} (far away — treat schedule as open, do NOT use this as a time constraint)`;
+  } else {
+    eventLine = `"${context.nextEvent.title}" in ${formatMinutes(context.nextEvent.minutesUntil)}`;
+  }
 
   const rejectedLine =
     recentlyRejectedTaskIds.length > 0
