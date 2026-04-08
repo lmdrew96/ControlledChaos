@@ -51,24 +51,26 @@ export async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
   throw new Error("Retry loop exited unexpectedly");
 }
 
-// --- Haiku call interface ---
+// --- Shared call interface ---
 
-interface HaikuCallParams {
+interface AICallParams {
   system: string;
   user: string;
   maxTokens?: number;
 }
 
-interface HaikuCallResult {
+interface AICallResult {
   text: string;
   inputTokens: number;
   outputTokens: number;
   durationMs: number;
 }
 
+// --- Haiku (fast, cheap — parsing, scheduling, breakdowns) ---
+
 export async function callHaiku(
-  params: HaikuCallParams
-): Promise<HaikuCallResult> {
+  params: AICallParams
+): Promise<AICallResult> {
   const start = Date.now();
 
   const response = await callWithRetry(() =>
@@ -86,6 +88,38 @@ export async function callHaiku(
 
   console.log(
     `[AI] Haiku call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
+  );
+
+  return {
+    text,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    durationMs,
+  };
+}
+
+// --- Sonnet (personality, sass — notifications, digests) ---
+
+export async function callSonnet(
+  params: AICallParams
+): Promise<AICallResult> {
+  const start = Date.now();
+
+  const response = await callWithRetry(() =>
+    anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: params.maxTokens ?? 2048,
+      system: params.system,
+      messages: [{ role: "user", content: params.user }],
+    })
+  );
+
+  const durationMs = Date.now() - start;
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  console.log(
+    `[AI] Sonnet call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
   );
 
   return {

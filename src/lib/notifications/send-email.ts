@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { render } from "@react-email/components";
-import { callHaiku } from "@/lib/ai";
+import { callSonnet } from "@/lib/ai";
 import {
   buildMorningDigestPrompt,
   buildEveningDigestPrompt,
@@ -90,7 +90,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     .filter(Boolean)
     .join("\n");
 
-  const aiResult = await callHaiku({
+  const aiResult = await callSonnet({
     system: buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
     user: context,
     maxTokens: 256,
@@ -196,7 +196,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
   ].join("\n");
 
-  const aiResult = await callHaiku({
+  const aiResult = await callSonnet({
     system: buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
     user: context,
     maxTokens: 256,

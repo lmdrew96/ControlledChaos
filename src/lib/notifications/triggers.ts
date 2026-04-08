@@ -4,7 +4,7 @@ import {
   getRecentNotifications,
   getRecentTaskActivity,
 } from "@/lib/db/queries";
-import { callHaiku } from "@/lib/ai";
+import { callSonnet } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
 import type { NotificationAssertiveness, NotificationPrefs, PersonalityPrefs } from "@/types";
@@ -279,7 +279,7 @@ export async function generatePushMessage(
   }
 
   try {
-    const { text } = await callHaiku({
+    const { text } = await callSonnet({
       system: buildPushNotificationPrompt(prefs, timezone, mode),
       user: userMsg,
       maxTokens: 60,
@@ -326,7 +326,7 @@ export async function generateNudgeMessage(
   mode: NotificationAssertiveness = "balanced"
 ): Promise<string> {
   try {
-    const { text } = await callHaiku({
+    const { text } = await callSonnet({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
       maxTokens: 80,
