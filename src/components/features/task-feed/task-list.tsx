@@ -135,7 +135,11 @@ export function TaskList() {
         <CreateTaskModal
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onCreated={fetchTasks}
+          onCreated={() => {
+            fetchTasks();
+            // Refetch after a short delay to pick up the AI-generated note
+            setTimeout(fetchTasks, 3000);
+          }}
         />
       </>
     );

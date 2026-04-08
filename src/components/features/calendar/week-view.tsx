@@ -388,6 +388,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         : `Created ${result.count} events!`
     );
     await fetchEvents(weekStart, weekEnd);
+    // Refetch after a short delay to pick up the AI-generated note
+    setTimeout(() => fetchEvents(weekStart, weekEnd), 3000);
     return result;
   }
 
