@@ -29,13 +29,48 @@ interface RecommendationState {
   message: string | null;
 }
 
+const STORAGE_KEY = "cc-active-recommendation";
+
+function loadPersistedRecommendation(): RecommendationResult | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const { recommendation, savedAt } = JSON.parse(raw);
+    // Expire after 4 hours — stale recommendations aren't helpful
+    if (Date.now() - savedAt > 4 * 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return recommendation;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+function persistRecommendation(rec: RecommendationResult | null) {
+  if (typeof window === "undefined") return;
+  if (!rec) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ recommendation: rec, savedAt: Date.now() })
+  );
+}
+
 export function useRecommendation() {
-  const [state, setState] = useState<RecommendationState>({
-    recommendation: null,
-    isLoading: false,
-    error: null,
-    contextInfo: null,
-    message: null,
+  const [state, setState] = useState<RecommendationState>(() => {
+    const persisted = loadPersistedRecommendation();
+    return {
+      recommendation: persisted,
+      isLoading: false,
+      error: null,
+      contextInfo: null,
+      message: null,
+    };
   });
 
   const fetchRecommendation = useCallback(
@@ -64,6 +99,7 @@ export function useRecommendation() {
 
         const data = await res.json();
 
+        persistRecommendation(data.recommendation ?? null);
         setState({
           recommendation: data.recommendation,
           isLoading: false,
@@ -81,6 +117,11 @@ export function useRecommendation() {
     },
     []
   );
+
+  const clearRecommendation = useCallback(() => {
+    persistRecommendation(null);
+    setState((prev) => ({ ...prev, recommendation: null }));
+  }, []);
 
   const sendFeedback = useCallback(
     async (
@@ -108,5 +149,6 @@ export function useRecommendation() {
     ...state,
     fetchRecommendation,
     sendFeedback,
+    clearRecommendation,
   };
 }

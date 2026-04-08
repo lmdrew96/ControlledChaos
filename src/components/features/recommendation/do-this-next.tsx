@@ -24,6 +24,7 @@ export function DoThisNext() {
     message,
     fetchRecommendation,
     sendFeedback,
+    clearRecommendation,
   } = useRecommendation();
 
   const [energyOverride, setEnergyOverride] = useState<
@@ -31,8 +32,9 @@ export function DoThisNext() {
   >();
   const [energyDismissed, setEnergyDismissed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasRequested, setHasRequested] = useState(false);
-  const hasFetched = useRef(false);
+  // If a recommendation was persisted from a previous session, treat as already requested
+  const [hasRequested, setHasRequested] = useState(!!recommendation);
+  const hasFetched = useRef(!!recommendation);
 
   // Fetch recommendation only when user has explicitly requested it
   const triggerRecommendation = useCallback(() => {
@@ -89,6 +91,7 @@ export function DoThisNext() {
   const handleAccept = useCallback(
     async (taskId: string) => {
       setIsRefreshing(true);
+      clearRecommendation();
       // Mark task as completed
       try {
         await fetch(`/api/tasks/${taskId}`, {
@@ -104,12 +107,13 @@ export function DoThisNext() {
       fireTaskConfetti();
       await refresh();
     },
-    [sendFeedback, refresh]
+    [sendFeedback, refresh, clearRecommendation]
   );
 
   const handleSnooze = useCallback(
     async (taskId: string) => {
       setIsRefreshing(true);
+      clearRecommendation();
       try {
         const res = await fetch("/api/recommend/snooze", {
           method: "POST",
@@ -140,14 +144,15 @@ export function DoThisNext() {
       }
       await refresh();
     },
-    [sendFeedback, refresh]
+    [sendFeedback, refresh, clearRecommendation]
   );
 
   const handleReject = useCallback(
     async (taskId: string) => {
+      clearRecommendation();
       await sendFeedback(taskId, "rejected");
     },
-    [sendFeedback]
+    [sendFeedback, clearRecommendation]
   );
 
   const handleSelectAlternative = useCallback(
