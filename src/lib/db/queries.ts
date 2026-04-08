@@ -20,6 +20,7 @@ import type {
   ParsedTask,
   DumpInputType,
   BrainDumpResult,
+  CalendarColors,
   EnergyProfile,
   NotificationPrefs,
   PersonalityPrefs,
@@ -107,7 +108,10 @@ export async function updateUserSettings(
     personalityPrefs: PersonalityPrefs | null;
     wakeTime: number;
     sleepTime: number;
+    calendarStartHour: number;
+    calendarEndHour: number;
     weekStartDay: number;
+    calendarColors: CalendarColors | null;
   }>
 ) {
   const [updated] = await db
