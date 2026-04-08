@@ -467,6 +467,7 @@ export async function upsertCalendarEvent(params: {
         endTime: params.endTime,
         location: params.location,
         isAllDay: params.isAllDay,
+        category: params.category ?? null,
         syncedAt: new Date(),
       },
     })
