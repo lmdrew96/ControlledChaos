@@ -73,6 +73,11 @@ ControlledChaos is a Progressive Web App (PWA) built on Next.js with a serverles
 | **Claude Sonnet 4.6** (`claude-sonnet-4-6`) | Push notifications, email digests, nudges (better personality/sass) | ~$0.01–0.03/call |
 | **Claude Vision** (via Haiku) | Photo/OCR brain dump extraction | Bundled with Haiku call |
 
+### Build Tools
+| Technology | Purpose | Rationale |
+|---|---|---|
+| **generate-changelog.ts** | Auto-generates changelog from git log | Runs at prebuild; groups `feat:` and `fix:` commits by week into JSON |
+
 ### Auth & Integrations
 | Technology | Purpose | Rationale |
 |---|---|---|
@@ -471,6 +476,47 @@ User has a deadline and is behind
 │  All tasks must sum to ≤ minutes until deadline   │
 │                                                  │
 └──────────────────────────────────────────────────┘
+```
+
+---
+
+### 4.6 In-App Changelog (What's New)
+
+```
+┌─ Build-Time Generation ────────────────────────┐
+│                                                 │
+│  prebuild script: generate-changelog.ts         │
+│  Parses git log for feat: and fix: commits      │
+│  Groups by week (Monday of each week)           │
+│  Outputs changelog.generated.json               │
+│                                                 │
+└──────────────────┬──────────────────────────────┘
+                   │
+                   ▼
+┌─ What's New Dialog ────────────────────────────┐
+│                                                 │
+│  Sparkles icon in sidebar + mobile nav          │
+│  Green dot badge when unseen updates exist       │
+│  localStorage tracks last seen week             │
+│  Items tagged as "New" or "Fixed"               │
+│  Zero maintenance — commits are the changelog   │
+│                                                 │
+└─────────────────────────────────────────────────┘
+```
+
+### 4.7 Notification Bell (Expandable)
+
+```
+┌─ Notification Popover ─────────────────────────┐
+│                                                 │
+│  Click notification → expands in-place          │
+│  Shows full body text (removes line-clamp)      │
+│  "Open →" link appears when expanded            │
+│  Click again → collapses                        │
+│  Marks as read on first click                   │
+│  Popover close resets expanded state             │
+│                                                 │
+└─────────────────────────────────────────────────┘
 ```
 
 ---

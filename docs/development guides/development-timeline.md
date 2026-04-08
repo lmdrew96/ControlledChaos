@@ -199,6 +199,18 @@ These features weren't in the original milestones but emerged from real usage an
 - Morning (11am) + afternoon (3pm) + evening (7pm) idle check-ins
 - Push action buttons (Start, Snooze) on notifications
 
+### In-App Changelog
+- Auto-generated from git commit history at build time
+- Groups `feat:` and `fix:` commits by week
+- "What's New" dialog with sparkles icon in sidebar + mobile nav
+- Green dot badge when there are unseen updates (localStorage tracking)
+- Zero maintenance — just use conventional commits
+
+### Expandable Notification Bell
+- Clicking a notification expands it in-place to show full body text
+- "Open" link appears in expanded state for navigation
+- No more accidental page navigation when you just want to read
+
 ### Recommendation Persistence
 - Recommendations survive page navigation and reload (localStorage)
 - Auto-expire after 4 hours to prevent stale recommendations
@@ -260,5 +272,5 @@ You're juggling:
 
 **Document Version:** 3.0
 **Created:** February 2026
-**Updated:** April 8, 2026
+**Updated:** April 8, 2026 (evening)
 **Author:** Lanae Drew

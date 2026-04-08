@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Mail, Zap } from "lucide-react";
+import { useState } from "react";
+import { Bell, Mail, Zap, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const router = useRouter();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function getNotificationIcon(type: string) {
     switch (type) {
@@ -47,10 +49,10 @@ export function NotificationBell() {
 
   function getNotificationUrl(n: {
     content: Record<string, unknown> | null;
-  }): string {
+  }): string | null {
     const content = n.content;
     if (content?.url && typeof content.url === "string") return content.url;
-    return "/dashboard";
+    return null;
   }
 
   function timeAgo(dateStr: string): string {
@@ -67,7 +69,7 @@ export function NotificationBell() {
   const recent = notifications.slice(0, 20);
 
   return (
-    <Popover>
+    <Popover onOpenChange={() => setExpandedId(null)}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label="Notifications">
           <Bell className="h-4 w-4" />
@@ -106,38 +108,62 @@ export function NotificationBell() {
             </div>
           )}
 
-          {recent.map((n) => (
-            <button
-              key={n.id}
-              onClick={() => {
-                if (!n.openedAt) markAsRead(n.id);
-                const url = getNotificationUrl(n);
-                router.push(url);
-              }}
-              className={cn(
-                "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50",
-                !n.openedAt && "bg-accent/20"
-              )}
-            >
-              <div className="mt-0.5">{getNotificationIcon(n.type)}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {getNotificationTitle(n)}
-                </p>
-                {getNotificationBody(n) && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                    {getNotificationBody(n)}
-                  </p>
+          {recent.map((n) => {
+            const isExpanded = expandedId === n.id;
+            const body = getNotificationBody(n);
+            const url = getNotificationUrl(n);
+
+            return (
+              <button
+                key={n.id}
+                onClick={() => {
+                  if (!n.openedAt) markAsRead(n.id);
+                  setExpandedId(isExpanded ? null : n.id);
+                }}
+                className={cn(
+                  "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50",
+                  !n.openedAt && "bg-accent/20"
                 )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  {timeAgo(n.sentAt ?? n.createdAt)}
-                </p>
-              </div>
-              {!n.openedAt && (
-                <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
-              )}
-            </button>
-          ))}
+              >
+                <div className="mt-0.5">{getNotificationIcon(n.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {getNotificationTitle(n)}
+                  </p>
+                  {body && (
+                    <p
+                      className={cn(
+                        "text-xs text-muted-foreground mt-0.5 transition-all",
+                        !isExpanded && "line-clamp-2"
+                      )}
+                    >
+                      {body}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      {timeAgo(n.sentAt ?? n.createdAt)}
+                    </p>
+                    {isExpanded && url && (
+                      <span
+                        role="link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(url);
+                        }}
+                        className="inline-flex items-center gap-0.5 text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        Open <ArrowRight className="h-3 w-3" />
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!n.openedAt && (
+                  <div className="mt-2 h-2 w-2 rounded-full bg-primary shrink-0" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </PopoverContent>
     </Popover>
