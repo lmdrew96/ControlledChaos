@@ -168,6 +168,13 @@ export interface PushSubscriptionData {
 // ============================================================
 export type CalendarSource = "canvas" | "google" | "controlledchaos"; // "google" kept for backward compat with existing DB rows
 
+export type CalendarColorKey = "blue" | "purple" | "green" | "orange" | "red" | "pink" | "teal" | "yellow";
+
+export interface CalendarColors {
+  canvas: CalendarColorKey;
+  controlledchaos: CalendarColorKey;
+}
+
 export interface CalendarEvent {
   id: string;
   userId: string;

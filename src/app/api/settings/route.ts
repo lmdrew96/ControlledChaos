@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
-import type { EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
+import type { CalendarColors, CalendarColorKey, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
 
@@ -27,6 +27,7 @@ export async function GET() {
       weekStartDay: settings?.weekStartDay ?? 1,
       notificationPrefs: settings?.notificationPrefs ?? null,
       personalityPrefs: settings?.personalityPrefs ?? null,
+      calendarColors: settings?.calendarColors ?? null,
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -103,6 +104,16 @@ export async function PATCH(request: Request) {
       const validAxis = (v: unknown) => v === 0 || v === 1 || v === 2;
       if (validAxis(p.supportive) && validAxis(p.formality) && validAxis(p.language)) {
         data.personalityPrefs = p;
+      }
+    }
+
+    if (body.calendarColors !== undefined) {
+      const cc = body.calendarColors as CalendarColors;
+      const validColor = (v: unknown): v is CalendarColorKey =>
+        typeof v === "string" &&
+        ["blue", "purple", "green", "orange", "red", "pink", "teal", "yellow"].includes(v);
+      if (validColor(cc.canvas) && validColor(cc.controlledchaos)) {
+        data.calendarColors = cc;
       }
     }
 

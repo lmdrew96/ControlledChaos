@@ -1,14 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WeekView } from "@/components/features/calendar/week-view";
 import { MonthView } from "@/components/features/calendar/month-view";
+import type { CalendarColors } from "@/types";
 
 type CalendarView = "week" | "month";
 
 export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("week");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [weekStartDay, setWeekStartDay] = useState(1);
+  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          if (data.weekStartDay != null) setWeekStartDay(data.weekStartDay);
+          if (data.calendarColors) setCalendarColors(data.calendarColors);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function handleDayClick(date: Date) {
     setSelectedDate(date);
@@ -49,6 +64,8 @@ export default function CalendarPage() {
         <MonthView
           initialDate={selectedDate}
           onDayClick={handleDayClick}
+          weekStartDay={weekStartDay}
+          calendarColors={calendarColors}
         />
       )}
     </div>

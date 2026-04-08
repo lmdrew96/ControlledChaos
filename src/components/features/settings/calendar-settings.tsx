@@ -5,6 +5,7 @@ import {
   Calendar,
   Clock,
   Loader2,
+  Palette,
   RefreshCw,
   X,
   Link2,
@@ -16,6 +17,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
+import { cn } from "@/lib/utils";
+import type { CalendarColorKey, CalendarColors } from "@/types";
 
 export function CalendarSettings() {
   // Canvas state
@@ -51,6 +55,11 @@ export function CalendarSettings() {
   const [savedSleepTime, setSavedSleepTime] = useState(22);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
+  // Calendar colors
+  const [calendarColors, setCalendarColors] = useState<CalendarColors>({ ...DEFAULT_CALENDAR_COLORS });
+  const [savedCalendarColors, setSavedCalendarColors] = useState<CalendarColors>({ ...DEFAULT_CALENDAR_COLORS });
+  const [isSavingColors, setIsSavingColors] = useState(false);
+
   const isDirty = canvasUrl !== original;
   const hasUrl = original.trim().length > 0;
 
@@ -83,6 +92,10 @@ export function CalendarSettings() {
           if (data.weekStartDay != null) {
             setWeekStartDay(data.weekStartDay);
             setSavedWeekStartDay(data.weekStartDay);
+          }
+          if (data.calendarColors) {
+            setCalendarColors(data.calendarColors);
+            setSavedCalendarColors(data.calendarColors);
           }
         }
       } catch {
@@ -153,6 +166,29 @@ export function CalendarSettings() {
       toast.error("Failed to save scheduling window");
     } finally {
       setIsSavingSchedule(false);
+    }
+  }
+
+  // ── Calendar color handlers ──────────────────────────────────
+  const colorsDirty =
+    calendarColors.canvas !== savedCalendarColors.canvas ||
+    calendarColors.controlledchaos !== savedCalendarColors.controlledchaos;
+
+  async function handleSaveColors() {
+    setIsSavingColors(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarColors }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSavedCalendarColors({ ...calendarColors });
+      toast.success("Calendar colors updated!");
+    } catch {
+      toast.error("Failed to save calendar colors");
+    } finally {
+      setIsSavingColors(false);
     }
   }
 
@@ -330,6 +366,56 @@ export function CalendarSettings() {
         </div>
         {calendarStartHour >= calendarEndHour && (
           <p className="text-xs text-destructive">Start must be before end.</p>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* ── Calendar Colors ─────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Palette className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Event Colors</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Choose a color for each calendar source on the calendar grid.
+        </p>
+        <div className="flex flex-col gap-4">
+          {([
+            { key: "canvas" as const, label: "Canvas" },
+            { key: "controlledchaos" as const, label: "ControlledChaos" },
+          ]).map(({ key, label }) => (
+            <div key={key} className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">{label}</label>
+              <div className="flex flex-wrap gap-2">
+                {CALENDAR_COLOR_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setCalendarColors((prev) => ({ ...prev, [key]: opt.key }))}
+                    className={cn(
+                      "h-7 w-7 rounded-full transition-all",
+                      opt.swatch,
+                      calendarColors[key] === opt.key
+                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
+                        : "opacity-60 hover:opacity-100"
+                    )}
+                    title={opt.label}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        {colorsDirty && (
+          <Button
+            onClick={handleSaveColors}
+            disabled={isSavingColors}
+            size="sm"
+          >
+            {isSavingColors && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+            Save
+          </Button>
         )}
       </div>
 

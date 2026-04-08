@@ -43,6 +43,7 @@ export const userSettings = pgTable("user_settings", {
   calendarEndHour: integer("calendar_end_hour").default(22), // Hour 0-23 — calendar display end (default 10pm)
   weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
   calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
+  calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
 });
 
 // ============================================================

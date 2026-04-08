@@ -5,12 +5,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
-import type { CalendarSource } from "@/types";
+import { sourceEventColor, sourcePillColor } from "@/lib/calendar/colors";
+import type { CalendarColors, CalendarSource } from "@/types";
 
 interface MonthViewProps {
   initialDate?: Date;
   onDayClick: (date: Date) => void;
   weekStartDay?: number; // 0=Sunday, 1=Monday
+  calendarColors?: CalendarColors | null;
 }
 
 function startOfMonth(date: Date): Date {
@@ -56,16 +58,6 @@ function buildMonthGrid(month: Date, weekStartDay: number): Date[][] {
   return weeks;
 }
 
-function sourceEventColor(source: CalendarSource): string {
-  switch (source) {
-    case "canvas":
-      return "bg-blue-500/80";
-    case "controlledchaos":
-      return "bg-purple-500/80";
-    default:
-      return "bg-muted-foreground/60";
-  }
-}
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -75,7 +67,7 @@ const MONTH_NAMES = [
 const DAY_HEADERS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_HEADERS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function MonthView({ initialDate, onDayClick, weekStartDay = 1 }: MonthViewProps) {
+export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarColors }: MonthViewProps) {
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(initialDate ?? new Date())
   );
@@ -210,15 +202,13 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1 }: MonthVi
                           key={event.id}
                           className={cn(
                             "flex items-center gap-1 text-[10px] rounded px-1 py-0.5 truncate w-full",
-                            event.source === "canvas"
-                              ? "bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-200"
-                              : "bg-purple-100 dark:bg-purple-500/20 text-purple-800 dark:text-purple-200"
+                            sourcePillColor(event.source as CalendarSource, calendarColors)
                           )}
                         >
                           <span
                             className={cn(
                               "w-1.5 h-1.5 rounded-full shrink-0",
-                              sourceEventColor(event.source as CalendarSource)
+                              sourceEventColor(event.source as CalendarSource, calendarColors)
                             )}
                           />
                           <span className="truncate">{event.title.replace(/^\[CC\] /, "")}</span>
