@@ -38,13 +38,15 @@ export function DoThisNext() {
   const triggerRecommendation = useCallback(() => {
     setHasRequested(true);
     hasFetched.current = true;
-    // Request location now — recommendation re-fetches via the effect below when it arrives
+    // Request location — if already available, send it now;
+    // otherwise the useEffect below will re-fetch once coords arrive
     requestLocation();
-    fetchRecommendation({
-      latitude: latitude ?? undefined,
-      longitude: longitude ?? undefined,
-      energyOverride,
-    });
+    if (latitude != null && longitude != null) {
+      fetchRecommendation({ latitude, longitude, energyOverride });
+    } else {
+      // No location yet — fetch without it; re-fetch triggers when location arrives
+      fetchRecommendation({ energyOverride });
+    }
   }, [fetchRecommendation, latitude, longitude, energyOverride, requestLocation]);
 
   // Re-fetch when location arrives (only if user already requested)

@@ -72,7 +72,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   const locationLine = context.location
     ? `${context.location.name} (${context.location.latitude}, ${context.location.longitude})`
-    : "Unknown";
+    : "Unknown (no location data — do NOT assume any location)";
 
   const currentEventLine = context.currentEvent
     ? `\n- CURRENTLY IN: "${context.currentEvent.title}" — free in ${context.currentEvent.minutesUntilFree} minutes`
@@ -80,7 +80,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   const eventLine = context.nextEvent
     ? `"${context.nextEvent.title}" in ${context.nextEvent.minutesUntil} minutes`
-    : "None upcoming";
+    : "None upcoming (open schedule — do NOT reference any class or event)";
 
   const rejectedLine =
     recentlyRejectedTaskIds.length > 0

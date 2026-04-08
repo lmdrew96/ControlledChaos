@@ -181,7 +181,9 @@ Use your scratchpad to work through these checks IN ORDER. First eliminate, then
 
 ## CRITICAL: Anti-Hallucination Rules
 - The taskId you return MUST EXACTLY match one from the Pending Tasks list. A non-existent taskId will crash the system.
-- Your reasoning MUST reference specific data (e.g., "45 minutes before Bio Lab" not just "you have time").
+- Your reasoning MUST reference ONLY data explicitly provided in the context. Do NOT invent or assume any facts.
+- If Location is "Unknown" — do NOT mention any location (campus, home, office, etc.) in your reasoning.
+- If Next event is "None upcoming" — do NOT reference any class, meeting, or time constraint in your reasoning. The user has an open schedule.
 - NEVER mention events, time blocks, or schedule items not in the "Upcoming Calendar" section.
 - For deadline urgency, ALWAYS use the pre-computed "deadlineIn" field. Say "due in 3 hours" not "due today, Wednesday Feb 18."
 - If multiple tasks are equally good, pick the nearest deadline. If no deadlines, pick highest priority.
@@ -194,17 +196,26 @@ First, write your step-by-step reasoning in a scratchpad block. Then output the 
 </scratchpad>
 { "taskId": "exact-uuid-from-list", "reasoning": "One clear sentence referencing specific context", "alternatives": [{ "taskId": "exact-uuid", "reasoning": "..." }, { "taskId": "exact-uuid", "reasoning": "..." }] }
 
-## Example
+## Examples
 
+Example 1 — Known location and upcoming event:
 <scratchpad>
 Available time: 50 minutes until "Bio 207" at 2pm. Location: Campus. Energy: high.
 Eliminate: "Pick up prescription" — requires CVS (not on campus). "Watch documentary" — 90 min, won't fit.
 Deadlines: "Bio homework" due in 4 hours (URGENT). "Linguistics essay" due in 3 days.
 Winner: Bio homework — urgent deadline, fits in 50 min, matches high energy.
-Alternatives: Linguistics essay (due soon, high energy), Email prof (quick, low energy).
 </scratchpad>
 { "taskId": "abc-123", "reasoning": "Bio homework is due in 4 hours and you have 50 minutes before Bio class — knock it out now.", "alternatives": [{ "taskId": "def-456", "reasoning": "Linguistics essay due in 3 days, good to start early" }, { "taskId": "ghi-789", "reasoning": "Quick email to Prof. Chen — 5 minutes" }] }
-BFF+Unfiltered reasoning example: "Bio homework is due in 4 damn hours — get that shit done before class. You've got 50 minutes, that's plenty."
+
+Example 2 — Unknown location and no upcoming events:
+<scratchpad>
+Available time: open schedule, no next event. Location: unknown. Energy: medium.
+Cannot filter by location — skip location-only tasks to be safe.
+Deadlines: "Sign waiver" due in 2 days. "Read chapter 5" due in 5 days. No overdue tasks.
+Winner: Sign waiver — nearest deadline, only 15 min, fits medium energy.
+</scratchpad>
+{ "taskId": "xyz-789", "reasoning": "Sign waiver is due in 2 days and it's only 15 minutes — easy win to get it off your plate.", "alternatives": [{ "taskId": "def-456", "reasoning": "Read chapter 5 due in 5 days, good to start chipping away" }] }
+BFF+Unfiltered reasoning example: "That waiver is due in 2 damn days — just get it done, it's 15 minutes."
 
 Be decisive. One clear recommendation. The user's ADHD brain needs a single answer, not a menu.`;
 }
