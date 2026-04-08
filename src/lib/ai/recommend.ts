@@ -76,7 +76,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   let eventLine: string;
   if (!context.nextEvent) {
-    eventLine = "None upcoming (open schedule — do NOT reference any class or event)";
+    eventLine = "None upcoming today (open schedule — do NOT reference any class or event)";
   } else if (context.nextEvent.minutesUntil > 180) {
     // More than 3 hours away — don't treat as a time constraint
     eventLine = `"${context.nextEvent.title}" in ${formatMinutes(context.nextEvent.minutesUntil)} (far away — treat schedule as open, do NOT use this as a time constraint)`;
@@ -84,32 +84,70 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     eventLine = `"${context.nextEvent.title}" in ${formatMinutes(context.nextEvent.minutesUntil)}`;
   }
 
+  // Pre-compute available minutes so the AI doesn't derive it from event times
+  let availableTimeLine: string;
+  if (context.currentEvent && context.nextEvent) {
+    // Currently in an event — available time is from when current event ends to next event
+    const freeAt = new Date(context.currentEvent.endTime).getTime();
+    const nextAt = new Date(context.nextEvent.startTime).getTime();
+    const availMins = Math.max(0, Math.round((nextAt - freeAt) / 60000));
+    availableTimeLine = `\n- Available time: ${formatMinutes(availMins)} (after current event ends, before next event)`;
+  } else if (context.currentEvent) {
+    availableTimeLine = `\n- Available time: open schedule after current event ends in ${context.currentEvent.minutesUntilFree} minutes`;
+  } else if (context.nextEvent && context.nextEvent.minutesUntil <= 180) {
+    availableTimeLine = `\n- Available time: ${formatMinutes(context.nextEvent.minutesUntil)}`;
+  } else {
+    availableTimeLine = `\n- Available time: open schedule`;
+  }
+
   const rejectedLine =
     recentlyRejectedTaskIds.length > 0
       ? `\n- Recently rejected task IDs (avoid these): ${recentlyRejectedTaskIds.join(", ")}`
       : "";
 
-  const calendarSection =
-    context.upcomingEvents && context.upcomingEvents.length > 0
-      ? `\n\n## Upcoming Calendar (today + tomorrow)\n${context.upcomingEvents
-          .map((e) => {
-            const start = new Date(e.startTime).toLocaleTimeString("en-US", {
-              timeZone: context.timezone,
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            });
-            const end = new Date(e.endTime).toLocaleTimeString("en-US", {
-              timeZone: context.timezone,
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            });
-            const tag = e.source === "controlledchaos" ? "[Scheduled]" : "";
-            return `- ${start}–${end}: ${e.title} ${tag}`;
-          })
-          .join("\n")}`
-      : "";
+  // Group upcoming events by day and label them so Haiku doesn't confuse today/tomorrow
+  const calendarSection = (() => {
+    if (!context.upcomingEvents || context.upcomingEvents.length === 0) return "";
+
+    const todayStr = now.toLocaleDateString("en-CA", { timeZone: context.timezone });
+    const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr = tomorrowDate.toLocaleDateString("en-CA", { timeZone: context.timezone });
+
+    const formatEvent = (e: (typeof context.upcomingEvents)[number]) => {
+      const start = new Date(e.startTime).toLocaleTimeString("en-US", {
+        timeZone: context.timezone,
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const end = new Date(e.endTime).toLocaleTimeString("en-US", {
+        timeZone: context.timezone,
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const tag = e.source === "controlledchaos" ? " [Scheduled]" : "";
+      return `  - ${start}–${end}: ${e.title}${tag}`;
+    };
+
+    const todayEvents = context.upcomingEvents.filter(
+      (e) => new Date(e.startTime).toLocaleDateString("en-CA", { timeZone: context.timezone }) === todayStr
+    );
+    const tomorrowEvents = context.upcomingEvents.filter(
+      (e) => new Date(e.startTime).toLocaleDateString("en-CA", { timeZone: context.timezone }) === tomorrowStr
+    );
+
+    const lines: string[] = ["\n\n## Upcoming Calendar"];
+    if (todayEvents.length > 0) {
+      lines.push("TODAY:");
+      lines.push(...todayEvents.map(formatEvent));
+    }
+    if (tomorrowEvents.length > 0) {
+      lines.push("TOMORROW:");
+      lines.push(...tomorrowEvents.map(formatEvent));
+    }
+    return lines.join("\n");
+  })();
 
   // Format energy profile as human-readable text
   const energyProfileLine = context.energyProfile
@@ -133,7 +171,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 - Time of day: ${timeOfDay}
 - Location: ${locationLine}
 - Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}${currentEventLine}
-- Next event: ${eventLine}
+- Next event: ${eventLine}${availableTimeLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}
 

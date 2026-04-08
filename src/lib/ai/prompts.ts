@@ -167,7 +167,7 @@ Use your scratchpad to work through these checks IN ORDER. First eliminate, then
 
 ### Eliminate:
 ✗ Location mismatch? → skip (task requires a location the user isn't at)
-✗ Takes longer than available time? → skip (estimatedMinutes > minutes until next event)
+✗ Takes longer than available time? → skip (compare estimatedMinutes against the pre-computed "Available time" field — do NOT calculate it yourself)
 ✗ Recently rejected? → deprioritize (user already said "not now")
 
 ### Rank remaining by (in priority order):
@@ -186,6 +186,8 @@ Use your scratchpad to work through these checks IN ORDER. First eliminate, then
 - If Location is "Unknown" — do NOT mention any location (campus, home, office, etc.) in your reasoning.
 - If Next event is "None upcoming" — do NOT reference any class, meeting, or time constraint in your reasoning. The user has an open schedule.
 - NEVER mention events, time blocks, or schedule items not in the "Upcoming Calendar" section.
+- The "Upcoming Calendar" is grouped by TODAY and TOMORROW. NEVER treat a TOMORROW event as if it's happening today.
+- For available time, ALWAYS use the pre-computed "Available time" field. Do NOT calculate it from event times.
 - For deadline urgency, ALWAYS use the pre-computed "deadlineIn" field. Say "due in 3 hours" NOT "due today" or "due Wednesday."
 - If multiple tasks are equally good, pick the nearest deadline. If no deadlines, pick highest priority.
 
