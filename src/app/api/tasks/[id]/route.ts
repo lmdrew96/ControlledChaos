@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { updateTask, deleteTask } from "@/lib/db/queries";
+import { updateTask, deleteTask, logTaskActivity } from "@/lib/db/queries";
 
 export async function PATCH(
   request: Request,
@@ -34,6 +34,11 @@ export async function PATCH(
 
     if (!updated) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // Log completion to task_activity so notification triggers see today's activity
+    if (body.status === "completed") {
+      await logTaskActivity({ userId, taskId: id, action: "completed" });
     }
 
     return NextResponse.json({ task: updated });
