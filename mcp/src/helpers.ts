@@ -32,6 +32,7 @@ export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   });
 
   return formatter.format(d);
@@ -49,26 +50,10 @@ export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
     timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   });
 
   return formatter.format(d);
-}
-
-/**
- * Get the current timezone abbreviation for a given IANA timezone.
- * e.g. "America/New_York" → "EDT" or "EST" depending on DST.
- */
-function getTzAbbreviation(tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      timeZoneName: "short",
-    }).formatToParts(new Date());
-    const tzPart = parts.find(p => p.type === "timeZoneName");
-    return tzPart?.value ?? tz;
-  } catch {
-    return tz;
-  }
 }
 
 
