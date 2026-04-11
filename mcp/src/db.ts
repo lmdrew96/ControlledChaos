@@ -25,7 +25,7 @@ export async function sql(
  */
 export async function getUserTimezone(userId: string): Promise<string> {
   const rows = await sql(
-    `SELECT timezone FROM user_preferences WHERE user_id = $1 LIMIT 1`,
+    `SELECT timezone FROM users WHERE id = $1 LIMIT 1`,
     [userId]
   );
   return (rows[0]?.timezone as string) || "America/New_York";
