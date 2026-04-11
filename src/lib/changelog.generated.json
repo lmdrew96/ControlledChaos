@@ -4,6 +4,42 @@
     "items": [
       {
         "type": "added",
+        "text": "Make all notifications location-aware"
+      },
+      {
+        "type": "fixed",
+        "text": "MCP time display — include timezone label (EDT/EST) via Intl formatter"
+      },
+      {
+        "type": "added",
+        "text": "Add Vercel serverless deployment for MCP server"
+      },
+      {
+        "type": "fixed",
+        "text": "Rewrite MCP time formatting for Vercel compatibility"
+      },
+      {
+        "type": "fixed",
+        "text": "Include timezone label (EDT/EST) in MCP time output"
+      },
+      {
+        "type": "fixed",
+        "text": "MCP timestamp display — don't double-convert naive DB timestamps"
+      },
+      {
+        "type": "fixed",
+        "text": "MCP timezone query — use users table instead of nonexistent user_preferences"
+      },
+      {
+        "type": "fixed",
+        "text": "MCP timezone handling — use user's preference for display, require UTC input"
+      },
+      {
+        "type": "fixed",
+        "text": "Log task completion to activity table so idle notifications see today's progress"
+      },
+      {
+        "type": "added",
         "text": "Expandable notification bell + docs update for changelog and notifications"
       },
       {
