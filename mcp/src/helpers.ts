@@ -1,12 +1,19 @@
 const DEFAULT_TZ = "America/New_York";
 
 /**
- * Format a UTC timestamp into a human-readable string in the given timezone.
+ * Format a timestamp into a human-readable string in the user's timezone.
+ *
+ * Postgres `timestamp without time zone` values arrive without a Z suffix,
+ * so they're already wall-clock time (stored as ET by the app).
+ * We force interpretation in the user's timezone by appending the offset
+ * only when the raw string has no timezone indicator.
  */
 export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
   if (!value) return "";
-  const d = new Date(value as string);
-  if (isNaN(d.getTime())) return String(value);
+  const raw = String(value);
+  // If the DB value has no timezone suffix, interpret it in the user's tz
+  const d = hasTimezoneInfo(raw) ? new Date(raw) : interpretInTimezone(raw, tz);
+  if (isNaN(d.getTime())) return raw;
   return d.toLocaleString("en-US", {
     timeZone: tz,
     weekday: "short",
@@ -19,17 +26,47 @@ export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
 }
 
 /**
- * Format a UTC timestamp into just time in the given timezone.
+ * Format a timestamp into just time in the user's timezone.
  */
 export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
   if (!value) return "";
-  const d = new Date(value as string);
-  if (isNaN(d.getTime())) return String(value);
+  const raw = String(value);
+  const d = hasTimezoneInfo(raw) ? new Date(raw) : interpretInTimezone(raw, tz);
+  if (isNaN(d.getTime())) return raw;
   return d.toLocaleTimeString("en-US", {
     timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/** Check if a date string already contains timezone info (Z, +00:00, etc.) */
+function hasTimezoneInfo(s: string): boolean {
+  return /Z|[+-]\d{2}:\d{2}|[+-]\d{4}$/.test(s.trim());
+}
+
+/**
+ * Interpret a naive (no-tz) datetime string as if it's in the given timezone.
+ * We do this by formatting `now` in that tz to discover the UTC offset,
+ * then appending it to the naive string so Date() parses it correctly.
+ */
+function interpretInTimezone(naive: string, tz: string): Date {
+  // Build a reference Date close to the naive value to get the right DST offset
+  const approx = new Date(naive + "Z"); // treat as UTC temporarily
+  if (isNaN(approx.getTime())) return new Date(NaN);
+
+  // Get the UTC offset for this timezone at approximately this point in time
+  const utcStr = approx.toLocaleString("en-US", { timeZone: "UTC" });
+  const tzStr = approx.toLocaleString("en-US", { timeZone: tz });
+  const diffMs = new Date(utcStr).getTime() - new Date(tzStr).getTime();
+  // diffMs is positive when tz is behind UTC (e.g. +4h for America/New_York EDT)
+  const sign = diffMs >= 0 ? "+" : "-";
+  const absMins = Math.abs(Math.round(diffMs / 60000));
+  const hh = String(Math.floor(absMins / 60)).padStart(2, "0");
+  const mm = String(absMins % 60).padStart(2, "0");
+  const offset = `${sign}${hh}:${mm}`;
+
+  return new Date(naive.replace(" ", "T") + offset);
 }
 
 
