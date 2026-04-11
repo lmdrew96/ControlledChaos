@@ -22,6 +22,7 @@ export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   });
 }
 
@@ -37,6 +38,7 @@ export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
     timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
+    timeZoneName: "short",
   });
 }
 
