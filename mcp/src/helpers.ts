@@ -1,7 +1,42 @@
+const DEFAULT_TZ = "America/New_York";
+
+/**
+ * Format a UTC timestamp into a human-readable string in the given timezone.
+ */
+export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
+  if (!value) return "";
+  const d = new Date(value as string);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("en-US", {
+    timeZone: tz,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Format a UTC timestamp into just time in the given timezone.
+ */
+export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
+  if (!value) return "";
+  const d = new Date(value as string);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleTimeString("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+
 /**
  * Format a task row into a readable markdown string.
  */
-export function formatTask(task: Record<string, unknown>): string {
+export function formatTask(task: Record<string, unknown>, tz?: string): string {
   const parts: string[] = [
     `**${task.title}**`,
     `ID: \`${task.id}\``,
@@ -10,8 +45,8 @@ export function formatTask(task: Record<string, unknown>): string {
   if (task.description) parts.push(`Description: ${task.description}`);
   if (task.category) parts.push(`Category: ${task.category}`);
   if (task.estimated_minutes) parts.push(`Estimated: ${task.estimated_minutes} min`);
-  if (task.deadline) parts.push(`Deadline: ${task.deadline}`);
-  if (task.scheduled_for) parts.push(`Scheduled: ${task.scheduled_for}`);
+  if (task.deadline) parts.push(`Deadline: ${fmtLocal(task.deadline, tz)}`);
+  if (task.scheduled_for) parts.push(`Scheduled: ${fmtLocal(task.scheduled_for, tz)}`);
   if (task.location_tags) {
     try {
       const tags = Array.isArray(task.location_tags)
@@ -22,20 +57,20 @@ export function formatTask(task: Record<string, unknown>): string {
       /* ignore parse errors */
     }
   }
-  if (task.completed_at) parts.push(`Completed: ${task.completed_at}`);
+  if (task.completed_at) parts.push(`Completed: ${fmtLocal(task.completed_at, tz)}`);
   return parts.join("\n");
 }
 
 /**
  * Format a calendar event into a readable markdown string.
  */
-export function formatEvent(event: Record<string, unknown>): string {
+export function formatEvent(event: Record<string, unknown>, tz?: string): string {
   const parts: string[] = [
     `**${event.title}**`,
     `ID: \`${event.id}\``,
     `Source: ${event.source}`,
-    `Start: ${event.start_time}`,
-    `End: ${event.end_time}`,
+    `Start: ${fmtLocal(event.start_time, tz)}`,
+    `End: ${fmtLocal(event.end_time, tz)}`,
   ];
   if (event.description) parts.push(`Description: ${event.description}`);
   if (event.location) parts.push(`Location: ${event.location}`);
@@ -46,13 +81,13 @@ export function formatEvent(event: Record<string, unknown>): string {
 /**
  * Format a goal into a readable markdown string.
  */
-export function formatGoal(goal: Record<string, unknown>): string {
+export function formatGoal(goal: Record<string, unknown>, tz?: string): string {
   const parts: string[] = [
     `**${goal.title}**`,
     `ID: \`${goal.id}\``,
     `Status: ${goal.status}`,
   ];
   if (goal.description) parts.push(`Description: ${goal.description}`);
-  if (goal.target_date) parts.push(`Target: ${goal.target_date}`);
+  if (goal.target_date) parts.push(`Target: ${fmtLocal(goal.target_date, tz)}`);
   return parts.join("\n");
 }

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { sql, getUserId } from "./db.js";
-import { formatTask, formatEvent, formatGoal } from "./helpers.js";
+import { sql, getUserId, getUserTimezone } from "./db.js";
+import { formatTask, formatEvent, formatGoal, fmtTimeLocal } from "./helpers.js";
 
 // ============================================================
 // Register all ControlledChaos tools on the given server
@@ -41,6 +41,7 @@ Returns: Markdown-formatted list of tasks with IDs, status, priority, energy, de
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const conditions: string[] = ["user_id = $1"];
       const values: unknown[] = [userId];
       let paramIdx = 2;
@@ -79,7 +80,7 @@ Returns: Markdown-formatted list of tasks with IDs, status, priority, energy, de
       }
 
       const text = `## Tasks (${rows.length} found)\n\n` +
-        rows.map((r, i) => `### ${i + 1}. ${formatTask(r)}`).join("\n\n---\n\n");
+        rows.map((r, i) => `### ${i + 1}. ${formatTask(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
     }
   );
@@ -100,8 +101,10 @@ Args:
   - energy_level: low, medium (default), or high.
   - estimated_minutes: Estimated time in minutes.
   - category: school, work, personal, errands, or health.
-  - deadline: ISO 8601 date/datetime string.
+  - deadline: ISO 8601 date/datetime string in UTC (append Z or +00:00).
   - location_tags: Array of location tags like ["home", "campus"].
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
 Returns: The created task with its ID.`,
       inputSchema: {
@@ -111,7 +114,7 @@ Returns: The created task with its ID.`,
         energy_level: z.enum(["low", "medium", "high"]).default("medium").describe("Energy required"),
         estimated_minutes: z.number().int().min(1).max(480).optional().describe("Estimated minutes"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
-        deadline: z.string().optional().describe("Deadline as ISO 8601 string"),
+        deadline: z.string().optional().describe("Deadline as ISO 8601 UTC string (e.g. 2026-04-11T18:00:00Z)"),
         location_tags: z.array(z.string()).optional().describe("Location tags"),
       },
       annotations: {
@@ -123,6 +126,7 @@ Returns: The created task with its ID.`,
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const rows = await sql(
         `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, location_tags)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -141,7 +145,7 @@ Returns: The created task with its ID.`,
       );
 
       return {
-        content: [{ type: "text" as const, text: `✅ Task created!\n\n${formatTask(rows[0])}` }],
+        content: [{ type: "text" as const, text: `✅ Task created!\n\n${formatTask(rows[0], tz)}` }],
       };
     }
   );
@@ -159,6 +163,8 @@ Args:
   - task_id (required): UUID of the task to update.
   - title, description, status, priority, energy_level, estimated_minutes, category, deadline, scheduled_for, location_tags: Fields to update.
 
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
 Returns: The updated task.`,
       inputSchema: {
         task_id: z.string().uuid().describe("Task ID to update"),
@@ -169,8 +175,8 @@ Returns: The updated task.`,
         energy_level: z.enum(["low", "medium", "high"]).optional().describe("New energy level"),
         estimated_minutes: z.number().int().min(1).max(480).optional().describe("New estimate"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
-        deadline: z.string().optional().describe("New deadline (ISO 8601)"),
-        scheduled_for: z.string().optional().describe("Scheduled datetime (ISO 8601)"),
+        deadline: z.string().optional().describe("New deadline (ISO 8601 UTC)"),
+        scheduled_for: z.string().optional().describe("Scheduled datetime (ISO 8601 UTC)"),
         location_tags: z.array(z.string()).optional().describe("New location tags"),
       },
       annotations: {
@@ -182,6 +188,7 @@ Returns: The updated task.`,
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const setClauses: string[] = ["updated_at = NOW()"];
       const values: unknown[] = [];
       let idx = 1;
@@ -224,7 +231,7 @@ Returns: The updated task.`,
         return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
       }
 
-      return { content: [{ type: "text" as const, text: `✅ Task updated!\n\n${formatTask(rows[0])}` }] };
+      return { content: [{ type: "text" as const, text: `✅ Task updated!\n\n${formatTask(rows[0], tz)}` }] };
     }
   );
 
@@ -253,6 +260,7 @@ Returns: The completed task.`,
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const rows = await sql(
         `UPDATE tasks SET status = 'completed', completed_at = NOW(), updated_at = NOW()
          WHERE id = $1 AND user_id = $2 RETURNING *`,
@@ -263,7 +271,7 @@ Returns: The completed task.`,
         return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
       }
 
-      return { content: [{ type: "text" as const, text: `🎉 Task completed!\n\n${formatTask(rows[0])}` }] };
+      return { content: [{ type: "text" as const, text: `🎉 Task completed!\n\n${formatTask(rows[0], tz)}` }] };
     }
   );
 
@@ -358,14 +366,16 @@ Returns: Confirmation with the dump ID.`,
       description: `List calendar events from ControlledChaos within a date range.
 
 Args:
-  - start_date (required): Start of range (ISO 8601, e.g. "2026-03-21").
-  - end_date (required): End of range (ISO 8601, e.g. "2026-03-28").
+  - start_date (required): Start of range (ISO 8601 in UTC, e.g. "2026-03-21T04:00:00Z" for midnight ET).
+  - end_date (required): End of range (ISO 8601 in UTC).
   - source: Filter by source (canvas, google, controlledchaos).
 
-Returns: Markdown-formatted list of events.`,
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: Markdown-formatted list of events with times displayed in the user's timezone.`,
       inputSchema: {
-        start_date: z.string().describe("Start date (ISO 8601)"),
-        end_date: z.string().describe("End date (ISO 8601)"),
+        start_date: z.string().describe("Start date (ISO 8601 UTC, e.g. 2026-03-21T04:00:00Z)"),
+        end_date: z.string().describe("End date (ISO 8601 UTC)"),
         source: z.enum(["canvas", "google", "controlledchaos"]).optional().describe("Filter by event source"),
       },
       annotations: {
@@ -377,6 +387,7 @@ Returns: Markdown-formatted list of events.`,
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       let query: string;
       let values: unknown[];
 
@@ -399,7 +410,7 @@ Returns: Markdown-formatted list of events.`,
       }
 
       const text = `## Calendar Events (${rows.length} found)\n\n` +
-        rows.map((r, i) => `### ${i + 1}. ${formatEvent(r)}`).join("\n\n---\n\n");
+        rows.map((r, i) => `### ${i + 1}. ${formatEvent(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
     }
   );
@@ -415,17 +426,19 @@ Returns: Markdown-formatted list of events.`,
 
 Args:
   - title (required): Event title.
-  - start_time (required): Start datetime (ISO 8601).
-  - end_time (required): End datetime (ISO 8601).
+  - start_time (required): Start datetime (ISO 8601 in UTC).
+  - end_time (required): End datetime (ISO 8601 in UTC).
   - description: Optional description.
   - location: Optional location string.
   - is_all_day: Whether it's an all-day event (default false).
 
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
 Returns: The created event with its ID.`,
       inputSchema: {
         title: z.string().min(1).max(500).describe("Event title"),
-        start_time: z.string().describe("Start datetime (ISO 8601)"),
-        end_time: z.string().describe("End datetime (ISO 8601)"),
+        start_time: z.string().describe("Start datetime (ISO 8601 UTC)"),
+        end_time: z.string().describe("End datetime (ISO 8601 UTC)"),
         description: z.string().max(2000).optional().describe("Event description"),
         location: z.string().max(500).optional().describe("Event location"),
         is_all_day: z.boolean().default(false).describe("All-day event?"),
@@ -439,6 +452,7 @@ Returns: The created event with its ID.`,
     },
     async (params) => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const externalId = `mcp-${crypto.randomUUID()}`;
       const rows = await sql(
         `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, synced_at)
@@ -456,7 +470,7 @@ Returns: The created event with its ID.`,
         ]
       );
 
-      return { content: [{ type: "text" as const, text: `📅 Event created!\n\n${formatEvent(rows[0])}` }] };
+      return { content: [{ type: "text" as const, text: `📅 Event created!\n\n${formatEvent(rows[0], tz)}` }] };
     }
   );
 
@@ -480,6 +494,7 @@ Returns: Markdown-formatted list of goals with IDs, descriptions, and target dat
     },
     async () => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
       const rows = await sql(
         `SELECT * FROM goals WHERE user_id = $1 AND status = 'active' ORDER BY created_at`,
         [userId]
@@ -490,7 +505,7 @@ Returns: Markdown-formatted list of goals with IDs, descriptions, and target dat
       }
 
       const text = `## Active Goals (${rows.length})\n\n` +
-        rows.map((r, i) => `### ${i + 1}. ${formatGoal(r)}`).join("\n\n---\n\n");
+        rows.map((r, i) => `### ${i + 1}. ${formatGoal(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
     }
   );
@@ -515,13 +530,14 @@ Returns: Markdown-formatted daily stats summary.`,
     },
     async () => {
       const userId = getUserId();
+      const tz = await getUserTimezone(userId);
 
       // Completed today
       const completedToday = await sql(
         `SELECT COUNT(*) as count FROM tasks
          WHERE user_id = $1 AND status = 'completed'
-         AND completed_at >= (NOW() AT TIME ZONE 'America/New_York')::date`,
-        [userId]
+         AND completed_at >= (NOW() AT TIME ZONE $2)::date`,
+        [userId, tz]
       );
 
       // Total pending
@@ -551,16 +567,16 @@ Returns: Markdown-formatted daily stats summary.`,
       const todaysEvents = await sql(
         `SELECT title, start_time, end_time FROM calendar_events
          WHERE user_id = $1
-         AND start_time >= (NOW() AT TIME ZONE 'America/New_York')::date
-         AND start_time < (NOW() AT TIME ZONE 'America/New_York')::date + INTERVAL '1 day'
+         AND start_time >= (NOW() AT TIME ZONE $2)::date
+         AND start_time < (NOW() AT TIME ZONE $2)::date + INTERVAL '1 day'
          ORDER BY start_time`,
-        [userId]
+        [userId, tz]
       );
 
       const eventsText = todaysEvents.length > 0
         ? todaysEvents.map(e => {
-            const start = new Date(e.start_time as string).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-            const end = new Date(e.end_time as string).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            const start = fmtTimeLocal(e.start_time, tz);
+            const end = fmtTimeLocal(e.end_time, tz);
             return `  - ${e.title} (${start} – ${end})`;
           }).join("\n")
         : "  No events today";

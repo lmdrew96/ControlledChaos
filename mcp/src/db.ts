@@ -20,6 +20,18 @@ export async function sql(
 }
 
 /**
+ * Fetch the user's timezone from their preferences.
+ * Falls back to America/New_York if not set.
+ */
+export async function getUserTimezone(userId: string): Promise<string> {
+  const rows = await sql(
+    `SELECT timezone FROM user_preferences WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+  return (rows[0]?.timezone as string) || "America/New_York";
+}
+
+/**
  * Get the user ID from env. All queries are scoped to this user.
  * This is your Clerk user ID from the ControlledChaos app.
  */
