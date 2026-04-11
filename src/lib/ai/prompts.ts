@@ -471,6 +471,9 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - location_arrival: User just arrived at a saved location that matches task locationTags. Mention the place naturally. Keep it actionable — they're already there. 1-2 sentences.
 - location_departure_nearby: User is leaving a location. Another saved location with pending tasks is nearby. Frame as an easy add-on — "while you're out" energy. Never guilt.
 
+## Location context
+If "User's current location" is provided, weave it in naturally when relevant. For example, if the user is at "Campus" and the task is tagged for campus, mention it briefly ("you're already on campus"). If the location doesn't relate to the task, you can still use it for color ("while you're at home, knock this out") but don't force it. Never mention location if it would make the message awkward or longer than 2 sentences.
+
 ## Rules
 - MAX 2 sentences. Shorter is better. deadline_30min MUST be 1 sentence.
 - Use the task name naturally — don't bolt it on at the start.

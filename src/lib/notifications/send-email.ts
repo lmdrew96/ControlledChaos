@@ -14,6 +14,7 @@ import {
   getTasksCompletedToday,
   getCalendarEventsByDateRange,
   createNotification,
+  getUserLocation,
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
@@ -32,13 +33,15 @@ const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <noreply@adhdesign
  * Send the morning digest email for a user.
  */
 export async function sendMorningDigest(userId: string): Promise<boolean> {
-  const [user, settings] = await Promise.all([
+  const [user, settings, userLoc] = await Promise.all([
     getUser(userId),
     getUserSettings(userId),
+    getUserLocation(userId),
   ]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
+  const locationName = userLoc?.matchedLocationName ?? null;
   const now = new Date();
 
   // Today's events
@@ -80,11 +83,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
+    locationName ? `User's current location: ${locationName}` : null,
     energyProfile
       ? `Energy profile: Morning=${energyProfile.morning}, Afternoon=${energyProfile.afternoon}, Evening=${energyProfile.evening}`
       : null,
     `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
-    `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})`).join(", ") || "None"}`,
+    `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `Deadlines this week: ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
   ]
     .filter(Boolean)
@@ -150,10 +154,15 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
  * Send the evening digest email for a user.
  */
 export async function sendEveningDigest(userId: string): Promise<boolean> {
-  const [user, settings] = await Promise.all([getUser(userId), getUserSettings(userId)]);
+  const [user, settings, userLoc] = await Promise.all([
+    getUser(userId),
+    getUserSettings(userId),
+    getUserLocation(userId),
+  ]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
+  const locationName = userLoc?.matchedLocationName ?? null;
   const now = new Date();
 
   // Tasks completed today
@@ -191,10 +200,13 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
+    locationName ? `User's current location: ${locationName}` : null,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `Tomorrow's top priority: ${tomorrowPriority ? `${tomorrowPriority.title} (${tomorrowPriority.priority})` : "Nothing urgent"}`,
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const aiResult = await callSonnet({
     system: buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),

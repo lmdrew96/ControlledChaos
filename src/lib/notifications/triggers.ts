@@ -250,12 +250,16 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
 /**
  * Generate a push notification message via Claude Haiku.
  * Falls back to a hardcoded string if the AI call fails.
+ *
+ * @param userLocation - The user's current matched location name (e.g. "Home", "Campus").
+ *   When provided, the AI can weave it in naturally for extra context.
  */
 export async function generatePushMessage(
   ctx: PushNotificationContext,
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
-  mode: NotificationAssertiveness = "balanced"
+  mode: NotificationAssertiveness = "balanced",
+  userLocation?: string
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
@@ -276,6 +280,11 @@ export async function generatePushMessage(
     userMsg = `Type: location_departure_nearby\nLeft: "${ctx.locationName}"\nNearby: "${ctx.nearbyLocationName}"\nTask: "${ctx.taskTitle}"`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
+  }
+
+  // Append the user's current location so the AI can reference it naturally
+  if (userLocation && ctx.type !== "location_arrival" && ctx.type !== "location_departure_nearby") {
+    userMsg += `\nUser's current location: "${userLocation}"`;
   }
 
   try {
@@ -323,12 +332,15 @@ export async function generateNudgeMessage(
   hoursInactive: number,
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
-  mode: NotificationAssertiveness = "balanced"
+  mode: NotificationAssertiveness = "balanced",
+  userLocation?: string
 ): Promise<string> {
   try {
+    let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
+    if (userLocation) userMsg += `\nUser's current location: "${userLocation}"`;
     const { text } = await callSonnet({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
-      user: `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`,
+      user: userMsg,
       maxTokens: 80,
     });
 
@@ -344,9 +356,25 @@ export async function generateNudgeMessage(
 /**
  * Returns the title of the top pending task to surface in idle check-ins.
  * getPendingTasks already sorts deadline-first (nearest deadline → no deadline → newest).
+ *
+ * When the user's current location is known, prefer a task tagged for that
+ * location (still respecting deadline ordering within matched tasks).
  */
-export async function getTopPendingTaskTitle(userId: string): Promise<string | undefined> {
+export async function getTopPendingTaskTitle(
+  userId: string,
+  locationName?: string
+): Promise<string | undefined> {
   const pending = await getPendingTasks(userId);
+
+  if (locationName) {
+    const locationTask = pending.find((t) =>
+      t.locationTags?.some(
+        (tag) => tag.toLowerCase() === locationName.toLowerCase()
+      )
+    );
+    if (locationTask) return locationTask.title;
+  }
+
   return pending[0]?.title;
 }
 

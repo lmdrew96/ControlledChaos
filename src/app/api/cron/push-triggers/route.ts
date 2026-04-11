@@ -3,6 +3,7 @@ import {
   getAllUsersWithPushEnabled,
   getPendingSnoozedPushes,
   markSnoozedPushSent,
+  getUserLocation,
 } from "@/lib/db/queries";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import {
@@ -81,6 +82,10 @@ export async function GET(request: Request) {
       const dailyCap = getDailyPushCap(mode);
       let sentToday = await getPushNotificationsSentToday(userId);
 
+      // Fetch user's current location for context-aware notifications
+      const userLoc = await getUserLocation(userId);
+      const locationName = userLoc?.matchedLocationName ?? undefined;
+
       const canSend = (priority: "high" | "normal") =>
         priority === "high" || sentToday < dailyCap;
 
@@ -101,8 +106,9 @@ export async function GET(request: Request) {
         const message = await generatePushMessage(
           { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
           personalityPrefs,
-            timezone,
-            mode
+          timezone,
+          mode,
+          locationName
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -129,7 +135,8 @@ export async function GET(request: Request) {
           { type: "scheduled", taskTitle: alert.taskTitle },
           personalityPrefs,
           timezone,
-          mode
+          mode,
+          locationName
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -156,7 +163,8 @@ export async function GET(request: Request) {
             { type: "scheduled_missed", taskTitle: alert.taskTitle },
             personalityPrefs,
             timezone,
-            mode
+            mode,
+            locationName
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -176,12 +184,13 @@ export async function GET(request: Request) {
       if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey))) {
         const morningStatus = await shouldSendIdleCheckin(userId, timezone);
         if (morningStatus.shouldSend) {
-          const topTask = await getTopPendingTaskTitle(userId);
+          const topTask = await getTopPendingTaskTitle(userId, locationName);
           const message = await generatePushMessage(
             { type: "idle_checkin", topTaskTitle: topTask, activityLevel: morningStatus.activityLevel },
             personalityPrefs,
             timezone,
-            mode
+            mode,
+            locationName
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -200,12 +209,13 @@ export async function GET(request: Request) {
       if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey))) {
         const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
         if (afternoonStatus.shouldSend) {
-          const topTask = await getTopPendingTaskTitle(userId);
+          const topTask = await getTopPendingTaskTitle(userId, locationName);
           const message = await generatePushMessage(
             { type: "idle_checkin_afternoon", topTaskTitle: topTask, activityLevel: afternoonStatus.activityLevel },
             personalityPrefs,
             timezone,
-            mode
+            mode,
+            locationName
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -232,12 +242,13 @@ export async function GET(request: Request) {
         if (!eveningStatus.shouldSend) {
           console.log(`[Push][Evening] skip user=${userId} reason=${eveningStatus.reason}`);
         } else {
-          const topTask = await getTopPendingTaskTitle(userId);
+          const topTask = await getTopPendingTaskTitle(userId, locationName);
           const message = await generatePushMessage(
             { type: "idle_checkin_evening", topTaskTitle: topTask, activityLevel: eveningStatus.activityLevel },
             personalityPrefs,
             timezone,
-            mode
+            mode,
+            locationName
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -267,7 +278,8 @@ export async function GET(request: Request) {
             nudge.hoursInactive,
             personalityPrefs,
             timezone,
-            mode
+            mode,
+            locationName
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
