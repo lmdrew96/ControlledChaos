@@ -3,10 +3,10 @@ const DEFAULT_TZ = "America/New_York";
 /**
  * Convert any DB value to a Date object.
  *
- * Postgres `timestamp without time zone` columns: the Neon driver returns
- * Date objects pinned to UTC (the naive value treated as if it were UTC).
- * Since the app stores wall-clock times (user's local time), we need to
- * "undo" the UTC interpretation and re-anchor the value in the user's tz.
+ * The Neon driver returns Date objects for timestamp columns, interpreting
+ * the raw DB value as UTC. Since the app stores actual UTC values (the
+ * frontend converts local time → UTC via .toISOString() before saving),
+ * the Date objects are correct as-is.
  */
 function toDate(value: unknown): Date {
   if (value instanceof Date) return value;
@@ -16,19 +16,16 @@ function toDate(value: unknown): Date {
 /**
  * Format a timestamp into a human-readable string in the user's timezone.
  *
- * Because the DB uses `timestamp without time zone`, values are stored as
- * local wall-clock time. The Neon driver interprets them as UTC. So we use
- * Intl.DateTimeFormat with timeZone: "UTC" to display the raw value as-is
- * (which IS the user's local time), then append the user's tz abbreviation.
+ * DB stores UTC. Intl.DateTimeFormat with the user's timezone converts
+ * the UTC value to their local time for display.
  */
 export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
   if (!value) return "";
   const d = toDate(value);
   if (isNaN(d.getTime())) return String(value);
 
-  // Format the raw UTC value as-is (it's actually local time stored naively)
   const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
+    timeZone: tz,
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -37,10 +34,7 @@ export function fmtLocal(value: unknown, tz = DEFAULT_TZ): string {
     minute: "2-digit",
   });
 
-  // Get the user's timezone abbreviation (e.g. "EDT", "EST")
-  const tzAbbr = getTzAbbreviation(tz);
-
-  return `${formatter.format(d)} ${tzAbbr}`;
+  return formatter.format(d);
 }
 
 /**
@@ -52,14 +46,12 @@ export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
   if (isNaN(d.getTime())) return String(value);
 
   const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
+    timeZone: tz,
     hour: "numeric",
     minute: "2-digit",
   });
 
-  const tzAbbr = getTzAbbreviation(tz);
-
-  return `${formatter.format(d)} ${tzAbbr}`;
+  return formatter.format(d);
 }
 
 /**

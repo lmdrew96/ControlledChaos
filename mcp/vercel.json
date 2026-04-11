@@ -1,0 +1,12 @@
+{
+  "buildCommand": "",
+  "rewrites": [
+    { "source": "/:userId", "destination": "/api/:userId" }
+  ],
+  "functions": {
+    "api/[userId].ts": {
+      "maxDuration": 30,
+      "includeFiles": "src/**"
+    }
+  }
+}
