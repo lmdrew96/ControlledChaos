@@ -3,6 +3,14 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "added",
+        "text": "Expandable notification bell + docs update for changelog and notifications"
+      },
+      {
+        "type": "added",
+        "text": "Auto-generated changelog from git commits with What's New dialog"
+      },
+      {
         "type": "fixed",
         "text": "Delayed refetch after task/event creation to surface AI-generated notes"
       },
