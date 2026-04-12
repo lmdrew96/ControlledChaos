@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Add Google Calendar sync delay note to iCal settings"
+      },
+      {
+        "type": "fixed",
         "text": "Use glob pattern for iCal export public route matcher"
       },
       {

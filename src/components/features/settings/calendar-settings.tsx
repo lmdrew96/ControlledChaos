@@ -585,7 +585,9 @@ export function CalendarSettings() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Paste this URL as a &ldquo;calendar subscription&rdquo; or &ldquo;Add calendar from URL&rdquo; in your calendar app.
+              Paste this URL as a &ldquo;calendar subscription&rdquo; or &ldquo;Add
+              calendar from URL&rdquo; in your calendar app. Works instantly in Apple
+              Calendar. Google Calendar can take up to 24 hours to sync new subscriptions.
             </p>
             <Button
               size="sm"
