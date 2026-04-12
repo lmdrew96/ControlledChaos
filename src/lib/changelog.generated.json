@@ -3,6 +3,10 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "added",
+        "text": "Polish dashboard and weekly calendar views"
+      },
+      {
         "type": "fixed",
         "text": "Calculate remaining day minutes directly to avoid rounding jumps"
       },

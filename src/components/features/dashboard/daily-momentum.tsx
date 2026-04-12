@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Flame, Sparkles, Coffee } from "lucide-react";
+import { Flame, Sparkles, Coffee, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface Stats {
@@ -11,10 +11,10 @@ interface Stats {
 }
 
 const MOMENTUM_TIERS = [
-  { min: 0, message: "Fresh start — what's first?", icon: Coffee, color: "text-muted-foreground" },
-  { min: 1, message: "Rolling!", icon: Sparkles, color: "text-primary" },
-  { min: 3, message: "On fire!", icon: Flame, color: "text-orange-500" },
-  { min: 6, message: "Unstoppable!", icon: Flame, color: "text-red-500" },
+  { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", bg: "bg-muted", ring: "" },
+  { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
+  { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
+  { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
 ] as const;
 
 function getTier(count: number) {
@@ -39,34 +39,38 @@ export function DailyMomentum() {
   const tier = getTier(stats.completedToday);
   const Icon = tier.icon;
 
-  // Momentum dots — show up to 8, filled for completed
-  const dotCount = Math.max(stats.completedToday, 5);
-  const dots = Array.from({ length: Math.min(dotCount, 8) }, (_, i) => i < stats.completedToday);
+  // Show 8 dots, filled up to completedToday
+  const maxDots = 8;
+  const filledDots = Math.min(stats.completedToday, maxDots);
 
   return (
-    <Card className="border-border/50">
-      <CardContent className="flex items-center gap-4 p-4">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted ${tier.color}`}>
+    <Card className="group border-border/40 bg-card/80 transition-colors hover:border-border/60">
+      <CardContent className="flex items-center gap-4 p-5">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tier.bg} ${tier.ring} ${tier.accent} transition-all`}>
           <Icon className="h-5 w-5" />
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{tier.message}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-semibold">{tier.message}</span>
           </div>
-          <div className="mt-1.5 flex items-center gap-3">
-            {/* Momentum dots */}
+
+          {/* Momentum bar */}
+          <div className="mt-2 flex items-center gap-3">
             <div className="flex gap-1">
-              {dots.map((filled, i) => (
+              {Array.from({ length: maxDots }, (_, i) => (
                 <div
                   key={i}
-                  className={`h-2 w-2 rounded-full transition-colors ${
-                    filled ? "bg-primary" : "bg-muted-foreground/20"
+                  className={`h-1.5 w-3 rounded-full transition-all duration-300 ${
+                    i < filledDots
+                      ? `momentum-dot-filled ${tier.accent.replace("text-", "bg-")}`
+                      : "bg-muted-foreground/15"
                   }`}
+                  style={{ transitionDelay: `${i * 40}ms` }}
                 />
               ))}
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[11px] tabular-nums text-muted-foreground">
               {stats.completedToday} today &middot; {stats.completedThisWeek} this week
             </span>
           </div>

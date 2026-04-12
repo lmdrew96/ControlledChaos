@@ -590,52 +590,50 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       {/* Header: nav + actions */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {/* Navigation */}
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(-1)} aria-label="Previous week">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={isCurrentWeek ? "default" : "outline"}
-            size="sm"
-            className="h-8 px-2 text-xs sm:px-3 sm:text-sm"
-            onClick={goToToday}
-          >
-            Today
-          </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigateWeek(1)} aria-label="Next week">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <span className="hidden text-sm font-medium text-muted-foreground sm:inline">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center rounded-lg border border-border/50 bg-card/50 p-0.5">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek(-1)} aria-label="Previous week">
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant={isCurrentWeek ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2.5 text-xs font-medium"
+              onClick={goToToday}
+            >
+              Today
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek(1)} aria-label="Next week">
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <span className="hidden text-sm font-semibold sm:inline">
             {weekDays[0].toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
+              month: "long",
             })}{" "}
-            –{" "}
-            {weekDays[6].toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
+            {weekDays[0].getDate()} – {weekDays[6].getDate()}
+            <span className="ml-1 font-normal text-muted-foreground">
+              {weekDays[0].getFullYear()}
+            </span>
           </span>
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          {/* Add Event — icon on mobile, labeled on desktop */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-2 sm:px-3"
+            className="h-8 gap-1.5 border-border/50 px-3 text-xs"
             onClick={() => setShowCreateDialog(true)}
           >
-            <Plus className="h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
+            <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Add Event</span>
           </Button>
 
-          {/* Overflow menu for Sync + Clear */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 w-8 p-0" aria-label="More calendar options">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-8 w-8 border-border/50 p-0" aria-label="More calendar options">
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -671,22 +669,22 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       )}
 
       {/* Mobile day selector (shown < md) */}
-      <div className="flex gap-1 overflow-x-auto md:hidden">
-        {weekDays.map((day) => (
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-border/40 bg-card/50 p-1 md:hidden">
+        {weekDays.map((day, i) => (
           <button
             key={day.toISOString()}
             onClick={() => setSelectedDay(day)}
             className={cn(
-              "flex min-w-[3rem] flex-col items-center rounded-lg px-2 py-1.5 text-xs transition-colors",
+              "flex min-w-[3rem] flex-1 flex-col items-center rounded-lg px-1 py-2 text-xs transition-all",
               isSameDay(day, selectedDay)
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : isSameDay(day, today)
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent"
+                  ? "bg-primary/10 text-foreground"
+                  : "text-muted-foreground hover:bg-accent/50"
             )}
           >
-            <span className="font-medium">{dayLabels[weekDays.indexOf(day)]}</span>
-            <span className="text-lg font-bold">{day.getDate()}</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider opacity-70">{dayLabels[i]}</span>
+            <span className="mt-0.5 text-base font-bold">{day.getDate()}</span>
           </button>
         ))}
       </div>
@@ -741,49 +739,51 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
             Loading events...
           </div>
         ) : events.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border py-12 text-center">
-            <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              No events this week.
+          <div className="rounded-xl border border-dashed border-border/50 py-16 text-center">
+            <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
+              No events this week
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground/70">
               Sync your Canvas calendar in Settings to see your schedule.
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-hidden rounded-xl border border-border/50 bg-card/30">
             {/* Day headers */}
-            <div className="grid grid-cols-[4rem_repeat(7,1fr)] border-b border-border bg-card">
+            <div className="grid grid-cols-[4rem_repeat(7,1fr)] border-b border-border/50 bg-card/60">
               <div /> {/* Time column spacer */}
               {weekDays.map((day, i) => (
                 <div
                   key={day.toISOString()}
                   className={cn(
-                    "border-l border-border px-2 py-2 text-center",
-                    isSameDay(day, today) && "bg-primary/5"
+                    "border-l border-border/30 px-2 py-2.5 text-center",
+                    isSameDay(day, today) && "bg-primary/[0.06]"
                   )}
                 >
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     {dayLabels[i]}
                   </p>
-                  <p
-                    className={cn(
-                      "text-lg font-bold",
-                      isSameDay(day, today)
-                        ? "text-primary"
-                        : "text-foreground"
-                    )}
-                  >
-                    {day.getDate()}
-                  </p>
+                  <div className="mt-0.5 flex justify-center">
+                    <span
+                      className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold",
+                        isSameDay(day, today)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground"
+                      )}
+                    >
+                      {day.getDate()}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* All-day events banner */}
             {allDayEvents.length > 0 && (
-              <div className="grid grid-cols-[4rem_repeat(7,1fr)] border-b border-border">
-                <div className="px-1 py-1 text-right text-[10px] text-muted-foreground">
+              <div className="grid grid-cols-[4rem_repeat(7,1fr)] border-b border-border/40">
+                <div className="px-1 py-1 text-right text-[10px] font-medium text-muted-foreground/60">
                   all day
                 </div>
                 {weekDays.map((day) => {
@@ -793,7 +793,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   return (
                     <div
                       key={day.toISOString()}
-                      className="border-l border-border px-1 py-1"
+                      className="border-l border-border/30 px-1 py-1"
                     >
                       {dayAllDay.map((event) => (
                         <button
@@ -822,10 +822,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
             >
               {/* Time labels */}
               <div className="relative">
-                {timeLabels.map((label, i) => (
+                {timeLabels.map((label) => (
                   <div
                     key={label}
-                    className="flex items-start justify-end border-b border-border/50 pr-2 text-[10px] text-muted-foreground"
+                    className="flex items-start justify-end border-b border-border/20 pr-2.5 pt-0.5 text-[10px] font-medium text-muted-foreground/60"
                     style={{ height: ROW_HEIGHT * 2 }}
                   >
                     {label}
@@ -841,8 +841,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   <div
                     key={day.toISOString()}
                     className={cn(
-                      "relative border-l border-border",
-                      isSameDay(day, today) && "bg-primary/[0.02]"
+                      "relative border-l border-border/30",
+                      isSameDay(day, today) && "bg-primary/[0.03]"
                     )}
                     style={{ height: totalSlots * ROW_HEIGHT }}
                   >
@@ -853,8 +853,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         className={cn(
                           "absolute w-full border-b",
                           i % 2 === 1
-                            ? "border-border/50"
-                            : "border-border/30"
+                            ? "border-border/30"
+                            : "border-border/15"
                         )}
                         style={{ top: (i + 1) * ROW_HEIGHT }}
                       />
@@ -884,7 +884,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             }}
                             onPointerDown={isCC ? (e) => handleDragStart(e, event) : undefined}
                             className={cn(
-                              "absolute z-10 overflow-hidden rounded border-l-2 px-1 py-0.5 text-left transition-opacity hover:opacity-80",
+                              "calendar-event-card absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition-all",
+                              "hover:brightness-105 hover:shadow-md",
                               isCC && "cursor-grab active:cursor-grabbing",
                               isBeingDragged && "opacity-30",
                               categoryColor(event.category as EventCategory, calendarColors)
@@ -896,11 +897,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               width: `calc(${widthPercent}% - 4px)`,
                             }}
                           >
-                            <p className="truncate text-[11px] font-medium leading-tight">
+                            <p className="truncate text-[11px] font-semibold leading-tight">
                               {event.title}
                             </p>
                             {pos.height > ROW_HEIGHT && (
-                              <p className="truncate text-[10px] opacity-70">
+                              <p className="mt-0.5 truncate text-[10px] opacity-60">
                                 {formatTime(new Date(event.startTime))}
                               </p>
                             )}
@@ -917,8 +918,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                           className="absolute inset-x-0 z-20 flex items-center"
                           style={{ top: currentTimeTop }}
                         >
-                          <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                          <div className="h-[2px] flex-1 bg-red-500" />
+                          <div className="current-time-dot relative h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                          <div className="h-[1.5px] flex-1 bg-red-500/80" />
                         </div>
                       )}
                   </div>
