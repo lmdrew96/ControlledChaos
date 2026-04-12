@@ -20,20 +20,34 @@ function formatMinutes(mins: number): string {
 }
 
 export function TimeAnchor() {
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const [nextEvent, setNextEvent] = useState<CalendarEvent | null>(null);
   const [wakeHour, setWakeHour] = useState(7);
   const [sleepHour, setSleepHour] = useState(22);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return sessionStorage.getItem(STORAGE_KEY) === "1";
-  });
+  const [collapsed, setCollapsed] = useState(false);
 
-  // Tick every minute
+  // Hydrate on mount: set real time + restore collapsed state
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
+    setNow(new Date());
+    setCollapsed(sessionStorage.getItem(STORAGE_KEY) === "1");
   }, []);
+
+  // Tick every minute, aligned to the start of each minute
+  useEffect(() => {
+    if (!now) return;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const alignTimeout = setTimeout(() => {
+      setNow(new Date());
+      intervalId = setInterval(() => setNow(new Date()), 60_000);
+    }, msUntilNextMinute);
+    return () => {
+      clearTimeout(alignTimeout);
+      if (intervalId) clearInterval(intervalId);
+    };
+    // Only run once after initial mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!now]);
 
   // Fetch settings + today's events
   const fetchData = useCallback(async () => {
@@ -73,11 +87,27 @@ export function TimeAnchor() {
     sessionStorage.setItem(STORAGE_KEY, next ? "1" : "0");
   }
 
+  // Don't render until hydrated to avoid mismatch
+  if (!now) {
+    return (
+      <div className="flex items-center gap-4 rounded-lg border border-border/50 bg-card/50 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          <span className="w-16 h-4 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="h-1.5 rounded-full bg-muted" />
+        </div>
+      </div>
+    );
+  }
+
   // Day progress calculation
   const currentHour = now.getHours() + now.getMinutes() / 60;
   const dayLength = sleepHour - wakeHour;
   const elapsed = Math.max(0, Math.min(dayLength, currentHour - wakeHour));
   const progress = dayLength > 0 ? (elapsed / dayLength) * 100 : 0;
+  const hoursLeft = Math.max(0, Math.round((dayLength - elapsed) * 10) / 10);
 
   // Next event countdown
   const minutesUntilNext = nextEvent
@@ -116,13 +146,16 @@ export function TimeAnchor() {
       </div>
 
       {/* Day progress bar */}
-      <div className="flex-1 min-w-0">
-        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden" title={`${Math.round(progress)}% of your day`}>
           <div
             className="h-full rounded-full bg-primary/40 transition-all duration-1000"
             style={{ width: `${Math.min(100, progress)}%` }}
           />
         </div>
+        <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
+          {formatMinutes(Math.round(hoursLeft * 60))} left
+        </span>
       </div>
 
       {/* Next event */}

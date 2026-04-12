@@ -3,6 +3,10 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "fixed",
+        "text": "Resolve time anchor hydration mismatch and label day progress bar"
+      },
+      {
         "type": "added",
         "text": "Add goals UI — full CRUD with progress tracking and nav integration"
       },
