@@ -107,7 +107,7 @@ export function TimeAnchor() {
   const dayLength = sleepHour - wakeHour;
   const elapsed = Math.max(0, Math.min(dayLength, currentHour - wakeHour));
   const progress = dayLength > 0 ? (elapsed / dayLength) * 100 : 0;
-  const hoursLeft = Math.max(0, Math.round((dayLength - elapsed) * 10) / 10);
+  const minutesLeft = Math.max(0, Math.round((dayLength - elapsed) * 60));
 
   // Next event countdown
   const minutesUntilNext = nextEvent
@@ -154,7 +154,7 @@ export function TimeAnchor() {
           />
         </div>
         <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
-          {formatMinutes(Math.round(hoursLeft * 60))} left
+          {formatMinutes(minutesLeft)} left
         </span>
       </div>
 

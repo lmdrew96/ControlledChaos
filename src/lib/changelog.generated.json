@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Calculate remaining day minutes directly to avoid rounding jumps"
+      },
+      {
+        "type": "fixed",
         "text": "Resolve time anchor hydration mismatch and label day progress bar"
       },
       {
