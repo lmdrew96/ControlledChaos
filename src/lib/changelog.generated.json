@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Use glob pattern for iCal export public route matcher"
+      },
+      {
+        "type": "fixed",
         "text": "Allow unauthenticated access to iCal export endpoint"
       },
       {
