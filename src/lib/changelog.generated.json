@@ -3,6 +3,10 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "fixed",
+        "text": "Await AI note generation and fix iCal RFC 5545 compliance"
+      },
+      {
         "type": "added",
         "text": "Add 7 new MCP tools — goals CRUD, event update/delete, brain dump list, task search"
       },

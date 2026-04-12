@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       createdEvents.push(event);
     }
 
-    // Background: generate AI note for the first event if no description was provided
+    // Generate AI note for the first event if no description was provided
     if (!description && createdEvents.length > 0) {
       const firstEvent = createdEvents[0];
       const eventTime = new Date(firstEvent.startTime).toLocaleTimeString("en-US", {
@@ -185,23 +185,27 @@ export async function POST(request: Request) {
         .filter(Boolean)
         .join(", ");
 
-      callHaiku({
-        system: AUTO_NOTE_EVENT_SYSTEM_PROMPT,
-        user: userPrompt,
-        maxTokens: 150,
-      })
-        .then(({ text }) => {
-          const note = text.trim();
-          if (note && note !== "SKIP") {
-            // Apply the note to all instances in the series
-            return Promise.all(
-              createdEvents.map((evt) =>
-                updateCalendarEvent(evt.id, userId, { description: note })
-              )
-            );
+      try {
+        const { text } = await callHaiku({
+          system: AUTO_NOTE_EVENT_SYSTEM_PROMPT,
+          user: userPrompt,
+          maxTokens: 150,
+        });
+        const note = text.trim();
+        if (note && note !== "SKIP") {
+          // Apply the note to all instances in the series
+          await Promise.all(
+            createdEvents.map((evt) =>
+              updateCalendarEvent(evt.id, userId, { description: note })
+            )
+          );
+          for (const evt of createdEvents) {
+            evt.description = note;
           }
-        })
-        .catch((err) => console.error("[AutoNote] Event note generation failed:", err));
+        }
+      } catch (err) {
+        console.error("[AutoNote] Event note generation failed:", err);
+      }
     }
 
     return NextResponse.json({

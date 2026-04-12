@@ -18,19 +18,21 @@ function formatIcalDate(isoString: string, isAllDay: boolean): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
-function foldLine(value: string): string {
-  // Escape special chars and fold at 75 chars per RFC 5545
-  const escaped = value
+function escapeIcalText(value: string): string {
+  return value
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
     .replace(/\n/g, "\\n");
+}
 
+function foldLine(line: string): string {
+  // Fold at 75 octets per RFC 5545 (includes property name + colon)
   const lines: string[] = [];
-  let remaining = escaped;
-  while (remaining.length > 74) {
-    lines.push(remaining.slice(0, 74));
-    remaining = " " + remaining.slice(74);
+  let remaining = line;
+  while (remaining.length > 75) {
+    lines.push(remaining.slice(0, 75));
+    remaining = " " + remaining.slice(75);
   }
   lines.push(remaining);
   return lines.join("\r\n");
@@ -65,7 +67,19 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     for (const event of events) {
       const isAllDay = event.isAllDay ?? false;
       const dtStart = formatIcalDate(event.startTime.toISOString(), isAllDay);
-      const dtEnd = formatIcalDate(event.endTime.toISOString(), isAllDay);
+
+      // For all-day events, DTEND must be exclusive (day after the last day)
+      let dtEnd: string;
+      if (isAllDay) {
+        const endDate = new Date(event.endTime);
+        // If start and end are the same day, push end to next day
+        if (dtStart === formatIcalDate(event.endTime.toISOString(), true)) {
+          endDate.setUTCDate(endDate.getUTCDate() + 1);
+        }
+        dtEnd = formatIcalDate(endDate.toISOString(), true);
+      } else {
+        dtEnd = formatIcalDate(event.endTime.toISOString(), false);
+      }
 
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${event.id}@controlledchaos`);
@@ -79,13 +93,13 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         lines.push(`DTEND:${dtEnd}`);
       }
 
-      lines.push(`SUMMARY:${foldLine(event.title)}`);
+      lines.push(foldLine(`SUMMARY:${escapeIcalText(event.title)}`));
 
       if (event.description) {
-        lines.push(`DESCRIPTION:${foldLine(event.description)}`);
+        lines.push(foldLine(`DESCRIPTION:${escapeIcalText(event.description)}`));
       }
       if (event.location) {
-        lines.push(`LOCATION:${foldLine(event.location)}`);
+        lines.push(foldLine(`LOCATION:${escapeIcalText(event.location)}`));
       }
 
       lines.push("END:VEVENT");

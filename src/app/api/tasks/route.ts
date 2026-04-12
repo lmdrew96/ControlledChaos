@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       deadline: deadline ? new Date(deadline) : null,
     });
 
-    // Background: generate AI note if no description was provided
+    // Generate AI note if no description was provided
     if (!description) {
       const userPrompt = [
         `Task: "${task.title}"`,
@@ -59,18 +59,20 @@ export async function POST(request: NextRequest) {
         .filter(Boolean)
         .join(", ");
 
-      callHaiku({
-        system: AUTO_NOTE_TASK_SYSTEM_PROMPT,
-        user: userPrompt,
-        maxTokens: 150,
-      })
-        .then(({ text }) => {
-          const note = text.trim();
-          if (note && note !== "SKIP") {
-            return updateTask(task.id, userId, { description: note });
-          }
-        })
-        .catch((err) => console.error("[AutoNote] Task note generation failed:", err));
+      try {
+        const { text } = await callHaiku({
+          system: AUTO_NOTE_TASK_SYSTEM_PROMPT,
+          user: userPrompt,
+          maxTokens: 150,
+        });
+        const note = text.trim();
+        if (note && note !== "SKIP") {
+          await updateTask(task.id, userId, { description: note });
+          task.description = note;
+        }
+      } catch (err) {
+        console.error("[AutoNote] Task note generation failed:", err);
+      }
     }
 
     return NextResponse.json({ task }, { status: 201 });
