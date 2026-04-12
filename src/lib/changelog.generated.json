@@ -3,6 +3,10 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "fixed",
+        "text": "Allow unauthenticated access to iCal export endpoint"
+      },
+      {
         "type": "added",
         "text": "ADHD audit improvements — reduced motion, daily momentum, task breakdown, time anchor"
       },

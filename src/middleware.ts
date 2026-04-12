@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/terms",
   "/api/auth(.*)",
   "/api/cron(.*)",
+  "/api/calendar/export/:token",
   "/manifest.json",
 ]);
 
