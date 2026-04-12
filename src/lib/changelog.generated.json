@@ -4,6 +4,14 @@
     "items": [
       {
         "type": "added",
+        "text": "Add 7 new MCP tools — goals CRUD, event update/delete, brain dump list, task search"
+      },
+      {
+        "type": "fixed",
+        "text": "Lazy-fetch user location in push triggers — only query DB when sending"
+      },
+      {
+        "type": "added",
         "text": "Make all notifications location-aware"
       },
       {

@@ -103,6 +103,25 @@ export function formatEvent(event: Record<string, unknown>, tz?: string): string
 }
 
 /**
+ * Format a brain dump into a readable markdown string.
+ */
+export function formatBrainDump(dump: Record<string, unknown>, tz?: string): string {
+  const parts: string[] = [
+    `**${dump.input_type} dump**`,
+    `ID: \`${dump.id}\``,
+    `Parsed: ${dump.parsed ? "yes" : "no"}`,
+    `Created: ${fmtLocal(dump.created_at, tz)}`,
+  ];
+  if (dump.raw_content) {
+    const content = String(dump.raw_content);
+    const preview = content.length > 300 ? content.slice(0, 300) + "..." : content;
+    parts.push(`Content: ${preview}`);
+  }
+  if (dump.media_url) parts.push(`Media: ${dump.media_url}`);
+  return parts.join("\n");
+}
+
+/**
  * Format a goal into a readable markdown string.
  */
 export function formatGoal(goal: Record<string, unknown>, tz?: string): string {

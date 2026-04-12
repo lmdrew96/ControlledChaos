@@ -16,6 +16,13 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_create_event` | Create a new calendar event |
 | `cc_list_goals` | List active goals |
 | `cc_get_daily_stats` | Today's productivity snapshot |
+| `cc_create_goal` | Create a new goal with title, description, target date |
+| `cc_update_goal` | Update any field on an existing goal |
+| `cc_delete_goal` | Permanently delete a goal (unlinks tasks) |
+| `cc_update_event` | Update a ControlledChaos-created calendar event |
+| `cc_delete_event` | Permanently delete a ControlledChaos-created event |
+| `cc_list_brain_dumps` | List past brain dumps with filters |
+| `cc_search_tasks` | Search tasks by text across titles/descriptions |
 
 ## Setup
 
@@ -124,7 +131,7 @@ mcp/
 │   ├── index.ts      # Entry point — stdio + HTTP transport
 │   ├── db.ts         # Neon Postgres connection
 │   ├── helpers.ts    # Markdown formatters for responses
-│   └── tools.ts      # All 10 tool registrations
+│   └── tools.ts      # All 17 tool registrations
 ├── package.json
 └── tsconfig.json
 ```

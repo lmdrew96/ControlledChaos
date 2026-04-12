@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
-import { formatTask, formatEvent, formatGoal, fmtTimeLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, fmtTimeLocal } from "./helpers.js";
 
 // ============================================================
 // Register all ControlledChaos tools on the given server
@@ -591,6 +591,391 @@ Returns: Markdown-formatted daily stats summary.`,
 ### Today's Events
 ${eventsText}`;
 
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 11. cc_create_goal
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_create_goal",
+    {
+      title: "Create Goal",
+      description: `Create a new goal in ControlledChaos.
+
+Args:
+  - title (required): Goal title.
+  - description: Optional longer description.
+  - target_date: Target completion date (ISO 8601 UTC).
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: The created goal with its ID.`,
+      inputSchema: {
+        title: z.string().min(1).max(500).describe("Goal title"),
+        description: z.string().max(2000).optional().describe("Goal description"),
+        target_date: z.string().optional().describe("Target date (ISO 8601 UTC)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const rows = await sql(
+        `INSERT INTO goals (user_id, title, description, target_date)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [
+          userId,
+          params.title,
+          params.description ?? null,
+          params.target_date ? new Date(params.target_date).toISOString() : null,
+        ]
+      );
+
+      return { content: [{ type: "text" as const, text: `🎯 Goal created!\n\n${formatGoal(rows[0], tz)}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 12. cc_update_goal
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_goal",
+    {
+      title: "Update Goal",
+      description: `Update an existing goal. Pass only the fields you want to change.
+
+Args:
+  - goal_id (required): UUID of the goal to update.
+  - title: New title.
+  - description: New description.
+  - target_date: New target date (ISO 8601 UTC).
+  - status: New status (active, completed, paused).
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: The updated goal.`,
+      inputSchema: {
+        goal_id: z.string().uuid().describe("Goal ID to update"),
+        title: z.string().min(1).max(500).optional().describe("New title"),
+        description: z.string().max(2000).optional().describe("New description"),
+        target_date: z.string().optional().describe("New target date (ISO 8601 UTC)"),
+        status: z.enum(["active", "completed", "paused"]).optional().describe("New status"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const setClauses: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+
+      const fields: Array<[string, unknown]> = [
+        ["title", params.title],
+        ["description", params.description],
+        ["target_date", params.target_date ? new Date(params.target_date).toISOString() : undefined],
+        ["status", params.status],
+      ];
+
+      for (const [col, val] of fields) {
+        if (val !== undefined) {
+          setClauses.push(`${col} = $${idx}`);
+          values.push(val);
+          idx++;
+        }
+      }
+
+      if (setClauses.length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update. Pass at least one field to change." }] };
+      }
+
+      values.push(params.goal_id, userId);
+      const query = `UPDATE goals SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`;
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Goal \`${params.goal_id}\` not found.` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `✅ Goal updated!\n\n${formatGoal(rows[0], tz)}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 13. cc_delete_goal
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_delete_goal",
+    {
+      title: "Delete Goal",
+      description: `Permanently delete a goal. Tasks linked to this goal will have their goal_id set to null (they won't be deleted).
+
+Args:
+  - goal_id (required): UUID of the goal to delete.
+
+Returns: Confirmation of deletion.`,
+      inputSchema: {
+        goal_id: z.string().uuid().describe("Goal ID to delete"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      // Unlink tasks from this goal first
+      await sql(`UPDATE tasks SET goal_id = NULL WHERE goal_id = $1 AND user_id = $2`, [params.goal_id, userId]);
+      const rows = await sql(
+        `DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING title`,
+        [params.goal_id, userId]
+      );
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Goal \`${params.goal_id}\` not found.` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `🗑️ Deleted goal: "${rows[0].title}"` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 14. cc_update_event
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_event",
+    {
+      title: "Update Calendar Event",
+      description: `Update an existing calendar event. Pass only the fields you want to change. Only ControlledChaos-created events can be updated.
+
+Args:
+  - event_id (required): UUID of the event to update.
+  - title, description, start_time, end_time, location, is_all_day: Fields to update.
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: The updated event.`,
+      inputSchema: {
+        event_id: z.string().uuid().describe("Event ID to update"),
+        title: z.string().min(1).max(500).optional().describe("New title"),
+        description: z.string().max(2000).optional().describe("New description"),
+        start_time: z.string().optional().describe("New start datetime (ISO 8601 UTC)"),
+        end_time: z.string().optional().describe("New end datetime (ISO 8601 UTC)"),
+        location: z.string().max(500).optional().describe("New location"),
+        is_all_day: z.boolean().optional().describe("All-day event?"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const setClauses: string[] = ["synced_at = NOW()"];
+      const values: unknown[] = [];
+      let idx = 1;
+
+      const fields: Array<[string, unknown]> = [
+        ["title", params.title],
+        ["description", params.description],
+        ["start_time", params.start_time ? new Date(params.start_time).toISOString() : undefined],
+        ["end_time", params.end_time ? new Date(params.end_time).toISOString() : undefined],
+        ["location", params.location],
+        ["is_all_day", params.is_all_day],
+      ];
+
+      for (const [col, val] of fields) {
+        if (val !== undefined) {
+          setClauses.push(`${col} = $${idx}`);
+          values.push(val);
+          idx++;
+        }
+      }
+
+      if (setClauses.length === 1) {
+        return { content: [{ type: "text" as const, text: "No fields to update. Pass at least one field to change." }] };
+      }
+
+      values.push(params.event_id, userId);
+      const query = `UPDATE calendar_events SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} AND source = 'controlledchaos' RETURNING *`;
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be updated).` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `✅ Event updated!\n\n${formatEvent(rows[0], tz)}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 15. cc_delete_event
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_delete_event",
+    {
+      title: "Delete Calendar Event",
+      description: `Permanently delete a calendar event. Only ControlledChaos-created events can be deleted.
+
+Args:
+  - event_id (required): UUID of the event to delete.
+
+Returns: Confirmation of deletion.`,
+      inputSchema: {
+        event_id: z.string().uuid().describe("Event ID to delete"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `DELETE FROM calendar_events WHERE id = $1 AND user_id = $2 AND source = 'controlledchaos' RETURNING title`,
+        [params.event_id, userId]
+      );
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be deleted).` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `🗑️ Deleted event: "${rows[0].title}"` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 16. cc_list_brain_dumps
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_brain_dumps",
+    {
+      title: "List Brain Dumps",
+      description: `List past brain dump entries from ControlledChaos.
+
+Args:
+  - input_type: Filter by type (text, voice, photo).
+  - parsed: Filter by parsed status (true = already processed, false = pending).
+  - limit: Max results (1-50, default 20).
+
+Returns: Markdown-formatted list of brain dumps with IDs, type, content preview, and parsed status.`,
+      inputSchema: {
+        input_type: z.enum(["text", "voice", "photo"]).optional().describe("Filter by input type"),
+        parsed: z.boolean().optional().describe("Filter by parsed status"),
+        limit: z.number().int().min(1).max(50).default(20).describe("Max results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const conditions: string[] = ["user_id = $1"];
+      const values: unknown[] = [userId];
+      let paramIdx = 2;
+
+      if (params.input_type) {
+        conditions.push(`input_type = $${paramIdx}`);
+        values.push(params.input_type);
+        paramIdx++;
+      }
+
+      if (params.parsed !== undefined) {
+        conditions.push(`parsed = $${paramIdx}`);
+        values.push(params.parsed);
+        paramIdx++;
+      }
+
+      const query = `SELECT * FROM brain_dumps WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      values.push(params.limit);
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "No brain dumps found matching those filters." }] };
+      }
+
+      const text = `## Brain Dumps (${rows.length} found)\n\n` +
+        rows.map((r, i) => `### ${i + 1}. ${formatBrainDump(r, tz)}`).join("\n\n---\n\n");
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 17. cc_search_tasks
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_search_tasks",
+    {
+      title: "Search Tasks",
+      description: `Search tasks by text across titles and descriptions.
+
+Args:
+  - query (required): Search text (case-insensitive, matches partial words).
+  - status: Optionally filter by status. Default: all statuses.
+  - limit: Max results (1-100, default 25).
+
+Returns: Markdown-formatted list of matching tasks.`,
+      inputSchema: {
+        query: z.string().min(1).max(200).describe("Search text"),
+        status: z.enum(["pending", "in_progress", "completed", "snoozed", "cancelled"]).optional().describe("Filter by status"),
+        limit: z.number().int().min(1).max(100).default(25).describe("Max results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const conditions: string[] = ["user_id = $1", "(title ILIKE $2 OR description ILIKE $2)"];
+      const values: unknown[] = [userId, `%${params.query}%`];
+      let paramIdx = 3;
+
+      if (params.status) {
+        conditions.push(`status = $${paramIdx}`);
+        values.push(params.status);
+        paramIdx++;
+      }
+
+      const query = `SELECT * FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      values.push(params.limit);
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `No tasks found matching "${params.query}".` }] };
+      }
+
+      const text = `## Search Results for "${params.query}" (${rows.length} found)\n\n` +
+        rows.map((r, i) => `### ${i + 1}. ${formatTask(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
     }
   );
