@@ -3,6 +3,10 @@
     "weekOf": "2026-04-06",
     "items": [
       {
+        "type": "added",
+        "text": "Add goals UI — full CRUD with progress tracking and nav integration"
+      },
+      {
         "type": "fixed",
         "text": "Add Google Calendar sync delay note to iCal settings"
       },

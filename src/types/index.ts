@@ -232,6 +232,17 @@ export interface FreeTimeBlock {
 // ============================================================
 export type GoalStatus = "active" | "completed" | "paused";
 
+export interface Goal {
+  id: string;
+  title: string;
+  description: string | null;
+  targetDate: string | null;
+  status: GoalStatus;
+  createdAt: string;
+  taskCount?: number;
+  completedTaskCount?: number;
+}
+
 // ============================================================
 // Crisis Mode Types
 // ============================================================

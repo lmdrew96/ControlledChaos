@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Brain,
   ListTodo,
+  Target,
   Calendar,
   Settings,
   Download,
@@ -38,6 +39,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dump", label: "Brain Dump", mobileLabel: "Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -51,6 +53,7 @@ const mobileNavItems = [
 const mobileMoreItems = [
   { href: "/dump", label: "Brain Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/goals", label: "Goals", icon: Target },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
