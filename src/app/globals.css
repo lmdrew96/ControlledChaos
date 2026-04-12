@@ -153,6 +153,18 @@
   }
 }
 
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .waveform-bar {
+    animation: none;
+  }
+
+  .laser {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 /* Dark mode — blobs glow brighter on dark background */
 .dark body::before {
   background:

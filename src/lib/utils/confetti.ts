@@ -7,11 +7,22 @@ const COLORS = [
   "#1e90ff", "#a29bfe", "#fd79a8",
 ];
 
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /**
  * Full-window confetti DETONATION. ~2,000 particles from every direction —
  * center, all four corners, top shower, AND bottom-up rockets. No escape.
+ *
+ * Respects prefers-reduced-motion: fires a single subtle burst instead.
  */
 export function fireTaskConfetti() {
+  if (prefersReducedMotion()) {
+    confetti({ colors: COLORS, zIndex: 9999, particleCount: 30, spread: 60, startVelocity: 20, origin: { x: 0.5, y: 0.6 } });
+    return;
+  }
+
   const fire = (opts: confetti.Options) =>
     confetti({ colors: COLORS, zIndex: 9999, ...opts });
 

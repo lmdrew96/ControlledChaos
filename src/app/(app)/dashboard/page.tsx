@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskList } from "@/components/features/task-feed/task-list";
 import { DoThisNext } from "@/components/features/recommendation/do-this-next";
+import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
+import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 
 export default function DashboardPage() {
   return (
@@ -15,8 +17,14 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/* Time anchor — ambient time awareness */}
+      <TimeAnchor />
+
       {/* Hero: Task Recommendation */}
       <DoThisNext />
+
+      {/* Daily momentum */}
+      <DailyMomentum />
 
       {/* Quick brain dump CTA */}
       <Card className="border-primary/20 bg-primary/5">

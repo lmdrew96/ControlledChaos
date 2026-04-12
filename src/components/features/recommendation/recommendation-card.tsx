@@ -9,7 +9,9 @@ import {
   MapPin,
   Calendar,
   Loader2,
+  Scissors,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +49,22 @@ export function RecommendationCard({
   isRefreshing: boolean;
 }) {
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [isBreakingDown, setIsBreakingDown] = useState(false);
+
+  async function handleBreakdown() {
+    setIsBreakingDown(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/breakdown`, { method: "POST" });
+      if (!res.ok) throw new Error("Breakdown failed");
+      const data = await res.json();
+      toast.success(`Broken into ${data.subtasks.length} subtasks`);
+      onAccept(task.id); // refresh the view
+    } catch {
+      toast.error("Couldn't break this down. Try again.");
+    } finally {
+      setIsBreakingDown(false);
+    }
+  }
 
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
@@ -111,6 +129,22 @@ export function RecommendationCard({
               </span>
             )}
           </div>
+
+          {/* Break it down — shown for tasks estimated at 30+ minutes */}
+          {task.estimatedMinutes && task.estimatedMinutes >= 30 && (
+            <button
+              onClick={handleBreakdown}
+              disabled={isBreakingDown || isRefreshing}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            >
+              {isBreakingDown ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Scissors className="h-3 w-3" />
+              )}
+              {isBreakingDown ? "Breaking down..." : "Break it down"}
+            </button>
+          )}
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 pt-1">

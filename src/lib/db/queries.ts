@@ -361,6 +361,67 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
     );
 }
 
+export async function getCompletionStats(userId: string, timezone: string) {
+  const now = new Date();
+
+  // Reuse the same timezone-aware startOfDay logic as getTasksCompletedToday
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  const startOfDay = new Date(`${year}-${month}-${day}T00:00:00`);
+
+  // Start of week (Monday) in user's timezone
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - mondayOffset);
+
+  const [todayRows, weekRows, allTimeRows] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          eq(tasks.status, "completed"),
+          gte(tasks.completedAt, startOfDay)
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          eq(tasks.status, "completed"),
+          gte(tasks.completedAt, startOfWeek)
+        )
+      ),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          eq(tasks.status, "completed")
+        )
+      ),
+  ]);
+
+  return {
+    completedToday: todayRows[0]?.count ?? 0,
+    completedThisWeek: weekRows[0]?.count ?? 0,
+    completedAllTime: allTimeRows[0]?.count ?? 0,
+  };
+}
+
 // ============================================================
 // Pending Tasks for Recommendation
 // ============================================================

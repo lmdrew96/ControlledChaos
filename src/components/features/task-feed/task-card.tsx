@@ -8,6 +8,7 @@ import {
   MapPin,
   Calendar,
   CalendarClock,
+  Scissors,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ export function TaskCard({
 }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isBreakingDown, setIsBreakingDown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showSwipeDeleteDialog, setShowSwipeDeleteDialog] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -178,6 +180,26 @@ export function TaskCard({
     }
   }
 
+  async function handleBreakdownAction() {
+    setIsBreakingDown(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/breakdown`, { method: "POST" });
+      if (!res.ok) throw new Error("Breakdown failed");
+      const data = await res.json();
+      toast.success(`Broken into ${data.subtasks.length} subtasks`);
+      onUpdate();
+    } catch {
+      toast.error("Couldn't break this down. Try again.");
+    } finally {
+      setIsBreakingDown(false);
+    }
+  }
+
+  function handleBreakdown(e: React.MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    void handleBreakdownAction();
+  }
+
   function handleFindTime(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation();
     void handleFindTimeAction();
@@ -272,21 +294,38 @@ export function TaskCard({
 
             <div className="flex items-center gap-1">
               {!isCompleted && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                  onClick={handleFindTime}
-                  disabled={isScheduling || isUpdating}
-                  aria-label={`Find a time for "${task.title}"`}
-                  title="Find a time"
-                >
-                  {isScheduling ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  ) : (
-                    <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                    onClick={handleBreakdown}
+                    disabled={isBreakingDown || isUpdating}
+                    aria-label={`Break down "${task.title}"`}
+                    title="Break it down"
+                  >
+                    {isBreakingDown ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                    onClick={handleFindTime}
+                    disabled={isScheduling || isUpdating}
+                    aria-label={`Find a time for "${task.title}"`}
+                    title="Find a time"
+                  >
+                    {isScheduling ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
+                </>
               )}
               <Button
                 variant={confirmDelete ? "destructive" : "ghost"}
@@ -312,20 +351,36 @@ export function TaskCard({
 
           <div className="flex items-center gap-2 sm:hidden">
             {!isCompleted && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={handleFindTime}
-                disabled={isScheduling || isUpdating}
-              >
-                {isScheduling ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                ) : (
-                  <CalendarClock className="mr-1 h-3 w-3" />
-                )}
-                Find Time
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={handleBreakdown}
+                  disabled={isBreakingDown || isUpdating}
+                >
+                  {isBreakingDown ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Scissors className="mr-1 h-3 w-3" />
+                  )}
+                  Split
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={handleFindTime}
+                  disabled={isScheduling || isUpdating}
+                >
+                  {isScheduling ? (
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  ) : (
+                    <CalendarClock className="mr-1 h-3 w-3" />
+                  )}
+                  Find Time
+                </Button>
+              </>
             )}
             <Button
               variant={confirmDelete ? "destructive" : "outline"}
