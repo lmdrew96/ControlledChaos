@@ -140,7 +140,7 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisPlan> {
       const result = await callHaiku({
         system: CRISIS_SYSTEM_PROMPT,
         user: userPromptText,
-        maxTokens: 1024,
+        maxTokens: 2048,
       });
       responseText = result.text;
     }

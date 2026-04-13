@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Increase crisis text-only max tokens to 2048 to prevent truncated JSON"
+      },
+      {
+        "type": "fixed",
         "text": "Crisis reassess preserves completed steps and only regenerates remaining work"
       },
       {
