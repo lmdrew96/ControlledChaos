@@ -498,6 +498,7 @@ export interface MomentumStats {
   byEnergy: { low: number; medium: number; high: number };
   wins: Array<{ icon: string; title: string; subtitle: string }>;
   calendarColors: CalendarColors;
+  weekStartDate: string; // ISO "YYYY-MM-DD" of Monday in user's timezone
 }
 
 export async function getMomentumStats(
@@ -761,6 +762,7 @@ export async function getMomentumStats(
     byEnergy,
     wins,
     calendarColors,
+    weekStartDate: startOfWeek.toISOString().slice(0, 10),
   };
 }
 

@@ -10,6 +10,7 @@ interface Stats {
   completedThisWeek: number;
   completedAllTime: number;
   daily: Array<{ date: string; count: number }>;
+  weekStartDate: string;
 }
 
 const MOMENTUM_TIERS = [
@@ -43,9 +44,18 @@ export function DailyMomentum() {
   const tier = getTier(stats.completedToday);
   const Icon = tier.icon;
 
-  // Last 7 days for mini bar chart
-  const last7 = stats.daily.slice(-7);
-  const maxCount = Math.max(...last7.map((d) => d.count), 1);
+  // Current week bars (Mon-Sun), padded to 7 days
+  const weekDays = stats.daily.filter((d) => d.date >= stats.weekStartDate);
+  const weekStart = new Date(stats.weekStartDate + "T12:00:00");
+  const currentWeek: Array<{ date: string; count: number }> = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const existing = weekDays.find((wd) => wd.date === dateStr);
+    currentWeek.push({ date: dateStr, count: existing?.count ?? 0 });
+  }
+  const maxCount = Math.max(...currentWeek.map((d) => d.count), 1);
   const barColor = tier.accent.replace("text-", "bg-");
 
   // Today is always the last entry in the daily array (server computes in user TZ)
@@ -67,7 +77,7 @@ export function DailyMomentum() {
             {/* Mini 7-day bar chart */}
             <div className="mt-2 flex items-center gap-3">
               <div className="flex items-end gap-1" style={{ height: 36 }}>
-                {last7.map((d, i) => {
+                {currentWeek.map((d, i) => {
                   const isToday = d.date === todayDate;
                   const barHeight =
                     d.count > 0

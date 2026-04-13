@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Align bar chart with current week and fix date key parsing"
+      },
+      {
+        "type": "fixed",
         "text": "Correct daily date parsing and heatmap visibility in momentum viz"
       },
       {

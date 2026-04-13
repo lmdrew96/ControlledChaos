@@ -30,12 +30,10 @@ function heatmapStyle(count: number): { backgroundColor?: string } {
   return { backgroundColor: HEATMAP_FILLS[Math.min(count, 4)] };
 }
 
-function formatWeekRange(daily: Array<{ date: string }>): string {
-  // Find the start of the current week (last 7 entries)
-  const last7 = daily.slice(-7);
-  if (last7.length === 0) return "";
-  const start = new Date(last7[0].date + "T12:00:00");
-  const end = new Date(last7[last7.length - 1].date + "T12:00:00");
+function formatWeekRange(weekStartDate: string): string {
+  const start = new Date(weekStartDate + "T12:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
   const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
   return `${fmt.format(start)}\u2013${fmt.format(end)}`;
 }
@@ -110,8 +108,20 @@ export default function MomentumPage() {
 
   // Today is always the last entry in the daily array (server computes in user TZ)
   const todayStr = stats.daily[stats.daily.length - 1]?.date ?? "";
-  const last7 = stats.daily.slice(-7);
-  const maxDailyCount = Math.max(...last7.map((d) => d.count), 1);
+
+  // Current week bars: filter daily entries from weekStartDate through end of week
+  const weekDays = stats.daily.filter((d) => d.date >= stats.weekStartDate);
+  // Pad to 7 days if the week just started (fill future days with 0)
+  const currentWeek: Array<{ date: string; count: number }> = [];
+  const weekStart = new Date(stats.weekStartDate + "T12:00:00");
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const existing = weekDays.find((wd) => wd.date === dateStr);
+    currentWeek.push({ date: dateStr, count: existing?.count ?? 0 });
+  }
+  const maxDailyCount = Math.max(...currentWeek.map((d) => d.count), 1);
   const insight = generateInsight(stats.heatmap, stats.completedThisWeek);
 
   // Build heatmap lookup
@@ -131,7 +141,7 @@ export default function MomentumPage() {
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Your momentum</h1>
         <span className="text-sm text-muted-foreground">
-          This week &middot; {formatWeekRange(stats.daily)}
+          This week &middot; {formatWeekRange(stats.weekStartDate)}
         </span>
       </div>
 
@@ -195,7 +205,7 @@ export default function MomentumPage() {
       <Card>
         <CardContent className="p-5">
           <div className="flex items-end justify-between gap-2" style={{ height: 140 }}>
-            {last7.map((d) => {
+            {currentWeek.map((d) => {
               const isToday = d.date === todayStr;
               const barHeight =
                 d.count > 0
