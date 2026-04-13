@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
 import { AIUnavailableError } from "@/lib/ai";
+import { startOfDayInTz } from "@/lib/date-utils";
 import {
   getUser,
   getUserGoals,
@@ -137,16 +138,4 @@ export async function POST(request: Request) {
   }
 }
 
-function startOfDayInTz(date: Date, timezone: string): Date {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(date);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  return new Date(`${year}-${month}-${day}T00:00:00`);
-}
+// startOfDayInTz imported from @/lib/date-utils

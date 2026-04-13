@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     for (const { userId, timezone, personalityPrefs, notificationPrefs } of users) {
       const mode = getAssertivenessMode(notificationPrefs);
       const dailyCap = getDailyPushCap(mode);
-      let sentToday = await getPushNotificationsSentToday(userId);
+      let sentToday = await getPushNotificationsSentToday(userId, timezone);
 
       // Lazy location fetch — only hits DB on first call, cached for this user
       let _locationName: string | undefined;
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
         if (!canSend(priority)) continue;
 
         const dedupKey = `deadline-${warning.taskId}-${warning.level}`;
-        if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
+        if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
         const message = await generatePushMessage(
           { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
         if (!canSend("normal")) continue;
 
         const dedupKey = `scheduled-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 16)}`;
-        if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
+        if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
         const message = await generatePushMessage(
           { type: "scheduled", taskTitle: alert.taskTitle },
@@ -165,7 +165,7 @@ export async function GET(request: Request) {
           if (!canSend("normal")) continue;
 
           const dedupKey = `scheduled-missed-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 13)}`;
-          if (await hasBeenNotifiedToday(userId, dedupKey)) continue;
+          if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
           const message = await generatePushMessage(
             { type: "scheduled_missed", taskTitle: alert.taskTitle },
@@ -189,7 +189,7 @@ export async function GET(request: Request) {
 
       // --- Morning Idle Check-in (11am+) ---
       const morningDedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
-      if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey))) {
+      if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey, timezone))) {
         const morningStatus = await shouldSendIdleCheckin(userId, timezone);
         if (morningStatus.shouldSend) {
           const locName = await getLocationName();
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
 
       // --- Afternoon Idle Check-in (3pm+) ---
       const afternoonDedupKey = `idle-checkin-afternoon-${new Date().toISOString().slice(0, 10)}`;
-      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey))) {
+      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey, timezone))) {
         const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
         if (afternoonStatus.shouldSend) {
           const locName = await getLocationName();
@@ -245,7 +245,7 @@ export async function GET(request: Request) {
         console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
       } else if (!canSend("normal")) {
         console.log(`[Push][Evening] skip user=${userId} reason=daily_cap_reached cap=${dailyCap} sentToday=${sentToday}`);
-      } else if (await hasBeenNotifiedToday(userId, eveningDedupKey)) {
+      } else if (await hasBeenNotifiedToday(userId, eveningDedupKey, timezone)) {
         console.log(`[Push][Evening] skip user=${userId} reason=already_notified_today`);
       } else {
         const eveningStatus = await getEveningCheckinStatus(userId, timezone);

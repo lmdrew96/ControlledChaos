@@ -4,6 +4,7 @@ import {
   getRecentNotifications,
   getRecentTaskActivity,
 } from "@/lib/db/queries";
+import { startOfDayInTz } from "@/lib/date-utils";
 import { callSonnet } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
@@ -44,10 +45,9 @@ export function getDailyPushCap(mode: NotificationAssertiveness): number {
   return NOTIFICATION_CAPS[mode];
 }
 
-export async function getPushNotificationsSentToday(userId: string): Promise<number> {
+export async function getPushNotificationsSentToday(userId: string, timezone = "America/New_York"): Promise<number> {
   const recent = await getRecentNotifications(userId, 100);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = startOfDayInTz(new Date(), timezone);
 
   return recent.filter((n) => n.type === "push" && n.sentAt && new Date(n.sentAt) >= todayStart).length;
 }
@@ -194,11 +194,11 @@ export async function shouldSendIdleCheckin(
  */
 export async function hasBeenNotifiedToday(
   userId: string,
-  dedupKey: string
+  dedupKey: string,
+  timezone = "America/New_York"
 ): Promise<boolean> {
   const recent = await getRecentNotifications(userId, 100);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const todayStart = startOfDayInTz(new Date(), timezone);
 
   return recent.some((n) => {
     if (!n.sentAt || new Date(n.sentAt) < todayStart) return false;

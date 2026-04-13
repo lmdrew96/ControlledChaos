@@ -1,3 +1,4 @@
+import { startOfDayInTz } from "@/lib/date-utils";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { callSonnet } from "@/lib/ai";
@@ -262,19 +263,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
 // --- Helpers ---
 
-function startOfDayInTz(date: Date, timezone: string): Date {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(date);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  return new Date(`${year}-${month}-${day}T00:00:00Z`);
-}
+// startOfDayInTz imported from @/lib/date-utils
 
 function formatTime(dateStr: Date | string, timezone: string): string {
   const d = typeof dateStr === "string" ? new Date(dateStr) : dateStr;

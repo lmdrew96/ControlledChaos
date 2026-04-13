@@ -43,7 +43,7 @@ export async function GET(request: Request) {
             err instanceof Error && err.message.includes("401");
           if (is401) {
             const dedupKey = `canvas-expired-${new Date().toISOString().slice(0, 10)}`;
-            hasBeenNotifiedToday(user.userId, dedupKey)
+            hasBeenNotifiedToday(user.userId, dedupKey, user.timezone ?? "America/New_York")
               .then((alreadyNotified) => {
                 if (!alreadyNotified) {
                   return sendPushToUser(user.userId, {

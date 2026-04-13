@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
       // Dedup: don't send twice in the same day (skip in force mode)
       const dedupKey = `evening-digest-${new Date().toISOString().slice(0, 10)}`;
-      if (!force && await hasBeenNotifiedToday(userId, dedupKey)) continue;
+      if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
       const ok = await sendEveningDigest(userId);
       if (ok) sent++;

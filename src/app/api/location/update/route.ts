@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getSavedLocations,
+  getUser,
   getUserLocation,
   getUserSettings,
   upsertUserLocation,
@@ -43,12 +44,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
     }
 
-    // Fetch saved locations, previous position, and settings in parallel
-    const [savedLocations, previousLocation, settings] = await Promise.all([
+    // Fetch saved locations, previous position, settings, and user in parallel
+    const [savedLocations, previousLocation, settings, user] = await Promise.all([
       getSavedLocations(userId),
       getUserLocation(userId),
       getUserSettings(userId),
+      getUser(userId),
     ]);
+    const timezone = user?.timezone ?? "America/New_York";
 
     const notifPrefs = settings?.notificationPrefs as NotificationPrefs | null;
 
@@ -121,7 +124,8 @@ export async function POST(request: NextRequest) {
         effectiveCurrentMatchName,
         personalityPrefs,
         notifPrefs,
-        mode
+        mode,
+        timezone
       ).catch((err) =>
         console.error("[Location] Arrival notification error:", err)
       );
@@ -136,7 +140,8 @@ export async function POST(request: NextRequest) {
         savedLocations,
         personalityPrefs,
         notifPrefs,
-        mode
+        mode,
+        timezone
       ).catch((err) =>
         console.error("[Location] Departure notification error:", err)
       );
@@ -187,7 +192,8 @@ async function handleArrival(
   locationName: string,
   personalityPrefs: PersonalityPrefs | null,
   notifPrefs: NotificationPrefs,
-  mode: ReturnType<typeof getAssertivenessMode>
+  mode: ReturnType<typeof getAssertivenessMode>,
+  timezone: string
 ) {
   // Dedup: skip if already notified for this location in last 2 hours
   const recent = await getRecentLocationNotification(
@@ -204,7 +210,7 @@ async function handleArrival(
 
   // Check daily cap
   const dailyCap = getDailyPushCap(mode);
-  const sentToday = await getPushNotificationsSentToday(userId);
+  const sentToday = await getPushNotificationsSentToday(userId, timezone);
   if (sentToday >= dailyCap) return;
 
   // Find tasks that match this location
@@ -251,7 +257,8 @@ async function handleDeparture(
   savedLocations: SavedLocation[],
   personalityPrefs: PersonalityPrefs | null,
   notifPrefs: NotificationPrefs,
-  mode: ReturnType<typeof getAssertivenessMode>
+  mode: ReturnType<typeof getAssertivenessMode>,
+  timezone: string
 ) {
   // Only send departure notifications in balanced or assertive mode
   if (mode === "gentle") return;
@@ -266,7 +273,7 @@ async function handleDeparture(
 
   // Check daily cap
   const dailyCap = getDailyPushCap(mode);
-  const sentToday = await getPushNotificationsSentToday(userId);
+  const sentToday = await getPushNotificationsSentToday(userId, timezone);
   if (sentToday >= dailyCap) return;
 
   // Find nearby locations (within 1km) that have matching tasks

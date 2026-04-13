@@ -27,6 +27,7 @@ import type {
   CrisisTask,
 } from "@/types";
 import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
+import { startOfDayInTz, todayInTz } from "@/lib/date-utils";
 
 // ============================================================
 // Users
@@ -414,19 +415,7 @@ export async function getRecentTaskActivity(
 }
 
 export async function getTasksCompletedToday(userId: string, timezone: string) {
-  // Calculate start of day in user's timezone
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(now);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  const startOfDay = new Date(`${year}-${month}-${day}T00:00:00`);
+  const startOfDay = startOfDayInTz(new Date(), timezone);
 
   return db
     .select()
@@ -442,19 +431,7 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
 
 export async function getCompletionStats(userId: string, timezone: string) {
   const now = new Date();
-
-  // Reuse the same timezone-aware startOfDay logic as getTasksCompletedToday
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(now);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  const startOfDay = new Date(`${year}-${month}-${day}T00:00:00`);
+  const startOfDay = startOfDayInTz(now, timezone);
 
   // Start of week (Monday) in user's timezone
   const dayOfWeek = now.getDay();
@@ -527,20 +504,9 @@ export async function getMomentumStats(
   userId: string,
   timezone: string
 ): Promise<MomentumStats> {
-  // Reuse timezone-aware date logic from getCompletionStats
   const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(now);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  const todayStr = `${year}-${month}-${day}`;
-  const startOfDay = new Date(`${todayStr}T00:00:00`);
+  const startOfDay = startOfDayInTz(now, timezone);
+  const todayStr = todayInTz(timezone);
 
   const dayOfWeek = now.getDay();
   const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;

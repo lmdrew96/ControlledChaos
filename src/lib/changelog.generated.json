@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "fixed",
+        "text": "Correct timezone-aware midnight calculation across entire app"
+      },
+      {
         "type": "added",
         "text": "Add momentum data viz — mini bar chart card + expanded stats page"
       }
