@@ -16,6 +16,7 @@ export interface CrisisParams {
   upcomingEvents: Array<{ title: string; startTime: string; endTime: string }>;
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
+  completedSteps?: string[];
   files?: CrisisFileAttachment[];
 }
 
@@ -58,6 +59,11 @@ function buildUserPrompt(params: CrisisParams): string {
           .join("\n")
       : "None";
 
+  const completedStepsText =
+    params.completedSteps && params.completedSteps.length > 0
+      ? `\n\nSteps already completed (DO NOT regenerate these — only plan the REMAINING work):\n${params.completedSteps.map((s, i) => `${i + 1}. ✅ ${s}`).join("\n")}`
+      : "";
+
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}
 Current time: ${params.currentTime}
@@ -70,7 +76,7 @@ ${crisesText}
 
 Upcoming events that may interrupt:
 ${eventsText}
-
+${completedStepsText}
 Break this into concrete micro-tasks that fit the remaining time. Be honest about urgency.`;
 }
 

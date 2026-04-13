@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Crisis reassess preserves completed steps and only regenerates remaining work"
+      },
+      {
+        "type": "fixed",
         "text": "Crisis mode urgency detection, multi-crisis awareness, and reassess button"
       },
       {

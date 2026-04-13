@@ -89,7 +89,7 @@ export function CrisisWarRoom({
       const data = await res.json();
       const newPlan = { ...data.plan, currentTaskIndex: data.plan.currentTaskIndex ?? 0 };
       setCurrentPlan(newPlan);
-      setCurrentTaskIndex(0);
+      setCurrentTaskIndex(newPlan.currentTaskIndex);
       setIsStuck(false);
       onReassess?.(newPlan);
     } catch {

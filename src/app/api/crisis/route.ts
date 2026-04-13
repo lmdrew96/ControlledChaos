@@ -16,7 +16,7 @@ import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import type { CrisisFileAttachment } from "@/types";
+import type { CrisisFileAttachment, CrisisTask } from "@/types";
 
 // GET — return all active (in-progress) crisis plans
 export async function GET() {
@@ -218,6 +218,12 @@ export async function PUT(request: Request) {
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
 
+    // Preserve completed steps — only regenerate remaining work
+    const existingTasks = plan.tasks as CrisisTask[];
+    const taskIndex = plan.currentTaskIndex ?? 0;
+    const completedTasks = existingTasks.slice(0, taskIndex);
+    const completedStepTitles = completedTasks.map((t) => t.title);
+
     const newPlan = await getCrisisPlan({
       taskName: plan.taskName,
       deadline: deadlineDate.toLocaleString("en-US", {
@@ -252,7 +258,11 @@ export async function PUT(request: Request) {
         panicLevel: c.panicLevel,
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
+      completedSteps: completedStepTitles,
     });
+
+    // Merge: completed tasks stay, AI-generated tasks replace the remaining ones
+    const mergedTasks = [...completedTasks, ...newPlan.tasks];
 
     const [updated] = await db
       .update(crisisPlans)
@@ -260,8 +270,8 @@ export async function PUT(request: Request) {
         panicLevel: newPlan.panicLevel,
         panicLabel: newPlan.panicLabel,
         summary: newPlan.summary,
-        tasks: newPlan.tasks,
-        currentTaskIndex: 0,
+        tasks: mergedTasks,
+        currentTaskIndex: taskIndex,
         updatedAt: new Date(),
       })
       .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)))
