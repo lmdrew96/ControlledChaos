@@ -16,17 +16,18 @@ const TIME_LABELS: Record<string, string> = {
   night: "Night",
 };
 
-// Orange intensity ramp for heatmap: 0/1/2/3/4+ completions
-const HEATMAP_COLORS = [
-  "rgba(249,115,22,0)",
+// Orange intensity ramp for heatmap: 1/2/3/4+ completions (0 uses CSS class)
+const HEATMAP_FILLS = [
+  "", // 0: handled by CSS class
   "rgba(249,115,22,0.12)",
   "rgba(249,115,22,0.25)",
   "rgba(249,115,22,0.45)",
   "rgba(249,115,22,0.7)",
 ];
 
-function heatmapBg(count: number): string {
-  return HEATMAP_COLORS[Math.min(count, 4)];
+function heatmapStyle(count: number): { backgroundColor?: string } {
+  if (count === 0) return {};
+  return { backgroundColor: HEATMAP_FILLS[Math.min(count, 4)] };
 }
 
 function formatWeekRange(daily: Array<{ date: string }>): string {
@@ -107,7 +108,8 @@ export default function MomentumPage() {
 
   if (!stats) return null;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Today is always the last entry in the daily array (server computes in user TZ)
+  const todayStr = stats.daily[stats.daily.length - 1]?.date ?? "";
   const last7 = stats.daily.slice(-7);
   const maxDailyCount = Math.max(...last7.map((d) => d.count), 1);
   const insight = generateInsight(stats.heatmap, stats.completedThisWeek);
@@ -271,9 +273,13 @@ export default function MomentumPage() {
                       return (
                         <div
                           key={dayIdx}
-                          className="flex flex-1 items-center justify-center rounded-sm border border-border/30"
+                          className={`flex flex-1 items-center justify-center rounded-sm ${
+                            count === 0
+                              ? "bg-muted/50"
+                              : ""
+                          }`}
                           style={{
-                            backgroundColor: heatmapBg(count),
+                            ...heatmapStyle(count),
                             aspectRatio: "1",
                           }}
                         >

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Correct daily date parsing and heatmap visibility in momentum viz"
+      },
+      {
+        "type": "fixed",
         "text": "Correct AT TIME ZONE for timestamp without time zone columns"
       },
       {

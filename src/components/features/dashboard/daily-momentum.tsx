@@ -48,8 +48,8 @@ export function DailyMomentum() {
   const maxCount = Math.max(...last7.map((d) => d.count), 1);
   const barColor = tier.accent.replace("text-", "bg-");
 
-  // Detect today's date string
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Today is always the last entry in the daily array (server computes in user TZ)
+  const todayDate = stats.daily[stats.daily.length - 1]?.date;
 
   return (
     <Link href="/momentum" className="block">
@@ -68,7 +68,7 @@ export function DailyMomentum() {
             <div className="mt-2 flex items-center gap-3">
               <div className="flex items-end gap-1" style={{ height: 36 }}>
                 {last7.map((d, i) => {
-                  const isToday = d.date === todayStr;
+                  const isToday = d.date === todayDate;
                   const barHeight =
                     d.count > 0
                       ? Math.max((d.count / maxCount) * 36, 3)

@@ -529,7 +529,7 @@ export async function getMomentumStats(
     deadlineRows,
   ] = await Promise.all([
     // 1. Daily breakdown (14 days)
-    db.execute<{ date: string; count: number }>(
+    db.execute<{ date: string | Date; count: number }>(
       sql`SELECT
         DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
@@ -577,7 +577,7 @@ export async function getMomentumStats(
       GROUP BY energy_level`
     ),
     // 5. Biggest day (all-time)
-    db.execute<{ date: string; count: number }>(
+    db.execute<{ date: string | Date; count: number }>(
       sql`SELECT
         DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
@@ -622,8 +622,10 @@ export async function getMomentumStats(
   // Gap-fill daily dates for 14 days
   const dailyMap = new Map<string, number>();
   for (const row of dailyRows.rows) {
-    // Normalize date format to YYYY-MM-DD
-    const d = typeof row.date === "string" ? row.date.slice(0, 10) : String(row.date);
+    // Normalize date to YYYY-MM-DD regardless of whether driver returns string or Date
+    const d = row.date instanceof Date
+      ? row.date.toISOString().slice(0, 10)
+      : String(row.date).slice(0, 10);
     dailyMap.set(d, Number(row.count));
   }
   const daily: Array<{ date: string; count: number }> = [];
@@ -649,7 +651,9 @@ export async function getMomentumStats(
   const biggestDay = biggestDayRow
     ? {
         count: Number(biggestDayRow.count),
-        date: String(biggestDayRow.date).slice(0, 10),
+        date: biggestDayRow.date instanceof Date
+          ? biggestDayRow.date.toISOString().slice(0, 10)
+          : String(biggestDayRow.date).slice(0, 10),
       }
     : null;
 
