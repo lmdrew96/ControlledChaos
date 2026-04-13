@@ -27,7 +27,7 @@ import type {
   CrisisTask,
 } from "@/types";
 import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
-import { startOfDayInTz, todayInTz } from "@/lib/date-utils";
+import { startOfDayInTz, todayInTz, startOfWeekInTz } from "@/lib/date-utils";
 
 // ============================================================
 // Users
@@ -433,11 +433,7 @@ export async function getCompletionStats(userId: string, timezone: string) {
   const now = new Date();
   const startOfDay = startOfDayInTz(now, timezone);
 
-  // Start of week (Monday) in user's timezone
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const startOfWeek = new Date(startOfDay);
-  startOfWeek.setDate(startOfWeek.getDate() - mondayOffset);
+  const startOfWeek = startOfWeekInTz(timezone);
 
   const [todayRows, weekRows, allTimeRows] = await Promise.all([
     db
@@ -509,10 +505,7 @@ export async function getMomentumStats(
   const startOfDay = startOfDayInTz(now, timezone);
   const todayStr = todayInTz(timezone);
 
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const startOfWeek = new Date(startOfDay);
-  startOfWeek.setDate(startOfWeek.getDate() - mondayOffset);
+  const startOfWeek = startOfWeekInTz(timezone);
 
   const fourteenDaysAgo = new Date(startOfDay);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);

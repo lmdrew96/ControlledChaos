@@ -1,4 +1,4 @@
-import { startOfDayInTz } from "@/lib/date-utils";
+import { startOfDayInTz, todayInTz } from "@/lib/date-utils";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { callSonnet } from "@/lib/ai";
@@ -141,7 +141,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 
     await createNotification(userId, "email", {
       type: "morning_digest",
-      dedupKey: `morning-digest-${now.toISOString().slice(0, 10)}`,
+      dedupKey: `morning-digest-${todayInTz(timezone)}`,
     });
 
     return true;
@@ -251,7 +251,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
     await createNotification(userId, "email", {
       type: "evening_digest",
-      dedupKey: `evening-digest-${now.toISOString().slice(0, 10)}`,
+      dedupKey: `evening-digest-${todayInTz(timezone)}`,
     });
 
     return true;

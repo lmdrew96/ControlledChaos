@@ -6,6 +6,7 @@ import {
   getUserLocation,
 } from "@/lib/db/queries";
 import { sendPushToUser } from "@/lib/notifications/send-push";
+import { todayInTz } from "@/lib/date-utils";
 import {
   getDeadlineWarnings,
   getDailyPushCap,
@@ -208,7 +209,7 @@ export async function GET(request: Request) {
       }
 
       // --- Morning Idle Check-in (11am+) ---
-      const morningDedupKey = `idle-checkin-${new Date().toISOString().slice(0, 10)}`;
+      const morningDedupKey = `idle-checkin-${todayInTz(timezone)}`;
       if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey, timezone))) {
         const morningStatus = await shouldSendIdleCheckin(userId, timezone);
         if (morningStatus.shouldSend) {
@@ -235,7 +236,7 @@ export async function GET(request: Request) {
       }
 
       // --- Afternoon Idle Check-in (3pm+) ---
-      const afternoonDedupKey = `idle-checkin-afternoon-${new Date().toISOString().slice(0, 10)}`;
+      const afternoonDedupKey = `idle-checkin-afternoon-${todayInTz(timezone)}`;
       if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey, timezone))) {
         const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
         if (afternoonStatus.shouldSend) {
@@ -262,7 +263,7 @@ export async function GET(request: Request) {
       }
 
       // --- Evening Idle Check-in (7:00pm+) ---
-      const eveningDedupKey = `idle-checkin-evening-${new Date().toISOString().slice(0, 10)}`;
+      const eveningDedupKey = `idle-checkin-evening-${todayInTz(timezone)}`;
       if (mode === "gentle") {
         console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
       } else if (!canSend("normal")) {
@@ -303,7 +304,7 @@ export async function GET(request: Request) {
       }
 
       // --- Inactivity Nudge ---
-      const nudge = canSend("normal") ? await getInactivityNudgeTier(userId) : null;
+      const nudge = canSend("normal") ? await getInactivityNudgeTier(userId, timezone) : null;
       if (nudge) {
         const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
         if (!(await hasEverBeenNotified(userId, nudgeDedupKey))) {

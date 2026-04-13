@@ -3,6 +3,7 @@ import { getAllUsersWithCalendars } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
+import { todayInTz } from "@/lib/date-utils";
 
 /**
  * GET /api/cron/calendar-sync
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
           const is401 =
             err instanceof Error && err.message.includes("401");
           if (is401) {
-            const dedupKey = `canvas-expired-${new Date().toISOString().slice(0, 10)}`;
+            const dedupKey = `canvas-expired-${todayInTz(user.timezone ?? "America/New_York")}`;
             hasBeenNotifiedToday(user.userId, dedupKey, user.timezone ?? "America/New_York")
               .then((alreadyNotified) => {
                 if (!alreadyNotified) {

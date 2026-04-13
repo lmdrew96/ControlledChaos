@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
+import { startOfDayInTz } from "@/lib/date-utils";
 import type { EnergyProfile } from "@/types";
 
 export interface UserSnapshot {
@@ -55,8 +56,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   const currentTime = formatCurrentDateTime(timezone);
 
   const now = new Date();
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+  const endOfDay = new Date(startOfDayInTz(now, timezone).getTime() + 86_400_000 - 1);
 
   const [pendingTasks, completedToday, todayEvents, recentActivity] =
     await Promise.all([

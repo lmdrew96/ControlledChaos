@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "fixed",
+        "text": "Use timezone-aware dates for dedup keys, date boundaries, and week calculations"
+      },
+      {
         "type": "added",
         "text": "Add global user snapshot context for schedule-aware notifications"
       },

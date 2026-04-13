@@ -479,7 +479,8 @@ export async function shouldSendEveningCheckin(
  * so each new inactivity streak gets its own set of tier notifications.
  */
 export async function getInactivityNudgeTier(
-  userId: string
+  userId: string,
+  timezone = "America/New_York"
 ): Promise<{ tier: NudgeTier; streakKey: string; hoursInactive: number } | null> {
   const lastCompletion = await getLastTaskCompletion(userId);
   const now = Date.now();
@@ -495,7 +496,7 @@ export async function getInactivityNudgeTier(
     streakKey = "never";
   } else {
     hoursInactive = (now - new Date(lastCompletion).getTime()) / (1000 * 60 * 60);
-    streakKey = new Date(lastCompletion).toISOString().slice(0, 10);
+    streakKey = new Date(lastCompletion).toLocaleDateString("en-CA", { timeZone: timezone });
   }
 
   if (hoursInactive < 72) return null;

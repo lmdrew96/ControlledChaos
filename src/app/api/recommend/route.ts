@@ -15,6 +15,7 @@ import {
   logTaskActivity,
 } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { startOfDayInTz } from "@/lib/date-utils";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
@@ -51,15 +52,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Gather all context in parallel (now with fresh calendar data)
-    const now = new Date();
-    const endOfTomorrow = new Date(now);
-    endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
-    endOfTomorrow.setHours(23, 59, 59, 999);
+    // Fetch user first so we can compute timezone-aware date boundaries
+    const user = await getUser(userId);
+    const timezone = user?.timezone ?? "America/New_York";
 
-    const [user, pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity] =
+    const now = new Date();
+    const endOfTomorrow = new Date(startOfDayInTz(now, timezone).getTime() + 2 * 86_400_000 - 1);
+
+    const [pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity] =
       await Promise.all([
-        getUser(userId),
         getPendingTasks(userId),
         getCurrentCalendarEvent(userId),
         getNextCalendarEvent(userId),
@@ -73,8 +74,6 @@ export async function POST(request: Request) {
         message: "No pending tasks. Time for a brain dump!",
       });
     }
-
-    const timezone = user?.timezone ?? "America/New_York";
 
     // Get completed today count (needs timezone, so separate call)
     const completedToday = await getTasksCompletedToday(userId, timezone);
