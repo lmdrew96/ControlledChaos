@@ -18,6 +18,26 @@ import { crisisPlans } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import type { CrisisFileAttachment, CrisisTask } from "@/types";
 
+const TIME_FORMAT_OPTS: Intl.DateTimeFormatOptions = {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+};
+
+function formatEventsForAI(
+  events: Array<{ title: string; startTime: Date; endTime: Date }>,
+  timezone: string
+) {
+  return events.map((e) => ({
+    title: e.title,
+    startTime: e.startTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+    endTime: e.endTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+  }));
+}
+
 // GET — return all active (in-progress) crisis plans
 export async function GET() {
   try {
@@ -95,35 +115,15 @@ export async function POST(request: Request) {
 
     const plan = await getCrisisPlan({
       taskName,
-      deadline: deadlineDate.toLocaleString("en-US", {
-        timeZone: timezone,
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }),
+      deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
       completionPct,
       currentTime,
       minutesUntilDeadline,
-      upcomingEvents: upcomingEvents.map((e) => ({
-        title: e.title,
-        startTime: e.startTime.toISOString(),
-        endTime: e.endTime.toISOString(),
-      })),
+      upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: new Date(c.deadline).toLocaleString("en-US", {
-          timeZone: timezone,
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        }),
+        deadline: new Date(c.deadline).toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
@@ -226,35 +226,15 @@ export async function PUT(request: Request) {
 
     const newPlan = await getCrisisPlan({
       taskName: plan.taskName,
-      deadline: deadlineDate.toLocaleString("en-US", {
-        timeZone: timezone,
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }),
+      deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
       completionPct: effectiveCompletion,
       currentTime,
       minutesUntilDeadline,
-      upcomingEvents: upcomingEvents.map((e) => ({
-        title: e.title,
-        startTime: e.startTime.toISOString(),
-        endTime: e.endTime.toISOString(),
-      })),
+      upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: new Date(c.deadline).toLocaleString("en-US", {
-          timeZone: timezone,
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        }),
+        deadline: new Date(c.deadline).toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
         panicLevel: c.panicLevel,
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
