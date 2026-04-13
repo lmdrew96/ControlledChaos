@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Correct AT TIME ZONE for timestamp without time zone columns"
+      },
+      {
+        "type": "fixed",
         "text": "Correct timezone-aware midnight calculation across entire app"
       },
       {

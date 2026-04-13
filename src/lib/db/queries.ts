@@ -531,7 +531,7 @@ export async function getMomentumStats(
     // 1. Daily breakdown (14 days)
     db.execute<{ date: string; count: number }>(
       sql`SELECT
-        DATE(completed_at AT TIME ZONE ${timezone}) AS date,
+        DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
       FROM tasks
       WHERE user_id = ${userId}
@@ -543,11 +543,11 @@ export async function getMomentumStats(
     // 2. Heatmap (current week)
     db.execute<{ day_of_week: number; time_block: string; count: number }>(
       sql`SELECT
-        (EXTRACT(ISODOW FROM completed_at AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
+        (EXTRACT(ISODOW FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
         CASE
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 6 AND 11 THEN 'morning'
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 12 AND 16 THEN 'afternoon'
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 17 AND 20 THEN 'evening'
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 6 AND 11 THEN 'morning'
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 12 AND 16 THEN 'afternoon'
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 17 AND 20 THEN 'evening'
           ELSE 'night'
         END AS time_block,
         COUNT(*)::int AS count
@@ -579,7 +579,7 @@ export async function getMomentumStats(
     // 5. Biggest day (all-time)
     db.execute<{ date: string; count: number }>(
       sql`SELECT
-        DATE(completed_at AT TIME ZONE ${timezone}) AS date,
+        DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
       FROM tasks
       WHERE user_id = ${userId} AND status = 'completed'
@@ -594,7 +594,7 @@ export async function getMomentumStats(
         SELECT COUNT(*)::int AS daily_count
         FROM tasks
         WHERE user_id = ${userId} AND status = 'completed'
-        GROUP BY DATE(completed_at AT TIME ZONE ${timezone})
+        GROUP BY DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
       ) AS daily_counts`
     ),
     // 7. All-time count
