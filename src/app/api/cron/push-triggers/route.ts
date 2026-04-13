@@ -23,6 +23,7 @@ import {
   generatePushMessage,
   getTopPendingTaskTitle,
 } from "@/lib/notifications/triggers";
+import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 
 const TASK_ACTIONS = [
   { action: "start_task", title: "▶ Start" },
@@ -94,6 +95,22 @@ export async function GET(request: Request) {
         return _locationName;
       };
 
+      // Build user context snapshot once per user — shared across all notification types
+      let _snapshot: string | undefined;
+      let _snapshotFetched = false;
+      const getSnapshot = async () => {
+        if (!_snapshotFetched) {
+          try {
+            const snapshot = await buildUserSnapshot(userId);
+            _snapshot = snapshot.formatted;
+          } catch (err) {
+            console.error(`[Push] snapshot failed for user=${userId}:`, err);
+          }
+          _snapshotFetched = true;
+        }
+        return _snapshot;
+      };
+
       const canSend = (priority: "high" | "normal") =>
         priority === "high" || sentToday < dailyCap;
 
@@ -116,7 +133,8 @@ export async function GET(request: Request) {
           personalityPrefs,
           timezone,
           mode,
-          await getLocationName()
+          await getLocationName(),
+          await getSnapshot()
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -144,7 +162,8 @@ export async function GET(request: Request) {
           personalityPrefs,
           timezone,
           mode,
-          await getLocationName()
+          await getLocationName(),
+          await getSnapshot()
         );
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
@@ -172,7 +191,8 @@ export async function GET(request: Request) {
             personalityPrefs,
             timezone,
             mode,
-            await getLocationName()
+            await getLocationName(),
+            await getSnapshot()
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -199,7 +219,8 @@ export async function GET(request: Request) {
             personalityPrefs,
             timezone,
             mode,
-            locName
+            locName,
+            await getSnapshot()
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -225,7 +246,8 @@ export async function GET(request: Request) {
             personalityPrefs,
             timezone,
             mode,
-            locName
+            locName,
+            await getSnapshot()
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -259,7 +281,8 @@ export async function GET(request: Request) {
             personalityPrefs,
             timezone,
             mode,
-            locName
+            locName,
+            await getSnapshot()
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",
@@ -290,7 +313,8 @@ export async function GET(request: Request) {
             personalityPrefs,
             timezone,
             mode,
-            await getLocationName()
+            await getLocationName(),
+            await getSnapshot()
           );
           const sent = await sendPushToUser(userId, {
             title: "ControlledChaos",

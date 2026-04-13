@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "added",
+        "text": "Add global user snapshot context for schedule-aware notifications"
+      },
+      {
         "type": "fixed",
         "text": "Align bar chart with current week and fix date key parsing"
       },

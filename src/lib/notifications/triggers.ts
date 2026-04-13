@@ -259,7 +259,8 @@ export async function generatePushMessage(
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
   mode: NotificationAssertiveness = "balanced",
-  userLocation?: string
+  userLocation?: string,
+  scheduleContext?: string
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "idle_checkin") {
@@ -285,6 +286,11 @@ export async function generatePushMessage(
   // Append the user's current location so the AI can reference it naturally
   if (userLocation && ctx.type !== "location_arrival" && ctx.type !== "location_departure_nearby") {
     userMsg += `\nUser's current location: "${userLocation}"`;
+  }
+
+  // Append schedule/task context so the AI knows what the user's day looks like
+  if (scheduleContext) {
+    userMsg += `\n\n${scheduleContext}`;
   }
 
   try {
@@ -333,11 +339,13 @@ export async function generateNudgeMessage(
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
   mode: NotificationAssertiveness = "balanced",
-  userLocation?: string
+  userLocation?: string,
+  scheduleContext?: string
 ): Promise<string> {
   try {
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
     if (userLocation) userMsg += `\nUser's current location: "${userLocation}"`;
+    if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
     const { text } = await callSonnet({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: userMsg,
