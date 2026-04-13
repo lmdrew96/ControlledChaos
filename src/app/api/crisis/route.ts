@@ -11,6 +11,7 @@ import {
   getCrisisPlanById,
   updateCrisisPlanProgress,
   completeCrisisPlan,
+  getUserLocation,
 } from "@/lib/db/queries";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
@@ -180,12 +181,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
+      getUserLocation(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -223,6 +225,7 @@ export async function POST(request: Request) {
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
+      currentLocation: userLocation?.matchedLocationName ?? null,
       files,
     });
 
@@ -284,12 +287,13 @@ export async function PUT(request: Request) {
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
+      getUserLocation(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -340,6 +344,7 @@ export async function PUT(request: Request) {
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
       completedSteps: completedStepTitles,
+      currentLocation: userLocation?.matchedLocationName ?? null,
     });
 
     // Merge: completed tasks stay, AI-generated tasks replace the remaining ones

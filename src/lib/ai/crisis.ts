@@ -18,6 +18,7 @@ export interface CrisisParams {
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
   completedSteps?: string[];
+  currentLocation?: string | null;
   files?: CrisisFileAttachment[];
 }
 
@@ -82,12 +83,16 @@ function buildUserPrompt(params: CrisisParams): string {
       ? `\n\nSteps already completed (DO NOT regenerate these — only plan the REMAINING work):\n${params.completedSteps.map((s, i) => `${i + 1}. ✅ ${s}`).join("\n")}`
       : "";
 
+  const locationLine = params.currentLocation
+    ? `\nUser's current location: ${params.currentLocation}. If the task requires being somewhere else (e.g., campus for an exam), factor in travel time — suggest they leave early and include a "commute/travel" step.`
+    : "";
+
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}
 Current time: ${params.currentTime}
 Minutes until deadline: ${params.minutesUntilDeadline}
 Already completed: ~${params.completionPct}%
-Other pending tasks (context): ${params.existingPendingTaskCount}
+Other pending tasks (context): ${params.existingPendingTaskCount}${locationLine}
 
 Other active crisis plans this user is juggling:
 ${crisesText}

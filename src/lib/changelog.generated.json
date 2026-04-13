@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Crisis mode includes user's current location for travel awareness"
+      },
+      {
+        "type": "added",
         "text": "Crisis mode accounts for sleep schedule in time calculations"
       },
       {
