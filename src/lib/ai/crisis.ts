@@ -13,6 +13,7 @@ export interface CrisisParams {
   completionPct: number;
   currentTime: string;
   minutesUntilDeadline: number;
+  sleepSchedule?: { wakeTime: number; sleepTime: number; sleepMinutesBlocked: number };
   upcomingEvents: Array<{ title: string; startTime: string; endTime: string; durationMinutes: number }>;
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
@@ -52,11 +53,22 @@ function buildUserPrompt(params: CrisisParams): string {
           .join("\n")
       : "None";
 
-  const totalBlockedMinutes = params.upcomingEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
+  const totalEventMinutes = params.upcomingEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
+  const sleepMinutes = params.sleepSchedule?.sleepMinutesBlocked ?? 0;
+  const totalBlockedMinutes = totalEventMinutes + sleepMinutes;
   const availableMinutes = Math.max(0, params.minutesUntilDeadline - totalBlockedMinutes);
-  const blockedLine = params.upcomingEvents.length > 0
-    ? `\nTotal time blocked by events: ${totalBlockedMinutes} min (${(totalBlockedMinutes / 60).toFixed(1)}h)\nActual available work time: ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h)`
+
+  const fmtHour = (h: number) => {
+    const period = h >= 12 ? "PM" : "AM";
+    const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${display} ${period}`;
+  };
+
+  const sleepLine = params.sleepSchedule
+    ? `\nUser's sleep schedule: ${fmtHour(params.sleepSchedule.sleepTime)} – ${fmtHour(params.sleepSchedule.wakeTime)} (${(sleepMinutes / 60).toFixed(1)}h blocked for sleep between now and deadline)`
     : "";
+
+  const timeBudgetLine = `\nTime budget: ${params.minutesUntilDeadline} min total – ${totalEventMinutes} min events – ${sleepMinutes} min sleep = ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h) of actual work time`;
 
   const crisesText =
     params.activeCrises && params.activeCrises.length > 0
@@ -81,7 +93,7 @@ Other active crisis plans this user is juggling:
 ${crisesText}
 
 Upcoming events that may interrupt:
-${eventsText}${blockedLine}
+${eventsText}${sleepLine}${timeBudgetLine}
 ${completedStepsText}
 Break this into concrete micro-tasks that fit the remaining time. Be honest about urgency.`;
 }

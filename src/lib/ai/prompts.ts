@@ -607,7 +607,7 @@ Break the task into 5-8 concrete micro-tasks (≤30 min each) that fit the avail
 - stuckHint should address the most likely freeze point for that step.
 
 ## CRITICAL: Anti-Hallucination Rules
-1. TIME MATH: All micro-task estimatedMinutes MUST sum to ≤ minutesUntilDeadline. If they won't fit, drop the lowest-value tasks and note what was cut in the summary.
+1. TIME MATH: Use the "actual work time" from the time budget (which already subtracts events and sleep). All micro-task estimatedMinutes MUST sum to ≤ actual work time. If they won't fit, drop the lowest-value tasks and note what was cut in the summary. NEVER schedule tasks during sleep hours unless the user explicitly says they're pulling an all-nighter.
 2. PANIC LEVEL: Must reflect reality using these HARD RULES:
    - "damage-control" → minutesUntilDeadline < 120 OR (completion < 30% AND minutesUntilDeadline < 360) OR the user has multiple active crises
    - "tight" → minutesUntilDeadline < 1440 (24h) OR (completion < 50% AND minutesUntilDeadline < 2880)

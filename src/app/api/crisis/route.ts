@@ -39,6 +39,97 @@ function formatEventsForAI(
   }));
 }
 
+/**
+ * Calculate total minutes of sleep blocked between `start` and `end`,
+ * given the user's sleep window (sleepTime → wakeTime in their timezone).
+ * E.g., sleepTime=22, wakeTime=7 means 10 PM–7 AM = 9 hours of sleep per night.
+ */
+function getSleepMinutesBlocked(
+  start: Date,
+  end: Date,
+  sleepTime: number,
+  wakeTime: number,
+  timezone: string
+): number {
+  // Get the user's current local hour
+  const localHour = parseInt(
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", hour12: false }).format(start),
+    10
+  );
+
+  // Calculate sleep duration per night in minutes
+  const sleepDurationMin =
+    sleepTime > wakeTime
+      ? (24 - sleepTime + wakeTime) * 60 // Overnight: e.g., 22→7 = 9h
+      : (wakeTime - sleepTime) * 60;      // Same-day (unusual): e.g., 2→9 = 7h
+
+  const totalMinutes = (end.getTime() - start.getTime()) / 60_000;
+  if (totalMinutes <= 0) return 0;
+
+  // Walk through each night's sleep window between start and end
+  // Use a simple approach: count how many full sleep periods fit
+  let blocked = 0;
+  const cursor = new Date(start);
+
+  // Find the next sleep start time in the user's timezone
+  const getNextSleepStart = (from: Date): Date => {
+    const dateStr = from.toLocaleDateString("en-CA", { timeZone: timezone });
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      hour12: false,
+    });
+    const currentH = parseInt(formatter.format(from), 10);
+
+    // If we haven't passed sleep time today, sleep starts today
+    // If we have, sleep starts tomorrow
+    const daysToAdd = currentH < sleepTime ? 0 : 1;
+    const targetDate = new Date(from);
+    if (daysToAdd === 1) {
+      const nextDateStr = new Date(from.getTime() + 86_400_000).toLocaleDateString("en-CA", { timeZone: timezone });
+      // Build target as sleep hour on the next day
+      const utcMid = new Date(`${nextDateStr}T00:00:00Z`);
+      const utcRepr = utcMid.toLocaleString("en-US", { timeZone: "UTC" });
+      const tzRepr = utcMid.toLocaleString("en-US", { timeZone: timezone });
+      const offsetMs = new Date(utcRepr).getTime() - new Date(tzRepr).getTime();
+      return new Date(utcMid.getTime() + offsetMs + sleepTime * 3_600_000);
+    }
+    const utcMid = new Date(`${dateStr}T00:00:00Z`);
+    const utcRepr = utcMid.toLocaleString("en-US", { timeZone: "UTC" });
+    const tzRepr = utcMid.toLocaleString("en-US", { timeZone: timezone });
+    const offsetMs = new Date(utcRepr).getTime() - new Date(tzRepr).getTime();
+    return new Date(utcMid.getTime() + offsetMs + sleepTime * 3_600_000);
+  };
+
+  // Check if we're currently IN a sleep window
+  const isInSleep = sleepTime > wakeTime
+    ? (localHour >= sleepTime || localHour < wakeTime)
+    : (localHour >= sleepTime && localHour < wakeTime);
+
+  if (isInSleep) {
+    // We're in sleep now — calculate remaining sleep minutes
+    const minutesToWake = wakeTime > localHour
+      ? (wakeTime - localHour) * 60
+      : (24 - localHour + wakeTime) * 60;
+    const sleepEnd = new Date(start.getTime() + minutesToWake * 60_000);
+    const effectiveEnd = sleepEnd < end ? sleepEnd : end;
+    blocked += (effectiveEnd.getTime() - start.getTime()) / 60_000;
+    cursor.setTime(effectiveEnd.getTime());
+  }
+
+  // Walk through remaining nights
+  for (let i = 0; i < 10; i++) { // max 10 nights safety
+    const sleepStart = getNextSleepStart(cursor);
+    if (sleepStart >= end) break;
+    const sleepEnd = new Date(sleepStart.getTime() + sleepDurationMin * 60_000);
+    const effectiveEnd = sleepEnd < end ? sleepEnd : end;
+    blocked += (effectiveEnd.getTime() - sleepStart.getTime()) / 60_000;
+    cursor.setTime(sleepEnd.getTime());
+  }
+
+  return Math.round(blocked);
+}
+
 // GET — return all active (in-progress) crisis plans
 export async function GET() {
   try {
@@ -98,10 +189,13 @@ export async function POST(request: Request) {
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
+    const wakeTime = (settings?.wakeTime as number) ?? 7;
+    const sleepTime = (settings?.sleepTime as number) ?? 22;
     const minutesUntilDeadline = Math.max(
       0,
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
+    const sleepMinutesBlocked = getSleepMinutesBlocked(now, deadlineDate, sleepTime, wakeTime, timezone);
 
     const currentTime = now.toLocaleString("en-US", {
       timeZone: timezone,
@@ -120,6 +214,7 @@ export async function POST(request: Request) {
       completionPct,
       currentTime,
       minutesUntilDeadline,
+      sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
       upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
@@ -189,14 +284,18 @@ export async function PUT(request: Request) {
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
 
-    const [user, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
       getUser(userId),
+      getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
+    const wakeTime = (settings?.wakeTime as number) ?? 7;
+    const sleepTime = (settings?.sleepTime as number) ?? 22;
+    const sleepMinutesBlocked = getSleepMinutesBlocked(now, deadlineDate, sleepTime, wakeTime, timezone);
 
     // Calculate current progress based on task index
     const totalTasks = (plan.tasks as unknown[]).length;
@@ -231,6 +330,7 @@ export async function PUT(request: Request) {
       completionPct: effectiveCompletion,
       currentTime,
       minutesUntilDeadline,
+      sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
       upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({

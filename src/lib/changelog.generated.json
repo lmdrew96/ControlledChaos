@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "added",
+        "text": "Crisis mode accounts for sleep schedule in time calculations"
+      },
+      {
         "type": "fixed",
         "text": "Pre-calculate event durations and available time for crisis AI"
       },
