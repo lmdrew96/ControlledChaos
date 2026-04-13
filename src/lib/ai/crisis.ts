@@ -13,7 +13,7 @@ export interface CrisisParams {
   completionPct: number;
   currentTime: string;
   minutesUntilDeadline: number;
-  upcomingEvents: Array<{ title: string; startTime: string; endTime: string }>;
+  upcomingEvents: Array<{ title: string; startTime: string; endTime: string; durationMinutes: number }>;
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
   completedSteps?: string[];
@@ -48,9 +48,15 @@ function buildUserPrompt(params: CrisisParams): string {
   const eventsText =
     params.upcomingEvents.length > 0
       ? params.upcomingEvents
-          .map((e) => `- ${e.title}: ${e.startTime} – ${e.endTime}`)
+          .map((e) => `- ${e.title}: ${e.startTime} – ${e.endTime} (${e.durationMinutes} min)`)
           .join("\n")
       : "None";
+
+  const totalBlockedMinutes = params.upcomingEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
+  const availableMinutes = Math.max(0, params.minutesUntilDeadline - totalBlockedMinutes);
+  const blockedLine = params.upcomingEvents.length > 0
+    ? `\nTotal time blocked by events: ${totalBlockedMinutes} min (${(totalBlockedMinutes / 60).toFixed(1)}h)\nActual available work time: ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h)`
+    : "";
 
   const crisesText =
     params.activeCrises && params.activeCrises.length > 0
@@ -75,7 +81,7 @@ Other active crisis plans this user is juggling:
 ${crisesText}
 
 Upcoming events that may interrupt:
-${eventsText}
+${eventsText}${blockedLine}
 ${completedStepsText}
 Break this into concrete micro-tasks that fit the remaining time. Be honest about urgency.`;
 }

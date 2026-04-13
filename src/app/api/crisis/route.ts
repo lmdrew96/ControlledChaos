@@ -35,6 +35,7 @@ function formatEventsForAI(
     title: e.title,
     startTime: e.startTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
     endTime: e.endTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+    durationMinutes: Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60_000),
   }));
 }
 

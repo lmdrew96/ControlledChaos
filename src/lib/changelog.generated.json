@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Pre-calculate event durations and available time for crisis AI"
+      },
+      {
+        "type": "fixed",
         "text": "Format crisis event times in user's timezone instead of UTC"
       },
       {
