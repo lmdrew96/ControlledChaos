@@ -63,6 +63,30 @@ const MONTH_PILL_CLASSES: Record<CalendarColorKey, string> = {
   yellow: "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-800 dark:text-yellow-200",
 };
 
+/** Hex values for data viz contexts (Chart.js, SVG, inline styles) */
+export const COLOR_HEX: Record<CalendarColorKey, { solid: string; light: string }> = {
+  blue:   { solid: "#3b82f6", light: "rgba(59,130,246,0.15)" },
+  purple: { solid: "#a855f7", light: "rgba(168,85,247,0.15)" },
+  green:  { solid: "#22c55e", light: "rgba(34,197,94,0.15)" },
+  orange: { solid: "#f97316", light: "rgba(249,115,22,0.15)" },
+  red:    { solid: "#ef4444", light: "rgba(239,68,68,0.15)" },
+  pink:   { solid: "#ec4899", light: "rgba(236,72,153,0.15)" },
+  teal:   { solid: "#14b8a6", light: "rgba(20,184,166,0.15)" },
+  yellow: { solid: "#eab308", light: "rgba(234,179,8,0.15)" },
+};
+
+/** Task list: category badge classes */
+export const TASK_BADGE_CLASSES: Record<CalendarColorKey, string> = {
+  blue:   "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-200",
+  purple: "bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-200",
+  green:  "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-200",
+  orange: "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-200",
+  red:    "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-200",
+  pink:   "bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-200",
+  teal:   "bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-200",
+  yellow: "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-200",
+};
+
 function resolveColor(category: EventCategory | null | undefined, colors: CalendarColors): CalendarColorKey {
   if (category && category in colors) return colors[category];
   return colors.personal; // fallback for events with no category
@@ -81,4 +105,22 @@ export function categoryDotColor(category: EventCategory | null | undefined, col
 export function categoryPillColor(category: EventCategory | null | undefined, colors?: CalendarColors | null): string {
   const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
   return MONTH_PILL_CLASSES[c];
+}
+
+/** Get hex color for a category, respecting user color prefs */
+export function categoryHex(
+  category: EventCategory | null | undefined,
+  colors?: CalendarColors | null
+): { solid: string; light: string } {
+  const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
+  return COLOR_HEX[c];
+}
+
+/** Get task badge classes for a category, respecting user color prefs */
+export function taskBadgeColor(
+  category: EventCategory | null | undefined,
+  colors?: CalendarColors | null
+): string {
+  const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
+  return TASK_BADGE_CLASSES[c];
 }

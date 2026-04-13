@@ -375,10 +375,10 @@ export function CalendarSettings() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Palette className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Event Colors</span>
+          <span className="text-sm font-medium">Category Colors</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Choose a color for each calendar source on the calendar grid.
+          Choose a color for each category. Used for calendar events, tasks, and stats.
         </p>
         <div className="flex flex-col gap-4">
           {EVENT_CATEGORIES.map(({ key, label }) => (

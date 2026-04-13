@@ -26,6 +26,7 @@ import type {
   PersonalityPrefs,
   CrisisTask,
 } from "@/types";
+import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
 
 // ============================================================
 // Users
@@ -497,6 +498,299 @@ export async function getCompletionStats(userId: string, timezone: string) {
     completedToday: todayRows[0]?.count ?? 0,
     completedThisWeek: weekRows[0]?.count ?? 0,
     completedAllTime: allTimeRows[0]?.count ?? 0,
+  };
+}
+
+// ============================================================
+// Momentum Stats
+// ============================================================
+
+export interface MomentumStats {
+  completedToday: number;
+  completedThisWeek: number;
+  completedAllTime: number;
+  biggestDay: { count: number; date: string } | null;
+  avgPerActiveDay: number;
+  daily: Array<{ date: string; count: number }>;
+  heatmap: Array<{
+    dayOfWeek: number;
+    timeBlock: "morning" | "afternoon" | "evening" | "night";
+    count: number;
+  }>;
+  byCategory: Array<{ category: string | null; count: number }>;
+  byEnergy: { low: number; medium: number; high: number };
+  wins: Array<{ icon: string; title: string; subtitle: string }>;
+  calendarColors: CalendarColors;
+}
+
+export async function getMomentumStats(
+  userId: string,
+  timezone: string
+): Promise<MomentumStats> {
+  // Reuse timezone-aware date logic from getCompletionStats
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find((p) => p.type === "year")!.value;
+  const month = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  const todayStr = `${year}-${month}-${day}`;
+  const startOfDay = new Date(`${todayStr}T00:00:00`);
+
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - mondayOffset);
+
+  const fourteenDaysAgo = new Date(startOfDay);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
+
+  // All queries in parallel
+  const [
+    dailyRows,
+    heatmapRows,
+    categoryRows,
+    energyRows,
+    biggestDayRows,
+    avgRows,
+    allTimeRows,
+    settingsResult,
+    deadlineRows,
+  ] = await Promise.all([
+    // 1. Daily breakdown (14 days)
+    db.execute<{ date: string; count: number }>(
+      sql`SELECT
+        DATE(completed_at AT TIME ZONE ${timezone}) AS date,
+        COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at >= ${fourteenDaysAgo}
+      GROUP BY date
+      ORDER BY date ASC`
+    ),
+    // 2. Heatmap (current week)
+    db.execute<{ day_of_week: number; time_block: string; count: number }>(
+      sql`SELECT
+        (EXTRACT(ISODOW FROM completed_at AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
+        CASE
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 6 AND 11 THEN 'morning'
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 12 AND 16 THEN 'afternoon'
+          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE ${timezone}) BETWEEN 17 AND 20 THEN 'evening'
+          ELSE 'night'
+        END AS time_block,
+        COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at >= ${startOfWeek}
+      GROUP BY day_of_week, time_block`
+    ),
+    // 3. By category (current week)
+    db.execute<{ category: string | null; count: number }>(
+      sql`SELECT category, COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at >= ${startOfWeek}
+      GROUP BY category
+      ORDER BY count DESC`
+    ),
+    // 4. By energy (current week)
+    db.execute<{ energy_level: string; count: number }>(
+      sql`SELECT energy_level, COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at >= ${startOfWeek}
+      GROUP BY energy_level`
+    ),
+    // 5. Biggest day (all-time)
+    db.execute<{ date: string; count: number }>(
+      sql`SELECT
+        DATE(completed_at AT TIME ZONE ${timezone}) AS date,
+        COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId} AND status = 'completed'
+      GROUP BY date
+      ORDER BY count DESC
+      LIMIT 1`
+    ),
+    // 6. Average per active day (all-time)
+    db.execute<{ avg: number }>(
+      sql`SELECT COALESCE(AVG(daily_count), 0)::float AS avg
+      FROM (
+        SELECT COUNT(*)::int AS daily_count
+        FROM tasks
+        WHERE user_id = ${userId} AND status = 'completed'
+        GROUP BY DATE(completed_at AT TIME ZONE ${timezone})
+      ) AS daily_counts`
+    ),
+    // 7. All-time count
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed"))),
+    // 8. User settings (for calendarColors)
+    getUserSettings(userId),
+    // 9. Deadline tasks (current week) — for wins heuristic
+    db.execute<{ category: string | null; met: number; total: number }>(
+      sql`SELECT
+        category,
+        COUNT(*) FILTER (WHERE completed_at <= deadline)::int AS met,
+        COUNT(*)::int AS total
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at >= ${startOfWeek}
+        AND deadline IS NOT NULL
+      GROUP BY category`
+    ),
+  ]);
+
+  // Gap-fill daily dates for 14 days
+  const dailyMap = new Map<string, number>();
+  for (const row of dailyRows.rows) {
+    // Normalize date format to YYYY-MM-DD
+    const d = typeof row.date === "string" ? row.date.slice(0, 10) : String(row.date);
+    dailyMap.set(d, Number(row.count));
+  }
+  const daily: Array<{ date: string; count: number }> = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(startOfDay);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    daily.push({ date: dateStr, count: dailyMap.get(dateStr) ?? 0 });
+  }
+
+  // Derive today/week counts from daily array
+  const completedToday = daily.find((d) => d.date === todayStr)?.count ?? 0;
+
+  const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
+  const completedThisWeek = daily
+    .filter((d) => d.date >= startOfWeekStr)
+    .reduce((sum, d) => sum + d.count, 0);
+
+  const completedAllTime = allTimeRows[0]?.count ?? 0;
+
+  // Biggest day
+  const biggestDayRow = biggestDayRows.rows[0];
+  const biggestDay = biggestDayRow
+    ? {
+        count: Number(biggestDayRow.count),
+        date: String(biggestDayRow.date).slice(0, 10),
+      }
+    : null;
+
+  // Avg per active day
+  const avgPerActiveDay = Number(avgRows.rows[0]?.avg ?? 0);
+
+  // Heatmap
+  const heatmap = heatmapRows.rows.map((r) => ({
+    dayOfWeek: Number(r.day_of_week),
+    timeBlock: r.time_block as "morning" | "afternoon" | "evening" | "night",
+    count: Number(r.count),
+  }));
+
+  // By category
+  const byCategory = categoryRows.rows.map((r) => ({
+    category: r.category,
+    count: Number(r.count),
+  }));
+
+  // By energy
+  const energyMap: Record<string, number> = {};
+  for (const r of energyRows.rows) {
+    energyMap[r.energy_level] = Number(r.count);
+  }
+  const byEnergy = {
+    low: energyMap["low"] ?? 0,
+    medium: energyMap["medium"] ?? 0,
+    high: energyMap["high"] ?? 0,
+  };
+
+  // Calendar colors
+  const calendarColors: CalendarColors =
+    (settingsResult?.calendarColors as CalendarColors | null) ?? DEFAULT_CALENDAR_COLORS;
+
+  // === Wins computation ===
+  const wins: Array<{ icon: string; title: string; subtitle: string }> = [];
+
+  // 1. New personal best
+  if (biggestDay) {
+    const todayCount = completedToday;
+    const thisWeekDays = daily.filter((d) => d.date >= startOfWeekStr);
+    const newPB = thisWeekDays.some((d) => d.count >= biggestDay.count && d.count > 0);
+    if (newPB && wins.length < 3) {
+      wins.push({
+        icon: "\u26A1",
+        title: `New personal best: ${biggestDay.count} in a day`,
+        subtitle: "Your biggest day yet!",
+      });
+    }
+  }
+
+  // 2. High-energy tasks
+  if (byEnergy.high >= 3 && wins.length < 3) {
+    wins.push({
+      icon: "\uD83D\uDCAA",
+      title: `Knocked out ${byEnergy.high} high-energy tasks`,
+      subtitle: "Tackling the tough stuff",
+    });
+  }
+
+  // 3. All deadline tasks met for a category
+  for (const dr of deadlineRows.rows) {
+    if (wins.length >= 3) break;
+    if (Number(dr.met) === Number(dr.total) && Number(dr.total) > 0 && dr.category) {
+      wins.push({
+        icon: "\uD83C\uDFAF",
+        title: `All ${dr.category} tasks done early`,
+        subtitle: "Ahead of every deadline",
+      });
+    }
+  }
+
+  // 4. Double digits
+  if (completedThisWeek >= 10 && wins.length < 3) {
+    wins.push({
+      icon: "\uD83D\uDD25",
+      title: "Double digits this week",
+      subtitle: `${completedThisWeek} tasks completed`,
+    });
+  }
+
+  // 5. Multi-category day
+  if (wins.length < 3) {
+    // Check daily category spread — need per-day category counts from heatmap or raw data
+    // Approximate: check if byCategory has 3+ categories this week
+    const categoriesWithCompletions = byCategory.filter((c) => c.count > 0).length;
+    if (categoriesWithCompletions >= 3) {
+      wins.push({
+        icon: "\uD83C\uDF08",
+        title: `Tackled ${categoriesWithCompletions} categories this week`,
+        subtitle: "Nice variety",
+      });
+    }
+  }
+
+  return {
+    completedToday,
+    completedThisWeek,
+    completedAllTime,
+    biggestDay,
+    avgPerActiveDay,
+    daily,
+    heatmap,
+    byCategory,
+    byEnergy,
+    wins,
+    calendarColors,
   };
 }
 

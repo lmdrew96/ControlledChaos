@@ -1,5 +1,14 @@
 [
   {
+    "weekOf": "2026-04-13",
+    "items": [
+      {
+        "type": "added",
+        "text": "Add momentum data viz — mini bar chart card + expanded stats page"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-04-06",
     "items": [
       {
