@@ -269,6 +269,16 @@ export default function CrisisPage() {
             taskName={activePlan.taskName}
             deadline={activePlan.deadline}
             onComplete={handleWarRoomComplete}
+            onReassess={(newPlan) => {
+              const updated: ActivePlanData = {
+                ...activePlan,
+                panicLevel: newPlan.panicLevel,
+                panicLabel: newPlan.panicLabel,
+                plan: newPlan,
+              };
+              setActivePlan(updated);
+              setPlans((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+            }}
           />
         </div>
       </div>

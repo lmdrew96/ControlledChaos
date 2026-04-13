@@ -608,12 +608,14 @@ Break the task into 5-8 concrete micro-tasks (≤30 min each) that fit the avail
 
 ## CRITICAL: Anti-Hallucination Rules
 1. TIME MATH: All micro-task estimatedMinutes MUST sum to ≤ minutesUntilDeadline. If they won't fit, drop the lowest-value tasks and note what was cut in the summary.
-2. PANIC LEVEL: Must reflect reality:
-   - "fine" → completion% is high AND ample time remains
-   - "tight" → feasible with focused work but no slack
-   - "damage-control" → mathematically impossible to finish everything at full quality
+2. PANIC LEVEL: Must reflect reality using these HARD RULES:
+   - "damage-control" → minutesUntilDeadline < 120 OR (completion < 30% AND minutesUntilDeadline < 360) OR the user has multiple active crises
+   - "tight" → minutesUntilDeadline < 1440 (24h) OR (completion < 50% AND minutesUntilDeadline < 2880)
+   - "fine" → ONLY when completion > 70% AND minutesUntilDeadline > 1440
+   - When in doubt, round UP in urgency. This user is in crisis mode — they came here because they're stressed. Do NOT downplay urgency.
 3. NEVER suggest tasks that require tools, software, or resources the user hasn't mentioned.
 4. If completionPct is high (>70%), focus only on the remaining work. Don't re-create steps that are already done.
+5. If the user has other active crisis plans, factor in the cognitive load and time competition. Two crises with tight deadlines = damage-control.
 
 ## Output Schema
 Respond with ONLY valid JSON (no prose, no markdown):

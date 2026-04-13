@@ -15,6 +15,7 @@ export interface CrisisParams {
   minutesUntilDeadline: number;
   upcomingEvents: Array<{ title: string; startTime: string; endTime: string }>;
   existingPendingTaskCount: number;
+  activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
   files?: CrisisFileAttachment[];
 }
 
@@ -50,12 +51,22 @@ function buildUserPrompt(params: CrisisParams): string {
           .join("\n")
       : "None";
 
+  const crisesText =
+    params.activeCrises && params.activeCrises.length > 0
+      ? params.activeCrises
+          .map((c) => `- "${c.taskName}" due ${c.deadline} (${c.panicLevel}, ${c.progressPct}% done)`)
+          .join("\n")
+      : "None";
+
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}
 Current time: ${params.currentTime}
 Minutes until deadline: ${params.minutesUntilDeadline}
 Already completed: ~${params.completionPct}%
 Other pending tasks (context): ${params.existingPendingTaskCount}
+
+Other active crisis plans this user is juggling:
+${crisesText}
 
 Upcoming events that may interrupt:
 ${eventsText}

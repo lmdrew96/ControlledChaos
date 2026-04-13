@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import confetti from "canvas-confetti";
+import { RotateCw, Loader2 } from "lucide-react";
 import type { CrisisPlan } from "@/types";
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
   taskName: string;
   deadline: string;
   onComplete: () => void;
+  onReassess?: (newPlan: CrisisPlan & { currentTaskIndex: number }) => void;
 }
 
 function formatCountdown(ms: number): string {
@@ -55,11 +57,14 @@ export function CrisisWarRoom({
   taskName,
   deadline,
   onComplete,
+  onReassess,
 }: Props) {
+  const [currentPlan, setCurrentPlan] = useState(plan);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(
     plan.currentTaskIndex ?? 0
   );
   const [isStuck, setIsStuck] = useState(false);
+  const [isReassessing, setIsReassessing] = useState(false);
   const [timeLeft, setTimeLeft] = useState(
     new Date(deadline).getTime() - Date.now()
   );
@@ -72,12 +77,34 @@ export function CrisisWarRoom({
     return () => clearInterval(interval);
   }, [deadline]);
 
-  const currentTask = plan.tasks[currentTaskIndex];
-  const nextTask = plan.tasks[currentTaskIndex + 1] ?? null;
-  const progressPct = (currentTaskIndex / plan.tasks.length) * 100;
+  const handleReassess = useCallback(async () => {
+    setIsReassessing(true);
+    try {
+      const res = await fetch("/api/crisis", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const newPlan = { ...data.plan, currentTaskIndex: data.plan.currentTaskIndex ?? 0 };
+      setCurrentPlan(newPlan);
+      setCurrentTaskIndex(0);
+      setIsStuck(false);
+      onReassess?.(newPlan);
+    } catch {
+      // Silently fail — the old plan is still valid
+    } finally {
+      setIsReassessing(false);
+    }
+  }, [planId, onReassess]);
+
+  const currentTask = currentPlan.tasks[currentTaskIndex];
+  const nextTask = currentPlan.tasks[currentTaskIndex + 1] ?? null;
+  const progressPct = (currentTaskIndex / currentPlan.tasks.length) * 100;
 
   const handleNextTask = useCallback(async () => {
-    const isLast = currentTaskIndex === plan.tasks.length - 1;
+    const isLast = currentTaskIndex === currentPlan.tasks.length - 1;
 
     if (isLast) {
       // Full storm — the big moment
@@ -99,7 +126,7 @@ export function CrisisWarRoom({
       setIsStuck(false);
       await patchProgress(planId, { currentTaskIndex: next });
     }
-  }, [currentTaskIndex, plan.tasks.length, planId, onComplete]);
+  }, [currentTaskIndex, currentPlan.tasks.length, planId, onComplete]);
 
   if (!currentTask) return null;
 
@@ -108,16 +135,31 @@ export function CrisisWarRoom({
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <h1 className="text-xl font-semibold leading-tight">{taskName}</h1>
-        <Badge
-          variant={panicBadgeVariant(plan.panicLevel)}
-          className="shrink-0"
-        >
-          {plan.panicLabel}
-        </Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            onClick={handleReassess}
+            disabled={isReassessing}
+            aria-label="Refresh assessment"
+          >
+            {isReassessing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCw className="h-4 w-4" />
+            )}
+          </Button>
+          <Badge
+            variant={panicBadgeVariant(currentPlan.panicLevel)}
+          >
+            {currentPlan.panicLabel}
+          </Badge>
+        </div>
       </div>
 
       {/* Summary */}
-      <p className="text-sm text-muted-foreground">{plan.summary}</p>
+      <p className="text-sm text-muted-foreground">{currentPlan.summary}</p>
 
       {/* Countdown + Progress */}
       <div className="grid grid-cols-2 gap-3">
@@ -137,7 +179,7 @@ export function CrisisWarRoom({
         <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">
-              {currentTaskIndex} of {plan.tasks.length} tasks done
+              {currentTaskIndex} of {currentPlan.tasks.length} tasks done
             </p>
             <Progress value={progressPct} className="mt-2 h-2" />
           </CardContent>
@@ -146,7 +188,7 @@ export function CrisisWarRoom({
 
       {/* Breadcrumb dots */}
       <div className="flex items-center gap-1.5">
-        {plan.tasks.map((_, i) => (
+        {currentPlan.tasks.map((_, i) => (
           <div
             key={i}
             className={cn(
@@ -176,7 +218,7 @@ export function CrisisWarRoom({
       {/* Action buttons */}
       <div className="flex gap-3">
         <Button className="flex-1" onClick={handleNextTask}>
-          {currentTaskIndex === plan.tasks.length - 1
+          {currentTaskIndex === currentPlan.tasks.length - 1
             ? "Done — finish session"
             : "Done, next task"}
         </Button>

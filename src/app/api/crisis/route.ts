@@ -68,11 +68,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
+      getActiveCrisisPlans(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -112,6 +113,20 @@ export async function POST(request: Request) {
         endTime: e.endTime.toISOString(),
       })),
       existingPendingTaskCount: pendingTasks.length,
+      activeCrises: existingCrises.map((c) => ({
+        taskName: c.taskName,
+        deadline: new Date(c.deadline).toLocaleString("en-US", {
+          timeZone: timezone,
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        panicLevel: c.panicLevel,
+        progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
+      })),
       files,
     });
 
@@ -144,6 +159,129 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Failed to generate crisis plan";
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// PUT — reassess an existing crisis plan with fresh AI analysis
+export async function PUT(request: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { planId } = body as { planId: string };
+    if (!planId) {
+      return NextResponse.json({ error: "planId is required" }, { status: 400 });
+    }
+
+    const plan = await getCrisisPlanById(planId, userId);
+    if (!plan) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    const now = new Date();
+    const deadlineDate = new Date(plan.deadline);
+    const minutesUntilDeadline = Math.max(
+      0,
+      Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
+    );
+
+    const [user, upcomingEvents, pendingTasks, existingCrises] = await Promise.all([
+      getUser(userId),
+      getCalendarEventsByDateRange(userId, now, deadlineDate),
+      getPendingTasks(userId),
+      getActiveCrisisPlans(userId),
+    ]);
+
+    const timezone = user?.timezone ?? "America/New_York";
+
+    // Calculate current progress based on task index
+    const totalTasks = (plan.tasks as unknown[]).length;
+    const currentProgress = Math.round(
+      ((plan.currentTaskIndex ?? 0) / totalTasks) * 100
+    );
+    // Use the higher of original completion + progress through tasks
+    const effectiveCompletion = Math.max(plan.completionPct, currentProgress);
+
+    const currentTime = now.toLocaleString("en-US", {
+      timeZone: timezone,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    const otherCrises = existingCrises.filter((c) => c.id !== planId);
+
+    const newPlan = await getCrisisPlan({
+      taskName: plan.taskName,
+      deadline: deadlineDate.toLocaleString("en-US", {
+        timeZone: timezone,
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }),
+      completionPct: effectiveCompletion,
+      currentTime,
+      minutesUntilDeadline,
+      upcomingEvents: upcomingEvents.map((e) => ({
+        title: e.title,
+        startTime: e.startTime.toISOString(),
+        endTime: e.endTime.toISOString(),
+      })),
+      existingPendingTaskCount: pendingTasks.length,
+      activeCrises: otherCrises.map((c) => ({
+        taskName: c.taskName,
+        deadline: new Date(c.deadline).toLocaleString("en-US", {
+          timeZone: timezone,
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        }),
+        panicLevel: c.panicLevel,
+        progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
+      })),
+    });
+
+    const [updated] = await db
+      .update(crisisPlans)
+      .set({
+        panicLevel: newPlan.panicLevel,
+        panicLabel: newPlan.panicLabel,
+        summary: newPlan.summary,
+        tasks: newPlan.tasks,
+        currentTaskIndex: 0,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)))
+      .returning();
+
+    return NextResponse.json({
+      plan: {
+        panicLevel: updated.panicLevel,
+        panicLabel: updated.panicLabel,
+        summary: updated.summary,
+        tasks: updated.tasks,
+        currentTaskIndex: updated.currentTaskIndex,
+      },
+    });
+  } catch (error) {
+    console.error("[API] PUT /api/crisis error:", error);
+    if (error instanceof AIUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    return NextResponse.json({ error: "Failed to reassess plan" }, { status: 500 });
   }
 }
 

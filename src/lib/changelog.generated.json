@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Crisis mode urgency detection, multi-crisis awareness, and reassess button"
+      },
+      {
+        "type": "fixed",
         "text": "Use timezone-aware dates for dedup keys, date boundaries, and week calculations"
       },
       {
