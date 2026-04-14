@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Orange bar color, card height matching, crisis stale time refs"
+      },
+      {
+        "type": "fixed",
         "text": "Stats bar visibility + crisis multi-strategy token limit"
       },
       {

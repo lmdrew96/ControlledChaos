@@ -14,10 +14,10 @@ interface Stats {
 }
 
 const MOMENTUM_TIERS = [
-  { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", barBg: "bg-muted-foreground", bg: "bg-muted", ring: "" },
-  { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", barBg: "bg-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
-  { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", barBg: "bg-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
-  { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", barBg: "bg-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
+  { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", bg: "bg-muted", ring: "" },
+  { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
+  { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
+  { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
 ] as const;
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -61,9 +61,9 @@ export function DailyMomentum() {
   const todayDate = stats.daily[stats.daily.length - 1]?.date;
 
   return (
-    <Link href="/momentum" className="block">
-      <Card className="group border-border/40 bg-card/80 transition-colors hover:border-border/60">
-        <CardContent className="flex items-center gap-4 p-5">
+    <Link href="/momentum" className="block h-full">
+      <Card className="group h-full border-border/40 bg-card/80 transition-colors hover:border-border/60">
+        <CardContent className="flex h-full items-center gap-4 p-5">
           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tier.bg} ${tier.ring} ${tier.accent} transition-all`}>
             <Icon className="h-5 w-5" />
           </div>
@@ -86,7 +86,7 @@ export function DailyMomentum() {
                     <div key={d.date} className="flex flex-col items-center gap-0.5">
                       <div
                         className={`w-3 rounded-sm transition-all duration-300 ${
-                          d.count > 0 ? tier.barBg : "bg-muted-foreground/15"
+                          d.count > 0 ? "bg-orange-400/80" : "bg-muted-foreground/15"
                         }`}
                         style={{
                           height: barHeight,
