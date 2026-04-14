@@ -17,8 +17,15 @@ export interface Task {
   scheduledFor: string | null;
   completedAt: string | null;
   parentTaskId: string | null;
+  progressSteps: ProgressStep[] | null;
+  currentStepIndex: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProgressStep {
+  title: string;
+  estimatedMinutes: number;
 }
 
 export type TaskStatus =

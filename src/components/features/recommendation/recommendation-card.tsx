@@ -10,6 +10,7 @@ import {
   Calendar,
   Loader2,
   Scissors,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
@@ -23,7 +24,7 @@ import {
   energyConfig,
 } from "@/components/features/task-feed/task-config";
 import { AlternativesList } from "./alternatives-list";
-import type { Task } from "@/types";
+import type { Task, ProgressStep } from "@/types";
 
 interface Alternative {
   taskId: string;
@@ -53,6 +54,15 @@ export function RecommendationCard({
   const timezone = useTimezone();
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
+  const [isChunking, setIsChunking] = useState(false);
+
+  const steps = (task.progressSteps as ProgressStep[] | null) ?? null;
+  const hasSteps = steps !== null && steps.length > 0;
+  const currentStep = hasSteps ? steps[task.currentStepIndex ?? 0] : null;
+  const isChunkEligible =
+    !hasSteps &&
+    ((task.estimatedMinutes && task.estimatedMinutes >= 30) ||
+      task.energyLevel === "high");
 
   async function handleBreakdown() {
     setIsBreakingDown(true);
@@ -61,11 +71,26 @@ export function RecommendationCard({
       if (!res.ok) throw new Error("Breakdown failed");
       const data = await res.json();
       toast.success(`Broken into ${data.subtasks.length} subtasks`);
-      onAccept(task.id); // refresh the view
+      onAccept(task.id);
     } catch {
       toast.error("Couldn't break this down. Try again.");
     } finally {
       setIsBreakingDown(false);
+    }
+  }
+
+  async function handleChunk() {
+    setIsChunking(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/chunk`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Chunk failed");
+      toast.success(`Chunked into ${data.steps.length} steps!`);
+      onAccept(task.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't chunk task");
+    } finally {
+      setIsChunking(false);
     }
   }
 
@@ -133,8 +158,34 @@ export function RecommendationCard({
             )}
           </div>
 
-          {/* Break it down — shown for tasks estimated at 30+ minutes */}
-          {task.estimatedMinutes && task.estimatedMinutes >= 30 && (
+          {/* Current step display — when task has progress steps */}
+          {hasSteps && currentStep && (
+            <div className="rounded-lg border-l-4 border-l-blue-500 bg-background/50 p-3">
+              <p className="text-xs font-medium text-blue-500 mb-1">
+                Step {(task.currentStepIndex ?? 0) + 1} of {steps.length}
+              </p>
+              <p className="text-sm font-medium">{currentStep.title}</p>
+            </div>
+          )}
+
+          {/* Chunk it — for eligible tasks without steps */}
+          {isChunkEligible && (
+            <button
+              onClick={handleChunk}
+              disabled={isChunking || isRefreshing}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            >
+              {isChunking ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Layers className="h-3 w-3" />
+              )}
+              {isChunking ? "Chunking..." : "Chunk it"}
+            </button>
+          )}
+
+          {/* Break it down — for tasks that aren't chunk-eligible and don't have steps */}
+          {!isChunkEligible && !hasSteps && task.estimatedMinutes && task.estimatedMinutes >= 30 && (
             <button
               onClick={handleBreakdown}
               disabled={isBreakingDown || isRefreshing}

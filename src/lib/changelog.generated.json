@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Task progress chunking with inline step-through UI"
+      },
+      {
+        "type": "added",
         "text": "Add Schedule My Day button to dashboard"
       },
       {

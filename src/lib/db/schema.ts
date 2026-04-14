@@ -109,6 +109,8 @@ export const tasks = pgTable(
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
     goalId: uuid("goal_id").references(() => goals.id),
     sortOrder: integer("sort_order"),
+    progressSteps: jsonb("progress_steps"), // ProgressStep[] — inline step-through for long tasks
+    currentStepIndex: integer("current_step_index").default(0),
     snoozedUntil: timestamp("snoozed_until"), // set by Haiku snooze — task hidden until this time
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

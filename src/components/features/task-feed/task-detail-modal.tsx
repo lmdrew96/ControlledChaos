@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
+import confetti from "canvas-confetti";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -20,9 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight, Layers } from "lucide-react";
 import { toast } from "sonner";
-import type { Task } from "@/types";
+import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
@@ -92,6 +96,8 @@ export function TaskDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
   const [breakdown, setBreakdown] = useState<{ id: string; title: string; estimatedMinutes: number | null }[] | null>(null);
+  const [isChunking, setIsChunking] = useState(false);
+  const [localStepIndex, setLocalStepIndex] = useState(0);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
 
   // Fetch user's saved locations
@@ -102,11 +108,12 @@ export function TaskDetailModal({
       .catch(() => {});
   }, []);
 
-  // Reset form and breakdown when task changes
+  // Reset form, breakdown, and step index when task changes
   useEffect(() => {
     if (task) {
       setForm(formFromTask(task, timezone));
       setBreakdown(null);
+      setLocalStepIndex(task.currentStepIndex ?? 0);
     }
   }, [task]);
 
@@ -237,6 +244,68 @@ export function TaskDetailModal({
       setIsBreakingDown(false);
     }
   }
+
+  async function handleChunk() {
+    if (!task) return;
+    setIsChunking(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/chunk`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to chunk task");
+      toast.success(`Chunked into ${data.steps.length} steps!`);
+      setLocalStepIndex(0);
+      onUpdate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't chunk task");
+    } finally {
+      setIsChunking(false);
+    }
+  }
+
+  const handleStepDone = useCallback(async () => {
+    if (!task?.progressSteps) return;
+    const nextIndex = localStepIndex + 1;
+    const isLast = nextIndex >= task.progressSteps.length;
+
+    if (isLast) {
+      fireTaskConfetti();
+    } else {
+      confetti({
+        particleCount: 60,
+        spread: 80,
+        startVelocity: 45,
+        origin: { x: 0.5, y: 0.6 },
+        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
+        zIndex: 9999,
+      });
+    }
+
+    setLocalStepIndex(nextIndex);
+
+    await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentStepIndex: nextIndex }),
+    });
+
+    if (isLast) {
+      toast.success("All steps done — task completed!");
+      onUpdate();
+      onClose();
+    }
+  }, [task, localStepIndex, onUpdate, onClose]);
+
+  // Derived step data
+  const steps = (task?.progressSteps as ProgressStep[] | null) ?? null;
+  const currentStep = steps?.[localStepIndex] ?? null;
+  const nextStep = steps?.[localStepIndex + 1] ?? null;
+  const hasSteps = steps !== null && steps.length > 0;
+  const allStepsDone = hasSteps && localStepIndex >= steps.length;
+  const isChunkEligible =
+    !hasSteps &&
+    !isCompleted &&
+    ((task?.estimatedMinutes && task.estimatedMinutes >= 30) ||
+      task?.energyLevel === "high");
 
   return (
     <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
@@ -420,6 +489,63 @@ export function TaskDetailModal({
             />
           </div>
 
+          {/* Progress Steps — step-through UI */}
+          {hasSteps && !allStepsDone && currentStep && (
+            <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+              {/* Breadcrumb dots */}
+              <div className="flex items-center gap-1.5">
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2.5 w-2.5 rounded-full transition-colors",
+                      i < localStepIndex
+                        ? "bg-blue-500"
+                        : i === localStepIndex
+                          ? "bg-blue-500/60 ring-2 ring-blue-500 ring-offset-1 ring-offset-background"
+                          : "border border-border bg-transparent"
+                    )}
+                  />
+                ))}
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {localStepIndex}/{steps.length}
+                </span>
+              </div>
+
+              {/* Current step card */}
+              <div className="rounded-lg border-l-4 border-l-blue-500 bg-card p-3 shadow-sm">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-500">
+                  Do this now
+                </p>
+                <p className="mb-2 text-base font-semibold">{currentStep.title}</p>
+                <Badge variant="outline">~{currentStep.estimatedMinutes} min</Badge>
+              </div>
+
+              {/* Action button */}
+              <Button className="w-full" onClick={handleStepDone}>
+                {localStepIndex === steps.length - 1
+                  ? "Done — finish task!"
+                  : "Done, next step"}
+              </Button>
+
+              {/* Next up preview */}
+              {nextStep && (
+                <div className="rounded-md bg-muted/50 px-3 py-2 opacity-60">
+                  <p className="text-xs text-muted-foreground">Next up</p>
+                  <p className="text-sm font-medium">{nextStep.title}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* All steps done indicator */}
+          {hasSteps && allStepsDone && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+              <Check className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-green-600">All {steps.length} steps completed!</span>
+            </div>
+          )}
+
           {/* Breakdown results */}
           {breakdown && breakdown.length > 0 && (
             <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
@@ -478,19 +604,38 @@ export function TaskDetailModal({
           </div>
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBreakdown}
-              disabled={isBreakingDown || !!breakdown}
-            >
-              {isBreakingDown ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Scissors className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {isBreakingDown ? "Breaking down..." : breakdown ? "Broken down!" : "Break it down"}
-            </Button>
+            {/* Chunk it — for eligible tasks without steps */}
+            {isChunkEligible && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleChunk}
+                disabled={isChunking}
+              >
+                {isChunking ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Layers className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {isChunking ? "Chunking..." : "Chunk it"}
+              </Button>
+            )}
+            {/* Break it down — for tasks that aren't chunk-eligible and don't have steps */}
+            {!isChunkEligible && !hasSteps && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBreakdown}
+                disabled={isBreakingDown || !!breakdown}
+              >
+                {isBreakingDown ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Scissors className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {isBreakingDown ? "Breaking down..." : breakdown ? "Broken down!" : "Break it down"}
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>

@@ -260,6 +260,8 @@ export async function updateTask(
     deadline: Date | null;
     scheduledFor: Date | null;
     completedAt: Date | null;
+    progressSteps: object[] | null;
+    currentStepIndex: number;
   }>
 ) {
   const [updated] = await db

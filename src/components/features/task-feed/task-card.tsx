@@ -444,6 +444,25 @@ export function TaskCard({
                 {formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME)}
               </span>
             )}
+
+            {task.progressSteps && task.progressSteps.length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-blue-500 font-medium">
+                <span className="inline-flex gap-0.5">
+                  {task.progressSteps.map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        i < (task.currentStepIndex ?? 0)
+                          ? "bg-blue-500"
+                          : "bg-blue-500/25"
+                      )}
+                    />
+                  ))}
+                </span>
+                {task.currentStepIndex ?? 0}/{task.progressSteps.length}
+              </span>
+            )}
           </div>
         </div>
       </div>

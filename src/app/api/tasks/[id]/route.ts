@@ -1,6 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { updateTask, deleteTask, logTaskActivity } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { tasks } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 
 export async function PATCH(
   request: Request,
@@ -23,6 +26,24 @@ export async function PATCH(
     // Handle un-completion — clear completedAt
     if (body.status && body.status !== "completed") {
       body.completedAt = null;
+    }
+
+    // Handle step advancement with auto-complete
+    if (body.currentStepIndex !== undefined) {
+      const [currentTask] = await db
+        .select()
+        .from(tasks)
+        .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+        .limit(1);
+
+      if (currentTask?.progressSteps) {
+        const stepCount = (currentTask.progressSteps as unknown[]).length;
+        if (body.currentStepIndex >= stepCount) {
+          body.currentStepIndex = stepCount;
+          body.status = "completed";
+          body.completedAt = new Date();
+        }
+      }
     }
 
     // Convert deadline string to Date (or null) for Drizzle
