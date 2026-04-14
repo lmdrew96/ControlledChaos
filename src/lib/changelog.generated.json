@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Streamline settings page with tabs + onboarding wizard"
+      },
+      {
+        "type": "added",
         "text": "Task progress chunking with inline step-through UI"
       },
       {

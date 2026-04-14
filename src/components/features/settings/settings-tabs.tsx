@@ -1,0 +1,143 @@
+"use client";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { User, Brain, Calendar, MapPin, Bell } from "lucide-react";
+import { DisplayNameSettings } from "./display-name-settings";
+import { AppearanceSettings } from "./appearance-settings";
+import { TimezoneSettings } from "./timezone-settings";
+import { PersonalitySettings } from "./personality-settings";
+import { EnergyProfileEditor } from "./energy-profile";
+import { SavedLocations } from "./saved-locations";
+import { CommuteTimes } from "./commute-times";
+import { CalendarSettings } from "./calendar-settings";
+import { NotificationSettings } from "./notification-settings";
+
+export function SettingsTabs() {
+  return (
+    <Tabs defaultValue="profile" className="space-y-6">
+      <TabsList className="w-full flex overflow-x-auto flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
+        <TabsTrigger
+          value="profile"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <User className="h-4 w-4" />
+          <span className="hidden sm:inline">Profile</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="ai-energy"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Brain className="h-4 w-4" />
+          <span className="hidden sm:inline">AI & Energy</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="calendar"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Calendar className="h-4 w-4" />
+          <span className="hidden sm:inline">Calendar</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="locations"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <MapPin className="h-4 w-4" />
+          <span className="hidden sm:inline">Locations</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="notifications"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="hidden sm:inline">Notifications</span>
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Profile */}
+      <TabsContent value="profile" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Display Name</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DisplayNameSettings />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Timezone</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimezoneSettings />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Appearance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AppearanceSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* AI & Energy */}
+      <TabsContent value="ai-energy" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">AI Personality</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PersonalitySettings />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Energy Profile</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EnergyProfileEditor />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Calendar */}
+      <TabsContent value="calendar">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Calendar Integration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CalendarSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Locations */}
+      <TabsContent value="locations" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Saved Locations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SavedLocations />
+          </CardContent>
+        </Card>
+        <CommuteTimes />
+      </TabsContent>
+
+      {/* Notifications */}
+      <TabsContent value="notifications">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Notifications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NotificationSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  );
+}

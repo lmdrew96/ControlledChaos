@@ -17,6 +17,7 @@ export async function GET() {
       getUserSettings(userId),
     ]);
     return NextResponse.json({
+      displayName: user?.displayName ?? "",
       timezone: user?.timezone ?? "America/New_York",
       energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
@@ -125,6 +126,10 @@ export async function PATCH(request: Request) {
       ) {
         data.calendarColors = cc;
       }
+    }
+
+    if (body.displayName !== undefined && typeof body.displayName === "string" && body.displayName.trim().length > 0) {
+      await updateUser(userId, { displayName: body.displayName.trim() });
     }
 
     if (body.timezone !== undefined && typeof body.timezone === "string" && body.timezone.length > 0) {
