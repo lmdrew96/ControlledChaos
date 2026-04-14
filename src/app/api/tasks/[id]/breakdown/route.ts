@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { callHaiku } from "@/lib/ai";
 import { TASK_BREAKDOWN_PROMPT } from "@/lib/ai/prompts";
 import { extractJSON } from "@/lib/ai/validate";
+import { buildAIContext } from "@/lib/ai/context";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -31,12 +32,16 @@ export async function POST(_req: Request, context: RouteContext) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Build context for the AI
+    // Build full AI context + task details
+    const aiCtx = await buildAIContext(userId);
+
     const lines = [`Task: ${task.title}`];
     if (task.description) lines.push(`Description: ${task.description}`);
     if (task.estimatedMinutes) lines.push(`Estimated time: ${task.estimatedMinutes} minutes`);
     if (task.category) lines.push(`Category: ${task.category}`);
     lines.push(`Priority: ${task.priority}`);
+    if (task.deadline) lines.push(`Deadline: ${task.deadline.toISOString()}`);
+    lines.push(`\n${aiCtx.formatted}`);
 
     const result = await callHaiku({
       system: TASK_BREAKDOWN_PROMPT,

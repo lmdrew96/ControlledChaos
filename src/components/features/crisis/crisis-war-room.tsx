@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import confetti from "canvas-confetti";
 import { RotateCw, Loader2 } from "lucide-react";
+import { CrisisChatPanel } from "./crisis-chat-panel";
 import type { CrisisPlan } from "@/types";
 
 interface Props {
@@ -246,6 +247,12 @@ export function CrisisWarRoom({
           </CardContent>
         </Card>
       )}
+
+      {/* Crisis Chat Panel */}
+      <CrisisChatPanel
+        planId={planId}
+        questions={currentPlan.questions}
+      />
 
       {/* Next up preview */}
       {nextTask && (

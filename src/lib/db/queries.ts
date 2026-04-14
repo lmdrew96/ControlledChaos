@@ -2,6 +2,7 @@ import { db } from "./index";
 import {
   brainDumps,
   calendarEvents,
+  crisisMessages,
   crisisPlans,
   goals,
   commuteTimes,
@@ -1626,4 +1627,33 @@ export async function markSnoozedPushSent(id: string) {
     .update(snoozedPushes)
     .set({ sentAt: new Date() })
     .where(eq(snoozedPushes.id, id));
+}
+
+// ============================================================
+// Crisis Messages (chat within war room)
+// ============================================================
+export async function getCrisisMessages(crisisPlanId: string, userId: string) {
+  return db
+    .select()
+    .from(crisisMessages)
+    .where(
+      and(
+        eq(crisisMessages.crisisPlanId, crisisPlanId),
+        eq(crisisMessages.userId, userId)
+      )
+    )
+    .orderBy(asc(crisisMessages.createdAt));
+}
+
+export async function createCrisisMessage(params: {
+  crisisPlanId: string;
+  userId: string;
+  role: "user" | "assistant";
+  content: string;
+}) {
+  const [message] = await db
+    .insert(crisisMessages)
+    .values(params)
+    .returning();
+  return message;
 }

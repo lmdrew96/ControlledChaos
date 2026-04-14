@@ -9,6 +9,8 @@ interface RecommendationInput {
   pendingTasks: Task[];
   recentlyRejectedTaskIds?: string[];
   personalityPrefs?: PersonalityPrefs | null;
+  /** Supplementary context (crises, behavior patterns) from buildAIContext() */
+  aiContextBlock?: string;
 }
 
 /**
@@ -170,7 +172,7 @@ NOTE: All deadline/timing info is pre-computed in the "deadlineIn" and "plannedI
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}${descriptionNote}
 
-Pick the single best task.`;
+Pick the single best task.${input.aiContextBlock ? `\n\n${input.aiContextBlock}` : ""}`;
 }
 
 /**

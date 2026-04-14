@@ -21,6 +21,8 @@ export interface CrisisParams {
   currentLocation?: string | null;
   commuteContext?: Array<{ to: string; minutes: number }>;
   files?: CrisisFileAttachment[];
+  /** Supplementary context (energy, behavior patterns) from buildAIContext() */
+  aiContextBlock?: string;
 }
 
 // ============================================================
@@ -105,7 +107,7 @@ ${crisesText}
 Upcoming events that may interrupt:
 ${eventsText}${sleepLine}${timeBudgetLine}
 ${completedStepsText}
-Break this into concrete micro-tasks that fit the remaining time. Be honest about urgency.`;
+Break this into concrete micro-tasks that fit the remaining time. Be honest about urgency.${params.aiContextBlock ? `\n\n${params.aiContextBlock}` : ""}`;
 }
 
 // ============================================================
@@ -214,7 +216,15 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
       return { type: "strategies", strategies };
     }
 
-    return { type: "plan", plan: parsed as unknown as CrisisPlan };
+    // Extract optional questions field
+    const plan = parsed as unknown as CrisisPlan;
+    if (Array.isArray(parsed.questions)) {
+      plan.questions = (parsed.questions as string[]).filter(
+        (q) => typeof q === "string" && q.trim().length > 0
+      );
+    }
+
+    return { type: "plan", plan };
   } catch (error) {
     console.error("[AI] Crisis: unexpected error:", error);
     return { type: "plan", plan: FALLBACK_PLAN };

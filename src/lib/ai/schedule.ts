@@ -20,6 +20,8 @@ interface SchedulingInput {
   wakeTime?: number; // Hour 0-23, defaults to 7
   sleepTime?: number; // Hour 0-23, defaults to 22
   personalityPrefs?: PersonalityPrefs | null;
+  /** Supplementary context (location, crises, behavior patterns) from buildAIContext() */
+  aiContextBlock?: string;
 }
 
 /**
@@ -180,7 +182,7 @@ ${JSON.stringify(freeBlocksWithLabels, null, 2)}
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}
 
-Create an optimal schedule. Only schedule tasks that fit in the free blocks. Don't schedule more than 6-8 tasks total.`;
+Create an optimal schedule. Only schedule tasks that fit in the free blocks. Don't schedule more than 6-8 tasks total.${input.aiContextBlock ? `\n\n${input.aiContextBlock}` : ""}`;
 }
 
 /**
@@ -247,6 +249,8 @@ interface SingleTaskSchedulingInput {
   wakeTime?: number;
   sleepTime?: number;
   personalityPrefs?: PersonalityPrefs | null;
+  /** Supplementary context (location, crises, behavior patterns) from buildAIContext() */
+  aiContextBlock?: string;
 }
 
 /**
@@ -323,7 +327,7 @@ ${JSON.stringify({
 ## Free Time Blocks (next ${scheduleDays} days)
 ${JSON.stringify(freeBlocksWithLabels, null, 2)}
 
-Find the best time for this task using urgency + energy matching.`;
+Find the best time for this task using urgency + energy matching.${input.aiContextBlock ? `\n\n${input.aiContextBlock}` : ""}`;
 
   const result = await callHaiku({
     system: buildSingleTaskSchedulingPrompt(input.personalityPrefs ?? null),

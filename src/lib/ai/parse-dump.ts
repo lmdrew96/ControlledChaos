@@ -15,6 +15,8 @@ export interface BrainDumpContext {
   calendarSummary?: string;
   savedLocationNames?: string[];
   personalityPrefs?: PersonalityPrefs | null;
+  /** Pre-formatted AI context block (energy, crises, behavior patterns) */
+  aiContextBlock?: string;
 }
 
 export async function parseBrainDump(
@@ -72,6 +74,10 @@ export async function parseBrainDump(
 
   if (context?.calendarSummary) {
     sections.push(`\n## Today's Calendar\n${context.calendarSummary}`);
+  }
+
+  if (context?.aiContextBlock) {
+    sections.push(`\n${context.aiContextBlock}`);
   }
 
   sections.push(`\n## Brain Dump\n${content}`);

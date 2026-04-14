@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import {
   getUser,
   getUserSettings,
@@ -20,10 +21,11 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [user, settings, pendingTasks] = await Promise.all([
+    const [user, settings, pendingTasks, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getPendingTasks(userId),
+      buildAIContext(userId, { skipCalendar: true }),
     ]);
 
     if (pendingTasks.length === 0) {
@@ -105,6 +107,7 @@ export async function POST() {
       wakeTime,
       sleepTime,
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
+      aiContextBlock: aiCtx.formatted,
     });
 
     if (blocks.length === 0) {

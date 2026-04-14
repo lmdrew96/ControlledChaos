@@ -1,10 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getUser, getUserSettings } from "@/lib/db/queries";
+import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { tasks, taskActivity } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getSnoozeDecision } from "@/lib/ai/snooze";
+import { buildAIContext } from "@/lib/ai/context";
 import type { Task } from "@/types";
 
 /**
@@ -38,23 +39,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Get user timezone for context
-    const [user, settings] = await Promise.all([
+    // Build full AI context for smarter snooze decisions
+    const [user, aiCtx] = await Promise.all([
       getUser(userId),
-      getUserSettings(userId),
+      buildAIContext(userId),
     ]);
-    void settings; // not needed here but available if we expand context later
     const timezone = user?.timezone ?? "America/New_York";
-    const currentTimeIso = new Date().toLocaleString("en-US", {
-      timeZone: timezone,
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const currentTimeIso = aiCtx.currentTime;
 
     const taskForAI: Task = {
       id: task.id,
@@ -74,10 +65,11 @@ export async function POST(request: Request) {
       updatedAt: task.updatedAt.toISOString(),
     };
 
-    // Ask Haiku
+    // Ask Haiku with full situational context
     const { snoozeMinutes, reason } = await getSnoozeDecision(taskForAI, {
       currentTimeIso,
       timezone,
+      aiContextBlock: aiCtx.formatted,
     });
 
     const snoozedUntil = new Date(Date.now() + snoozeMinutes * 60_000);

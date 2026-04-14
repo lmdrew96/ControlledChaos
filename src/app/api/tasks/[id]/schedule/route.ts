@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import {
   getUser,
   getUserSettings,
@@ -39,9 +40,10 @@ export async function POST(_req: Request, context: RouteContext) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    const [user, settings] = await Promise.all([
+    const [user, settings, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
+      buildAIContext(userId, { skipCalendar: true }),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -106,6 +108,7 @@ export async function POST(_req: Request, context: RouteContext) {
       wakeTime,
       sleepTime,
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
+      aiContextBlock: aiCtx.formatted,
     });
 
     if (!block) {

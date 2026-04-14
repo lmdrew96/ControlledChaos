@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import {
   getUserSettings,
   getCalendarEventsByDateRange,
@@ -213,7 +214,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
@@ -221,6 +222,7 @@ export async function POST(request: Request) {
       getActiveCrisisPlans(userId),
       getUserLocation(userId),
       getCommuteTimes(userId),
+      buildAIContext(userId, { skipCalendar: true, skipCrises: true }), // calendar + crises fetched separately with custom ranges
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -255,6 +257,7 @@ export async function POST(request: Request) {
       currentLocation: userLocation?.matchedLocationName ?? null,
       commuteContext,
       files,
+      aiContextBlock: aiCtx.formatted,
     });
 
     // Multi-strategy response — return strategies for user to pick from
@@ -325,7 +328,7 @@ export async function PUT(request: Request) {
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, savedLocs] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, savedLocs, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
@@ -334,6 +337,7 @@ export async function PUT(request: Request) {
       getUserLocation(userId),
       getCommuteTimes(userId),
       getSavedLocations(userId),
+      buildAIContext(userId, { skipCalendar: true, skipCrises: true }),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -378,6 +382,7 @@ export async function PUT(request: Request) {
       completedSteps: completedStepTitles,
       currentLocation: userLocation?.matchedLocationName ?? null,
       commuteContext,
+      aiContextBlock: aiCtx.formatted,
     });
 
     // Reassess always uses a single plan — if AI returned strategies, pick the first one

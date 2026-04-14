@@ -261,6 +261,16 @@ export interface CrisisPlan {
   panicLabel: string;
   summary: string;
   tasks: CrisisTask[];
+  /** AI-generated clarifying questions to surface before or during execution */
+  questions?: string[];
+}
+
+export interface CrisisMessage {
+  id: string;
+  crisisPlanId: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
 }
 
 export interface CrisisStrategy {

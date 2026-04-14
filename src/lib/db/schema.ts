@@ -304,6 +304,28 @@ export const crisisPlans = pgTable(
 );
 
 // ============================================================
+// Crisis Chat Messages
+// ============================================================
+export const crisisMessages = pgTable(
+  "crisis_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    crisisPlanId: uuid("crisis_plan_id")
+      .references(() => crisisPlans.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    role: text("role").notNull(), // "user" | "assistant"
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_crisis_messages_plan").on(table.crisisPlanId, table.createdAt),
+  ]
+);
+
+// ============================================================
 // Push Subscriptions (one per device per user)
 // ============================================================
 export const pushSubscriptions = pgTable(

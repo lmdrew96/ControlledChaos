@@ -3,6 +3,7 @@ import { startOfDayInTimezone } from "@/lib/timezone";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import {
   ensureUser,
   getUser,
@@ -17,7 +18,6 @@ import {
 } from "@/lib/db/queries";
 import type { PersonalityPrefs } from "@/types";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
-import { formatCurrentDateTime } from "@/lib/ai/prompts";
 
 export async function POST(request: Request) {
   try {
@@ -61,12 +61,13 @@ export async function POST(request: Request) {
     const todayStart = startOfDayInTimezone(now, timezone);
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const [existingGoals, existingTasks, todayEvents, savedLocs, settings] = await Promise.all([
+    const [existingGoals, existingTasks, todayEvents, savedLocs, settings, aiCtx] = await Promise.all([
       getUserGoals(userId),
       getPendingTasks(userId),
       getCalendarEventsByDateRange(userId, todayStart, todayEnd),
       getSavedLocations(userId),
       getUserSettings(userId),
+      buildAIContext(userId, { skipCalendar: true }), // calendar already fetched above
     ]);
 
     const calendarSummary =
@@ -84,13 +85,14 @@ export async function POST(request: Request) {
             .join(", ")
         : undefined;
 
-    // Parse with AI
+    // Parse with AI (includes full situational context)
     const result = await parseBrainDump(content, "text", timezone, {
       existingGoals: existingGoals.map((g) => ({ title: g.title })),
       existingTasks: existingTasks.map((t) => ({ title: t.title })),
       calendarSummary,
       savedLocationNames: savedLocs.map((l) => l.name),
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
+      aiContextBlock: aiCtx.formatted,
     });
 
     // Save brain dump record

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Enrich all AI calls with full context + interactive crisis chat"
+      },
+      {
+        "type": "added",
         "text": "Inject personality prefs into all AI prompts + color task badges"
       },
       {

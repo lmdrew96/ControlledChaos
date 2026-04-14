@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getTaskRecommendation } from "@/lib/ai/recommend";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import {
   getUser,
   getUserSettings,
@@ -59,13 +60,14 @@ export async function POST(request: Request) {
     const now = new Date();
     const endOfTomorrow = new Date(startOfDayInTimezone(now, timezone).getTime() + 2 * 86_400_000 - 1);
 
-    const [pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity] =
+    const [pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity, aiCtx] =
       await Promise.all([
         getPendingTasks(userId),
         getCurrentCalendarEvent(userId),
         getNextCalendarEvent(userId),
         getCalendarEventsByDateRange(userId, now, endOfTomorrow),
         getRecentTaskActivity(userId, 10),
+        buildAIContext(userId, { skipCalendar: true }), // calendar fetched separately with broader range
       ]);
 
     if (pendingTasks.length === 0) {
@@ -197,6 +199,7 @@ export async function POST(request: Request) {
       pendingTasks: serializedTasks,
       recentlyRejectedTaskIds: recentlyRejectedIds,
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
+      aiContextBlock: aiCtx.formatted,
     });
 
     // Log the recommendation

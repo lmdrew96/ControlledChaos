@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
 import { AIUnavailableError } from "@/lib/ai";
+import { buildAIContext } from "@/lib/ai/context";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import {
   getUser,
@@ -47,12 +48,13 @@ export async function POST(request: Request) {
     const todayStart = startOfDayInTimezone(now, timezone);
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const [existingGoals, existingTasks, todayEvents, savedLocs, settings] = await Promise.all([
+    const [existingGoals, existingTasks, todayEvents, savedLocs, settings, aiCtx] = await Promise.all([
       getUserGoals(userId),
       getPendingTasks(userId),
       getCalendarEventsByDateRange(userId, todayStart, todayEnd),
       getSavedLocations(userId),
       getUserSettings(userId),
+      buildAIContext(userId, { skipCalendar: true }),
     ]);
 
     const calendarSummary =
@@ -70,13 +72,14 @@ export async function POST(request: Request) {
             .join(", ")
         : undefined;
 
-    // Parse with AI (photo-aware: handles OCR artifacts)
+    // Parse with AI (photo-aware: handles OCR artifacts, includes full context)
     const result = await parseBrainDump(extractedText, "photo", timezone, {
       existingGoals: existingGoals.map((g) => ({ title: g.title })),
       existingTasks: existingTasks.map((t) => ({ title: t.title })),
       calendarSummary,
       savedLocationNames: savedLocs.map((l) => l.name),
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
+      aiContextBlock: aiCtx.formatted,
     });
 
     // Save brain dump record with photo metadata
