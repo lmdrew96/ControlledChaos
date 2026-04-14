@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import {
   Type,
   Mic,
@@ -29,7 +31,7 @@ const inputTypeIcon = {
   photo: Camera,
 } as const;
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, timezone: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
@@ -42,13 +44,11 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days === 1) return "yesterday";
   if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatForDisplay(new Date(dateStr), timezone, DISPLAY_DATE);
 }
 
 export function DumpHistory() {
+  const timezone = useTimezone();
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -134,7 +134,7 @@ export function DumpHistory() {
                           {dump.eventCount} event{dump.eventCount !== 1 ? "s" : ""}
                         </span>
                       )}
-                      <span>{timeAgo(dump.createdAt)}</span>
+                      <span>{timeAgo(dump.createdAt, timezone)}</span>
                     </div>
                   </div>
                 </div>

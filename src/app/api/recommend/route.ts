@@ -15,7 +15,7 @@ import {
   logTaskActivity,
 } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import { startOfDayInTz } from "@/lib/date-utils";
+import { startOfDayInTimezone } from "@/lib/timezone";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const timezone = user?.timezone ?? "America/New_York";
 
     const now = new Date();
-    const endOfTomorrow = new Date(startOfDayInTz(now, timezone).getTime() + 2 * 86_400_000 - 1);
+    const endOfTomorrow = new Date(startOfDayInTimezone(now, timezone).getTime() + 2 * 86_400_000 - 1);
 
     const [pendingTasks, currentEvent, nextEvent, upcomingEvents, recentActivity] =
       await Promise.all([

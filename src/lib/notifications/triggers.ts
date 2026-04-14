@@ -4,7 +4,7 @@ import {
   getRecentNotifications,
   getRecentTaskActivity,
 } from "@/lib/db/queries";
-import { startOfDayInTz } from "@/lib/date-utils";
+import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callSonnet } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
@@ -47,7 +47,7 @@ export function getDailyPushCap(mode: NotificationAssertiveness): number {
 
 export async function getPushNotificationsSentToday(userId: string, timezone = "America/New_York"): Promise<number> {
   const recent = await getRecentNotifications(userId, 100);
-  const todayStart = startOfDayInTz(new Date(), timezone);
+  const todayStart = startOfDayInTimezone(new Date(), timezone);
 
   return recent.filter((n) => n.type === "push" && n.sentAt && new Date(n.sentAt) >= todayStart).length;
 }
@@ -169,12 +169,7 @@ export async function shouldSendIdleCheckin(
 ): Promise<{ shouldSend: boolean; activityLevel: "active" | "idle" }> {
   // Check if it's past 11am in user's timezone
   const now = new Date();
-  const hourStr = now.toLocaleString("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    hour12: false,
-  });
-  const currentHour = parseInt(hourStr, 10);
+  const currentHour = getHourInTimezone(now, timezone);
   // Morning window: 11am–2:59pm only. Afternoon takes over at 3pm.
   if (currentHour < 11 || currentHour >= 15) return { shouldSend: false, activityLevel: "idle" };
 
@@ -198,7 +193,7 @@ export async function hasBeenNotifiedToday(
   timezone = "America/New_York"
 ): Promise<boolean> {
   const recent = await getRecentNotifications(userId, 100);
-  const todayStart = startOfDayInTz(new Date(), timezone);
+  const todayStart = startOfDayInTimezone(new Date(), timezone);
 
   return recent.some((n) => {
     if (!n.sentAt || new Date(n.sentAt) < todayStart) return false;
@@ -396,12 +391,7 @@ export async function shouldSendAfternoonCheckin(
   timezone: string
 ): Promise<{ shouldSend: boolean; activityLevel: "active" | "idle" }> {
   const now = new Date();
-  const hourStr = now.toLocaleString("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    hour12: false,
-  });
-  const currentHour = parseInt(hourStr, 10);
+  const currentHour = getHourInTimezone(now, timezone);
   // Afternoon window: 3pm–6:59pm only. Evening takes over at 7pm.
   if (currentHour < 15 || currentHour >= 19) return { shouldSend: false, activityLevel: "idle" };
 
@@ -425,13 +415,8 @@ export async function getEveningCheckinStatus(
   timezone: string
 ): Promise<{ shouldSend: boolean; reason: string; activityLevel: "active" | "idle"; hoursSinceLastActivity?: number }> {
   const now = new Date();
-  const timeStr = now.toLocaleTimeString("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  if (timeStr < "19:00") {
+  const currentHour = getHourInTimezone(now, timezone);
+  if (currentHour < 19) {
     return { shouldSend: false, reason: "before_window", activityLevel: "idle" };
   }
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Clock, ChevronUp, ChevronDown, CalendarClock } from "lucide-react";
+import { toUserLocal, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 interface CalendarEvent {
   id: string;
@@ -20,6 +22,7 @@ function formatMinutes(mins: number): string {
 }
 
 export function TimeAnchor() {
+  const timezone = useTimezone();
   const [now, setNow] = useState<Date | null>(null);
   const [nextEvent, setNextEvent] = useState<CalendarEvent | null>(null);
   const [wakeHour, setWakeHour] = useState(7);
@@ -103,7 +106,8 @@ export function TimeAnchor() {
   }
 
   // Day progress calculation
-  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const local = toUserLocal(now, timezone);
+  const currentHour = local.hour + local.minute / 60;
   const dayLength = sleepHour - wakeHour;
   const elapsed = Math.max(0, Math.min(dayLength, currentHour - wakeHour));
   const progress = dayLength > 0 ? (elapsed / dayLength) * 100 : 0;
@@ -114,11 +118,7 @@ export function TimeAnchor() {
     ? Math.round((new Date(nextEvent.startTime).getTime() - now.getTime()) / 60_000)
     : null;
 
-  const timeStr = now.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  const timeStr = formatForDisplay(now, timezone, DISPLAY_TIME);
 
   if (collapsed) {
     return (

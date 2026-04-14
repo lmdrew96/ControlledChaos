@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { categoryHex } from "@/lib/calendar/colors";
+import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import type { CalendarColors, EventCategory } from "@/types";
 import type { MomentumStats } from "@/lib/db/queries";
 
@@ -69,7 +71,7 @@ function generateInsight(
   return `**${daySpecific} ${timeLabel}s** are your power zone this week.`;
 }
 
-function formatBiggestDayDate(dateStr: string): string {
+function formatBiggestDayDate(dateStr: string, timezone: string): string {
   const date = new Date(dateStr + "T12:00:00");
   const now = new Date();
   const diffDays = Math.floor(
@@ -79,12 +81,12 @@ function formatBiggestDayDate(dateStr: string): string {
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) {
-    return date.toLocaleDateString("en-US", { weekday: "long" });
+    return formatForDisplay(date, timezone, { weekday: "long" });
   }
   if (diffDays < 14) {
-    return `Last ${date.toLocaleDateString("en-US", { weekday: "long" })}`;
+    return `Last ${formatForDisplay(date, timezone, { weekday: "long" })}`;
   }
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatForDisplay(date, timezone, DISPLAY_DATE);
 }
 
 function todaySubtitle(count: number): string {
@@ -95,6 +97,7 @@ function todaySubtitle(count: number): string {
 }
 
 export default function MomentumPage() {
+  const timezone = useTimezone();
   const [stats, setStats] = useState<MomentumStats | null>(null);
 
   useEffect(() => {
@@ -185,7 +188,7 @@ export default function MomentumPage() {
             </p>
             <p className="text-xs text-muted-foreground">
               {stats.biggestDay
-                ? formatBiggestDayDate(stats.biggestDay.date)
+                ? formatBiggestDayDate(stats.biggestDay.date, timezone)
                 : "No data yet"}
             </p>
           </CardContent>

@@ -28,7 +28,7 @@ import type {
   CrisisTask,
 } from "@/types";
 import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
-import { startOfDayInTz, todayInTz, startOfWeekInTz } from "@/lib/date-utils";
+import { startOfDayInTimezone, todayInTimezone, startOfWeekInTimezone } from "@/lib/timezone";
 
 // ============================================================
 // Users
@@ -416,7 +416,7 @@ export async function getRecentTaskActivity(
 }
 
 export async function getTasksCompletedToday(userId: string, timezone: string) {
-  const startOfDay = startOfDayInTz(new Date(), timezone);
+  const startOfDay = startOfDayInTimezone(new Date(), timezone);
 
   return db
     .select()
@@ -432,9 +432,9 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
 
 export async function getCompletionStats(userId: string, timezone: string) {
   const now = new Date();
-  const startOfDay = startOfDayInTz(now, timezone);
+  const startOfDay = startOfDayInTimezone(now, timezone);
 
-  const startOfWeek = startOfWeekInTz(timezone);
+  const startOfWeek = startOfWeekInTimezone(timezone);
 
   const [todayRows, weekRows, allTimeRows] = await Promise.all([
     db
@@ -503,10 +503,10 @@ export async function getMomentumStats(
   timezone: string
 ): Promise<MomentumStats> {
   const now = new Date();
-  const startOfDay = startOfDayInTz(now, timezone);
-  const todayStr = todayInTz(timezone);
+  const startOfDay = startOfDayInTimezone(now, timezone);
+  const todayStr = todayInTimezone(timezone);
 
-  const startOfWeek = startOfWeekInTz(timezone);
+  const startOfWeek = startOfWeekInTimezone(timezone);
 
   const fourteenDaysAgo = new Date(startOfDay);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);

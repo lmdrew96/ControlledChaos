@@ -1,6 +1,7 @@
 import { callHaiku } from "./index";
 import { buildPersonalityBlock, buildTaskRecommendationPrompt } from "./prompts";
 import { extractJSON, extractScratchpad } from "./validate";
+import { getCalendarParts, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 import type { UserContext, TaskRecommendation, Task, PersonalityPrefs } from "@/types";
 
 interface RecommendationInput {
@@ -109,32 +110,26 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
   const calendarSection = (() => {
     if (!context.upcomingEvents || context.upcomingEvents.length === 0) return "";
 
-    const todayStr = now.toLocaleDateString("en-CA", { timeZone: context.timezone });
+    const toDateStr = (d: Date) => {
+      const { year, month, day } = getCalendarParts(d, context.timezone);
+      return `${year}-${month}-${day}`;
+    };
+    const todayStr = toDateStr(now);
     const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowStr = tomorrowDate.toLocaleDateString("en-CA", { timeZone: context.timezone });
+    const tomorrowStr = toDateStr(tomorrowDate);
 
     const formatEvent = (e: (typeof context.upcomingEvents)[number]) => {
-      const start = new Date(e.startTime).toLocaleTimeString("en-US", {
-        timeZone: context.timezone,
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      const end = new Date(e.endTime).toLocaleTimeString("en-US", {
-        timeZone: context.timezone,
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
+      const start = formatForDisplay(new Date(e.startTime), context.timezone, DISPLAY_TIME);
+      const end = formatForDisplay(new Date(e.endTime), context.timezone, DISPLAY_TIME);
       const tag = e.source === "controlledchaos" ? " [Scheduled]" : "";
       return `  - ${start}–${end}: ${e.title}${tag}`;
     };
 
     const todayEvents = context.upcomingEvents.filter(
-      (e) => new Date(e.startTime).toLocaleDateString("en-CA", { timeZone: context.timezone }) === todayStr
+      (e) => toDateStr(new Date(e.startTime)) === todayStr
     );
     const tomorrowEvents = context.upcomingEvents.filter(
-      (e) => new Date(e.startTime).toLocaleDateString("en-CA", { timeZone: context.timezone }) === tomorrowStr
+      (e) => toDateStr(new Date(e.startTime)) === tomorrowStr
     );
 
     const lines: string[] = ["\n\n## Upcoming Calendar"];
@@ -160,12 +155,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       : "";
 
   // Extract just time-of-day to prevent Haiku from hallucinating date context
-  const timeOfDay = new Date().toLocaleTimeString("en-US", {
-    timeZone: context.timezone,
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  const timeOfDay = formatForDisplay(new Date(), context.timezone, DISPLAY_TIME);
 
   return `## Current Context
 - Time of day: ${timeOfDay}

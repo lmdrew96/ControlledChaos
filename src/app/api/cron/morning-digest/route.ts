@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllUsersWithDigestEnabled } from "@/lib/db/queries";
 import { sendMorningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
-import { todayInTz } from "@/lib/date-utils";
+import { todayInTimezone } from "@/lib/timezone";
 
 /**
  * GET /api/cron/morning-digest
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       if (!force && !isWithinWindow(prefs.morningDigestTime, timezone, 15)) continue;
 
       // Dedup: don't send twice in the same day (skip in force mode)
-      const dedupKey = `morning-digest-${todayInTz(timezone)}`;
+      const dedupKey = `morning-digest-${todayInTimezone(timezone)}`;
       if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
       const ok = await sendMorningDigest(userId);

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles } from "lucide-react";
+import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,12 +41,13 @@ function typeBadge(type: "added" | "fixed") {
   );
 }
 
-function formatWeek(dateStr: string): string {
+function formatWeek(dateStr: string, timezone: string): string {
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatForDisplay(d, timezone, { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function WhatsNewDialog() {
+  const timezone = useTimezone();
   const [open, setOpen] = useState(false);
   const [hasNew, setHasNew] = useState(false);
 
@@ -100,7 +103,7 @@ export function WhatsNewDialog() {
             {changelog.map((week) => (
               <div key={week.weekOf}>
                 <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Week of {formatWeek(week.weekOf)}
+                  Week of {formatWeek(week.weekOf, timezone)}
                 </p>
                 <ul className="space-y-1.5">
                   {week.items.map((item, i) => (

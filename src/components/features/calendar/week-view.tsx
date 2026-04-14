@@ -37,6 +37,8 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import type { CalendarColors, CalendarEvent, CalendarSource, EventCategory } from "@/types";
+import { toUserLocal, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE, getCalendarParts } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 // ============================================================
 // Constants
@@ -77,18 +79,29 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+/** Timezone-aware day key: groups event dates by their calendar day in the user's timezone */
+function dayKey(date: Date, tz: string): string {
+  const { year, month, day } = getCalendarParts(date, tz);
+  return `${year}-${month}-${day}`;
 }
 
+/** Check if a UTC date falls on a specific local calendar day */
+function isSameDayTz(utcDate: Date, localDay: Date, tz: string): boolean {
+  const parts = getCalendarParts(utcDate, tz);
+  return (
+    parseInt(parts.year) === localDay.getFullYear() &&
+    parseInt(parts.month) === localDay.getMonth() + 1 &&
+    parseInt(parts.day) === localDay.getDate()
+  );
+}
 
-function formatDateRange(start: Date, end: Date, isAllDay: boolean): string {
+function formatTimeTz(date: Date, timezone: string): string {
+  return formatForDisplay(date, timezone, DISPLAY_TIME);
+}
+
+function formatDateRange(start: Date, end: Date, isAllDay: boolean, timezone: string): string {
   if (isAllDay) return "All day";
-  return `${formatTime(start)} – ${formatTime(end)}`;
+  return `${formatTimeTz(start, timezone)} – ${formatTimeTz(end, timezone)}`;
 }
 
 
@@ -107,13 +120,13 @@ function sourceLabel(source: CalendarSource, externalId?: string | null): string
   }
 }
 
-function eventPosition(event: CalendarEvent, startHour: number) {
-  const start = new Date(event.startTime);
-  const end = new Date(event.endTime);
+function eventPosition(event: CalendarEvent, startHour: number, timezone: string) {
+  const startLocal = toUserLocal(new Date(event.startTime), timezone);
+  const endLocal = toUserLocal(new Date(event.endTime), timezone);
 
   const startSlot =
-    (start.getHours() - startHour) * 2 + start.getMinutes() / 30;
-  const endSlot = (end.getHours() - startHour) * 2 + end.getMinutes() / 30;
+    (startLocal.hour - startHour) * 2 + startLocal.minute / 30;
+  const endSlot = (endLocal.hour - startHour) * 2 + endLocal.minute / 30;
 
   const top = Math.max(0, startSlot) * ROW_HEIGHT;
   const height = Math.max(1, endSlot - Math.max(0, startSlot)) * ROW_HEIGHT;
@@ -197,6 +210,7 @@ function layoutOverlappingEvents(
 // ============================================================
 
 export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
+  const timezone = useTimezone();
   const {
     events,
     isLoading,
@@ -281,21 +295,20 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     fetchEvents(weekStart, weekEnd);
   }, [weekStart, weekEnd, fetchEvents]);
 
-  // Group events by day
+  // Group events by day (using stored timezone for correct day assignment)
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const day of weekDays) {
-      map.set(day.toDateString(), []);
+      map.set(dayKey(day, timezone), []);
     }
     for (const event of events) {
-      const startDate = new Date(event.startTime);
-      const key = startDate.toDateString();
+      const key = dayKey(new Date(event.startTime), timezone);
       if (map.has(key)) {
         map.get(key)!.push(event);
       }
     }
     return map;
-  }, [events, weekDays]);
+  }, [events, weekDays, timezone]);
 
   // All-day events
   const allDayEvents = useMemo(
@@ -312,10 +325,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const timedByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const day of weekDays) {
-      map.set(day.toDateString(), []);
+      map.set(dayKey(day, timezone), []);
     }
     for (const event of timedEvents) {
-      const key = new Date(event.startTime).toDateString();
+      const key = dayKey(new Date(event.startTime), timezone);
       if (map.has(key)) {
         map.get(key)!.push(event);
       }
@@ -446,7 +459,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       dragOffsetY.current = e.clientY - rect.top;
       isDragging.current = false;
 
-      const pos = eventPosition(event, startHour);
+      const pos = eventPosition(event, startHour, timezone);
       const gridRect = gridRef.current?.getBoundingClientRect();
       if (!gridRect) return;
 
@@ -488,7 +501,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       setDragDayIdx(dayIdx);
       setDragTimeSlot(clampedSlot);
 
-      const pos = eventPosition(dragEvent, startHour);
+      const pos = eventPosition(dragEvent, startHour, timezone);
       setDragGhost({
         top: clampedSlot * ROW_HEIGHT,
         left: timeColWidth + dayIdx * colWidth + 2,
@@ -574,16 +587,17 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // Current time indicator position
   const currentTimeTop = useMemo(() => {
     const now = new Date();
-    const slot = (now.getHours() - startHour) * 2 + now.getMinutes() / 30;
+    const local = toUserLocal(now, timezone);
+    const slot = (local.hour - startHour) * 2 + local.minute / 30;
     if (slot < 0 || slot > totalSlots) return null;
     return slot * ROW_HEIGHT;
-  }, [startHour, totalSlots]);
+  }, [startHour, totalSlots, timezone]);
 
   // Is this week the current week?
   const isCurrentWeek = isSameDay(weekStart, getWeekStart(today, weekStartDay));
 
   // Events for the selected day (mobile)
-  const selectedDayEvents = eventsByDay.get(selectedDay.toDateString()) ?? [];
+  const selectedDayEvents = eventsByDay.get(dayKey(selectedDay, timezone)) ?? [];
 
   return (
     <div className="space-y-4">
@@ -608,9 +622,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
             </Button>
           </div>
           <span className="hidden text-sm font-semibold sm:inline">
-            {weekDays[0].toLocaleDateString("en-US", {
-              month: "long",
-            })}{" "}
+            {formatForDisplay(weekDays[0], timezone, { month: "long" })}{" "}
             {weekDays[0].getDate()} – {weekDays[6].getDate()}
             <span className="ml-1 font-normal text-muted-foreground">
               {weekDays[0].getFullYear()}
@@ -699,7 +711,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         ) : selectedDayEvents.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
             No events on{" "}
-            {selectedDay.toLocaleDateString("en-US", {
+            {formatForDisplay(selectedDay, timezone, {
               weekday: "long",
               month: "long",
               day: "numeric",
@@ -721,7 +733,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   {formatDateRange(
                     new Date(event.startTime),
                     new Date(event.endTime),
-                    event.isAllDay
+                    event.isAllDay,
+                    timezone
                   )}
                   {event.location && ` · ${event.location}`}
                 </p>
@@ -788,7 +801,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                 </div>
                 {weekDays.map((day) => {
                   const dayAllDay = allDayEvents.filter((e) =>
-                    isSameDay(new Date(e.startTime), day)
+                    isSameDayTz(new Date(e.startTime), day, timezone)
                   );
                   return (
                     <div
@@ -836,7 +849,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
               {/* Day columns */}
               {weekDays.map((day) => {
                 const dayEvents =
-                  timedByDay.get(day.toDateString()) ?? [];
+                  timedByDay.get(dayKey(day, timezone)) ?? [];
                 return (
                   <div
                     key={day.toISOString()}
@@ -864,7 +877,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                     {(() => {
                       const overlapLayout = layoutOverlappingEvents(dayEvents);
                       return dayEvents.map((event) => {
-                        const pos = eventPosition(event, startHour);
+                        const pos = eventPosition(event, startHour, timezone);
                         const overlap = overlapLayout.get(event.id);
                         const col = overlap?.column ?? 0;
                         const totalCols = overlap?.totalColumns ?? 1;
@@ -902,7 +915,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             </p>
                             {pos.height > ROW_HEIGHT && (
                               <p className="mt-0.5 truncate text-[10px] opacity-60">
-                                {formatTime(new Date(event.startTime))}
+                                {formatTimeTz(new Date(event.startTime), timezone)}
                               </p>
                             )}
                           </button>
@@ -999,13 +1012,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         {formatDateRange(
                           new Date(selectedEvent.startTime),
                           new Date(selectedEvent.endTime),
-                          selectedEvent.isAllDay
+                          selectedEvent.isAllDay,
+                          timezone
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(
-                          selectedEvent.startTime
-                        ).toLocaleDateString("en-US", {
+                        {formatForDisplay(new Date(selectedEvent.startTime), timezone, {
                           weekday: "long",
                           month: "long",
                           day: "numeric",

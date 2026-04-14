@@ -13,6 +13,8 @@ import {
   Check,
   RotateCcw,
 } from "lucide-react";
+import { formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,7 @@ import { cn } from "@/lib/utils";
 import type { CalendarColorKey, CalendarColors, EventCategory } from "@/types";
 
 export function CalendarSettings() {
+  const timezone = useTimezone();
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
   const [original, setOriginal] = useState("");
@@ -539,7 +542,7 @@ export function CalendarSettings() {
         {syncResult && (
           <p className="text-xs text-muted-foreground">
             Last synced: {syncResult.total} events &middot;{" "}
-            {new Date(syncResult.syncedAt).toLocaleTimeString()}
+            {formatForDisplay(new Date(syncResult.syncedAt), timezone, DISPLAY_TIME)}
           </p>
         )}
       </div>

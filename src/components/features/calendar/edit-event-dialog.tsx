@@ -23,6 +23,8 @@ import {
 import { toast } from "sonner";
 import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import type { CalendarEvent, EventCategory } from "@/types";
+import { toUserLocal, toUTC } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -44,24 +46,20 @@ interface FormState {
   editMode: "single" | "series";
 }
 
-function toDateInput(isoString: string): string {
-  // Use local date (not UTC date) so date/time fields are consistent
-  const d = new Date(isoString);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function toDateInput(isoString: string, timezone: string): string {
+  const local = toUserLocal(new Date(isoString), timezone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${local.year}-${pad(local.month)}-${pad(local.day)}`;
 }
 
-function toTimeInput(isoString: string): string {
-  const d = new Date(isoString);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function toTimeInput(isoString: string, timezone: string): string {
+  const local = toUserLocal(new Date(isoString), timezone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(local.hour)}:${pad(local.minute)}`;
 }
 
-function buildIso(date: string, time: string): string {
-  // Construct as local time and convert to UTC via .toISOString()
-  // new Date("YYYY-MM-DDTHH:MM:SS") in a browser = local time
-  return new Date(`${date}T${time}:00`).toISOString();
+function buildIso(date: string, time: string, timezone: string): string {
+  return toUTC(`${date}T${time}:00`, timezone);
 }
 
 export function EditEventDialog({
@@ -71,6 +69,7 @@ export function EditEventDialog({
   onDeleted,
   onDuplicate,
 }: EditEventDialogProps) {
+  const timezone = useTimezone();
   const [form, setForm] = useState<FormState>({
     title: "",
     description: "",
@@ -91,9 +90,9 @@ export function EditEventDialog({
         title: event.title.replace(/^\[CC\] /, ""),
         description: event.description ?? "",
         location: event.location ?? "",
-        date: toDateInput(event.startTime),
-        startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime),
-        endTime: event.isAllDay ? "23:59" : toTimeInput(event.endTime),
+        date: toDateInput(event.startTime, timezone),
+        startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime, timezone),
+        endTime: event.isAllDay ? "23:59" : toTimeInput(event.endTime, timezone),
         isAllDay: event.isAllDay,
         category: (event.category as EventCategory) ?? "personal",
         editMode: "single",
@@ -126,8 +125,8 @@ export function EditEventDialog({
       };
 
       if (!form.isAllDay) {
-        payload.startTime = buildIso(form.date, form.startTime);
-        payload.endTime = buildIso(form.date, form.endTime);
+        payload.startTime = buildIso(form.date, form.startTime, timezone);
+        payload.endTime = buildIso(form.date, form.endTime, timezone);
       }
 
       payload.isAllDay = form.isAllDay;

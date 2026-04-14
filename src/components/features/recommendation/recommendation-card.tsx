@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
+import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +50,7 @@ export function RecommendationCard({
   onSelectAlternative: (taskId: string) => void;
   isRefreshing: boolean;
 }) {
+  const timezone = useTimezone();
   const [showAlternatives, setShowAlternatives] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
 
@@ -125,7 +128,7 @@ export function RecommendationCard({
             {task.deadline && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                {new Date(task.deadline).toLocaleDateString()}
+                {formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}
               </span>
             )}
           </div>

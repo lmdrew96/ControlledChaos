@@ -3,6 +3,7 @@ import {
   upsertCalendarEvent,
   deleteStaleCalendarEvents,
 } from "@/lib/db/queries";
+import { toUTC, getCalendarParts } from "@/lib/timezone";
 import type { CalendarSyncResult } from "@/types";
 
 const MAX_EVENTS = 500;
@@ -21,33 +22,8 @@ function isAssignmentEvent(uid: string): boolean {
  * so EST users see 11:59 PM EST, not 11:59 PM UTC (which would be 7:59 PM EST).
  */
 function toEndOfDayLocal(date: Date, timezone: string): Date {
-  // Get the calendar date in the user's timezone (e.g. "2026-04-15")
-  const localDateStr = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-
-  const [year, month, day] = localDateStr.split("-").map(Number);
-
-  // Use noon UTC on that day as a DST-safe reference to find the UTC offset
-  const noonUTC = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const noonLocalHour = Number(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      hour12: false,
-    })
-      .formatToParts(noonUTC)
-      .find((p) => p.type === "hour")?.value ?? 12
-  );
-  // utcOffsetMs: positive means local is ahead of UTC (e.g. +5:30 India), negative behind (e.g. -4 EDT)
-  const utcOffsetMs = (noonLocalHour - 12) * 3_600_000;
-
-  // 23:59 local = start of local day (midnight UTC adjusted by offset) + 23h59m
-  const localMidnightUTC = Date.UTC(year, month - 1, day) - utcOffsetMs;
-  return new Date(localMidnightUTC + 23 * 3_600_000 + 59 * 60_000);
+  const { year, month, day } = getCalendarParts(date, timezone);
+  return new Date(toUTC(`${year}-${month}-${day}T23:59:00`, timezone));
 }
 
 /** Extract the string value from a node-ical ParameterValue field. */

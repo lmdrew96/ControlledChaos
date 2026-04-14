@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getHourInTimezone } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 function getGreeting(hour: number): { text: string; emoji: string } {
   if (hour < 5) return { text: "Still up?", emoji: "moon" };
@@ -11,11 +13,12 @@ function getGreeting(hour: number): { text: string; emoji: string } {
 }
 
 export function Greeting() {
+  const timezone = useTimezone();
   const [hour, setHour] = useState<number | null>(null);
 
   useEffect(() => {
-    setHour(new Date().getHours());
-  }, []);
+    setHour(getHourInTimezone(new Date(), timezone));
+  }, [timezone]);
 
   if (hour === null) {
     return (

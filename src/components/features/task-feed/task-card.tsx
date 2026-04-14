@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
+import { formatForDisplay, DISPLAY_DATETIME, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,7 @@ export function TaskCard({
   onUpdate: () => void;
   onClick?: () => void;
 }) {
+  const timezone = useTimezone();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
@@ -162,12 +165,7 @@ export function TaskCard({
         toast.info(data.message ?? "No free time found in the next 3 days.");
       } else {
         const scheduledDate = new Date(data.scheduledFor);
-        const timeStr = scheduledDate.toLocaleString("en-US", {
-          weekday: "short",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
+        const timeStr = formatForDisplay(scheduledDate, timezone, DISPLAY_DATETIME);
         const reasoning = data.block.reasoning ?? "";
         toast.success(`Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`);
         onUpdate();
@@ -433,19 +431,14 @@ export function TaskCard({
             {task.deadline && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                {new Date(task.deadline).toLocaleDateString()}
+                {formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}
               </span>
             )}
 
             {task.scheduledFor && (
               <span className="flex items-center gap-1 text-xs text-primary/80 font-medium">
                 <CalendarClock className="h-3 w-3" />
-                {new Date(task.scheduledFor).toLocaleString("en-US", {
-                  weekday: "short",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
+                {formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME)}
               </span>
             )}
           </div>

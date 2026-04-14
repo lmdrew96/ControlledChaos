@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Plus, ChevronLeft, Siren, Trash2 } from "lucide-react";
+import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,15 +53,8 @@ function panicColor(level: PanicLevel) {
   return "text-emerald-500 border-emerald-500/40 bg-emerald-500/5";
 }
 
-function formatDeadline(isoString: string) {
-  return new Date(isoString).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function formatDeadline(isoString: string, timezone: string) {
+  return formatForDisplay(new Date(isoString), timezone, DISPLAY_DATETIME);
 }
 
 function timeLeftLabel(isoString: string): string {
@@ -83,6 +78,7 @@ function progressPct(plan: ActivePlanData): number {
 // -------------------------------------------------------
 
 export default function CrisisPage() {
+  const timezone = useTimezone();
   const [phase, setPhase] = useState<Phase>("loading");
   const [plans, setPlans] = useState<ActivePlanData[]>([]);
   const [activePlan, setActivePlan] = useState<ActivePlanData | null>(null);
@@ -476,7 +472,7 @@ export default function CrisisPage() {
 
                 {/* Deadline */}
                 <div className="mt-2 flex items-center justify-between text-xs opacity-60">
-                  <span>Due {formatDeadline(plan.deadline)}</span>
+                  <span>Due {formatDeadline(plan.deadline, timezone)}</span>
                   <span className="font-medium">{timeLeftLabel(plan.deadline)}</span>
                 </div>
               </CardContent>

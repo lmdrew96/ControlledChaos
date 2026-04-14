@@ -1,4 +1,4 @@
-import { startOfDayInTz, todayInTz } from "@/lib/date-utils";
+import { startOfDayInTimezone, todayInTimezone } from "@/lib/timezone";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { callSonnet } from "@/lib/ai";
@@ -46,7 +46,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const now = new Date();
 
   // Today's events
-  const todayStart = startOfDayInTz(now, timezone);
+  const todayStart = startOfDayInTimezone(now, timezone);
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const events = await getCalendarEventsByDateRange(userId, todayStart, todayEnd);
 
@@ -141,7 +141,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 
     await createNotification(userId, "email", {
       type: "morning_digest",
-      dedupKey: `morning-digest-${todayInTz(timezone)}`,
+      dedupKey: `morning-digest-${todayInTimezone(timezone)}`,
     });
 
     return true;
@@ -188,7 +188,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const tomorrowPriority = sorted[0] ?? null;
 
   // Tomorrow's calendar for context
-  const todayStart = startOfDayInTz(now, timezone);
+  const todayStart = startOfDayInTimezone(now, timezone);
   const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
   const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000);
   const tomorrowEvents = await getCalendarEventsByDateRange(
@@ -251,7 +251,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
     await createNotification(userId, "email", {
       type: "evening_digest",
-      dedupKey: `evening-digest-${todayInTz(timezone)}`,
+      dedupKey: `evening-digest-${todayInTimezone(timezone)}`,
     });
 
     return true;
@@ -263,7 +263,6 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
 // --- Helpers ---
 
-// startOfDayInTz imported from @/lib/date-utils
 
 function formatTime(dateStr: Date | string, timezone: string): string {
   const d = typeof dateStr === "string" ? new Date(dateStr) : dateStr;

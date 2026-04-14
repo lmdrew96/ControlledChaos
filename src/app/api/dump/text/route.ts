@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { startOfDayInTz } from "@/lib/date-utils";
+import { startOfDayInTimezone } from "@/lib/timezone";
 import { NextResponse } from "next/server";
 import { parseBrainDump } from "@/lib/ai/parse-dump";
 import { AIUnavailableError } from "@/lib/ai";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     // Fetch context for anti-hallucination grounding
     const now = new Date();
-    const todayStart = startOfDayInTz(now, timezone);
+    const todayStart = startOfDayInTimezone(now, timezone);
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const [existingGoals, existingTasks, todayEvents, savedLocs] = await Promise.all([
@@ -150,5 +150,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-// startOfDayInTz imported from @/lib/date-utils

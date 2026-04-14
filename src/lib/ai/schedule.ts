@@ -1,6 +1,7 @@
 import { callHaiku } from "./index";
 import { SCHEDULING_SYSTEM_PROMPT, SINGLE_TASK_SCHEDULING_PROMPT, formatCurrentDateTime } from "./prompts";
 import { extractJSON } from "./validate";
+import { toUTC, formatForDisplay, DISPLAY_DATETIME, DISPLAY_TIME } from "@/lib/timezone";
 import type {
   Task,
   CalendarEvent,
@@ -21,36 +22,11 @@ interface SchedulingInput {
 
 /**
  * Convert a local hour (0-23) on a specific date to a UTC Date.
- * Uses the timezone offset at 1pm UTC on that day as a DST-safe reference.
- *
- * Example: localHourToUTC("2026-03-18", 7, "America/New_York")
- *   → 2026-03-18T11:00:00.000Z  (7am EDT = 11am UTC)
+ * Delegates to the shared toUTC() utility in timezone.ts.
  */
 function localHourToUTC(dateStr: string, hour: number, timezone: string): Date {
-  // Use 1pm UTC as the reference — well clear of any DST transition (which happens at ~2am local)
-  const refUTC = new Date(`${dateStr}T13:00:00.000Z`);
-
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const localTimeStr = formatter.format(refUTC); // e.g. "09:00" for EDT
-  const [localH, localM] = localTimeStr.split(":").map(Number);
-
-  // offsetMinutes = how many minutes UTC is ahead of this timezone
-  // For EDT (UTC-4): 13*60 - 9*60 = 240 min ahead
-  // For IST (UTC+5:30): 13*60 - 18*60 - 30 = -330 min (UTC is behind)
-  const refUTCMinutes = 13 * 60;
-  const refLocalMinutes = localH * 60 + localM;
-  const offsetMinutes = refUTCMinutes - refLocalMinutes;
-
-  // Target UTC time = desired local hour (in minutes) + offset
-  const targetUTCMinutes = hour * 60 + offsetMinutes;
-
-  const dateBase = new Date(`${dateStr}T00:00:00.000Z`);
-  return new Date(dateBase.getTime() + targetUTCMinutes * 60 * 1000);
+  const padded = String(hour).padStart(2, "0");
+  return new Date(toUTC(`${dateStr}T${padded}:00:00`, timezone));
 }
 
 /**
@@ -148,15 +124,7 @@ function buildSchedulingPrompt(
   // Format deadlines in the user's timezone so the AI doesn't misread UTC
   const fmtDeadline = (iso: string | null) => {
     if (!iso) return null;
-    return new Date(iso).toLocaleString("en-US", {
-      timeZone: input.timezone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return formatForDisplay(new Date(iso), input.timezone, DISPLAY_DATETIME);
   };
 
   const taskList = input.pendingTasks.map((t) => ({
@@ -180,22 +148,8 @@ function buildSchedulingPrompt(
 
   // Attach human-readable local time labels so the AI reasons in local time
   const fmtLocalRange = (startISO: string, endISO: string) => {
-    const opts: Intl.DateTimeFormatOptions = {
-      timeZone: input.timezone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    };
-    const startLabel = new Date(startISO).toLocaleString("en-US", opts);
-    const endLabel = new Date(endISO).toLocaleString("en-US", {
-      timeZone: input.timezone,
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const startLabel = formatForDisplay(new Date(startISO), input.timezone, DISPLAY_DATETIME);
+    const endLabel = formatForDisplay(new Date(endISO), input.timezone, DISPLAY_TIME);
     return `${startLabel} – ${endLabel}`;
   };
 
@@ -320,22 +274,8 @@ export async function scheduleOneTask(
     h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
 
   const fmtLocalRange = (startISO: string, endISO: string) => {
-    const opts: Intl.DateTimeFormatOptions = {
-      timeZone: input.timezone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    };
-    const startLabel = new Date(startISO).toLocaleString("en-US", opts);
-    const endLabel = new Date(endISO).toLocaleString("en-US", {
-      timeZone: input.timezone,
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const startLabel = formatForDisplay(new Date(startISO), input.timezone, DISPLAY_DATETIME);
+    const endLabel = formatForDisplay(new Date(endISO), input.timezone, DISPLAY_TIME);
     return `${startLabel} – ${endLabel}`;
   };
 

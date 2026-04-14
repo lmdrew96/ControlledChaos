@@ -23,6 +23,8 @@ import {
 import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { Task } from "@/types";
+import { toUserLocal, toUTC } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import {
   priorityOptions,
   energyOptions,
@@ -48,14 +50,13 @@ interface FormState {
   status: string;
 }
 
-function toDatetimeLocal(isoString: string): string {
-  const date = new Date(isoString);
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60000);
-  return local.toISOString().slice(0, 16);
+function toDatetimeLocal(isoString: string, timezone: string): string {
+  const local = toUserLocal(new Date(isoString), timezone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${local.year}-${pad(local.month)}-${pad(local.day)}T${pad(local.hour)}:${pad(local.minute)}`;
 }
 
-function formFromTask(task: Task): FormState {
+function formFromTask(task: Task, timezone: string): FormState {
   return {
     title: task.title,
     description: task.description ?? "",
@@ -64,7 +65,7 @@ function formFromTask(task: Task): FormState {
     category: task.category ?? "",
     locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
-    deadline: task.deadline ? toDatetimeLocal(task.deadline) : "",
+    deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
     status: task.status,
   };
 }
@@ -74,6 +75,7 @@ export function TaskDetailModal({
   onClose,
   onUpdate,
 }: TaskDetailModalProps) {
+  const timezone = useTimezone();
   const [form, setForm] = useState<FormState>({
     title: "",
     description: "",
@@ -103,7 +105,7 @@ export function TaskDetailModal({
   // Reset form and breakdown when task changes
   useEffect(() => {
     if (task) {
-      setForm(formFromTask(task));
+      setForm(formFromTask(task, timezone));
       setBreakdown(null);
     }
   }, [task]);
@@ -113,7 +115,7 @@ export function TaskDetailModal({
   const isCompleted = task.status === "completed";
 
   // Dirty check — has form changed from original task?
-  const original = formFromTask(task);
+  const original = formFromTask(task, timezone);
   const hasChanges = (Object.keys(original) as (keyof FormState)[]).some(
     (key) => {
       if (key === "locationTags") {
@@ -153,7 +155,7 @@ export function TaskDetailModal({
           : null;
       if (form.deadline !== original.deadline)
         payload.deadline = form.deadline
-          ? new Date(form.deadline).toISOString()
+          ? toUTC(form.deadline, timezone)
           : null;
       if (form.status !== original.status) payload.status = form.status;
 

@@ -6,7 +6,7 @@ import {
   getUserLocation,
 } from "@/lib/db/queries";
 import { sendPushToUser } from "@/lib/notifications/send-push";
-import { todayInTz } from "@/lib/date-utils";
+import { todayInTimezone } from "@/lib/timezone";
 import {
   getDeadlineWarnings,
   getDailyPushCap,
@@ -209,7 +209,7 @@ export async function GET(request: Request) {
       }
 
       // --- Morning Idle Check-in (11am+) ---
-      const morningDedupKey = `idle-checkin-${todayInTz(timezone)}`;
+      const morningDedupKey = `idle-checkin-${todayInTimezone(timezone)}`;
       if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey, timezone))) {
         const morningStatus = await shouldSendIdleCheckin(userId, timezone);
         if (morningStatus.shouldSend) {
@@ -236,7 +236,7 @@ export async function GET(request: Request) {
       }
 
       // --- Afternoon Idle Check-in (3pm+) ---
-      const afternoonDedupKey = `idle-checkin-afternoon-${todayInTz(timezone)}`;
+      const afternoonDedupKey = `idle-checkin-afternoon-${todayInTimezone(timezone)}`;
       if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey, timezone))) {
         const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
         if (afternoonStatus.shouldSend) {
@@ -263,7 +263,7 @@ export async function GET(request: Request) {
       }
 
       // --- Evening Idle Check-in (7:00pm+) ---
-      const eveningDedupKey = `idle-checkin-evening-${todayInTz(timezone)}`;
+      const eveningDedupKey = `idle-checkin-evening-${todayInTimezone(timezone)}`;
       if (mode === "gentle") {
         console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
       } else if (!canSend("normal")) {

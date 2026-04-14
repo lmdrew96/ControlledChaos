@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import {
   Target,
   Calendar,
@@ -49,6 +51,7 @@ interface GoalCardProps {
 }
 
 export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
+  const timezone = useTimezone();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -195,7 +198,7 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
               {targetDate && (
                 <span className={cn("flex items-center gap-1", isOverdue && "text-destructive")}>
                   <Calendar className="h-3 w-3" />
-                  {targetDate.toLocaleDateString(undefined, {
+                  {formatForDisplay(targetDate, timezone, {
                     month: "short",
                     day: "numeric",
                     year: targetDate.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
