@@ -14,10 +14,10 @@ interface Stats {
 }
 
 const MOMENTUM_TIERS = [
-  { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", bg: "bg-muted", ring: "" },
-  { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
-  { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
-  { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
+  { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", barBg: "bg-muted-foreground", bg: "bg-muted", ring: "" },
+  { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", barBg: "bg-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
+  { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", barBg: "bg-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
+  { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", barBg: "bg-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
 ] as const;
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -56,7 +56,6 @@ export function DailyMomentum() {
     currentWeek.push({ date: dateStr, count: existing?.count ?? 0 });
   }
   const maxCount = Math.max(...currentWeek.map((d) => d.count), 1);
-  const barColor = tier.accent.replace("text-", "bg-");
 
   // Today is always the last entry in the daily array (server computes in user TZ)
   const todayDate = stats.daily[stats.daily.length - 1]?.date;
@@ -87,7 +86,7 @@ export function DailyMomentum() {
                     <div key={d.date} className="flex flex-col items-center gap-0.5">
                       <div
                         className={`w-3 rounded-sm transition-all duration-300 ${
-                          d.count > 0 ? barColor : "bg-muted-foreground/15"
+                          d.count > 0 ? tier.barBg : "bg-muted-foreground/15"
                         }`}
                         style={{
                           height: barHeight,

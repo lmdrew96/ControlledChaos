@@ -155,7 +155,7 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
       const response = await callWithRetry(() =>
         anthropic.messages.create({
           model: "claude-haiku-4-5-20251001",
-          max_tokens: 2048,
+          max_tokens: 4096,
           system: CRISIS_SYSTEM_PROMPT,
           messages: [{ role: "user", content }],
         })
@@ -172,12 +172,12 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
       const result = await callHaiku({
         system: CRISIS_SYSTEM_PROMPT,
         user: userPromptText,
-        maxTokens: 2048,
+        maxTokens: 4096,
       });
       responseText = result.text;
     }
 
-    // Try standard extraction first; fall back to bracket-scanning if that fails
+    // Try standard extraction first; fall back to bracket-scanning
     let parsed: Record<string, unknown>;
     try {
       parsed = extractJSON<Record<string, unknown>>(responseText);

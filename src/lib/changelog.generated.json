@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Stats bar visibility + crisis multi-strategy token limit"
+      },
+      {
+        "type": "fixed",
         "text": "Walking/cycling commute estimates + per-mode storage"
       },
       {
