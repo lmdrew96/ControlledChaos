@@ -1,4 +1,5 @@
 import type { EnergyLevel, EnergyProfile } from "@/types";
+import { getHourInTimezone } from "@/lib/timezone";
 
 type TimeBlock = keyof EnergyProfile;
 
@@ -6,13 +7,7 @@ type TimeBlock = keyof EnergyProfile;
  * Determine the current time-of-day block from user's timezone.
  */
 export function getTimeOfDayBlock(timezone: string): TimeBlock {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    hour12: false,
-    timeZone: timezone,
-  });
-  const hour = parseInt(formatter.format(now), 10);
+  const hour = getHourInTimezone(new Date(), timezone);
 
   if (hour >= 6 && hour < 12) return "morning";
   if (hour >= 12 && hour < 17) return "afternoon";

@@ -20,15 +20,14 @@ import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import type { CrisisFileAttachment, CrisisPlan, CrisisTask } from "@/types";
-
-const TIME_FORMAT_OPTS: Intl.DateTimeFormatOptions = {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-};
+import {
+  formatForDisplay,
+  DISPLAY_DATETIME,
+  DISPLAY_FULL_DATETIME,
+  getHourInTimezone,
+  startOfDayInTimezone,
+  getCalendarParts,
+} from "@/lib/timezone";
 
 function formatEventsForAI(
   events: Array<{ title: string; startTime: Date; endTime: Date }>,
@@ -36,8 +35,8 @@ function formatEventsForAI(
 ) {
   return events.map((e) => ({
     title: e.title,
-    startTime: e.startTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
-    endTime: e.endTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+    startTime: formatForDisplay(e.startTime, timezone, DISPLAY_DATETIME),
+    endTime: formatForDisplay(e.endTime, timezone, DISPLAY_DATETIME),
     durationMinutes: Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60_000),
   }));
 }
@@ -77,10 +76,7 @@ function getSleepMinutesBlocked(
   timezone: string
 ): number {
   // Get the user's current local hour
-  const localHour = parseInt(
-    new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", hour12: false }).format(start),
-    10
-  );
+  const localHour = getHourInTimezone(start, timezone);
 
   // Calculate sleep duration per night in minutes
   const sleepDurationMin =
@@ -98,32 +94,15 @@ function getSleepMinutesBlocked(
 
   // Find the next sleep start time in the user's timezone
   const getNextSleepStart = (from: Date): Date => {
-    const dateStr = from.toLocaleDateString("en-CA", { timeZone: timezone });
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "2-digit",
-      hour12: false,
-    });
-    const currentH = parseInt(formatter.format(from), 10);
+    const currentH = getHourInTimezone(from, timezone);
 
     // If we haven't passed sleep time today, sleep starts today
     // If we have, sleep starts tomorrow
-    const daysToAdd = currentH < sleepTime ? 0 : 1;
-    const targetDate = new Date(from);
-    if (daysToAdd === 1) {
-      const nextDateStr = new Date(from.getTime() + 86_400_000).toLocaleDateString("en-CA", { timeZone: timezone });
-      // Build target as sleep hour on the next day
-      const utcMid = new Date(`${nextDateStr}T00:00:00Z`);
-      const utcRepr = utcMid.toLocaleString("en-US", { timeZone: "UTC" });
-      const tzRepr = utcMid.toLocaleString("en-US", { timeZone: timezone });
-      const offsetMs = new Date(utcRepr).getTime() - new Date(tzRepr).getTime();
-      return new Date(utcMid.getTime() + offsetMs + sleepTime * 3_600_000);
-    }
-    const utcMid = new Date(`${dateStr}T00:00:00Z`);
-    const utcRepr = utcMid.toLocaleString("en-US", { timeZone: "UTC" });
-    const tzRepr = utcMid.toLocaleString("en-US", { timeZone: timezone });
-    const offsetMs = new Date(utcRepr).getTime() - new Date(tzRepr).getTime();
-    return new Date(utcMid.getTime() + offsetMs + sleepTime * 3_600_000);
+    const targetDate = currentH < sleepTime
+      ? from
+      : new Date(from.getTime() + 86_400_000);
+    const midnight = startOfDayInTimezone(targetDate, timezone);
+    return new Date(midnight.getTime() + sleepTime * 3_600_000);
   };
 
   // Check if we're currently IN a sleep window
@@ -253,23 +232,14 @@ export async function POST(request: Request) {
     );
     const sleepMinutesBlocked = getSleepMinutesBlocked(now, deadlineDate, sleepTime, wakeTime, timezone);
 
-    const currentTime = now.toLocaleString("en-US", {
-      timeZone: timezone,
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     // Build commute context from user's current location
     const commuteContext = buildCommuteContext(userLocation, allCommutes, await getSavedLocations(userId));
 
     const result = await getCrisisPlan({
       taskName,
-      deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+      deadline: formatForDisplay(deadlineDate, timezone, DISPLAY_DATETIME),
       completionPct,
       currentTime,
       minutesUntilDeadline,
@@ -278,7 +248,7 @@ export async function POST(request: Request) {
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: new Date(c.deadline).toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+        deadline: formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME),
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
@@ -379,16 +349,7 @@ export async function PUT(request: Request) {
     // Use the higher of original completion + progress through tasks
     const effectiveCompletion = Math.max(plan.completionPct, currentProgress);
 
-    const currentTime = now.toLocaleString("en-US", {
-      timeZone: timezone,
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
     const commuteContext = buildCommuteContext(userLocation, allCommutes, savedLocs);
@@ -401,7 +362,7 @@ export async function PUT(request: Request) {
 
     const result = await getCrisisPlan({
       taskName: plan.taskName,
-      deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+      deadline: formatForDisplay(deadlineDate, timezone, DISPLAY_DATETIME),
       completionPct: effectiveCompletion,
       currentTime,
       minutesUntilDeadline,
@@ -410,7 +371,7 @@ export async function PUT(request: Request) {
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: new Date(c.deadline).toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
+        deadline: formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME),
         panicLevel: c.panicLevel,
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),

@@ -6,6 +6,7 @@ import {
   formatCurrentDateTime,
 } from "./prompts";
 import { extractJSON, validateISODate } from "./validate";
+import { toUTC } from "@/lib/timezone";
 import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask } from "@/types";
 
 export interface BrainDumpContext {
@@ -160,11 +161,11 @@ export async function parseBrainDump(
   const events: ParsedCalendarEvent[] = (parsed.events ?? [])
     .map((evt) => {
       // Convert AI-output local times to UTC (AI outputs local clock time, not UTC)
-      const rawStart = localIsoToUtc(evt.startTime, timezone);
+      const rawStart = toUTC(evt.startTime, timezone);
       const startTime = validateISODate(rawStart);
       if (!startTime) return null; // Skip events without valid start
 
-      const rawEnd = localIsoToUtc(evt.endTime, timezone);
+      const rawEnd = toUTC(evt.endTime, timezone);
       const endTime =
         validateISODate(rawEnd) ||
         new Date(new Date(startTime).getTime() + 3600000).toISOString();
@@ -193,7 +194,7 @@ export async function parseBrainDump(
                 )
               : undefined,
             endDate:
-              validateISODate(localIsoToUtc(evt.recurrence.endDate ?? "", timezone)) ||
+              validateISODate(toUTC(evt.recurrence.endDate ?? "", timezone)) ||
               // Default to 16 weeks from start for recurring events
               new Date(
                 new Date(startTime).getTime() + 16 * 7 * 24 * 60 * 60 * 1000
@@ -213,64 +214,6 @@ export async function parseBrainDump(
       parsed.summary ||
       `Parsed ${tasks.length} task${tasks.length !== 1 ? "s" : ""}${events.length > 0 ? ` and ${events.length} event${events.length !== 1 ? "s" : ""}` : ""} from brain dump`,
   };
-}
-
-/**
- * Interpret an AI-output datetime string as local time in the given timezone
- * and return the correct UTC ISO string.
- *
- * The AI outputs clock times like "2026-03-17T09:00:00" or "2026-03-17T09:00:00.000Z"
- * but always means the user's local time. We strip any timezone suffix and convert
- * the local time to UTC using the user's timezone offset.
- */
-function localIsoToUtc(localIso: string, timezone: string): string {
-  if (!localIso) return "";
-
-  // Strip any timezone suffix (Z, +HH:MM, -HH:MM) — treat as local clock time
-  const naive = localIso.replace(/Z$|[+-]\d{2}:\d{2}$/, "");
-
-  const [datePart, timePart = "00:00:00"] = naive.split("T");
-  if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return localIso;
-
-  const [year, month, day] = datePart.split("-").map(Number);
-  const timeParts = timePart.split(":").map((s) => parseInt(s, 10));
-  const hours = timeParts[0] ?? 0;
-  const minutes = timeParts[1] ?? 0;
-  const seconds = timeParts[2] ?? 0;
-
-  // Treat the naive values as UTC to create a reference Date
-  const approxUtc = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
-
-  // Ask the formatter: when it's `approxUtc` in UTC, what local time is it in `timezone`?
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(approxUtc);
-
-  const get = (type: string) =>
-    parseInt(parts.find((p) => p.type === type)!.value, 10);
-
-  const localHour = get("hour") % 24; // hour12:false can give 24 for midnight
-  const localMin = get("minute");
-  const localSec = get("second");
-  const localYear = get("year");
-  const localMon = get("month");
-  const localDay2 = get("day");
-
-  // offset_ms = approxUtc - (what approxUtc looks like in local time, treated as UTC ms)
-  // This equals the timezone's UTC offset (e.g., EDT = +4h = +14400000ms)
-  const localAsUtcMs = Date.UTC(localYear, localMon - 1, localDay2, localHour, localMin, localSec);
-  const offsetMs = approxUtc.getTime() - localAsUtcMs;
-
-  // The correct UTC time = what the user said (as naive UTC ms) + the offset
-  const wantedLocalMs = Date.UTC(year, month - 1, day, hours, minutes, seconds);
-  return new Date(wantedLocalMs + offsetMs).toISOString();
 }
 
 function validateEnum<T extends string>(

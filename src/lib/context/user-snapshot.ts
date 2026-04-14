@@ -16,6 +16,7 @@ import {
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import { startOfDayInTz } from "@/lib/date-utils";
+import { formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
 import type { EnergyProfile } from "@/types";
 
 export interface UserSnapshot {
@@ -80,18 +81,8 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   // Format events for AI consumption
   const formattedEvents = todayEvents.map((e) => ({
     title: e.title,
-    startTime: e.startTime.toLocaleTimeString("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }),
-    endTime: e.endTime.toLocaleTimeString("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }),
+    startTime: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
+    endTime: formatForDisplay(e.endTime, timezone, DISPLAY_TIME),
   }));
 
   // Build the formatted text block
@@ -106,7 +97,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     lines.push(`Top pending:`);
     for (const t of topPending) {
       const deadlineStr = t.deadline
-        ? ` (due ${new Date(t.deadline).toLocaleDateString("en-US", { timeZone: timezone, month: "short", day: "numeric" })})`
+        ? ` (due ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATE)})`
         : "";
       lines.push(`  - ${t.title} [${t.priority}]${deadlineStr}`);
     }
@@ -124,9 +115,8 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   // Recent activity signal
   if (recentActivity.length > 0) {
     const lastAction = recentActivity[0];
-    const lastActionTime = new Date(lastAction.createdAt).toLocaleTimeString(
-      "en-US",
-      { timeZone: timezone, hour: "numeric", minute: "2-digit", hour12: true }
+    const lastActionTime = formatForDisplay(
+      new Date(lastAction.createdAt), timezone, DISPLAY_TIME
     );
     lines.push(`Last activity: ${lastAction.action} at ${lastActionTime}`);
   }

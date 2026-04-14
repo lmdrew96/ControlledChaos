@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { NotificationAssertiveness, PersonalityPrefs } from "@/types";
+import { formatForDisplay, DISPLAY_FULL_DATETIME } from "@/lib/timezone";
 
 // --- Personality template blocks (3 levels per axis) ---
 
@@ -46,16 +47,7 @@ const ENERGY_SCHEDULING_RULES = `## Energy-Aware Scheduling
  * Call this at request time and prepend to prompts so the AI knows "today".
  */
 export function formatCurrentDateTime(timezone: string): string {
-  return new Date().toLocaleString("en-US", {
-    timeZone: timezone,
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatForDisplay(new Date(), timezone, DISPLAY_FULL_DATETIME);
 }
 
 // ============================================================
