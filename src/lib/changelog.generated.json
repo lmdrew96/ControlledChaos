@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "fixed",
+        "text": "Move useCallback before early return to fix infinite re-render loop"
+      },
+      {
         "type": "added",
         "text": "Time to leave notifications for calendar events"
       },

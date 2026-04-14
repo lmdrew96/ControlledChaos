@@ -117,6 +117,39 @@ export function TaskDetailModal({
     }
   }, [task]);
 
+  const handleStepDone = useCallback(async () => {
+    if (!task?.progressSteps) return;
+    const nextIndex = localStepIndex + 1;
+    const isLast = nextIndex >= task.progressSteps.length;
+
+    if (isLast) {
+      fireTaskConfetti();
+    } else {
+      confetti({
+        particleCount: 60,
+        spread: 80,
+        startVelocity: 45,
+        origin: { x: 0.5, y: 0.6 },
+        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
+        zIndex: 9999,
+      });
+    }
+
+    setLocalStepIndex(nextIndex);
+
+    await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentStepIndex: nextIndex }),
+    });
+
+    if (isLast) {
+      toast.success("All steps done — task completed!");
+      onUpdate();
+      onClose();
+    }
+  }, [task, localStepIndex, onUpdate, onClose]);
+
   if (!task) return null;
 
   const isCompleted = task.status === "completed";
@@ -261,39 +294,6 @@ export function TaskDetailModal({
       setIsChunking(false);
     }
   }
-
-  const handleStepDone = useCallback(async () => {
-    if (!task?.progressSteps) return;
-    const nextIndex = localStepIndex + 1;
-    const isLast = nextIndex >= task.progressSteps.length;
-
-    if (isLast) {
-      fireTaskConfetti();
-    } else {
-      confetti({
-        particleCount: 60,
-        spread: 80,
-        startVelocity: 45,
-        origin: { x: 0.5, y: 0.6 },
-        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
-        zIndex: 9999,
-      });
-    }
-
-    setLocalStepIndex(nextIndex);
-
-    await fetch(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentStepIndex: nextIndex }),
-    });
-
-    if (isLast) {
-      toast.success("All steps done — task completed!");
-      onUpdate();
-      onClose();
-    }
-  }, [task, localStepIndex, onUpdate, onClose]);
 
   // Derived step data
   const steps = (task?.progressSteps as ProgressStep[] | null) ?? null;
