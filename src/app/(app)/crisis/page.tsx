@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CrisisIntakeForm } from "@/components/features/crisis/crisis-intake-form";
 import { CrisisWarRoom } from "@/components/features/crisis/crisis-war-room";
+import { CrisisStrategyPicker } from "@/components/features/crisis/crisis-strategy-picker";
 import { CrisisDone } from "@/components/features/crisis/crisis-done";
 import { cn } from "@/lib/utils";
-import type { CrisisPlan, CrisisFileAttachment, PanicLevel } from "@/types";
+import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, PanicLevel } from "@/types";
 
 // -------------------------------------------------------
 // Types
@@ -29,8 +30,16 @@ type Phase =
   | "dashboard"       // list of all active sessions
   | "intake"          // new crisis form
   | "generating"      // AI generating plan
+  | "strategy"        // pick from multiple strategy options
   | "active"          // war room for a specific plan
   | "done";           // just completed a plan
+
+interface StrategyPickerState {
+  strategies: CrisisStrategy[];
+  taskName: string;
+  deadline: string;
+  completionPct: number;
+}
 
 // -------------------------------------------------------
 // Helpers
@@ -80,6 +89,7 @@ export default function CrisisPage() {
   const [intakeError, setIntakeError] = useState<string | null>(null);
   const [completedTaskName, setCompletedTaskName] = useState<string | null>(null);
   const [abandoningId, setAbandoningId] = useState<string | null>(null);
+  const [strategyState, setStrategyState] = useState<StrategyPickerState | null>(null);
 
   // -------------------------------------------------------
   // Load all active plans
@@ -153,6 +163,19 @@ export default function CrisisPage() {
       }
 
       const body = await res.json();
+
+      // AI returned multiple strategies — let the user pick
+      if (body.strategies) {
+        setStrategyState({
+          strategies: body.strategies,
+          taskName: data.taskName,
+          deadline: data.deadline,
+          completionPct: data.completionPct,
+        });
+        setPhase("strategy");
+        return;
+      }
+
       const newPlan: ActivePlanData = {
         id: body.id,
         taskName: data.taskName,
@@ -194,6 +217,48 @@ export default function CrisisPage() {
     }
   }
 
+  async function handleStrategySelect(strategy: CrisisStrategy) {
+    if (!strategyState) return;
+    setPhase("generating");
+
+    try {
+      const res = await fetch("/api/crisis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskName: strategyState.taskName,
+          deadline: strategyState.deadline,
+          completionPct: strategyState.completionPct,
+          selectedPlan: strategy.plan,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? "Failed to save crisis plan");
+      }
+
+      const body = await res.json();
+      const newPlan: ActivePlanData = {
+        id: body.id,
+        taskName: strategyState.taskName,
+        deadline: new Date(strategyState.deadline).toISOString(),
+        panicLevel: body.plan.panicLevel,
+        panicLabel: body.plan.panicLabel,
+        plan: { ...body.plan, currentTaskIndex: body.plan.currentTaskIndex ?? 0 },
+      };
+
+      setActivePlan(newPlan);
+      setPlans((prev) => [newPlan, ...prev]);
+      setStrategyState(null);
+      setPhase("active");
+    } catch (err) {
+      setIntakeError(err instanceof Error ? err.message : "Something went wrong");
+      setStrategyState(null);
+      setPhase("intake");
+    }
+  }
+
   function handleDoneNext() {
     // After completing, go to dashboard if there are remaining plans, else new intake
     setPhase(plans.length > 0 ? "dashboard" : "intake");
@@ -217,6 +282,17 @@ export default function CrisisPage() {
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-lg font-medium">Reading the situation...</p>
+      </div>
+    );
+  }
+
+  if (phase === "strategy" && strategyState) {
+    return (
+      <div className="mx-auto max-w-lg space-y-4">
+        <CrisisStrategyPicker
+          strategies={strategyState.strategies}
+          onSelect={handleStrategySelect}
+        />
       </div>
     );
   }

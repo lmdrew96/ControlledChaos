@@ -19,7 +19,7 @@ import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import type { CrisisFileAttachment, CrisisTask } from "@/types";
+import type { CrisisFileAttachment, CrisisPlan, CrisisTask } from "@/types";
 
 const TIME_FORMAT_OPTS: Intl.DateTimeFormatOptions = {
   weekday: "short",
@@ -185,11 +185,13 @@ export async function POST(request: Request) {
       deadline,
       completionPct,
       files,
+      selectedPlan,
     } = body as {
       taskName: string;
       deadline: string;
       completionPct: number;
       files?: CrisisFileAttachment[];
+      selectedPlan?: CrisisPlan;
     };
 
     if (!taskName?.trim()) {
@@ -197,6 +199,33 @@ export async function POST(request: Request) {
     }
     if (!deadline) {
       return NextResponse.json({ error: "deadline is required" }, { status: 400 });
+    }
+
+    // If the user selected a strategy from a previous multi-strategy response,
+    // persist it directly without calling AI again.
+    if (selectedPlan) {
+      const deadlineDate = new Date(deadline);
+      const saved = await createCrisisPlan({
+        userId,
+        taskName,
+        deadline: deadlineDate,
+        completionPct,
+        panicLevel: selectedPlan.panicLevel,
+        panicLabel: selectedPlan.panicLabel,
+        summary: selectedPlan.summary,
+        tasks: selectedPlan.tasks,
+      });
+
+      return NextResponse.json({
+        id: saved.id,
+        plan: {
+          panicLevel: saved.panicLevel,
+          panicLabel: saved.panicLabel,
+          summary: saved.summary,
+          tasks: saved.tasks,
+          currentTaskIndex: saved.currentTaskIndex,
+        },
+      });
     }
 
     const now = new Date();
@@ -238,7 +267,7 @@ export async function POST(request: Request) {
     // Build commute context from user's current location
     const commuteContext = buildCommuteContext(userLocation, allCommutes, await getSavedLocations(userId));
 
-    const plan = await getCrisisPlan({
+    const result = await getCrisisPlan({
       taskName,
       deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
       completionPct,
@@ -258,6 +287,16 @@ export async function POST(request: Request) {
       files,
     });
 
+    // Multi-strategy response — return strategies for user to pick from
+    if (result.type === "strategies") {
+      return NextResponse.json({
+        strategies: result.strategies,
+        // Pass through context the frontend needs to persist after selection
+        _context: { taskName, deadline: deadlineDate.toISOString(), completionPct },
+      });
+    }
+
+    const plan = result.plan;
     const saved = await createCrisisPlan({
       userId,
       taskName,
@@ -360,7 +399,7 @@ export async function PUT(request: Request) {
     const completedTasks = existingTasks.slice(0, taskIndex);
     const completedStepTitles = completedTasks.map((t) => t.title);
 
-    const newPlan = await getCrisisPlan({
+    const result = await getCrisisPlan({
       taskName: plan.taskName,
       deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
       completionPct: effectiveCompletion,
@@ -379,6 +418,12 @@ export async function PUT(request: Request) {
       currentLocation: userLocation?.matchedLocationName ?? null,
       commuteContext,
     });
+
+    // Reassess always uses a single plan — if AI returned strategies, pick the first one
+    const newPlan: CrisisPlan =
+      result.type === "strategies"
+        ? result.strategies[0].plan
+        : result.plan;
 
     // Merge: completed tasks stay, AI-generated tasks replace the remaining ones
     const mergedTasks = [...completedTasks, ...newPlan.tasks];

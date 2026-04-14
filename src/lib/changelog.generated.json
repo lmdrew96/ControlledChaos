@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Auto-estimate commute times via OSRM routing"
+      },
+      {
+        "type": "added",
         "text": "Add commute times between saved locations with crisis mode integration"
       },
       {
@@ -186,10 +190,6 @@
       {
         "type": "fixed",
         "text": "Format next event duration as human-readable and ignore distant events"
-      },
-      {
-        "type": "fixed",
-        "text": "Prevent AI from hallucinating location/event context in recommendations"
       }
     ]
   }
