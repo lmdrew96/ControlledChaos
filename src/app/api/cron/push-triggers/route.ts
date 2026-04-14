@@ -13,6 +13,7 @@ import {
   getAssertivenessMode,
   getScheduledTaskAlerts,
   getMissedScheduledTaskAlerts,
+  getDepartureAlerts,
   getPushNotificationsSentToday,
   shouldSendIdleCheckin,
   shouldSendAfternoonCheckin,
@@ -206,6 +207,37 @@ export async function GET(request: Request) {
           });
           if (sent) markSent();
         }
+      }
+
+      // --- Time to Leave Alerts ---
+      const departureAlerts = await getDepartureAlerts(userId, timezone);
+      for (const alert of departureAlerts) {
+        if (!canSend("high")) continue;
+
+        const dedupKey = `time-to-leave-${alert.eventId}-${alert.level}`;
+        if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
+
+        const notifCtx = alert.level === "now"
+          ? { type: "time_to_leave_now" as const, eventTitle: alert.eventTitle, destination: alert.destination, commuteMinutes: alert.commuteMinutes }
+          : { type: "time_to_leave_soon" as const, eventTitle: alert.eventTitle, minutesUntilLeave: alert.minutesUntilLeave, destination: alert.destination, commuteMinutes: alert.commuteMinutes };
+
+        const message = await generatePushMessage(
+          notifCtx,
+          personalityPrefs,
+          timezone,
+          mode,
+          await getLocationName(),
+          await getSnapshot()
+        );
+        const sent = await sendPushToUser(userId, {
+          title: "ControlledChaos",
+          body: message,
+          url: "/calendar",
+          tag: dedupKey,
+          userId,
+          bypassQuietHours: alert.level === "now",
+        });
+        if (sent) markSent();
       }
 
       // --- Morning Idle Check-in (11am+) ---

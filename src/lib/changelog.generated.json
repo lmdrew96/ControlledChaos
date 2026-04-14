@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Time to leave notifications for calendar events"
+      },
+      {
+        "type": "added",
         "text": "Streamline settings page with tabs + onboarding wizard"
       },
       {

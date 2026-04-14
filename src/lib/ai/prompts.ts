@@ -523,6 +523,8 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: wrap-up energy — acknowledge what they did, offer one more if there's a task.
 - location_arrival: User just arrived at a saved location that matches task locationTags. Mention the place naturally. Keep it actionable — they're already there. 1-2 sentences.
 - location_departure_nearby: User is leaving a location. Another saved location with pending tasks is nearby. Frame as an easy add-on — "while you're out" energy. Never guilt.
+- time_to_leave_soon: User needs to leave for an event in X minutes. Include the event name and destination naturally. Mention the commute time if it adds context. Tone: practical heads-up, not alarm.
+- time_to_leave_now: User needs to leave RIGHT NOW for an event. Urgent but calm. 1 sentence max. Include destination.
 
 ## Location context
 If "User's current location" is provided, weave it in naturally when relevant. For example, if the user is at "Campus" and the task is tagged for campus, mention it briefly ("you're already on campus"). If the location doesn't relate to the task, you can still use it for color ("while you're at home, knock this out") but don't force it. Never mention location if it would make the message awkward or longer than 2 sentences.

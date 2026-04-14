@@ -3,6 +3,10 @@ import {
   getPendingTasks,
   getRecentNotifications,
   getRecentTaskActivity,
+  getCalendarEventsByDateRange,
+  getUserLocation,
+  getSavedLocations,
+  getCommuteTimes,
 } from "@/lib/db/queries";
 import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callSonnet } from "@/lib/ai";
@@ -227,7 +231,9 @@ type PushNotificationContext =
   | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "location_arrival"; locationName: string; taskTitle: string; taskCount: number }
-  | { type: "location_departure_nearby"; locationName: string; nearbyLocationName: string; taskTitle: string };
+  | { type: "location_departure_nearby"; locationName: string; nearbyLocationName: string; taskTitle: string }
+  | { type: "time_to_leave_soon"; eventTitle: string; minutesUntilLeave: number; destination: string; commuteMinutes: number }
+  | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -240,6 +246,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
   location_arrival: "You're here — might as well knock this out.",
   location_departure_nearby: "Before you head home, there's something nearby.",
+  time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
+  time_to_leave_now: "Time to leave! You need to go now to make it.",
 };
 
 /**
@@ -274,8 +282,12 @@ export async function generatePushMessage(
     userMsg = `Type: location_arrival\nLocation: "${ctx.locationName}"\nTask: "${ctx.taskTitle}"\nTotal matching tasks: ${ctx.taskCount}`;
   } else if (ctx.type === "location_departure_nearby") {
     userMsg = `Type: location_departure_nearby\nLeft: "${ctx.locationName}"\nNearby: "${ctx.nearbyLocationName}"\nTask: "${ctx.taskTitle}"`;
+  } else if (ctx.type === "time_to_leave_soon") {
+    userMsg = `Type: time_to_leave_soon\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nMinutes until you need to leave: ${ctx.minutesUntilLeave}\nCommute time: ${ctx.commuteMinutes} min`;
+  } else if (ctx.type === "time_to_leave_now") {
+    userMsg = `Type: time_to_leave_now\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nCommute time: ${ctx.commuteMinutes} min`;
   } else {
-    userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"`;
+    userMsg = `Type: ${ctx.type}\nTask: "${"taskTitle" in ctx ? ctx.taskTitle : ""}"`;
   }
 
   // Append the user's current location so the AI can reference it naturally
@@ -489,4 +501,140 @@ export async function getInactivityNudgeTier(
   const tier: NudgeTier = hoursInactive >= 120 ? 3 : hoursInactive >= 96 ? 2 : 1;
 
   return { tier, streakKey, hoursInactive };
+}
+
+// ============================================================
+// Time to Leave — departure alerts for upcoming calendar events
+// ============================================================
+
+export interface DepartureAlert {
+  eventId: string;
+  eventTitle: string;
+  eventStartTime: Date;
+  destination: string; // matched saved location name
+  commuteMinutes: number;
+  leaveByTime: Date; // when user needs to leave
+  minutesUntilLeave: number; // from now
+  level: "soon" | "now"; // "soon" = 10-20 min out, "now" = 0-10 min out
+}
+
+const DEPARTURE_BUFFER_MINUTES = 5; // Extra buffer on top of commute time
+
+/**
+ * Match a calendar event's location string to a saved location by name.
+ * Uses case-insensitive substring matching in both directions.
+ */
+function matchEventLocationToSavedLocation(
+  eventLocation: string | null,
+  savedLocations: Array<{ id: string; name: string }>
+): { id: string; name: string } | null {
+  if (!eventLocation?.trim()) return null;
+
+  const eventLoc = eventLocation.toLowerCase();
+
+  for (const loc of savedLocations) {
+    const savedName = loc.name.toLowerCase();
+    // Match if either contains the other (e.g., "Smith Hall Room 101" matches "Campus")
+    // or if event location starts with the saved name
+    if (
+      eventLoc.includes(savedName) ||
+      savedName.includes(eventLoc) ||
+      eventLoc.startsWith(savedName)
+    ) {
+      return loc;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get departure alerts for a user's upcoming events.
+ * Compares event locations to saved locations and calculates when
+ * the user needs to leave based on commute times.
+ */
+export async function getDepartureAlerts(
+  userId: string,
+  timezone: string
+): Promise<DepartureAlert[]> {
+  const now = new Date();
+  const lookAheadEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 hours ahead
+
+  const [upcomingEvents, userLoc, savedLocs, allCommutes] = await Promise.all([
+    getCalendarEventsByDateRange(userId, now, lookAheadEnd),
+    getUserLocation(userId),
+    getSavedLocations(userId),
+    getCommuteTimes(userId),
+  ]);
+
+  // Need to know where the user currently is
+  if (!userLoc?.matchedLocationId) return [];
+
+  const alerts: DepartureAlert[] = [];
+
+  for (const event of upcomingEvents) {
+    if (event.isAllDay) continue;
+    if (!event.location) continue;
+
+    // Match event location to a saved location
+    const destination = matchEventLocationToSavedLocation(event.location, savedLocs);
+    if (!destination) continue;
+
+    // Skip if already at the destination
+    if (destination.id === userLoc.matchedLocationId) continue;
+
+    // Find commute time from current location to event location
+    // Check all travel modes and use the shortest (most likely mode)
+    const relevantCommutes = allCommutes.filter(
+      (c) =>
+        c.fromLocationId === userLoc.matchedLocationId &&
+        c.toLocationId === destination.id
+    );
+
+    if (relevantCommutes.length === 0) continue;
+
+    // Use shortest commute time across all modes
+    const shortestCommute = relevantCommutes.reduce((min, c) =>
+      c.travelMinutes < min.travelMinutes ? c : min
+    );
+    const commuteMinutes = shortestCommute.travelMinutes;
+
+    // Calculate when user needs to leave
+    const eventStart = new Date(event.startTime);
+    const leaveByTime = new Date(
+      eventStart.getTime() - (commuteMinutes + DEPARTURE_BUFFER_MINUTES) * 60_000
+    );
+    const minutesUntilLeave = Math.round(
+      (leaveByTime.getTime() - now.getTime()) / 60_000
+    );
+
+    // Skip if leave time already passed by more than 5 min
+    if (minutesUntilLeave < -5) continue;
+
+    // Determine alert level
+    let level: "soon" | "now";
+    if (minutesUntilLeave <= 0) {
+      level = "now"; // Need to leave NOW
+    } else if (minutesUntilLeave <= 20) {
+      level = "soon"; // Need to leave in 10-20 min
+    } else {
+      continue; // Too far out, skip
+    }
+
+    alerts.push({
+      eventId: event.id,
+      eventTitle: event.title,
+      eventStartTime: eventStart,
+      destination: destination.name,
+      commuteMinutes,
+      leaveByTime,
+      minutesUntilLeave: Math.max(0, minutesUntilLeave),
+      level,
+    });
+  }
+
+  // Sort by most urgent first
+  alerts.sort((a, b) => a.minutesUntilLeave - b.minutesUntilLeave);
+
+  return alerts;
 }
