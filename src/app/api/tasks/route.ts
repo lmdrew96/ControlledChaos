@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTasksByUser, createTask, updateTask } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
 import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { buildAIContext } from "@/lib/ai/context";
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,10 +52,13 @@ export async function POST(request: NextRequest) {
 
     // Generate AI note if no description was provided
     if (!description) {
+      const aiCtx = await buildAIContext(userId);
       const userPrompt = [
         `Task: "${task.title}"`,
         task.category ? `Category: ${task.category}` : null,
         task.priority !== "normal" ? `Priority: ${task.priority}` : null,
+        task.deadline ? `Deadline: ${task.deadline.toISOString()}` : null,
+        `\n${aiCtx.formatted}`,
       ]
         .filter(Boolean)
         .join(", ");

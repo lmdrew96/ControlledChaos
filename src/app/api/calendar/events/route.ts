@@ -11,6 +11,7 @@ import {
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { callHaiku } from "@/lib/ai";
 import { AUTO_NOTE_EVENT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { buildAIContext } from "@/lib/ai/context";
 
 const SYNC_STALENESS_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
 
     // Generate AI note for the first event if no description was provided
     if (!description && createdEvents.length > 0) {
+      const aiCtx = await buildAIContext(userId);
       const firstEvent = createdEvents[0];
       const eventTime = new Date(firstEvent.startTime).toLocaleTimeString("en-US", {
         hour: "numeric",
@@ -181,6 +183,7 @@ export async function POST(request: Request) {
         `Event: "${firstEvent.title}"`,
         `Time: ${eventTime}`,
         firstEvent.location ? `Location: ${firstEvent.location}` : null,
+        `\n${aiCtx.formatted}`,
       ]
         .filter(Boolean)
         .join(", ");

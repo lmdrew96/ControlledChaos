@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Holistic context — extend to notifications, digests, and auto-notes"
+      },
+      {
+        "type": "added",
         "text": "Enrich all AI calls with full context + interactive crisis chat"
       },
       {

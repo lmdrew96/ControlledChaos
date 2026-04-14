@@ -14,6 +14,8 @@ import {
   getPendingTasks,
   getTasksCompletedToday,
   getCalendarEventsByDateRange,
+  getActiveCrisisPlans,
+  getRecentTaskActivity,
   createNotification,
   getUserLocation,
 } from "@/lib/db/queries";
@@ -80,6 +82,26 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   // Energy profile for context
   const energyProfile = settings?.energyProfile as EnergyProfile | null;
 
+  // Fetch crises and recent activity for holistic context
+  const [activeCrises, recentActivity] = await Promise.all([
+    getActiveCrisisPlans(userId),
+    getRecentTaskActivity(userId, 10),
+  ]);
+
+  // Quick behavior signal
+  const snoozeRejectCount = recentActivity.filter(
+    (a) => a.action === "snoozed" || a.action === "rejected"
+  ).length;
+  const completeCount = recentActivity.filter(
+    (a) => a.action === "completed"
+  ).length;
+  const behaviorSignal =
+    snoozeRejectCount > completeCount && snoozeRejectCount >= 3
+      ? "User has been in an avoidance phase recently — be encouraging, not pushy."
+      : completeCount >= 4
+        ? "User is on a productivity streak — keep the momentum."
+        : null;
+
   // Generate AI note
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
@@ -91,6 +113,10 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `Deadlines this week: ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
+    activeCrises.length > 0
+      ? `Active crises: ${activeCrises.map((c) => `"${c.taskName}" (${c.panicLevel})`).join(", ")}`
+      : null,
+    behaviorSignal,
   ]
     .filter(Boolean)
     .join("\n");
@@ -197,6 +223,25 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     tomorrowEnd
   );
 
+  // Fetch crises and recent activity for holistic context
+  const [activeCrises, recentActivity] = await Promise.all([
+    getActiveCrisisPlans(userId),
+    getRecentTaskActivity(userId, 10),
+  ]);
+
+  const snoozeRejectCount = recentActivity.filter(
+    (a) => a.action === "snoozed" || a.action === "rejected"
+  ).length;
+  const completeCount = recentActivity.filter(
+    (a) => a.action === "completed"
+  ).length;
+  const behaviorSignal =
+    snoozeRejectCount > completeCount && snoozeRejectCount >= 3
+      ? "User has been in an avoidance phase — be gentle and encouraging."
+      : completeCount >= 4
+        ? "User had a productive streak — celebrate it."
+        : null;
+
   // Generate AI note
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
@@ -205,6 +250,10 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `Tomorrow's top priority: ${tomorrowPriority ? `${tomorrowPriority.title} (${tomorrowPriority.priority})` : "Nothing urgent"}`,
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
+    activeCrises.length > 0
+      ? `Active crises: ${activeCrises.map((c) => `"${c.taskName}" (${c.panicLevel})`).join(", ")}`
+      : null,
+    behaviorSignal,
   ]
     .filter(Boolean)
     .join("\n");

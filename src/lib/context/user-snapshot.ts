@@ -12,6 +12,7 @@ import {
   getTasksCompletedToday,
   getCalendarEventsByDateRange,
   getRecentTaskActivity,
+  getActiveCrisisPlans,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
@@ -35,6 +36,8 @@ export interface UserSnapshot {
     startTime: string;
     endTime: string;
   }>;
+  activeCrisisCount: number;
+  activitySignal: string | null;
   /** Pre-formatted text block ready to append to any AI user message */
   formatted: string;
 }
@@ -59,12 +62,13 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   const now = new Date();
   const endOfDay = new Date(startOfDayInTimezone(now, timezone).getTime() + 86_400_000 - 1);
 
-  const [pendingTasks, completedToday, todayEvents, recentActivity] =
+  const [pendingTasks, completedToday, todayEvents, recentActivity, crisisPlans] =
     await Promise.all([
       getPendingTasks(userId),
       getTasksCompletedToday(userId, timezone),
       getCalendarEventsByDateRange(userId, now, endOfDay),
-      getRecentTaskActivity(userId, 5),
+      getRecentTaskActivity(userId, 10),
+      getActiveCrisisPlans(userId),
     ]);
 
   const energyProfile = (settings?.energyProfile as EnergyProfile) ?? null;
@@ -113,12 +117,43 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   }
 
   // Recent activity signal
+  let activitySignal: string | null = null;
   if (recentActivity.length > 0) {
     const lastAction = recentActivity[0];
     const lastActionTime = formatForDisplay(
       new Date(lastAction.createdAt), timezone, DISPLAY_TIME
     );
     lines.push(`Last activity: ${lastAction.action} at ${lastActionTime}`);
+
+    // Quick behavior signal from recent actions
+    const snoozeRejectCount = recentActivity.filter(
+      (a) => a.action === "snoozed" || a.action === "rejected"
+    ).length;
+    const completeCount = recentActivity.filter(
+      (a) => a.action === "completed"
+    ).length;
+
+    if (snoozeRejectCount > completeCount && snoozeRejectCount >= 3) {
+      activitySignal = "User has been snoozing/rejecting more than completing — possible low-energy or avoidance phase.";
+    } else if (completeCount >= 4) {
+      activitySignal = "User is on a productivity streak.";
+    }
+  }
+
+  // Active crises
+  const activeCrisisCount = crisisPlans.length;
+  if (crisisPlans.length > 0) {
+    lines.push(`Active crises: ${crisisPlans.length}`);
+    for (const c of crisisPlans) {
+      const totalTasks = (c.tasks as unknown[]).length;
+      const pct = totalTasks > 0 ? Math.round((c.currentTaskIndex / totalTasks) * 100) : 0;
+      lines.push(`  - "${c.taskName}" (${c.panicLevel}, ${pct}% done)`);
+    }
+  }
+
+  // Activity signal
+  if (activitySignal) {
+    lines.push(`Behavior: ${activitySignal}`);
   }
 
   return {
@@ -129,6 +164,8 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     completedTodayCount: completedToday.length,
     topPendingTasks: topPending,
     todayEvents: formattedEvents,
+    activeCrisisCount,
+    activitySignal,
     formatted: lines.join("\n"),
   };
 }
