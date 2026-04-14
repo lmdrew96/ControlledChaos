@@ -605,6 +605,8 @@ Break the task into 5-8 concrete micro-tasks (≤30 min each) that fit the avail
 - If the user has attached files (assignment instructions, rubrics, screenshots), use them to make the micro-tasks more specific and accurate to the actual requirements.
 - Every instruction should be specific enough to start immediately. BAD: "Work on the main section." GOOD: "Open your doc. Write 3 paragraphs covering [specific topic]. Aim for 500 words. Skip perfection — get ideas down."
 - stuckHint should address the most likely freeze point for that step.
+- SINGLE CRISIS: ALWAYS commit to ONE strategy. Never present multiple options or alternative paths. Pick the best approach for the situation and build every task around it. The user is in crisis — choosing between strategies is cognitive load they cannot afford right now. If you see two viable approaches, pick the one most likely to produce a passable result in the available time and go all-in on it. Use the standard output schema.
+- MULTIPLE ACTIVE CRISES: When the user has other active crisis plans, use the STRATEGIES output schema instead. Present exactly 2-3 distinct strategic approaches (e.g. "Finish essay first, then lab report" vs "Alternate: 1 hour on each" vs "Triage: submit what you have for essay, focus on lab report"). Each strategy gets its own complete task list. Let the user decide how to allocate their limited time.
 
 ## CRITICAL: Anti-Hallucination Rules
 1. TIME MATH: Use the "actual work time" from the time budget (which already subtracts events and sleep). All micro-task estimatedMinutes MUST sum to ≤ actual work time. If they won't fit, drop the lowest-value tasks and note what was cut in the summary. NEVER schedule tasks during sleep hours unless the user explicitly says they're pulling an all-nighter.
@@ -618,7 +620,9 @@ Break the task into 5-8 concrete micro-tasks (≤30 min each) that fit the avail
 5. If the user has other active crisis plans, factor in the cognitive load and time competition. Two crises with tight deadlines = damage-control.
 
 ## Output Schema
-Respond with ONLY valid JSON (no prose, no markdown):
+Respond with ONLY valid JSON (no prose, no markdown).
+
+### Standard schema (single crisis — no other active crisis plans):
 {
   "panicLevel": "fine" | "tight" | "damage-control",
   "panicLabel": "2-3 words max, e.g. 'You're fine', 'Getting tight', 'Damage control'",
@@ -629,6 +633,20 @@ Respond with ONLY valid JSON (no prose, no markdown):
       "instruction": "Specific, direct instruction they can follow immediately",
       "estimatedMinutes": 20,
       "stuckHint": "What to do if they freeze on this step"
+    }
+  ]
+}
+
+### Strategies schema (ONLY when user has other active crisis plans):
+{
+  "strategies": [
+    {
+      "label": "Short strategy name (3-5 words)",
+      "description": "1 sentence explaining this approach and its trade-offs",
+      "panicLevel": "fine" | "tight" | "damage-control",
+      "panicLabel": "2-3 words max",
+      "summary": "Honest 1-2 sentence assessment if this strategy is chosen",
+      "tasks": [ ... same task schema as above ... ]
     }
   ]
 }

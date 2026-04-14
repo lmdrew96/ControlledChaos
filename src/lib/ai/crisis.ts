@@ -1,7 +1,7 @@
 import { anthropic, callHaiku, callWithRetry } from "@/lib/ai";
 import { CRISIS_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { extractJSON } from "@/lib/ai/validate";
-import type { CrisisPlan, CrisisFileAttachment } from "@/types";
+import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment } from "@/types";
 
 // ============================================================
 // Types
@@ -112,7 +112,11 @@ Break this into concrete micro-tasks that fit the remaining time. Be honest abou
 // Main export
 // ============================================================
 
-export async function getCrisisPlan(params: CrisisParams): Promise<CrisisPlan> {
+export type CrisisResult =
+  | { type: "plan"; plan: CrisisPlan }
+  | { type: "strategies"; strategies: CrisisStrategy[] };
+
+export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult> {
   const userPromptText = buildUserPrompt(params);
 
   try {
@@ -174,27 +178,45 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisPlan> {
     }
 
     // Try standard extraction first; fall back to bracket-scanning if that fails
-    let parsed: CrisisPlan;
+    let parsed: Record<string, unknown>;
     try {
-      parsed = extractJSON<CrisisPlan>(responseText);
+      parsed = extractJSON<Record<string, unknown>>(responseText);
     } catch {
       // extractJSON failed — try finding the outermost { ... } in the response
       const start = responseText.indexOf("{");
       const end = responseText.lastIndexOf("}");
       if (start === -1 || end === -1 || end <= start) {
         console.error("[AI] Crisis: no JSON object found in response:", responseText);
-        return FALLBACK_PLAN;
+        return { type: "plan", plan: FALLBACK_PLAN };
       }
       try {
-        parsed = JSON.parse(responseText.slice(start, end + 1)) as CrisisPlan;
+        parsed = JSON.parse(responseText.slice(start, end + 1)) as Record<string, unknown>;
       } catch (innerErr) {
         console.error("[AI] Crisis: bracket-scan parse failed:", innerErr, "\nRaw:", responseText);
-        return FALLBACK_PLAN;
+        return { type: "plan", plan: FALLBACK_PLAN };
       }
     }
-    return parsed;
+
+    // Determine if the AI returned strategies or a single plan
+    if (Array.isArray(parsed.strategies) && parsed.strategies.length > 0) {
+      const strategies: CrisisStrategy[] = parsed.strategies.map(
+        (s: Record<string, unknown>) => ({
+          label: String(s.label ?? "Strategy"),
+          description: String(s.description ?? ""),
+          plan: {
+            panicLevel: s.panicLevel as CrisisPlan["panicLevel"],
+            panicLabel: String(s.panicLabel ?? ""),
+            summary: String(s.summary ?? ""),
+            tasks: (s.tasks as CrisisPlan["tasks"]) ?? [],
+          },
+        })
+      );
+      return { type: "strategies", strategies };
+    }
+
+    return { type: "plan", plan: parsed as unknown as CrisisPlan };
   } catch (error) {
     console.error("[AI] Crisis: unexpected error:", error);
-    return FALLBACK_PLAN;
+    return { type: "plan", plan: FALLBACK_PLAN };
   }
 }

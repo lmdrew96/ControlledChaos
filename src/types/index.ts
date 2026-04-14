@@ -262,6 +262,12 @@ export interface CrisisPlan {
   tasks: CrisisTask[];
 }
 
+export interface CrisisStrategy {
+  label: string;
+  description: string;
+  plan: CrisisPlan;
+}
+
 export interface CrisisFileAttachment {
   base64: string;
   mediaType:
