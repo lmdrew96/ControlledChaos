@@ -168,6 +168,30 @@ export const locations = pgTable("locations", {
 });
 
 // ============================================================
+// Commute Times (travel minutes between saved locations)
+// ============================================================
+export const commuteTimes = pgTable(
+  "commute_times",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    fromLocationId: uuid("from_location_id")
+      .references(() => locations.id, { onDelete: "cascade" })
+      .notNull(),
+    toLocationId: uuid("to_location_id")
+      .references(() => locations.id, { onDelete: "cascade" })
+      .notNull(),
+    travelMinutes: integer("travel_minutes").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_commute_pair").on(table.fromLocationId, table.toLocationId),
+  ]
+);
+
+// ============================================================
 // User Locations (last known position for geofence notifications)
 // ============================================================
 export const userLocations = pgTable("user_locations", {

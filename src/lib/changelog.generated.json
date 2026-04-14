@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Add commute times between saved locations with crisis mode integration"
+      },
+      {
+        "type": "added",
         "text": "Crisis mode includes user's current location for travel awareness"
       },
       {

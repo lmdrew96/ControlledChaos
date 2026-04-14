@@ -4,6 +4,7 @@ import { TimezoneSettings } from "@/components/features/settings/timezone-settin
 import { EnergyProfileEditor } from "@/components/features/settings/energy-profile";
 import { PersonalitySettings } from "@/components/features/settings/personality-settings";
 import { SavedLocations } from "@/components/features/settings/saved-locations";
+import { CommuteTimes } from "@/components/features/settings/commute-times";
 import { CalendarSettings } from "@/components/features/settings/calendar-settings";
 import { NotificationSettings } from "@/components/features/settings/notification-settings";
 
@@ -66,6 +67,9 @@ export default function SettingsPage() {
           <SavedLocations />
         </CardContent>
       </Card>
+
+      {/* Commute Times */}
+      <CommuteTimes />
 
       {/* Calendar Integration */}
       <Card>

@@ -12,6 +12,8 @@ import {
   updateCrisisPlanProgress,
   completeCrisisPlan,
   getUserLocation,
+  getCommuteTimes,
+  getSavedLocations,
 } from "@/lib/db/queries";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
@@ -38,6 +40,28 @@ function formatEventsForAI(
     endTime: e.endTime.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
     durationMinutes: Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60_000),
   }));
+}
+
+/**
+ * Build commute context: for the user's current location, list travel
+ * times to all other saved locations.
+ */
+function buildCommuteContext(
+  userLocation: { matchedLocationId: string | null } | null,
+  allCommutes: Array<{ fromLocationId: string; toLocationId: string; travelMinutes: number }>,
+  savedLocations: Array<{ id: string; name: string }>
+): Array<{ to: string; minutes: number }> {
+  if (!userLocation?.matchedLocationId || allCommutes.length === 0) return [];
+
+  const fromId = userLocation.matchedLocationId;
+  const locationNameMap = new Map(savedLocations.map((l) => [l.id, l.name]));
+
+  return allCommutes
+    .filter((c) => c.fromLocationId === fromId)
+    .map((c) => ({
+      to: locationNameMap.get(c.toLocationId) ?? "Unknown",
+      minutes: c.travelMinutes,
+    }));
 }
 
 /**
@@ -181,13 +205,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
       getUserLocation(userId),
+      getCommuteTimes(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -210,6 +235,9 @@ export async function POST(request: Request) {
       hour12: true,
     });
 
+    // Build commute context from user's current location
+    const commuteContext = buildCommuteContext(userLocation, allCommutes, await getSavedLocations(userId));
+
     const plan = await getCrisisPlan({
       taskName,
       deadline: deadlineDate.toLocaleString("en-US", { timeZone: timezone, ...TIME_FORMAT_OPTS }),
@@ -226,6 +254,7 @@ export async function POST(request: Request) {
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
       currentLocation: userLocation?.matchedLocationName ?? null,
+      commuteContext,
       files,
     });
 
@@ -287,13 +316,15 @@ export async function PUT(request: Request) {
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, savedLocs] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
       getUserLocation(userId),
+      getCommuteTimes(userId),
+      getSavedLocations(userId),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
@@ -321,6 +352,7 @@ export async function PUT(request: Request) {
     });
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
+    const commuteContext = buildCommuteContext(userLocation, allCommutes, savedLocs);
 
     // Preserve completed steps — only regenerate remaining work
     const existingTasks = plan.tasks as CrisisTask[];
@@ -345,6 +377,7 @@ export async function PUT(request: Request) {
       })),
       completedSteps: completedStepTitles,
       currentLocation: userLocation?.matchedLocationName ?? null,
+      commuteContext,
     });
 
     // Merge: completed tasks stay, AI-generated tasks replace the remaining ones

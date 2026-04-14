@@ -19,6 +19,7 @@ export interface CrisisParams {
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
   completedSteps?: string[];
   currentLocation?: string | null;
+  commuteContext?: Array<{ to: string; minutes: number }>;
   files?: CrisisFileAttachment[];
 }
 
@@ -83,9 +84,13 @@ function buildUserPrompt(params: CrisisParams): string {
       ? `\n\nSteps already completed (DO NOT regenerate these — only plan the REMAINING work):\n${params.completedSteps.map((s, i) => `${i + 1}. ✅ ${s}`).join("\n")}`
       : "";
 
-  const locationLine = params.currentLocation
-    ? `\nUser's current location: ${params.currentLocation}. If the task requires being somewhere else (e.g., campus for an exam), factor in travel time — suggest they leave early and include a "commute/travel" step.`
-    : "";
+  let locationLine = "";
+  if (params.currentLocation) {
+    const commuteInfo = params.commuteContext && params.commuteContext.length > 0
+      ? `\nKnown commute times from ${params.currentLocation}: ${params.commuteContext.map((c) => `→ ${c.to}: ${c.minutes} min`).join(", ")}.`
+      : "";
+    locationLine = `\nUser's current location: ${params.currentLocation}. If the task requires being somewhere else, you MUST include a "Leave for [destination]" step with the commute time. The user needs to arrive BEFORE the deadline, not at the deadline.${commuteInfo}`;
+  }
 
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}

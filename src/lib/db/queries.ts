@@ -4,6 +4,7 @@ import {
   calendarEvents,
   crisisPlans,
   goals,
+  commuteTimes,
   locations,
   locationNotificationLog,
   notifications,
@@ -1188,6 +1189,79 @@ export async function logLocationNotification(
     taskId,
     event,
   });
+}
+
+// ============================================================
+// Commute Times
+// ============================================================
+
+export async function getCommuteTimes(userId: string) {
+  return db
+    .select()
+    .from(commuteTimes)
+    .where(eq(commuteTimes.userId, userId));
+}
+
+export async function getCommuteBetween(
+  fromLocationId: string,
+  toLocationId: string
+): Promise<number | null> {
+  const [row] = await db
+    .select({ travelMinutes: commuteTimes.travelMinutes })
+    .from(commuteTimes)
+    .where(
+      and(
+        eq(commuteTimes.fromLocationId, fromLocationId),
+        eq(commuteTimes.toLocationId, toLocationId)
+      )
+    );
+  return row?.travelMinutes ?? null;
+}
+
+export async function upsertCommuteTime(
+  userId: string,
+  fromLocationId: string,
+  toLocationId: string,
+  travelMinutes: number
+) {
+  const [existing] = await db
+    .select({ id: commuteTimes.id })
+    .from(commuteTimes)
+    .where(
+      and(
+        eq(commuteTimes.fromLocationId, fromLocationId),
+        eq(commuteTimes.toLocationId, toLocationId)
+      )
+    );
+
+  if (existing) {
+    const [updated] = await db
+      .update(commuteTimes)
+      .set({ travelMinutes, updatedAt: new Date() })
+      .where(eq(commuteTimes.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(commuteTimes)
+    .values({ userId, fromLocationId, toLocationId, travelMinutes })
+    .returning();
+  return created;
+}
+
+export async function deleteCommuteTime(
+  fromLocationId: string,
+  toLocationId: string
+) {
+  await db
+    .delete(commuteTimes)
+    .where(
+      and(
+        eq(commuteTimes.fromLocationId, fromLocationId),
+        eq(commuteTimes.toLocationId, toLocationId)
+      )
+    );
 }
 
 // ============================================================
