@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Add Schedule My Day button to dashboard"
+      },
+      {
+        "type": "added",
         "text": "Holistic context — extend to notifications, digests, and auto-notes"
       },
       {

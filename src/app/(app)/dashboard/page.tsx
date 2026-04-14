@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskList } from "@/components/features/task-feed/task-list";
 import { DoThisNext } from "@/components/features/recommendation/do-this-next";
 import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
+import { ScheduleMyDay } from "@/components/features/dashboard/schedule-my-day";
 import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
 
@@ -20,9 +21,12 @@ export default function DashboardPage() {
       {/* Hero: Task Recommendation */}
       <DoThisNext />
 
-      {/* Momentum + Brain dump row */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Action row: Momentum + Schedule My Day + Brain dump */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <DailyMomentum />
+
+        {/* Schedule My Day */}
+        <ScheduleMyDay />
 
         {/* Quick brain dump CTA */}
         <Card className="group relative overflow-hidden border-border/40 bg-card/80 transition-colors hover:border-primary/30">
