@@ -47,7 +47,7 @@ function formatEventsForAI(
  */
 function buildCommuteContext(
   userLocation: { matchedLocationId: string | null } | null,
-  allCommutes: Array<{ fromLocationId: string; toLocationId: string; travelMinutes: number }>,
+  allCommutes: Array<{ fromLocationId: string; toLocationId: string; travelMode: string; travelMinutes: number }>,
   savedLocations: Array<{ id: string; name: string }>
 ): Array<{ to: string; minutes: number }> {
   if (!userLocation?.matchedLocationId || allCommutes.length === 0) return [];
@@ -56,7 +56,7 @@ function buildCommuteContext(
   const locationNameMap = new Map(savedLocations.map((l) => [l.id, l.name]));
 
   return allCommutes
-    .filter((c) => c.fromLocationId === fromId)
+    .filter((c) => c.fromLocationId === fromId && c.travelMode === "driving")
     .map((c) => ({
       to: locationNameMap.get(c.toLocationId) ?? "Unknown",
       minutes: c.travelMinutes,

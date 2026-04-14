@@ -31,11 +31,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { fromLocationId, toLocationId, travelMinutes } = body as {
+    const { fromLocationId, toLocationId, travelMinutes, travelMode } = body as {
       fromLocationId: string;
       toLocationId: string;
       travelMinutes: number;
+      travelMode?: string;
     };
+
+    const mode = travelMode ?? "driving";
 
     if (!fromLocationId || !toLocationId) {
       return NextResponse.json({ error: "Both location IDs are required" }, { status: 400 });
@@ -49,8 +52,8 @@ export async function POST(request: Request) {
 
     // Upsert both directions (A→B and B→A are the same commute)
     await Promise.all([
-      upsertCommuteTime(userId, fromLocationId, toLocationId, travelMinutes),
-      upsertCommuteTime(userId, toLocationId, fromLocationId, travelMinutes),
+      upsertCommuteTime(userId, fromLocationId, toLocationId, travelMinutes, mode),
+      upsertCommuteTime(userId, toLocationId, fromLocationId, travelMinutes, mode),
     ]);
 
     return NextResponse.json({ ok: true });
@@ -71,15 +74,16 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const fromLocationId = searchParams.get("from");
     const toLocationId = searchParams.get("to");
+    const mode = searchParams.get("mode") ?? "driving";
 
     if (!fromLocationId || !toLocationId) {
       return NextResponse.json({ error: "Both location IDs are required" }, { status: 400 });
     }
 
-    // Delete both directions
+    // Delete both directions for the specified mode
     await Promise.all([
-      deleteCommuteTime(fromLocationId, toLocationId),
-      deleteCommuteTime(toLocationId, fromLocationId),
+      deleteCommuteTime(fromLocationId, toLocationId, mode),
+      deleteCommuteTime(toLocationId, fromLocationId, mode),
     ]);
 
     return NextResponse.json({ ok: true });

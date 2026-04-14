@@ -1204,7 +1204,8 @@ export async function getCommuteTimes(userId: string) {
 
 export async function getCommuteBetween(
   fromLocationId: string,
-  toLocationId: string
+  toLocationId: string,
+  travelMode = "driving"
 ): Promise<number | null> {
   const [row] = await db
     .select({ travelMinutes: commuteTimes.travelMinutes })
@@ -1212,7 +1213,8 @@ export async function getCommuteBetween(
     .where(
       and(
         eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId)
+        eq(commuteTimes.toLocationId, toLocationId),
+        eq(commuteTimes.travelMode, travelMode)
       )
     );
   return row?.travelMinutes ?? null;
@@ -1222,7 +1224,8 @@ export async function upsertCommuteTime(
   userId: string,
   fromLocationId: string,
   toLocationId: string,
-  travelMinutes: number
+  travelMinutes: number,
+  travelMode = "driving"
 ) {
   const [existing] = await db
     .select({ id: commuteTimes.id })
@@ -1230,7 +1233,8 @@ export async function upsertCommuteTime(
     .where(
       and(
         eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId)
+        eq(commuteTimes.toLocationId, toLocationId),
+        eq(commuteTimes.travelMode, travelMode)
       )
     );
 
@@ -1245,21 +1249,23 @@ export async function upsertCommuteTime(
 
   const [created] = await db
     .insert(commuteTimes)
-    .values({ userId, fromLocationId, toLocationId, travelMinutes })
+    .values({ userId, fromLocationId, toLocationId, travelMinutes, travelMode })
     .returning();
   return created;
 }
 
 export async function deleteCommuteTime(
   fromLocationId: string,
-  toLocationId: string
+  toLocationId: string,
+  travelMode = "driving"
 ) {
   await db
     .delete(commuteTimes)
     .where(
       and(
         eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId)
+        eq(commuteTimes.toLocationId, toLocationId),
+        eq(commuteTimes.travelMode, travelMode)
       )
     );
 }

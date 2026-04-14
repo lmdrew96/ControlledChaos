@@ -19,6 +19,7 @@ interface SavedLocation {
 interface CommuteTime {
   fromLocationId: string;
   toLocationId: string;
+  travelMode: string;
   travelMinutes: number;
 }
 
@@ -82,7 +83,10 @@ export function CommuteTimes() {
 
   const getMinutes = (fromId: string, toId: string): number | "" => {
     const ct = commuteTimes.find(
-      (c) => c.fromLocationId === fromId && c.toLocationId === toId
+      (c) =>
+        c.fromLocationId === fromId &&
+        c.toLocationId === toId &&
+        c.travelMode === travelMode
     );
     return ct ? ct.travelMinutes : "";
   };
@@ -95,15 +99,16 @@ export function CommuteTimes() {
     if (!value || minutes === 0) {
       setSavingPair(pairKey);
       try {
-        await fetch(`/api/locations/commute-times?from=${fromId}&to=${toId}`, {
+        await fetch(`/api/locations/commute-times?from=${fromId}&to=${toId}&mode=${travelMode}`, {
           method: "DELETE",
         });
         setCommuteTimes((prev) =>
           prev.filter(
             (c) =>
               !(
-                (c.fromLocationId === fromId && c.toLocationId === toId) ||
-                (c.fromLocationId === toId && c.toLocationId === fromId)
+                c.travelMode === travelMode &&
+                ((c.fromLocationId === fromId && c.toLocationId === toId) ||
+                  (c.fromLocationId === toId && c.toLocationId === fromId))
               )
           )
         );
@@ -124,22 +129,24 @@ export function CommuteTimes() {
           fromLocationId: fromId,
           toLocationId: toId,
           travelMinutes: minutes,
+          travelMode,
         }),
       });
       if (res.ok) {
-        // Update both directions in local state
+        // Update both directions in local state for this mode
         setCommuteTimes((prev) => {
           const filtered = prev.filter(
             (c) =>
               !(
-                (c.fromLocationId === fromId && c.toLocationId === toId) ||
-                (c.fromLocationId === toId && c.toLocationId === fromId)
+                c.travelMode === travelMode &&
+                ((c.fromLocationId === fromId && c.toLocationId === toId) ||
+                  (c.fromLocationId === toId && c.toLocationId === fromId))
               )
           );
           return [
             ...filtered,
-            { fromLocationId: fromId, toLocationId: toId, travelMinutes: minutes },
-            { fromLocationId: toId, toLocationId: fromId, travelMinutes: minutes },
+            { fromLocationId: fromId, toLocationId: toId, travelMode, travelMinutes: minutes },
+            { fromLocationId: toId, toLocationId: fromId, travelMode, travelMinutes: minutes },
           ];
         });
         toast.success("Commute time saved");

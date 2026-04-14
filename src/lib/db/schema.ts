@@ -183,11 +183,16 @@ export const commuteTimes = pgTable(
     toLocationId: uuid("to_location_id")
       .references(() => locations.id, { onDelete: "cascade" })
       .notNull(),
+    travelMode: text("travel_mode").notNull().default("driving"),
     travelMinutes: integer("travel_minutes").notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("idx_commute_pair").on(table.fromLocationId, table.toLocationId),
+    uniqueIndex("idx_commute_pair_mode").on(
+      table.fromLocationId,
+      table.toLocationId,
+      table.travelMode
+    ),
   ]
 );
 

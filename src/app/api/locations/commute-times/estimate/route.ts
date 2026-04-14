@@ -27,13 +27,19 @@ interface OSRMResponse {
   }>;
 }
 
-async function getOSRMEstimate(
+// Average speeds (km/h) used when the OSRM public server lacks a profile
+const FALLBACK_SPEEDS: Record<string, number> = {
+  foot: 5,
+  bike: 15,
+};
+
+async function fetchOSRMRoute(
   fromLat: number,
   fromLng: number,
   toLat: number,
   toLng: number,
   profile: string
-): Promise<{ minutes: number; distanceKm: number } | null> {
+): Promise<{ durationSec: number; distanceM: number } | null> {
   const url = `https://router.project-osrm.org/route/v1/${profile}/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
 
   const res = await fetch(url, {
@@ -44,13 +50,45 @@ async function getOSRMEstimate(
   if (!res.ok) return null;
 
   const data = (await res.json()) as OSRMResponse;
-
   if (data.code !== "Ok" || !data.routes?.length) return null;
 
-  const route = data.routes[0];
   return {
-    minutes: Math.round(route.duration / 60),
-    distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+    durationSec: data.routes[0].duration,
+    distanceM: data.routes[0].distance,
+  };
+}
+
+async function getOSRMEstimate(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  profile: string
+): Promise<{ minutes: number; distanceKm: number } | null> {
+  // Try the requested profile first
+  const direct = await fetchOSRMRoute(fromLat, fromLng, toLat, toLng, profile);
+
+  if (direct) {
+    return {
+      minutes: Math.round(direct.durationSec / 60),
+      distanceKm: Math.round((direct.distanceM / 1000) * 10) / 10,
+    };
+  }
+
+  // Public OSRM demo only serves "car" — fall back to car route distance
+  // and calculate time using average speed for the requested mode
+  const fallbackSpeed = FALLBACK_SPEEDS[profile];
+  if (!fallbackSpeed) return null; // unknown profile, no fallback
+
+  const carRoute = await fetchOSRMRoute(fromLat, fromLng, toLat, toLng, "car");
+  if (!carRoute) return null;
+
+  const distanceKm = carRoute.distanceM / 1000;
+  const minutes = Math.round((distanceKm / fallbackSpeed) * 60);
+
+  return {
+    minutes: Math.max(minutes, 1), // at least 1 minute
+    distanceKm: Math.round(distanceKm * 10) / 10,
   };
 }
 
