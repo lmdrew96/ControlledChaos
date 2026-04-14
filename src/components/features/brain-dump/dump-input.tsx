@@ -7,8 +7,13 @@ import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { DumpCategory } from "@/types";
 
-export function DumpInput() {
+interface DumpInputProps {
+  category: DumpCategory;
+}
+
+export function DumpInput({ category }: DumpInputProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +35,7 @@ export function DumpInput() {
       const response = await fetch("/api/dump/text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, category }),
       });
 
       const data = await response.json();

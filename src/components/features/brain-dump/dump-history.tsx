@@ -11,6 +11,7 @@ import {
   ChevronUp,
   CheckSquare,
   Calendar,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface DumpSummary {
   id: string;
   inputType: string;
+  category: string;
   rawContent: string | null;
   summary: string | null;
   taskCount: number;
@@ -119,9 +121,15 @@ export function DumpHistory() {
                   <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
                     <p className="truncate text-sm">
-                      {dump.summary || "Brain dump"}
+                      {dump.summary || (dump.category === "junk_journal" ? "Junk journal entry" : "Brain dump")}
                     </p>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      {dump.category === "junk_journal" && (
+                        <span className="flex items-center gap-1 text-amber-500">
+                          <BookOpen className="h-3 w-3" />
+                          journal
+                        </span>
+                      )}
                       {dump.taskCount > 0 && (
                         <span className="flex items-center gap-1">
                           <CheckSquare className="h-3 w-3" />

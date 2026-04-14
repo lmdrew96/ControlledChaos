@@ -326,10 +326,12 @@ Returns: Confirmation of deletion.`,
 
 Args:
   - content (required): Raw text of the brain dump.
+  - category: "braindump" (default) or "junk_journal". Junk journal entries are raw material for essays/literary analysis, kept separate from dev/life brain dumps.
 
 Returns: Confirmation with the dump ID.`,
       inputSchema: {
         content: z.string().min(1).max(10000).describe("Raw brain dump text"),
+        category: z.enum(["braindump", "junk_journal"]).default("braindump").describe("Category: braindump (default) or junk_journal"),
       },
       annotations: {
         readOnlyHint: false,
@@ -340,17 +342,19 @@ Returns: Confirmation with the dump ID.`,
     },
     async (params) => {
       const userId = getUserId();
+      const cat = params.category ?? "braindump";
       const rows = await sql(
-        `INSERT INTO brain_dumps (user_id, input_type, raw_content, parsed)
-         VALUES ($1, 'text', $2, false)
-         RETURNING id, created_at`,
-        [userId, params.content]
+        `INSERT INTO brain_dumps (user_id, input_type, raw_content, parsed, category)
+         VALUES ($1, 'text', $2, false, $3)
+         RETURNING id, created_at, category`,
+        [userId, params.content, cat]
       );
 
+      const label = rows[0].category === "junk_journal" ? "Junk journal entry" : "Brain dump";
       return {
         content: [{
           type: "text" as const,
-          text: `🧠 Brain dump saved!\nID: \`${rows[0].id}\`\nCreated: ${rows[0].created_at}\n\nThis will be available for AI parsing in the ControlledChaos app.`,
+          text: `🧠 ${label} saved!\nID: \`${rows[0].id}\`\nCategory: ${rows[0].category}\nCreated: ${rows[0].created_at}\n\nThis will be available for AI parsing in the ControlledChaos app.`,
         }],
       };
     }
@@ -876,12 +880,14 @@ Returns: Confirmation of deletion.`,
 Args:
   - input_type: Filter by type (text, voice, photo).
   - parsed: Filter by parsed status (true = already processed, false = pending).
+  - category: Filter by category (braindump, junk_journal). Useful for pulling only junk_journal entries for essay drafting.
   - limit: Max results (1-50, default 20).
 
-Returns: Markdown-formatted list of brain dumps with IDs, type, content preview, and parsed status.`,
+Returns: Markdown-formatted list of brain dumps with IDs, type, category, content preview, and parsed status.`,
       inputSchema: {
         input_type: z.enum(["text", "voice", "photo"]).optional().describe("Filter by input type"),
         parsed: z.boolean().optional().describe("Filter by parsed status"),
+        category: z.enum(["braindump", "junk_journal"]).optional().describe("Filter by category"),
         limit: z.number().int().min(1).max(50).default(20).describe("Max results"),
       },
       annotations: {
@@ -907,6 +913,12 @@ Returns: Markdown-formatted list of brain dumps with IDs, type, content preview,
       if (params.parsed !== undefined) {
         conditions.push(`parsed = $${paramIdx}`);
         values.push(params.parsed);
+        paramIdx++;
+      }
+
+      if (params.category) {
+        conditions.push(`category = $${paramIdx}`);
+        values.push(params.category);
         paramIdx++;
       }
 

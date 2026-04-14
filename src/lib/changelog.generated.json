@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Recommendation empty state bug + add junk journal brain dump category"
+      },
+      {
+        "type": "fixed",
         "text": "Orange bar color, card height matching, crisis stale time refs"
       },
       {

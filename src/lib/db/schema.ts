@@ -74,6 +74,7 @@ export const brainDumps = pgTable(
     inputType: text("input_type").notNull(), // text, voice, photo
     rawContent: text("raw_content"),
     mediaUrl: text("media_url"), // R2 URL for audio/photo
+    category: text("category").default("braindump").notNull(), // braindump | junk_journal
     parsed: boolean("parsed").default(false),
     aiResponse: jsonb("ai_response"), // Full AI parsing response
     createdAt: timestamp("created_at").defaultNow().notNull(),

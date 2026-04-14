@@ -45,6 +45,7 @@ export type LocationTag = string;
 // Brain Dump Types
 // ============================================================
 export type DumpInputType = "text" | "voice" | "photo";
+export type DumpCategory = "braindump" | "junk_journal";
 
 export interface ParsedTask {
   title: string;

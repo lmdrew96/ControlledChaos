@@ -26,6 +26,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const content = body.content?.trim();
+    const category = body.category === "junk_journal" ? "junk_journal" : "braindump" as const;
 
     if (!content) {
       return NextResponse.json(
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       inputType: "text",
       rawContent: content,
       aiResponse: result,
+      category,
     });
 
     // Create tasks from parsed output

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import type { DumpCategory } from "@/types";
 
 type PhotoStage = "ready" | "uploading" | "parsing" | "reviewing";
 
@@ -68,7 +69,11 @@ function compressImage(
   });
 }
 
-export function PhotoUploader() {
+interface PhotoUploaderProps {
+  category: DumpCategory;
+}
+
+export function PhotoUploader({ category }: PhotoUploaderProps) {
   const router = useRouter();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -157,7 +162,7 @@ export function PhotoUploader() {
       const response = await fetch("/api/dump/photo/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ extractedText: text, mediaUrl: url }),
+        body: JSON.stringify({ extractedText: text, mediaUrl: url, category }),
       });
 
       const data = await response.json();

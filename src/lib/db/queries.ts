@@ -20,6 +20,7 @@ import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, isNull, notInArr
 import type {
   ParsedTask,
   DumpInputType,
+  DumpCategory,
   BrainDumpResult,
   CalendarColors,
   EnergyProfile,
@@ -147,6 +148,7 @@ export async function createBrainDump(params: {
   rawContent: string;
   aiResponse: BrainDumpResult;
   mediaUrl?: string;
+  category?: DumpCategory;
 }) {
   const [dump] = await db
     .insert(brainDumps)
@@ -157,6 +159,7 @@ export async function createBrainDump(params: {
       parsed: true,
       aiResponse: params.aiResponse,
       mediaUrl: params.mediaUrl ?? null,
+      category: params.category ?? "braindump",
     })
     .returning();
 

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
 import { cn } from "@/lib/utils";
+import type { DumpCategory } from "@/types";
 
 type VoiceStage =
   | "ready"
@@ -17,7 +18,11 @@ type VoiceStage =
   | "reviewing"
   | "parsing";
 
-export function VoiceRecorder() {
+interface VoiceRecorderProps {
+  category: DumpCategory;
+}
+
+export function VoiceRecorder({ category }: VoiceRecorderProps) {
   const router = useRouter();
   const {
     status: recorderStatus,
@@ -104,7 +109,7 @@ export function VoiceRecorder() {
       const response = await fetch("/api/dump/voice/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: text, mediaUrl: url }),
+        body: JSON.stringify({ transcript: text, mediaUrl: url, category }),
       });
 
       const data = await response.json();

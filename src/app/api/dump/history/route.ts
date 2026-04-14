@@ -15,6 +15,7 @@ export async function GET() {
       dumps: dumps.map((d) => ({
         id: d.id,
         inputType: d.inputType,
+        category: d.category,
         rawContent: d.rawContent,
         summary: (d.aiResponse as { summary?: string })?.summary ?? null,
         taskCount:

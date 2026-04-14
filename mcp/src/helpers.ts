@@ -106,9 +106,11 @@ export function formatEvent(event: Record<string, unknown>, tz?: string): string
  * Format a brain dump into a readable markdown string.
  */
 export function formatBrainDump(dump: Record<string, unknown>, tz?: string): string {
+  const categoryLabel = dump.category === "junk_journal" ? "junk journal" : "brain dump";
   const parts: string[] = [
-    `**${dump.input_type} dump**`,
+    `**${dump.input_type} ${categoryLabel}**`,
     `ID: \`${dump.id}\``,
+    `Category: ${dump.category ?? "braindump"}`,
     `Parsed: ${dump.parsed ? "yes" : "no"}`,
     `Created: ${fmtLocal(dump.created_at, tz)}`,
   ];

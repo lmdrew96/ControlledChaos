@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       extractedText: string;
       mediaUrl?: string;
     };
+    const category = body.category === "junk_journal" ? "junk_journal" : "braindump" as const;
 
     if (!extractedText?.trim()) {
       return NextResponse.json(
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       rawContent: extractedText,
       aiResponse: result,
       mediaUrl: mediaUrl ?? undefined,
+      category,
     });
 
     // Create tasks from parsed output
