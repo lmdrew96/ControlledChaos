@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/queries";
 import { generateSchedule } from "@/lib/ai/schedule";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import type { EnergyProfile } from "@/types";
+import type { EnergyProfile, PersonalityPrefs } from "@/types";
 
 export async function POST() {
   try {
@@ -104,6 +104,7 @@ export async function POST() {
       scheduleDays,
       wakeTime,
       sleepTime,
+      personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
     });
 
     if (blocks.length === 0) {

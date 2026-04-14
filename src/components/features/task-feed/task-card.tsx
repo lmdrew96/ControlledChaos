@@ -29,15 +29,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import type { Task } from "@/types";
+import { taskBadgeColor } from "@/lib/calendar/colors";
+import type { Task, CalendarColors, EventCategory } from "@/types";
 import { priorityConfig, energyConfig } from "./task-config";
 
 export function TaskCard({
   task,
+  calendarColors,
   onUpdate,
   onClick,
 }: {
   task: Task;
+  calendarColors?: CalendarColors | null;
   onUpdate: () => void;
   onClick?: () => void;
 }) {
@@ -416,7 +419,7 @@ export function TaskCard({
             )}
 
             {task.category && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge className={cn("text-xs border-0", taskBadgeColor(task.category as EventCategory, calendarColors))}>
                 {task.category}
               </Badge>
             )}

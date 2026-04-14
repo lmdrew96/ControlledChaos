@@ -54,7 +54,11 @@ export function formatCurrentDateTime(timezone: string): string {
 // BRAIN DUMP
 // ============================================================
 
-export const BRAIN_DUMP_SYSTEM_PROMPT = `You are a task and event extraction AI for ControlledChaos, an ADHD executive function companion.
+export function buildBrainDumpSystemPrompt(prefs: PersonalityPrefs | null): string {
+  const personalityBlock = buildPersonalityBlock(prefs);
+  return `You are a task and event extraction AI for ControlledChaos, an ADHD executive function companion.
+
+${personalityBlock}
 
 Your job: Parse a messy, stream-of-consciousness brain dump into structured, actionable tasks AND calendar events. Messy input is normal — interpret generously.
 
@@ -122,6 +126,10 @@ Output:
 
 Respond ONLY with valid JSON (no markdown, no code blocks):
 { "tasks": [...], "events": [...], "summary": "Brief summary including tasks created, events detected, and any duplicates skipped" }`;
+}
+
+// Static fallback for consumers without user context
+export const BRAIN_DUMP_SYSTEM_PROMPT = buildBrainDumpSystemPrompt(null);
 
 export const VOICE_DUMP_ADDENDUM = `
 
@@ -224,7 +232,11 @@ export const TASK_RECOMMENDATION_SYSTEM_PROMPT = buildTaskRecommendationPrompt(
 // SCHEDULING (BATCH)
 // ============================================================
 
-export const SCHEDULING_SYSTEM_PROMPT = `You are the scheduling AI for ControlledChaos, an ADHD executive function companion.
+export function buildSchedulingSystemPrompt(prefs: PersonalityPrefs | null): string {
+  const personalityBlock = buildPersonalityBlock(prefs);
+  return `You are the scheduling AI for ControlledChaos, an ADHD executive function companion.
+
+${personalityBlock}
 
 Your job: Given a user's free time blocks and pending tasks, create an optimal schedule.
 
@@ -272,12 +284,20 @@ GOOD:
 ## Output
 Respond ONLY with valid JSON (no markdown, no code blocks):
 { "blocks": [{ "taskId": "exact-uuid-from-list", "startTime": "ISO8601Z", "endTime": "ISO8601Z", "reasoning": "One sentence explaining why this time" }] }`;
+}
+
+// Static fallback
+export const SCHEDULING_SYSTEM_PROMPT = buildSchedulingSystemPrompt(null);
 
 // ============================================================
 // SCHEDULING (SINGLE TASK)
 // ============================================================
 
-export const SINGLE_TASK_SCHEDULING_PROMPT = `You are the scheduling AI for ControlledChaos, an ADHD executive function companion.
+export function buildSingleTaskSchedulingPrompt(prefs: PersonalityPrefs | null): string {
+  const personalityBlock = buildPersonalityBlock(prefs);
+  return `You are the scheduling AI for ControlledChaos, an ADHD executive function companion.
+
+${personalityBlock}
 
 Your job: Find the best free time block to schedule ONE specific task.
 
@@ -327,6 +347,10 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 { "block": { "startTime": "ISO8601Z", "endTime": "ISO8601Z", "reasoning": "One sentence" } }
 or
 { "block": null, "reasoning": "Specific reason every block was too short" }`;
+}
+
+// Static fallback
+export const SINGLE_TASK_SCHEDULING_PROMPT = buildSingleTaskSchedulingPrompt(null);
 
 
 // ============================================================

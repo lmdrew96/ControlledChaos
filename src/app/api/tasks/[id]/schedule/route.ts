@@ -13,7 +13,7 @@ import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { scheduleOneTask } from "@/lib/ai/schedule";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import type { EnergyProfile } from "@/types";
+import type { EnergyProfile, PersonalityPrefs } from "@/types";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -105,6 +105,7 @@ export async function POST(_req: Request, context: RouteContext) {
       timezone,
       wakeTime,
       sleepTime,
+      personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
     });
 
     if (!block) {

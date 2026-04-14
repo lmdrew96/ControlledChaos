@@ -14,7 +14,7 @@ import { TaskCard } from "./task-card";
 import { TaskDetailModal } from "./task-detail-modal";
 import { CreateTaskModal } from "./create-task-modal";
 import Link from "next/link";
-import type { Task } from "@/types";
+import type { Task, CalendarColors } from "@/types";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
 
 type FilterStatus = "active" | "completed" | "all";
@@ -51,6 +51,7 @@ export function TaskList() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -69,6 +70,13 @@ export function TaskList() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.calendarColors) setCalendarColors(data.calendarColors as CalendarColors); })
+      .catch(() => {});
+  }, []);
 
   const filteredTasks = applySort(
     tasks.filter((task) => {
@@ -265,6 +273,7 @@ export function TaskList() {
           <TaskCard
             key={task.id}
             task={task}
+            calendarColors={calendarColors}
             onUpdate={fetchTasks}
             onClick={() => setSelectedTaskId(task.id)}
           />

@@ -6,6 +6,7 @@ import { AIUnavailableError } from "@/lib/ai";
 import {
   ensureUser,
   getUser,
+  getUserSettings,
   getUserGoals,
   getPendingTasks,
   getCalendarEventsByDateRange,
@@ -14,6 +15,7 @@ import {
   createTasksFromDump,
   createCalendarEventsFromDump,
 } from "@/lib/db/queries";
+import type { PersonalityPrefs } from "@/types";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 
@@ -59,11 +61,12 @@ export async function POST(request: Request) {
     const todayStart = startOfDayInTimezone(now, timezone);
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const [existingGoals, existingTasks, todayEvents, savedLocs] = await Promise.all([
+    const [existingGoals, existingTasks, todayEvents, savedLocs, settings] = await Promise.all([
       getUserGoals(userId),
       getPendingTasks(userId),
       getCalendarEventsByDateRange(userId, todayStart, todayEnd),
       getSavedLocations(userId),
+      getUserSettings(userId),
     ]);
 
     const calendarSummary =
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
       existingTasks: existingTasks.map((t) => ({ title: t.title })),
       calendarSummary,
       savedLocationNames: savedLocs.map((l) => l.name),
+      personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
     });
 
     // Save brain dump record

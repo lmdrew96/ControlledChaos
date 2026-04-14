@@ -1,19 +1,20 @@
 import { callHaiku } from "./index";
 import {
-  BRAIN_DUMP_SYSTEM_PROMPT,
+  buildBrainDumpSystemPrompt,
   VOICE_DUMP_ADDENDUM,
   PHOTO_DUMP_ADDENDUM,
   formatCurrentDateTime,
 } from "./prompts";
 import { extractJSON, validateISODate } from "./validate";
 import { toUTC } from "@/lib/timezone";
-import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask } from "@/types";
+import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask, PersonalityPrefs } from "@/types";
 
 export interface BrainDumpContext {
   existingGoals: Array<{ title: string }>;
   existingTasks: Array<{ title: string }>;
   calendarSummary?: string;
   savedLocationNames?: string[];
+  personalityPrefs?: PersonalityPrefs | null;
 }
 
 export async function parseBrainDump(
@@ -26,7 +27,7 @@ export async function parseBrainDump(
     throw new Error("Brain dump content cannot be empty");
   }
 
-  let system = BRAIN_DUMP_SYSTEM_PROMPT;
+  let system = buildBrainDumpSystemPrompt(context?.personalityPrefs ?? null);
   if (inputType === "voice") {
     system += VOICE_DUMP_ADDENDUM;
   } else if (inputType === "photo") {

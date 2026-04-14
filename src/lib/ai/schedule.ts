@@ -1,11 +1,12 @@
 import { callHaiku } from "./index";
-import { SCHEDULING_SYSTEM_PROMPT, SINGLE_TASK_SCHEDULING_PROMPT, formatCurrentDateTime } from "./prompts";
+import { buildSchedulingSystemPrompt, buildSingleTaskSchedulingPrompt, formatCurrentDateTime } from "./prompts";
 import { extractJSON } from "./validate";
 import { toUTC, formatForDisplay, DISPLAY_DATETIME, DISPLAY_TIME } from "@/lib/timezone";
 import type {
   Task,
   CalendarEvent,
   EnergyProfile,
+  PersonalityPrefs,
   ScheduledBlock,
   FreeTimeBlock,
 } from "@/types";
@@ -18,6 +19,7 @@ interface SchedulingInput {
   scheduleDays: number;
   wakeTime?: number; // Hour 0-23, defaults to 7
   sleepTime?: number; // Hour 0-23, defaults to 22
+  personalityPrefs?: PersonalityPrefs | null;
 }
 
 /**
@@ -206,7 +208,7 @@ export async function generateSchedule(
   const userPrompt = buildSchedulingPrompt(input, freeBlocks);
 
   const result = await callHaiku({
-    system: SCHEDULING_SYSTEM_PROMPT,
+    system: buildSchedulingSystemPrompt(input.personalityPrefs ?? null),
     user: userPrompt,
     maxTokens: 2048,
   });
@@ -244,6 +246,7 @@ interface SingleTaskSchedulingInput {
   timezone: string;
   wakeTime?: number;
   sleepTime?: number;
+  personalityPrefs?: PersonalityPrefs | null;
 }
 
 /**
@@ -323,7 +326,7 @@ ${JSON.stringify(freeBlocksWithLabels, null, 2)}
 Find the best time for this task using urgency + energy matching.`;
 
   const result = await callHaiku({
-    system: SINGLE_TASK_SCHEDULING_PROMPT,
+    system: buildSingleTaskSchedulingPrompt(input.personalityPrefs ?? null),
     user: userPrompt,
     maxTokens: 512,
   });
