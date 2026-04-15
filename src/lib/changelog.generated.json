@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "added",
+        "text": "Friend nudge system — category-based motivational push notifications between connected users"
+      },
+      {
         "type": "fixed",
         "text": "Move useCallback before early return to fix infinite re-render loop"
       },

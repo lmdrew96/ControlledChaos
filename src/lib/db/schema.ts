@@ -366,3 +366,52 @@ export const snoozedPushes = pgTable(
     index("idx_snoozed_pushes_pending").on(table.userId, table.sendAfter),
   ]
 );
+
+// ============================================================
+// Friendships (one row per pair: requester → addressee)
+// ============================================================
+export const friendships = pgTable(
+  "friendships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requesterId: text("requester_id")
+      .references(() => users.id)
+      .notNull(),
+    addresseeId: text("addressee_id")
+      .references(() => users.id)
+      .notNull(),
+    status: text("status").default("pending").notNull(), // pending | accepted | declined
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_friendships_requester").on(table.requesterId),
+    index("idx_friendships_addressee").on(table.addresseeId),
+    uniqueIndex("idx_friendships_pair").on(
+      table.requesterId,
+      table.addresseeId
+    ),
+  ]
+);
+
+// ============================================================
+// Nudges (friend-to-friend motivational messages by category)
+// ============================================================
+export const nudges = pgTable(
+  "nudges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    senderId: text("sender_id")
+      .references(() => users.id)
+      .notNull(),
+    recipientId: text("recipient_id")
+      .references(() => users.id)
+      .notNull(),
+    category: text("category").notNull(), // school | work | personal | errands | health
+    message: text("message").notNull(),
+    sentAt: timestamp("sent_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_nudges_recipient").on(table.recipientId, table.sentAt),
+  ]
+);

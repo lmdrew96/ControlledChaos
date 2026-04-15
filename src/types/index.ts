@@ -153,6 +153,8 @@ export interface NotificationPrefs {
   quietHoursStart: string; // "22:00"
   quietHoursEnd: string; // "07:00"
   assertivenessMode: NotificationAssertiveness;
+  friendNudgesEnabled: boolean;
+  mutedFriendIds: string[];
 }
 
 export interface PersonalityPrefs {
@@ -295,4 +297,34 @@ export interface CrisisFileAttachment {
     | "image/gif"
     | "application/pdf";
   name: string;
+}
+
+// ============================================================
+// Friend & Nudge Types
+// ============================================================
+export type FriendshipStatus = "pending" | "accepted" | "declined";
+
+export interface FriendWithProfile {
+  friendshipId: string;
+  friendId: string;
+  displayName: string | null;
+  email: string;
+}
+
+export interface PendingRequest {
+  friendshipId: string;
+  requesterId: string;
+  displayName: string | null;
+  email: string;
+  createdAt: string;
+}
+
+export interface Nudge {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  category: TaskCategory;
+  message: string;
+  sentAt: string;
+  senderDisplayName?: string;
 }

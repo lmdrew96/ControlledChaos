@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { SettingsTabs } from "@/components/features/settings/settings-tabs";
 
 export default function SettingsPage() {
@@ -10,7 +11,9 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <SettingsTabs />
+      <Suspense>
+        <SettingsTabs />
+      </Suspense>
     </div>
   );
 }

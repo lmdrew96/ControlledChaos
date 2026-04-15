@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Brain, Calendar, MapPin, Bell } from "lucide-react";
+import { User, Brain, Calendar, MapPin, Bell, Users } from "lucide-react";
 import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
@@ -12,10 +12,16 @@ import { SavedLocations } from "./saved-locations";
 import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
+import { FriendsSettings } from "./friends-settings";
+import { useSearchParams } from "next/navigation";
 
 export function SettingsTabs() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const defaultTab = tabParam === "friends" ? "friends" : "profile";
+
   return (
-    <Tabs defaultValue="profile" className="space-y-6">
+    <Tabs defaultValue={defaultTab} className="space-y-6">
       <TabsList className="w-full flex overflow-x-auto flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
         <TabsTrigger
           value="profile"
@@ -51,6 +57,13 @@ export function SettingsTabs() {
         >
           <Bell className="h-4 w-4" />
           <span className="hidden sm:inline">Notifications</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="friends"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Users className="h-4 w-4" />
+          <span className="hidden sm:inline">Friends</span>
         </TabsTrigger>
       </TabsList>
 
@@ -137,6 +150,11 @@ export function SettingsTabs() {
             <NotificationSettings />
           </CardContent>
         </Card>
+      </TabsContent>
+
+      {/* Friends */}
+      <TabsContent value="friends" className="space-y-6">
+        <FriendsSettings />
       </TabsContent>
     </Tabs>
   );

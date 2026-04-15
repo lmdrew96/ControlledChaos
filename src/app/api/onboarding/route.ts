@@ -83,6 +83,8 @@ export async function POST(request: Request) {
         quietHoursEnd: "07:00",
         assertivenessMode: "balanced",
         locationNotificationsEnabled: false,
+        friendNudgesEnabled: true,
+        mutedFriendIds: [],
       };
     }
 

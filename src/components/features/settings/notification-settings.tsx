@@ -18,6 +18,8 @@ const DEFAULT_PREFS: NotificationPrefs = {
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00",
   assertivenessMode: "balanced",
+  friendNudgesEnabled: true,
+  mutedFriendIds: [],
 };
 
 const ASSERTIVENESS_OPTIONS: Array<{
@@ -52,6 +54,8 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
       raw?.assertivenessMode === "assertive"
         ? raw.assertivenessMode
         : "balanced",
+    friendNudgesEnabled: raw?.friendNudgesEnabled ?? true,
+    mutedFriendIds: raw?.mutedFriendIds ?? [],
   };
 }
 
