@@ -246,7 +246,7 @@ export async function getTasksByUser(
     .select()
     .from(tasks)
     .where(and(...conditions))
-    .orderBy(desc(tasks.createdAt));
+    .orderBy(asc(tasks.sortOrder), desc(tasks.createdAt));
 }
 
 export async function updateTask(
@@ -266,6 +266,7 @@ export async function updateTask(
     completedAt: Date | null;
     progressSteps: object[] | null;
     currentStepIndex: number;
+    sortOrder: number | null;
   }>
 ) {
   const [updated] = await db
@@ -275,6 +276,21 @@ export async function updateTask(
     .returning();
 
   return updated;
+}
+
+export async function reorderTasks(
+  userId: string,
+  orderedIds: string[]
+) {
+  // Update sortOrder for each task in a single transaction
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await tx
+        .update(tasks)
+        .set({ sortOrder: i, updatedAt: new Date() })
+        .where(and(eq(tasks.id, orderedIds[i]), eq(tasks.userId, userId)));
+    }
+  });
 }
 
 export async function deleteTask(taskId: string, userId: string) {

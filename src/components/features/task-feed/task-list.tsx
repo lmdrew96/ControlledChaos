@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag } from "lucide-react";
+import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,9 +16,24 @@ import { CreateTaskModal } from "./create-task-modal";
 import Link from "next/link";
 import type { Task, CalendarColors } from "@/types";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type FilterStatus = "active" | "completed" | "all";
-type SortBy = "none" | "priority" | "deadline";
+type SortBy = "none" | "priority" | "deadline" | "manual";
 
 const PRIORITY_ORDER: Record<string, number> = {
   urgent: 0,
@@ -28,7 +43,7 @@ const PRIORITY_ORDER: Record<string, number> = {
 };
 
 function applySort(tasks: Task[], sortBy: SortBy): Task[] {
-  if (sortBy === "none") return tasks;
+  if (sortBy === "none" || sortBy === "manual") return tasks;
   return [...tasks].sort((a, b) => {
     if (sortBy === "priority") {
       return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
@@ -39,6 +54,58 @@ function applySort(tasks: Task[], sortBy: SortBy): Task[] {
     if (!b.deadline) return -1;
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
+}
+
+function SortableTaskCard({
+  task,
+  calendarColors,
+  onUpdate,
+  onClick,
+  isDragMode,
+}: {
+  task: Task;
+  calendarColors?: CalendarColors | null;
+  onUpdate: () => void;
+  onClick: () => void;
+  isDragMode: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-stretch gap-0">
+      {isDragMode && (
+        <button
+          className="flex items-center px-1 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+      <div className="flex-1 min-w-0">
+        <TaskCard
+          task={task}
+          calendarColors={calendarColors}
+          onUpdate={onUpdate}
+          onClick={onClick}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function TaskList() {
@@ -52,6 +119,11 @@ export function TaskList() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -95,6 +167,9 @@ export function TaskList() {
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
+  const isDragMode = sortBy === "manual" && filter === "active" &&
+    filterPriority === "all" && filterEnergy === "all" && filterCategory === "all";
+
   const hasActiveFilters =
     sortBy !== "none" ||
     filterPriority !== "all" ||
@@ -107,6 +182,41 @@ export function TaskList() {
     setFilterEnergy("all");
     setFilterCategory("all");
   }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = filteredTasks.findIndex((t) => t.id === active.id);
+    const newIndex = filteredTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Optimistic reorder
+    const reordered = [...filteredTasks];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+
+    // Update local state immediately
+    const reorderedIds = reordered.map((t) => t.id);
+    const updatedTasks = tasks.map((t) => {
+      const idx = reorderedIds.indexOf(t.id);
+      return idx !== -1 ? { ...t, sortOrder: idx } : t;
+    });
+    updatedTasks.sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+    setTasks(updatedTasks);
+
+    // Persist to server
+    try {
+      await fetch("/api/tasks/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds: reorderedIds }),
+      });
+    } catch {
+      // Revert on failure
+      fetchTasks();
+    }
+  };
 
   if (isLoading) {
     return (
@@ -195,6 +305,7 @@ export function TaskList() {
               <SelectItem value="none">Sort</SelectItem>
               <SelectItem value="priority">Priority</SelectItem>
               <SelectItem value="deadline">Deadline</SelectItem>
+              <SelectItem value="manual">Manual</SelectItem>
             </SelectContent>
           </Select>
 
@@ -265,30 +376,69 @@ export function TaskList() {
             New Task
           </Button>
         </div>
-      </div>
 
-      {/* Task list */}
-      <div className="space-y-2">
-        {filteredTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            calendarColors={calendarColors}
-            onUpdate={fetchTasks}
-            onClick={() => setSelectedTaskId(task.id)}
-          />
-        ))}
-
-        {filteredTasks.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {filter === "completed"
-              ? "No completed tasks yet. You got this!"
-              : hasActiveFilters
-                ? "No tasks match your current filters."
-                : "All caught up!"}
+        {isDragMode && (
+          <p className="text-xs text-muted-foreground">
+            Drag tasks to reorder. Order is saved automatically.
           </p>
         )}
       </div>
+
+      {/* Task list */}
+      {isDragMode ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredTasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {filteredTasks.map((task) => (
+                <SortableTaskCard
+                  key={task.id}
+                  task={task}
+                  calendarColors={calendarColors}
+                  onUpdate={fetchTasks}
+                  onClick={() => setSelectedTaskId(task.id)}
+                  isDragMode={true}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div className="space-y-2">
+          {filteredTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              calendarColors={calendarColors}
+              onUpdate={fetchTasks}
+              onClick={() => setSelectedTaskId(task.id)}
+            />
+          ))}
+
+          {filteredTasks.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {filter === "completed"
+                ? "No completed tasks yet. You got this!"
+                : hasActiveFilters
+                  ? "No tasks match your current filters."
+                  : "All caught up!"}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Empty state for drag mode */}
+      {isDragMode && filteredTasks.length === 0 && (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No active tasks to reorder.
+        </p>
+      )}
 
       {/* Task detail modal */}
       <TaskDetailModal

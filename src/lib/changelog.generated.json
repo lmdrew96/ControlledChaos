@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Manual task reordering with drag-and-drop via @dnd-kit"
+      },
+      {
+        "type": "added",
         "text": "Medication reminder system with recurring schedules, push notifications, and adherence tracking"
       },
       {
