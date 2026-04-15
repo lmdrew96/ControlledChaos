@@ -7,6 +7,7 @@ import {
   getUserLocation,
   getSavedLocations,
   getCommuteTimes,
+  getActiveMedications,
 } from "@/lib/db/queries";
 import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callSonnet } from "@/lib/ai";
@@ -637,4 +638,82 @@ export async function getDepartureAlerts(
   alerts.sort((a, b) => a.minutesUntilLeave - b.minutesUntilLeave);
 
   return alerts;
+}
+
+// ============================================================
+// Medication Reminders
+// ============================================================
+
+interface MedicationReminder {
+  medicationId: string;
+  medicationName: string;
+  dosage: string;
+  timeSlot: string; // "09:00"
+}
+
+/**
+ * Check which medication reminders should fire in the current 15-minute cron window.
+ * Returns medications+times that match the current window and schedule.
+ */
+export async function getMedicationRemindersForWindow(
+  userId: string,
+  timezone: string
+): Promise<MedicationReminder[]> {
+  const meds = await getActiveMedications(userId);
+  if (meds.length === 0) return [];
+
+  const now = new Date();
+  const currentHour = getHourInTimezone(now, timezone);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const currentTime = formatter.format(now); // "HH:MM"
+  const currentMinutes = parseInt(currentTime.split(":")[0]) * 60 + parseInt(currentTime.split(":")[1]);
+
+  // Get current day info in user's timezone
+  const dayFormatter = new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short" });
+  const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    .indexOf(dayFormatter.format(now).slice(0, 3));
+
+  const dateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: timezone });
+  const todayStr = dateFormatter.format(now); // "2026-04-14"
+
+  const reminders: MedicationReminder[] = [];
+
+  for (const med of meds) {
+    const schedule = med.schedule as { type: string; everyDays?: number; startDate?: string; daysOfWeek?: number[] };
+    const reminderTimes = med.reminderTimes as string[];
+
+    // Check if today matches the schedule
+    if (schedule.type === "weekly") {
+      if (!schedule.daysOfWeek?.includes(dayOfWeek)) continue;
+    } else if (schedule.type === "interval" && schedule.everyDays && schedule.startDate) {
+      const startMs = new Date(schedule.startDate).getTime();
+      const todayMs = new Date(todayStr).getTime();
+      const daysSince = Math.floor((todayMs - startMs) / (24 * 60 * 60 * 1000));
+      if (daysSince < 0 || daysSince % schedule.everyDays !== 0) continue;
+    }
+    // type === "daily" always matches
+
+    // Check each reminder time — is it within the current 15-min cron window?
+    for (const time of reminderTimes) {
+      const [h, m] = time.split(":").map(Number);
+      const slotMinutes = h * 60 + m;
+
+      // Fire if we're within [slotMinutes, slotMinutes+14]
+      if (currentMinutes >= slotMinutes && currentMinutes < slotMinutes + 15) {
+        reminders.push({
+          medicationId: med.id,
+          medicationName: med.name,
+          dosage: med.dosage,
+          timeSlot: time,
+        });
+      }
+    }
+  }
+
+  return reminders;
 }

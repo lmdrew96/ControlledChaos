@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Medication reminder system with recurring schedules, push notifications, and adherence tracking"
+      },
+      {
+        "type": "added",
         "text": "Friend nudge system — category-based motivational push notifications between connected users"
       },
       {

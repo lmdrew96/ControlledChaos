@@ -368,6 +368,62 @@ export const snoozedPushes = pgTable(
 );
 
 // ============================================================
+// Medications
+// ============================================================
+export const medications = pgTable(
+  "medications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    name: text("name").notNull(),
+    dosage: text("dosage").notNull(),
+    notes: text("notes"),
+    reminderTimes: jsonb("reminder_times").$type<string[]>().notNull(), // ["09:00", "21:00"]
+    schedule: jsonb("schedule").notNull(), // MedicationSchedule union
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_medications_user_active").on(table.userId, table.isActive),
+  ]
+);
+
+// ============================================================
+// Medication Logs (adherence tracking)
+// ============================================================
+export const medicationLogs = pgTable(
+  "medication_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    medicationId: uuid("medication_id")
+      .references(() => medications.id, { onDelete: "cascade" })
+      .notNull(),
+    scheduledDate: text("scheduled_date").notNull(), // "2026-04-14"
+    scheduledTime: text("scheduled_time").notNull(), // "09:00"
+    takenAt: timestamp("taken_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_med_logs_user_med_date").on(
+      table.userId,
+      table.medicationId,
+      table.scheduledDate
+    ),
+    uniqueIndex("idx_med_logs_unique_slot").on(
+      table.medicationId,
+      table.scheduledDate,
+      table.scheduledTime
+    ),
+  ]
+);
+
+// ============================================================
 // Friendships (one row per pair: requester → addressee)
 // ============================================================
 export const friendships = pgTable(

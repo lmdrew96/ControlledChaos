@@ -300,6 +300,34 @@ export interface CrisisFileAttachment {
 }
 
 // ============================================================
+// Medication Types
+// ============================================================
+export type MedicationSchedule =
+  | { type: "daily" }
+  | { type: "interval"; everyDays: number; startDate: string }
+  | { type: "weekly"; daysOfWeek: number[] };
+
+export interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  notes: string | null;
+  reminderTimes: string[]; // ["09:00", "21:00"]
+  schedule: MedicationSchedule;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicationLog {
+  id: string;
+  medicationId: string;
+  scheduledDate: string; // "2026-04-14"
+  scheduledTime: string; // "09:00"
+  takenAt: string;
+}
+
+// ============================================================
 // Friend & Nudge Types
 // ============================================================
 export type FriendshipStatus = "pending" | "accepted" | "declined";

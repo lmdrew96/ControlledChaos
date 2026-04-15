@@ -24,6 +24,7 @@ import {
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTaskTitle,
+  getMedicationRemindersForWindow,
 } from "@/lib/notifications/triggers";
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 
@@ -39,6 +40,11 @@ const IDLE_ACTIONS = [
 
 const MISSED_TASK_ACTIONS = [
   { action: "start_task", title: "▶ Start now" },
+  { action: "snooze", title: "⏰ Snooze 30 min" },
+];
+
+const MED_ACTIONS = [
+  { action: "med_taken", title: "✓ Taken" },
   { action: "snooze", title: "⏰ Snooze 30 min" },
 ];
 
@@ -236,6 +242,28 @@ export async function GET(request: Request) {
           tag: dedupKey,
           userId,
           bypassQuietHours: alert.level === "now",
+        });
+        if (sent) markSent();
+      }
+
+      // --- Medication Reminders ---
+      const medReminders = await getMedicationRemindersForWindow(userId, timezone);
+      for (const med of medReminders) {
+        if (!canSend("normal")) continue;
+
+        const dedupKey = `med-${med.medicationId}-${med.timeSlot}`;
+        if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
+
+        const sent = await sendPushToUser(userId, {
+          title: "Medication Reminder",
+          body: `Time for ${med.medicationName} (${med.dosage})`,
+          url: "/settings?tab=medications",
+          tag: dedupKey,
+          userId,
+          medicationId: med.medicationId,
+          scheduledTime: med.timeSlot,
+          actions: MED_ACTIONS,
+          bypassQuietHours: true,
         });
         if (sent) markSent();
       }

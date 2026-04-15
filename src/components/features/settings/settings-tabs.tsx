@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Brain, Calendar, MapPin, Bell, Users } from "lucide-react";
+import { User, Brain, Calendar, MapPin, Bell, Users, Pill } from "lucide-react";
 import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
@@ -13,12 +13,13 @@ import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { FriendsSettings } from "./friends-settings";
+import { MedicationSettings } from "./medication-settings";
 import { useSearchParams } from "next/navigation";
 
 export function SettingsTabs() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const defaultTab = tabParam === "friends" ? "friends" : "profile";
+  const defaultTab = tabParam === "friends" ? "friends" : tabParam === "medications" ? "medications" : "profile";
 
   return (
     <Tabs defaultValue={defaultTab} className="space-y-6">
@@ -64,6 +65,13 @@ export function SettingsTabs() {
         >
           <Users className="h-4 w-4" />
           <span className="hidden sm:inline">Friends</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="medications"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Pill className="h-4 w-4" />
+          <span className="hidden sm:inline">Medications</span>
         </TabsTrigger>
       </TabsList>
 
@@ -155,6 +163,11 @@ export function SettingsTabs() {
       {/* Friends */}
       <TabsContent value="friends" className="space-y-6">
         <FriendsSettings />
+      </TabsContent>
+
+      {/* Medications */}
+      <TabsContent value="medications" className="space-y-6">
+        <MedicationSettings />
       </TabsContent>
     </Tabs>
   );
