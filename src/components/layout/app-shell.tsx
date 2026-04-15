@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
+import { useCrisisDetection } from "@/hooks/use-crisis-detection";
 import {
   LayoutDashboard,
   Brain,
@@ -64,6 +65,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("cc-install-dismissed") === "1";
   });
+
+  // Crisis detection badge state
+  const { isActive: crisisActive } = useCrisisDetection();
 
   // Geofence tracker — fetch setting once, then track passively
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -166,7 +170,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             )}
           >
-            <Siren className="h-4 w-4" />
+            <span className="relative">
+              <Siren className="h-4 w-4" />
+              {crisisActive && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+              )}
+            </span>
             Crisis Mode
           </Link>
         </nav>
@@ -188,6 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
         {mobileNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
+          const showCrisisBadge = item.href === "/crisis" && crisisActive;
           return (
             <Link
               key={item.href}
@@ -199,7 +209,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   : "text-muted-foreground"
               )}
             >
-              <item.icon className="h-5 w-5" />
+              <span className="relative">
+                <item.icon className="h-5 w-5" />
+                {showCrisisBadge && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </span>
               <span className="block text-center leading-tight">{item.label}</span>
             </Link>
           );

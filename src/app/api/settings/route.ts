@@ -1,9 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
-import type { CalendarColorKey, CalendarColors, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
+import type { CalendarColorKey, CalendarColors, CrisisDetectionTier, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
+const VALID_CRISIS_DETECTION_TIERS = new Set<CrisisDetectionTier>(["off", "watch", "nudge", "auto_triage"]);
 
 export async function GET() {
   try {
@@ -29,6 +30,7 @@ export async function GET() {
       notificationPrefs: settings?.notificationPrefs ?? null,
       personalityPrefs: settings?.personalityPrefs ?? null,
       calendarColors: settings?.calendarColors ?? null,
+      crisisDetectionTier: settings?.crisisDetectionTier ?? "nudge",
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -125,6 +127,12 @@ export async function PATCH(request: Request) {
         validColor(cc.health)
       ) {
         data.calendarColors = cc;
+      }
+    }
+
+    if (body.crisisDetectionTier !== undefined) {
+      if (VALID_CRISIS_DETECTION_TIERS.has(body.crisisDetectionTier)) {
+        data.crisisDetectionTier = body.crisisDetectionTier;
       }
     }
 

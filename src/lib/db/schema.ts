@@ -44,6 +44,7 @@ export const userSettings = pgTable("user_settings", {
   weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
   calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
   calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
+  crisisDetectionTier: text("crisis_detection_tier").default("nudge"), // "off" | "watch" | "nudge" | "auto_triage"
 });
 
 // ============================================================
@@ -297,6 +298,8 @@ export const crisisPlans = pgTable(
     tasks: jsonb("tasks").notNull(), // CrisisTask[]
     currentTaskIndex: integer("current_task_index").default(0).notNull(),
     completedAt: timestamp("completed_at"), // null = in-progress
+    source: text("source").default("manual"), // "manual" | "auto" — how the plan was initiated
+    dataHash: text("data_hash"), // hash of input data for auto-plans — staleness detection
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -324,6 +327,34 @@ export const crisisMessages = pgTable(
   },
   (table) => [
     index("idx_crisis_messages_plan").on(table.crisisPlanId, table.createdAt),
+  ]
+);
+
+// ============================================================
+// Crisis Detections (auto-detected deadline collisions)
+// ============================================================
+export const crisisDetections = pgTable(
+  "crisis_detections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    crisisRatio: decimal("crisis_ratio", { precision: 5, scale: 3 }).notNull(),
+    involvedTaskIds: jsonb("involved_task_ids").$type<string[]>().notNull(),
+    involvedTaskNames: jsonb("involved_task_names").$type<string[]>().notNull(),
+    firstDeadline: timestamp("first_deadline").notNull(),
+    availableMinutes: integer("available_minutes").notNull(),
+    requiredMinutes: integer("required_minutes").notNull(),
+    tierActionTaken: text("tier_action_taken"), // "watch" | "nudge" | "auto_triage"
+    crisisPlanId: uuid("crisis_plan_id").references(() => crisisPlans.id),
+    reNudgeSent: boolean("re_nudge_sent").default(false),
+    resolvedAt: timestamp("resolved_at"), // null = active
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_crisis_detections_user_active").on(table.userId, table.resolvedAt),
   ]
 );
 

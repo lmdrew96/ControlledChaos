@@ -12,7 +12,8 @@ import { CrisisWarRoom } from "@/components/features/crisis/crisis-war-room";
 import { CrisisStrategyPicker } from "@/components/features/crisis/crisis-strategy-picker";
 import { CrisisDone } from "@/components/features/crisis/crisis-done";
 import { cn } from "@/lib/utils";
-import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, PanicLevel } from "@/types";
+import { CrisisDetectionExplainer } from "@/components/features/crisis/crisis-detection-explainer";
+import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, CrisisDetectionStatus, PanicLevel } from "@/types";
 
 // -------------------------------------------------------
 // Types
@@ -86,15 +87,21 @@ export default function CrisisPage() {
   const [completedTaskName, setCompletedTaskName] = useState<string | null>(null);
   const [abandoningId, setAbandoningId] = useState<string | null>(null);
   const [strategyState, setStrategyState] = useState<StrategyPickerState | null>(null);
+  const [detectionStatus, setDetectionStatus] = useState<CrisisDetectionStatus | null>(null);
 
   // -------------------------------------------------------
   // Load all active plans
   // -------------------------------------------------------
   const loadPlans = useCallback(async () => {
     try {
-      const res = await fetch("/api/crisis");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const [crisisRes, detectionRes] = await Promise.all([
+        fetch("/api/crisis"),
+        fetch("/api/crisis-detection/status"),
+      ]);
+
+      // Load crisis plans
+      if (!crisisRes.ok) throw new Error();
+      const data = await crisisRes.json();
 
       const mapped: ActivePlanData[] = (data.plans ?? []).map(
         (p: {
@@ -121,6 +128,12 @@ export default function CrisisPage() {
           },
         })
       );
+
+      // Load detection status (for auto-triage proposal banner)
+      if (detectionRes.ok) {
+        const detection: CrisisDetectionStatus = await detectionRes.json();
+        setDetectionStatus(detection);
+      }
 
       setPlans(mapped);
       setPhase(mapped.length === 0 ? "intake" : "dashboard");
@@ -381,6 +394,11 @@ export default function CrisisPage() {
           )}
         </div>
 
+        {/* Show explainer if detection is active but no plans yet */}
+        {detectionStatus?.active && (
+          <CrisisDetectionExplainer taskNames={detectionStatus.involvedTaskNames} />
+        )}
+
         {intakeError && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {intakeError}
@@ -390,6 +408,9 @@ export default function CrisisPage() {
       </div>
     );
   }
+
+  // Check if detection has an auto-generated plan (proposal banner)
+  const hasAutoProposal = detectionStatus?.active && detectionStatus.crisisPlanId;
 
   // -------------------------------------------------------
   // Dashboard — all active plans
@@ -408,6 +429,50 @@ export default function CrisisPage() {
           New session
         </Button>
       </div>
+
+      {/* First-time crisis detection explainer */}
+      {detectionStatus?.active && (
+        <CrisisDetectionExplainer taskNames={detectionStatus.involvedTaskNames} />
+      )}
+
+      {/* Auto-triage proposal banner */}
+      {hasAutoProposal && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4 space-y-2">
+            <p className="text-sm font-medium">
+              {detectionStatus.involvedTaskNames?.join(" and ")} are on a collision course.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              I built a triage plan — it&apos;s ready when you are.
+              {detectionStatus.availableMinutes !== undefined && detectionStatus.requiredMinutes !== undefined && (
+                <> You have about {Math.round(detectionStatus.availableMinutes / 60 * 10) / 10}h of real work time and ~{Math.round(detectionStatus.requiredMinutes / 60 * 10) / 10}h of work.</>
+              )}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={() => {
+                  // Find the auto-generated plan in the loaded plans and enter it
+                  const autoPlan = plans.find((p) => p.id === detectionStatus.crisisPlanId);
+                  if (autoPlan) {
+                    handleEnterWarRoom(autoPlan);
+                  }
+                }}
+              >
+                Review plan
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                onClick={() => setDetectionStatus(null)}
+              >
+                Not now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {plans.map((plan) => {

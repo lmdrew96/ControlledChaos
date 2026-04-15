@@ -27,6 +27,7 @@ import {
   getMedicationRemindersForWindow,
 } from "@/lib/notifications/triggers";
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
+import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
 
 const TASK_ACTIONS = [
   { action: "start_task", title: "▶ Start" },
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
     // --- Per-user triggers ---
     const users = await getAllUsersWithPushEnabled();
 
-    for (const { userId, timezone, personalityPrefs, notificationPrefs } of users) {
+    for (const { userId, timezone, personalityPrefs, notificationPrefs, crisisDetectionTier } of users) {
       const mode = getAssertivenessMode(notificationPrefs);
       const dailyCap = getDailyPushCap(mode);
       let sentToday = await getPushNotificationsSentToday(userId, timezone);
@@ -385,6 +386,25 @@ export async function GET(request: Request) {
             userId,
           });
           if (sent) markSent();
+        }
+      }
+
+      // --- Crisis Detection ---
+      if (crisisDetectionTier !== "off") {
+        try {
+          const crisisResult = await runCrisisDetection({
+            userId,
+            timezone,
+            tier: crisisDetectionTier,
+            personalityPrefs,
+            notificationPrefs,
+            assertivenessMode: mode,
+            getSnapshot,
+            getLocationName,
+          });
+          if (crisisResult.notificationSent) markSent();
+        } catch (err) {
+          console.error(`[CrisisDetection] Error for user=${userId}:`, err);
         }
       }
     }

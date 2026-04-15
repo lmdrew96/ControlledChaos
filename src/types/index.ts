@@ -301,6 +301,33 @@ export interface CrisisFileAttachment {
 }
 
 // ============================================================
+// Crisis Detection Types
+// ============================================================
+export type CrisisDetectionTier = "off" | "watch" | "nudge" | "auto_triage";
+
+export interface CrisisDetectionResult {
+  detected: boolean;
+  crisisRatio: number;
+  availableMinutes: number;
+  requiredMinutes: number;
+  involvedTaskIds: string[];
+  involvedTaskNames: string[];
+  firstDeadline: Date;
+}
+
+export interface CrisisDetectionStatus {
+  active: boolean;
+  detectionId?: string;
+  crisisRatio?: number;
+  involvedTaskNames?: string[];
+  firstDeadline?: string;
+  availableMinutes?: number;
+  requiredMinutes?: number;
+  crisisPlanId?: string | null;
+  stale?: boolean;
+}
+
+// ============================================================
 // Medication Types
 // ============================================================
 export type MedicationSchedule =

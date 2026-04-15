@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Auto-crisis detection with tiered Watch/Nudge/Auto-Triage system"
+      },
+      {
+        "type": "added",
         "text": "Manual task reordering with drag-and-drop via @dnd-kit"
       },
       {

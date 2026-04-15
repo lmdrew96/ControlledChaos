@@ -2,6 +2,7 @@ import { db } from "./index";
 import {
   brainDumps,
   calendarEvents,
+  crisisDetections,
   crisisMessages,
   crisisPlans,
   friendships,
@@ -28,6 +29,7 @@ import type {
   DumpCategory,
   BrainDumpResult,
   CalendarColors,
+  CrisisDetectionTier,
   EnergyProfile,
   NotificationPrefs,
   PersonalityPrefs,
@@ -1427,6 +1429,7 @@ export async function getAllUsersWithPushEnabled() {
       timezone: users.timezone,
       personalityPrefs: userSettings.personalityPrefs,
       notificationPrefs: userSettings.notificationPrefs,
+      crisisDetectionTier: userSettings.crisisDetectionTier,
     })
     .from(pushSubscriptions)
     .innerJoin(users, eq(pushSubscriptions.userId, users.id))
@@ -1437,6 +1440,7 @@ export async function getAllUsersWithPushEnabled() {
     timezone: r.timezone ?? "America/New_York",
     personalityPrefs: r.personalityPrefs as PersonalityPrefs | null,
     notificationPrefs: r.notificationPrefs as NotificationPrefs | null,
+    crisisDetectionTier: (r.crisisDetectionTier as CrisisDetectionTier) ?? "nudge",
   }));
 }
 
@@ -1494,6 +1498,8 @@ export async function createCrisisPlan(params: {
   panicLabel: string;
   summary: string;
   tasks: CrisisTask[];
+  source?: string;
+  dataHash?: string;
 }) {
   const [plan] = await db
     .insert(crisisPlans)
@@ -1506,6 +1512,8 @@ export async function createCrisisPlan(params: {
       panicLabel: params.panicLabel,
       summary: params.summary,
       tasks: params.tasks,
+      ...(params.source ? { source: params.source } : {}),
+      ...(params.dataHash ? { dataHash: params.dataHash } : {}),
     })
     .returning();
   return plan;
@@ -1949,4 +1957,109 @@ export async function getMedicationLogsByDate(userId: string, date: string) {
       )
     )
     .orderBy(asc(medicationLogs.scheduledTime));
+}
+
+// ============================================================
+// Crisis Detection
+// ============================================================
+
+/** Get the most recent unresolved crisis detection for a user. */
+export async function getActiveDetectionForUser(userId: string) {
+  const rows = await db
+    .select()
+    .from(crisisDetections)
+    .where(
+      and(
+        eq(crisisDetections.userId, userId),
+        isNull(crisisDetections.resolvedAt)
+      )
+    )
+    .orderBy(desc(crisisDetections.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Create a new crisis detection record. */
+export async function createCrisisDetection(params: {
+  userId: string;
+  crisisRatio: number;
+  involvedTaskIds: string[];
+  involvedTaskNames: string[];
+  firstDeadline: Date;
+  availableMinutes: number;
+  requiredMinutes: number;
+  tierActionTaken: CrisisDetectionTier;
+}) {
+  const rows = await db
+    .insert(crisisDetections)
+    .values({
+      userId: params.userId,
+      crisisRatio: String(params.crisisRatio),
+      involvedTaskIds: params.involvedTaskIds,
+      involvedTaskNames: params.involvedTaskNames,
+      firstDeadline: params.firstDeadline,
+      availableMinutes: params.availableMinutes,
+      requiredMinutes: params.requiredMinutes,
+      tierActionTaken: params.tierActionTaken,
+    })
+    .returning();
+  return rows[0];
+}
+
+/** Update fields on an existing crisis detection. */
+export async function updateCrisisDetection(
+  id: string,
+  data: Partial<{
+    crisisRatio: number;
+    availableMinutes: number;
+    requiredMinutes: number;
+    crisisPlanId: string;
+    reNudgeSent: boolean;
+    resolvedAt: Date;
+  }>
+) {
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.crisisRatio !== undefined) updateData.crisisRatio = String(data.crisisRatio);
+  if (data.availableMinutes !== undefined) updateData.availableMinutes = data.availableMinutes;
+  if (data.requiredMinutes !== undefined) updateData.requiredMinutes = data.requiredMinutes;
+  if (data.crisisPlanId !== undefined) updateData.crisisPlanId = data.crisisPlanId;
+  if (data.reNudgeSent !== undefined) updateData.reNudgeSent = data.reNudgeSent;
+  if (data.resolvedAt !== undefined) updateData.resolvedAt = data.resolvedAt;
+
+  await db
+    .update(crisisDetections)
+    .set(updateData)
+    .where(eq(crisisDetections.id, id));
+}
+
+/** Resolve any active detections whose first deadline has already passed. */
+export async function resolveStaleDetections(userId: string): Promise<number> {
+  const now = new Date();
+  const result = await db
+    .update(crisisDetections)
+    .set({ resolvedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(crisisDetections.userId, userId),
+        isNull(crisisDetections.resolvedAt),
+        lt(crisisDetections.firstDeadline, now)
+      )
+    )
+    .returning({ id: crisisDetections.id });
+  return result.length;
+}
+
+/** Get the crisis detection tier for a user (defaults to "nudge"). */
+export async function getCrisisDetectionTier(userId: string): Promise<CrisisDetectionTier> {
+  const rows = await db
+    .select({ tier: userSettings.crisisDetectionTier })
+    .from(userSettings)
+    .where(eq(userSettings.userId, userId))
+    .limit(1);
+
+  const tier = rows[0]?.tier;
+  if (tier === "off" || tier === "watch" || tier === "nudge" || tier === "auto_triage") {
+    return tier;
+  }
+  return "nudge";
 }

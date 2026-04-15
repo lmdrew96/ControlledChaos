@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Brain, Calendar, MapPin, Bell, Users, Pill } from "lucide-react";
+import { User, Brain, Calendar, MapPin, Bell, Users, Pill, Siren } from "lucide-react";
 import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
@@ -12,6 +12,7 @@ import { SavedLocations } from "./saved-locations";
 import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
+import { CrisisDetectionSettings } from "./crisis-detection-settings";
 import { FriendsSettings } from "./friends-settings";
 import { MedicationSettings } from "./medication-settings";
 import { useSearchParams } from "next/navigation";
@@ -19,7 +20,8 @@ import { useSearchParams } from "next/navigation";
 export function SettingsTabs() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const defaultTab = tabParam === "friends" ? "friends" : tabParam === "medications" ? "medications" : "profile";
+  const validTabs = new Set(["profile", "ai-energy", "calendar", "locations", "notifications", "crisis-detection", "friends", "medications"]);
+  const defaultTab = tabParam && validTabs.has(tabParam) ? tabParam : "profile";
 
   return (
     <Tabs defaultValue={defaultTab} className="space-y-6">
@@ -58,6 +60,13 @@ export function SettingsTabs() {
         >
           <Bell className="h-4 w-4" />
           <span className="hidden sm:inline">Notifications</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="crisis-detection"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Siren className="h-4 w-4" />
+          <span className="hidden sm:inline">Crisis</span>
         </TabsTrigger>
         <TabsTrigger
           value="friends"
@@ -156,6 +165,18 @@ export function SettingsTabs() {
           </CardHeader>
           <CardContent>
             <NotificationSettings />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Crisis Detection */}
+      <TabsContent value="crisis-detection">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Crisis Detection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CrisisDetectionSettings />
           </CardContent>
         </Card>
       </TabsContent>

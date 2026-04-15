@@ -234,7 +234,9 @@ type PushNotificationContext =
   | { type: "location_arrival"; locationName: string; taskTitle: string; taskCount: number }
   | { type: "location_departure_nearby"; locationName: string; nearbyLocationName: string; taskTitle: string }
   | { type: "time_to_leave_soon"; eventTitle: string; minutesUntilLeave: number; destination: string; commuteMinutes: number }
-  | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number };
+  | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number }
+  | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
+  | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_24h: "Heads up — something's due tomorrow. You've got this.",
@@ -249,6 +251,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   location_departure_nearby: "Before you head home, there's something nearby.",
   time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
   time_to_leave_now: "Time to leave! You need to go now to make it.",
+  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Crisis Mode if you want it.",
+  crisis_worsened: "Things just got tighter. Your crisis plan is still waiting in Crisis Mode.",
 };
 
 /**
@@ -287,6 +291,12 @@ export async function generatePushMessage(
     userMsg = `Type: time_to_leave_soon\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nMinutes until you need to leave: ${ctx.minutesUntilLeave}\nCommute time: ${ctx.commuteMinutes} min`;
   } else if (ctx.type === "time_to_leave_now") {
     userMsg = `Type: time_to_leave_now\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nCommute time: ${ctx.commuteMinutes} min`;
+  } else if (ctx.type === "crisis_detected") {
+    const names = ctx.taskNames.join(" and ");
+    userMsg = `Type: crisis_detected\nConflicting tasks: ${names}\nAvailable work time: ${ctx.availableHours.toFixed(1)} hours\nRequired work time: ${ctx.requiredHours.toFixed(1)} hours`;
+  } else if (ctx.type === "crisis_worsened") {
+    const names = ctx.taskNames.join(" and ");
+    userMsg = `Type: crisis_worsened\nConflicting tasks: ${names}\nNew crisis ratio: ${ctx.newRatio.toFixed(2)} (higher = worse)`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${"taskTitle" in ctx ? ctx.taskTitle : ""}"`;
   }

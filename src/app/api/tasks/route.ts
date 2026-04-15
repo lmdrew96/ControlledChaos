@@ -67,12 +67,30 @@ export async function POST(request: NextRequest) {
         const { text } = await callHaiku({
           system: AUTO_NOTE_TASK_SYSTEM_PROMPT,
           user: userPrompt,
-          maxTokens: 150,
+          maxTokens: 200,
         });
-        const note = text.trim();
+        const raw = text.trim();
+
+        // Parse AI time estimate from the EST: <number> line
+        const estMatch = raw.match(/EST:\s*(\d+)/);
+        const aiEstimate = estMatch ? Math.max(5, parseInt(estMatch[1], 10)) : null;
+
+        // Strip EST line from the note text
+        const note = raw.replace(/\n?EST:\s*\d+\s*$/, "").trim();
+
+        const updates: Record<string, unknown> = {};
         if (note && note !== "SKIP") {
-          await updateTask(task.id, userId, { description: note });
-          task.description = note;
+          updates.description = note;
+        }
+        // Only use AI estimate if user didn't provide one
+        if (aiEstimate && !task.estimatedMinutes) {
+          updates.estimatedMinutes = aiEstimate;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateTask(task.id, userId, updates);
+          if (updates.description) task.description = updates.description as string;
+          if (updates.estimatedMinutes) task.estimatedMinutes = updates.estimatedMinutes as number;
         }
       } catch (err) {
         console.error("[AutoNote] Task note generation failed:", err);
