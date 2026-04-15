@@ -1,4 +1,4 @@
-import { anthropic, callHaiku, callWithRetry } from "@/lib/ai";
+import { callHaiku } from "@/lib/ai";
 import { CRISIS_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { extractJSON } from "@/lib/ai/validate";
 import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment } from "@/types";
@@ -125,7 +125,7 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
     let responseText: string;
 
     if (params.files && params.files.length > 0) {
-      // Multimodal path — call SDK directly with typed content blocks
+      // Multimodal path — pass content blocks through callHaiku
       type ImageMediaType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
 
       const fileBlocks = params.files.map((f) => {
@@ -149,26 +149,15 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
         };
       });
 
-      const content = [
-        ...fileBlocks,
-        { type: "text" as const, text: userPromptText },
-      ];
-
-      const response = await callWithRetry(() =>
-        anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 4096,
-          system: CRISIS_SYSTEM_PROMPT,
-          messages: [{ role: "user", content }],
-        })
-      );
-
-      responseText =
-        response.content[0].type === "text" ? response.content[0].text : "";
-
-      console.log(
-        `[AI] Crisis multimodal: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out`
-      );
+      const result = await callHaiku({
+        system: CRISIS_SYSTEM_PROMPT,
+        user: [
+          ...fileBlocks,
+          { type: "text" as const, text: userPromptText },
+        ],
+        maxTokens: 4096,
+      });
+      responseText = result.text;
     } else {
       // Text-only path — use callHaiku
       const result = await callHaiku({

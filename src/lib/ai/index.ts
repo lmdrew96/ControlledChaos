@@ -1,5 +1,10 @@
 import Anthropic, { APIError } from "@anthropic-ai/sdk";
 
+// --- Centralized model constants ---
+// Change these once to update every AI call across the codebase.
+export const MODEL_HAIKU = "claude-haiku-4-5-20251001";
+export const MODEL_SONNET = "claude-sonnet-4-6";
+
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -53,13 +58,17 @@ export async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 // --- Shared call interface ---
 
+/** Content blocks for multimodal messages (images, PDFs, etc.) */
+type ContentBlocks = Anthropic.MessageCreateParams["messages"][0]["content"];
+
 interface AICallParams {
   system: string;
-  user: string;
+  /** Plain text string OR an array of content blocks for multimodal input. */
+  user: string | ContentBlocks;
   maxTokens?: number;
 }
 
-interface AICallResult {
+export interface AICallResult {
   text: string;
   inputTokens: number;
   outputTokens: number;
@@ -75,7 +84,7 @@ export async function callHaiku(
 
   const response = await callWithRetry(() =>
     anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: MODEL_HAIKU,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,
       messages: [{ role: "user", content: params.user }],
@@ -98,7 +107,7 @@ export async function callHaiku(
   };
 }
 
-// --- Sonnet (personality, sass — notifications, digests) ---
+// --- Sonnet (personality, sass — notifications, digests, crisis) ---
 
 export async function callSonnet(
   params: AICallParams
@@ -107,7 +116,7 @@ export async function callSonnet(
 
   const response = await callWithRetry(() =>
     anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL_SONNET,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,
       messages: [{ role: "user", content: params.user }],
