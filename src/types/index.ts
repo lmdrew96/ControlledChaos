@@ -144,6 +144,8 @@ export interface EnergyProfile {
 
 export type NotificationAssertiveness = "gentle" | "balanced" | "assertive";
 
+export type CelebrationLevel = "none" | "subtle" | "full";
+
 export interface NotificationPrefs {
   pushEnabled: boolean;
   locationNotificationsEnabled: boolean;
@@ -156,6 +158,8 @@ export interface NotificationPrefs {
   assertivenessMode: NotificationAssertiveness;
   friendNudgesEnabled: boolean;
   mutedFriendIds: string[];
+  celebrationLevel: CelebrationLevel;
+  momentumStyle: "motivational" | "neutral";
 }
 
 export interface PersonalityPrefs {

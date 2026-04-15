@@ -1,4 +1,5 @@
 import confetti from "canvas-confetti";
+import type { CelebrationLevel } from "@/types";
 
 const COLORS = [
   "#ff6b6b", "#ffd93d", "#6bcb77",
@@ -11,18 +12,33 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/** Read user's celebration level from localStorage (set by settings page). */
+function getCelebrationLevel(): CelebrationLevel {
+  if (typeof window === "undefined") return "full";
+  return (localStorage.getItem("cc-celebration-level") as CelebrationLevel) || "full";
+}
+
 /**
  * Full-window confetti DETONATION. ~2,000 particles from every direction —
  * center, all four corners, top shower, AND bottom-up rockets. No escape.
  *
- * Respects prefers-reduced-motion: fires a single subtle burst instead.
+ * Respects:
+ * 1. User's in-app celebration level (none / subtle / full)
+ * 2. OS prefers-reduced-motion as fallback
  */
 export function fireTaskConfetti() {
-  if (prefersReducedMotion()) {
+  const level = getCelebrationLevel();
+
+  // "none" — no confetti at all
+  if (level === "none") return;
+
+  // "subtle" or OS reduced-motion — single gentle burst
+  if (level === "subtle" || prefersReducedMotion()) {
     confetti({ colors: COLORS, zIndex: 9999, particleCount: 30, spread: 60, startVelocity: 20, origin: { x: 0.5, y: 0.6 } });
     return;
   }
 
+  // "full" — the full detonation
   const fire = (opts: confetti.Options) =>
     confetti({ colors: COLORS, zIndex: 9999, ...opts });
 

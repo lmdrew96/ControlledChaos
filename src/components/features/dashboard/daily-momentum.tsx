@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Flame, Sparkles, Coffee, Zap } from "lucide-react";
+import { Flame, Sparkles, Coffee, Zap, BarChart3 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 
@@ -13,36 +13,56 @@ interface Stats {
   weekStartDate: string;
 }
 
-const MOMENTUM_TIERS = [
+const MOTIVATIONAL_TIERS = [
   { min: 0, message: "Fresh start — what's first?", icon: Coffee, accent: "text-muted-foreground", bg: "bg-muted", ring: "" },
   { min: 1, message: "Rolling!", icon: Sparkles, accent: "text-blue-400", bg: "bg-blue-500/10", ring: "ring-1 ring-blue-500/20" },
   { min: 3, message: "On fire!", icon: Flame, accent: "text-orange-400", bg: "bg-orange-500/10", ring: "ring-1 ring-orange-500/20" },
   { min: 6, message: "Unstoppable!", icon: Zap, accent: "text-red-400", bg: "bg-red-500/10", ring: "ring-1 ring-red-500/20" },
 ] as const;
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+const DAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-function getTier(count: number) {
-  for (let i = MOMENTUM_TIERS.length - 1; i >= 0; i--) {
-    if (count >= MOMENTUM_TIERS[i].min) return MOMENTUM_TIERS[i];
+function getMotivationalTier(count: number) {
+  for (let i = MOTIVATIONAL_TIERS.length - 1; i >= 0; i--) {
+    if (count >= MOTIVATIONAL_TIERS[i].min) return MOTIVATIONAL_TIERS[i];
   }
-  return MOMENTUM_TIERS[0];
+  return MOTIVATIONAL_TIERS[0];
+}
+
+function getNeutralDisplay(count: number) {
+  const message = count === 0
+    ? "No tasks yet today"
+    : `${count} done today`;
+  return {
+    message,
+    icon: BarChart3,
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
+    ring: "",
+  };
 }
 
 export function DailyMomentum() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [momentumStyle, setMomentumStyle] = useState<"motivational" | "neutral">("neutral");
 
   useEffect(() => {
     fetch("/api/stats/momentum")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => { if (data) setStats(data); })
       .catch(() => {});
+
+    // Read user preference from localStorage
+    const stored = localStorage.getItem("cc-momentum-style") as "motivational" | "neutral" | null;
+    if (stored) setMomentumStyle(stored);
   }, []);
 
   if (!stats) return null;
 
-  const tier = getTier(stats.completedToday);
-  const Icon = tier.icon;
+  const display = momentumStyle === "motivational"
+    ? getMotivationalTier(stats.completedToday)
+    : getNeutralDisplay(stats.completedToday);
+  const Icon = display.icon;
 
   // Current week bars (Mon-Sun), padded to 7 days
   const weekDays = stats.daily.filter((d) => d.date >= stats.weekStartDate);
@@ -64,13 +84,13 @@ export function DailyMomentum() {
     <Link href="/momentum" className="block h-full">
       <Card className="group h-full border-border/40 bg-card/80 transition-colors hover:border-border/60">
         <CardContent className="flex h-full items-center gap-4 p-5">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tier.bg} ${tier.ring} ${tier.accent} transition-all`}>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${display.bg} ${display.ring} ${display.accent} transition-all`}>
             <Icon className="h-5 w-5" />
           </div>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold">{tier.message}</span>
+              <span className="text-sm font-semibold">{display.message}</span>
             </div>
 
             {/* Mini 7-day bar chart */}
@@ -94,7 +114,7 @@ export function DailyMomentum() {
                         }}
                       />
                       <span
-                        className={`text-[9px] leading-none text-muted-foreground ${
+                        className={`text-[10px] leading-tight text-muted-foreground ${
                           isToday ? "font-medium" : ""
                         }`}
                       >
@@ -104,7 +124,7 @@ export function DailyMomentum() {
                   );
                 })}
               </div>
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-xs tabular-nums text-muted-foreground">
                 {stats.completedToday} today &middot; {stats.completedThisWeek} this week
               </span>
             </div>

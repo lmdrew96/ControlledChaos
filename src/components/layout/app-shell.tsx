@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
   LayoutDashboard,
   Brain,
@@ -24,6 +25,8 @@ import { Logo } from "@/components/ui/logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { WhatsNewDialog } from "@/components/features/changelog/whats-new-dialog";
+import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
+import { CreateTaskModal } from "@/components/features/task-feed/create-task-modal";
 import {
   Sheet,
   SheetClose,
@@ -65,6 +68,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("cc-install-dismissed") === "1";
   });
+
+  // Keyboard shortcut dialogs
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const toggleShortcuts = useCallback(() => setShowShortcuts((v) => !v), []);
+  const openCreateTask = useCallback(() => setShowCreateTask(true), []);
+  useKeyboardShortcuts({ onNewTask: openCreateTask, onToggleShortcuts: toggleShortcuts });
 
   // Crisis detection badge state
   const { isActive: crisisActive } = useCrisisDetection();
@@ -290,6 +300,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
+
+      {/* Global dialogs triggered by keyboard shortcuts */}
+      <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <CreateTaskModal
+        open={showCreateTask}
+        onClose={() => setShowCreateTask(false)}
+        onCreated={() => {
+          setShowCreateTask(false);
+          // Refresh happens via router in the modal's onCreated flow
+        }}
+      />
     </div>
   );
 }

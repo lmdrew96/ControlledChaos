@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Neurodivergent design improvements — celebration control, neutral momentum, inline validation, keyboard shortcuts"
+      },
+      {
+        "type": "added",
         "text": "Auto-crisis detection with tiered Watch/Nudge/Auto-Triage system"
       },
       {

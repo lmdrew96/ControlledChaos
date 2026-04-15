@@ -319,19 +319,19 @@ export default function MomentumPage() {
                   <p className="text-xl font-bold text-green-600 dark:text-green-400">
                     {stats.byEnergy.low}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">Low</p>
+                  <p className="text-xs text-muted-foreground">Low</p>
                 </div>
                 <div className="flex-1 rounded-lg bg-orange-500/10 p-3 text-center">
                   <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
                     {stats.byEnergy.medium}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">Medium</p>
+                  <p className="text-xs text-muted-foreground">Medium</p>
                 </div>
                 <div className="flex-1 rounded-lg bg-red-500/10 p-3 text-center">
                   <p className="text-xl font-bold text-red-600 dark:text-red-400">
                     {stats.byEnergy.high}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">High</p>
+                  <p className="text-xs text-muted-foreground">High</p>
                 </div>
               </div>
             </CardContent>

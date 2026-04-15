@@ -92,6 +92,7 @@ export function TaskDetailModal({
     status: "pending",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [titleError, setTitleError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState(false);
@@ -167,11 +168,12 @@ export function TaskDetailModal({
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (key === "title" && titleError) setTitleError(null);
   }
 
   async function handleSave() {
     if (!task || !form.title.trim()) {
-      toast.error("Title is required");
+      setTitleError("Title is required");
       return;
     }
 
@@ -326,7 +328,12 @@ export function TaskDetailModal({
               value={form.title}
               onChange={(e) => updateField("title", e.target.value)}
               placeholder="Task title"
+              aria-invalid={!!titleError}
+              className={titleError ? "border-destructive" : ""}
             />
+            {titleError && (
+              <p className="text-xs text-destructive">{titleError}</p>
+            )}
           </div>
 
           {/* Description */}

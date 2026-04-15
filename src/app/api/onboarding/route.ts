@@ -85,6 +85,8 @@ export async function POST(request: Request) {
         locationNotificationsEnabled: false,
         friendNudgesEnabled: true,
         mutedFriendIds: [],
+        celebrationLevel: "full",
+        momentumStyle: "neutral",
       };
     }
 

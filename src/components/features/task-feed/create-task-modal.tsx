@@ -40,6 +40,11 @@ interface FormState {
   deadline: string;
 }
 
+interface FormErrors {
+  title?: string;
+  submit?: string;
+}
+
 const DEFAULT_FORM: FormState = {
   title: "",
   description: "",
@@ -53,6 +58,7 @@ const DEFAULT_FORM: FormState = {
 
 export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalProps) {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
 
@@ -65,20 +71,34 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
 
   // Reset form when dialog opens
   useEffect(() => {
-    if (open) setForm(DEFAULT_FORM);
+    if (open) {
+      setForm(DEFAULT_FORM);
+      setErrors({});
+    }
   }, [open]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    // Clear field-specific error on edit
+    if (key === "title" && errors.title) {
+      setErrors((prev) => ({ ...prev, title: undefined }));
+    }
+  }
+
+  function validate(): boolean {
+    const newErrors: FormErrors = {};
+    if (!form.title.trim()) {
+      newErrors.title = "Title is required";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   async function handleCreate() {
-    if (!form.title.trim()) {
-      toast.error("Title is required");
-      return;
-    }
+    if (!validate()) return;
 
     setIsSaving(true);
+    setErrors((prev) => ({ ...prev, submit: undefined }));
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -97,11 +117,11 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
 
       if (!res.ok) throw new Error("Failed to create task");
 
-      toast.success("Task created");
+      toast.success(`Task '${form.title.trim()}' created`);
       onCreated();
       onClose();
     } catch {
-      toast.error("Failed to create task");
+      setErrors((prev) => ({ ...prev, submit: "Failed to create task. Try again." }));
     } finally {
       setIsSaving(false);
     }
@@ -126,7 +146,12 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
               placeholder="What needs to get done?"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              aria-invalid={!!errors.title}
+              className={errors.title ? "border-destructive" : ""}
             />
+            {errors.title && (
+              <p className="text-xs text-destructive">{errors.title}</p>
+            )}
           </div>
 
           {/* Description */}
@@ -260,6 +285,11 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
             />
           </div>
         </div>
+
+        {/* Submit error */}
+        {errors.submit && (
+          <p className="text-xs text-destructive">{errors.submit}</p>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 pt-4 border-t border-border">

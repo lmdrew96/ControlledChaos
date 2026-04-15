@@ -20,6 +20,8 @@ const DEFAULT_PREFS: NotificationPrefs = {
   assertivenessMode: "balanced",
   friendNudgesEnabled: true,
   mutedFriendIds: [],
+  celebrationLevel: "full",
+  momentumStyle: "neutral",
 };
 
 const ASSERTIVENESS_OPTIONS: Array<{
