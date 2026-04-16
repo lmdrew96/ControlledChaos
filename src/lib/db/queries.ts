@@ -187,6 +187,7 @@ export async function createTask(
     category?: string | null;
     locationTags?: string[] | null;
     deadline?: Date | null;
+    goalId?: string | null;
   }
 ) {
   const [task] = await db
@@ -201,6 +202,7 @@ export async function createTask(
       category: params.category ?? null,
       locationTags: params.locationTags?.length ? params.locationTags : null,
       deadline: params.deadline ?? null,
+      goalId: params.goalId ?? null,
     })
     .returning();
   return task;
@@ -269,6 +271,7 @@ export async function updateTask(
     progressSteps: object[] | null;
     currentStepIndex: number;
     sortOrder: number | null;
+    goalId: string | null;
   }>
 ) {
   const [updated] = await db
@@ -458,54 +461,6 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
         isNull(tasks.deletedAt)
       )
     );
-}
-
-export async function getCompletionStats(userId: string, timezone: string) {
-  const now = new Date();
-  const startOfDay = startOfDayInTimezone(now, timezone);
-
-  const startOfWeek = startOfWeekInTimezone(timezone);
-
-  const [todayRows, weekRows, allTimeRows] = await Promise.all([
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.userId, userId),
-          eq(tasks.status, "completed"),
-          gte(tasks.completedAt, startOfDay),
-          isNull(tasks.deletedAt)
-        )
-      ),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.userId, userId),
-          eq(tasks.status, "completed"),
-          gte(tasks.completedAt, startOfWeek),
-          isNull(tasks.deletedAt)
-        )
-      ),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.userId, userId),
-          eq(tasks.status, "completed"),
-          isNull(tasks.deletedAt)
-        )
-      ),
-  ]);
-
-  return {
-    completedToday: todayRows[0]?.count ?? 0,
-    completedThisWeek: weekRows[0]?.count ?? 0,
-    completedAllTime: allTimeRows[0]?.count ?? 0,
-  };
 }
 
 // ============================================================
@@ -1591,6 +1546,31 @@ export async function completeCrisisPlan(planId: string) {
     .where(eq(crisisPlans.id, planId))
     .returning();
   return updated;
+}
+
+/** Restore a soft-deleted (abandoned) crisis plan by clearing completedAt. */
+export async function restoreCrisisPlan(planId: string, userId: string) {
+  const [updated] = await db
+    .update(crisisPlans)
+    .set({ completedAt: null, updatedAt: new Date() })
+    .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)))
+    .returning();
+  return updated ?? null;
+}
+
+/** Returns completed crisis plans (both finished and abandoned), most recent first. */
+export async function getCompletedCrisisPlans(userId: string, limit = 10) {
+  return db
+    .select()
+    .from(crisisPlans)
+    .where(
+      and(
+        eq(crisisPlans.userId, userId),
+        sql`${crisisPlans.completedAt} IS NOT NULL`
+      )
+    )
+    .orderBy(desc(crisisPlans.completedAt))
+    .limit(limit);
 }
 
 // ============================================================

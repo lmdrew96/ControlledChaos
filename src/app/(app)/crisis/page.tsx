@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Plus, ChevronLeft, Siren, Trash2 } from "lucide-react";
+import { Loader2, Plus, ChevronLeft, Siren, Trash2, History } from "lucide-react";
+import { toast } from "sonner";
 import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,8 @@ export default function CrisisPage() {
   const [abandoningId, setAbandoningId] = useState<string | null>(null);
   const [strategyState, setStrategyState] = useState<StrategyPickerState | null>(null);
   const [detectionStatus, setDetectionStatus] = useState<CrisisDetectionStatus | null>(null);
+  const [history, setHistory] = useState<ActivePlanData[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // -------------------------------------------------------
   // Load all active plans
@@ -135,10 +138,39 @@ export default function CrisisPage() {
         setDetectionStatus(detection);
       }
 
+      // Load history (completed/abandoned plans)
+      const historyMapped: ActivePlanData[] = (data.history ?? []).map(
+        (p: {
+          id: string;
+          taskName: string;
+          deadline: string | Date;
+          panicLevel: PanicLevel;
+          panicLabel: string;
+          summary: string;
+          tasks: CrisisPlan["tasks"];
+          currentTaskIndex: number;
+          completedAt: string | Date;
+        }) => ({
+          id: p.id,
+          taskName: p.taskName,
+          deadline: new Date(p.deadline).toISOString(),
+          panicLevel: p.panicLevel,
+          panicLabel: p.panicLabel,
+          plan: {
+            panicLevel: p.panicLevel,
+            panicLabel: p.panicLabel,
+            summary: p.summary,
+            tasks: p.tasks,
+            currentTaskIndex: p.currentTaskIndex ?? 0,
+          },
+        })
+      );
+
       setPlans(mapped);
-      setPhase(mapped.length === 0 ? "intake" : "dashboard");
+      setHistory(historyMapped);
+      setPhase("dashboard");
     } catch {
-      setPhase("intake");
+      setPhase("dashboard");
     }
   }, []);
 
@@ -219,8 +251,36 @@ export default function CrisisPage() {
   async function handleAbandon(planId: string) {
     setAbandoningId(planId);
     try {
+      const abandoned = plans.find((p) => p.id === planId);
       await fetch(`/api/crisis?planId=${planId}`, { method: "DELETE" });
       setPlans((prev) => prev.filter((p) => p.id !== planId));
+      if (abandoned) {
+        setHistory((prev) => [abandoned, ...prev]);
+      }
+
+      toast("Plan abandoned", {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              const res = await fetch("/api/crisis", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ planId, restore: true }),
+              });
+              if (res.ok) {
+                if (abandoned) {
+                  setPlans((prev) => [abandoned, ...prev]);
+                  setHistory((prev) => prev.filter((p) => p.id !== planId));
+                }
+                toast.success("Plan restored");
+              }
+            } catch {
+              toast.error("Failed to restore plan");
+            }
+          },
+        },
+      });
     } finally {
       setAbandoningId(null);
     }
@@ -269,8 +329,7 @@ export default function CrisisPage() {
   }
 
   function handleDoneNext() {
-    // After completing, go to dashboard if there are remaining plans, else new intake
-    setPhase(plans.length > 0 ? "dashboard" : "intake");
+    setPhase("dashboard");
     setCompletedTaskName(null);
   }
 
@@ -373,7 +432,6 @@ export default function CrisisPage() {
   if (phase === "intake") {
     return (
       <div className="mx-auto max-w-lg space-y-6">
-        {/* Header with back button if there are existing plans */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Crisis Mode</h1>
@@ -381,17 +439,15 @@ export default function CrisisPage() {
               Behind on something? Let&apos;s figure out a path forward.
             </p>
           </div>
-          {plans.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => setPhase("dashboard")}
-            >
-              <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-              Back
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => setPhase("dashboard")}
+          >
+            <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+            Back
+          </Button>
         </div>
 
         {/* Show explainer if detection is active but no plans yet */}
@@ -474,77 +530,153 @@ export default function CrisisPage() {
         </Card>
       )}
 
-      <div className="space-y-3">
-        {plans.map((plan) => {
-          const pct = progressPct(plan);
-          return (
-            <Card
-              key={plan.id}
-              className={cn(
-                "border transition-colors cursor-pointer hover:bg-accent/30",
-                panicColor(plan.panicLevel)
-              )}
-              onClick={() => handleEnterWarRoom(plan)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Siren className="h-4 w-4 shrink-0 opacity-70" />
-                    <span className="font-semibold truncate">{plan.taskName}</span>
+      {/* Active plans */}
+      {plans.length > 0 ? (
+        <div className="space-y-3">
+          {plans.map((plan) => {
+            const pct = progressPct(plan);
+            return (
+              <Card
+                key={plan.id}
+                className={cn(
+                  "border transition-colors cursor-pointer hover:bg-accent/30",
+                  panicColor(plan.panicLevel)
+                )}
+                onClick={() => handleEnterWarRoom(plan)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Siren className="h-4 w-4 shrink-0 opacity-70" />
+                      <span className="font-semibold truncate">{plan.taskName}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs", panicColor(plan.panicLevel))}
+                      >
+                        {plan.panicLabel}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAbandon(plan.id);
+                        }}
+                        disabled={abandoningId === plan.id}
+                        aria-label={`Abandon ${plan.taskName}`}
+                      >
+                        {abandoningId === plan.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge
-                      variant="outline"
-                      className={cn("text-xs", panicColor(plan.panicLevel))}
-                    >
-                      {plan.panicLabel}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAbandon(plan.id);
-                      }}
-                      disabled={abandoningId === plan.id}
-                      aria-label={`Abandon ${plan.taskName}`}
-                    >
-                      {abandoningId === plan.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Progress bar */}
-                <div className="mt-3 space-y-1">
-                  <div className="flex justify-between text-xs opacity-70">
-                    <span>
-                      Step {plan.plan.currentTaskIndex + 1} of {plan.plan.tasks.length}
-                    </span>
-                    <span>{pct}%</span>
+                  {/* Progress bar */}
+                  <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-xs opacity-70">
+                      <span>
+                        Step {plan.plan.currentTaskIndex + 1} of {plan.plan.tasks.length}
+                      </span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-current/10 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-current/40 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 w-full rounded-full bg-current/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-current/40 transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
 
-                {/* Deadline */}
-                <div className="mt-2 flex items-center justify-between text-xs opacity-60">
-                  <span>Due {formatDeadline(plan.deadline, timezone)}</span>
-                  <span className="font-medium">{timeLeftLabel(plan.deadline)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  {/* Deadline */}
+                  <div className="mt-2 flex items-center justify-between text-xs opacity-60">
+                    <span>Due {formatDeadline(plan.deadline, timezone)}</span>
+                    <span className="font-medium">{timeLeftLabel(plan.deadline)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        /* Empty state */
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+            <Siren className="h-8 w-8 text-muted-foreground/40 mb-3" />
+            <p className="font-medium">No active crisis sessions</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Behind on something? Start a session and I&apos;ll help you figure out a plan.
+            </p>
+            <Button size="sm" className="mt-4" onClick={() => setPhase("intake")}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              New session
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* History — previous crisis plans */}
+      {history.length > 0 && (
+        <div className="space-y-3">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <History className="h-4 w-4" />
+            {showHistory ? "Hide" : "Show"} previous sessions ({history.length})
+          </button>
+
+          {showHistory && (
+            <div className="space-y-2">
+              {history.map((plan) => (
+                <Card key={plan.id} className="border-muted bg-muted/20">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Siren className="h-3.5 w-3.5 shrink-0 opacity-40" />
+                        <span className="text-sm truncate text-muted-foreground">{plan.taskName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground">
+                          {formatDeadline(plan.deadline, timezone)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-muted-foreground"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/crisis", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ planId: plan.id, restore: true }),
+                              });
+                              if (res.ok) {
+                                setHistory((prev) => prev.filter((p) => p.id !== plan.id));
+                                setPlans((prev) => [plan, ...prev]);
+                                toast.success("Plan restored");
+                              }
+                            } catch {
+                              toast.error("Failed to restore plan");
+                            }
+                          }}
+                        >
+                          Restore
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

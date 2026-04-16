@@ -9,9 +9,11 @@ import {
   getPendingTasks,
   createCrisisPlan,
   getActiveCrisisPlans,
+  getCompletedCrisisPlans,
   getCrisisPlanById,
   updateCrisisPlanProgress,
   completeCrisisPlan,
+  restoreCrisisPlan,
   getUserLocation,
   getCommuteTimes,
   getSavedLocations,
@@ -143,8 +145,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const plans = await getActiveCrisisPlans(userId);
-    return NextResponse.json({ plans });
+    const [plans, history] = await Promise.all([
+      getActiveCrisisPlans(userId),
+      getCompletedCrisisPlans(userId),
+    ]);
+    return NextResponse.json({ plans, history });
   } catch (error) {
     console.error("[API] GET /api/crisis error:", error);
     return NextResponse.json({ error: "Failed to fetch plans" }, { status: 500 });
@@ -438,10 +443,12 @@ export async function PATCH(request: Request) {
       planId,
       currentTaskIndex,
       completed,
+      restore,
     } = body as {
       planId: string;
       currentTaskIndex?: number;
       completed?: boolean;
+      restore?: boolean;
     };
 
     if (!planId) {
@@ -452,6 +459,11 @@ export async function PATCH(request: Request) {
     const plan = await getCrisisPlanById(planId, userId);
     if (!plan) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    if (restore) {
+      const updated = await restoreCrisisPlan(planId, userId);
+      return NextResponse.json({ plan: updated });
     }
 
     if (completed) {
