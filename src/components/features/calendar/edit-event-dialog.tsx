@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Trash2, Copy } from "lucide-react";
+import { Loader2, Trash2, Copy, MapPin } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -25,6 +25,11 @@ import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import type { CalendarEvent, EventCategory } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+
+interface SavedLocation {
+  id: string;
+  name: string;
+}
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -83,13 +88,24 @@ export function EditEventDialog({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
+  const [locationMode, setLocationMode] = useState<"none" | "saved" | "custom">("none");
+
+  useEffect(() => {
+    if (!event) return;
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((data) => setSavedLocations(data.locations ?? []))
+      .catch(() => setSavedLocations([]));
+  }, [event]);
 
   useEffect(() => {
     if (event) {
+      const loc = event.location ?? "";
       setForm({
         title: event.title.replace(/^\[CC\] /, ""),
         description: event.description ?? "",
-        location: event.location ?? "",
+        location: loc,
         date: toDateInput(event.startTime, timezone),
         startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime, timezone),
         endTime: event.isAllDay ? "23:59" : toTimeInput(event.endTime, timezone),
@@ -97,8 +113,16 @@ export function EditEventDialog({
         category: (event.category as EventCategory) ?? "personal",
         editMode: "single",
       });
+
+      if (!loc) {
+        setLocationMode("none");
+      } else if (savedLocations.some((s) => s.name === loc)) {
+        setLocationMode("saved");
+      } else {
+        setLocationMode("custom");
+      }
     }
-  }, [event]);
+  }, [event, savedLocations]);
 
   if (!event) return null;
 
@@ -233,13 +257,60 @@ export function EditEventDialog({
 
           {/* Location */}
           <div className="space-y-2">
-            <Label htmlFor="edit-location">Location</Label>
-            <Input
-              id="edit-location"
-              value={form.location}
-              onChange={(e) => updateField("location", e.target.value)}
-              placeholder="Add location..."
-            />
+            <Label>Location</Label>
+            {savedLocations.length > 0 ? (
+              <>
+                <Select
+                  value={locationMode === "saved" ? form.location : locationMode}
+                  onValueChange={(v) => {
+                    if (v === "none") {
+                      setLocationMode("none");
+                      updateField("location", "");
+                    } else if (v === "custom") {
+                      setLocationMode("custom");
+                      updateField("location", "");
+                    } else {
+                      setLocationMode("saved");
+                      updateField("location", v);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No location</SelectItem>
+                    {savedLocations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.name}>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="h-3 w-3 text-muted-foreground" />
+                          {loc.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Other...</SelectItem>
+                  </SelectContent>
+                </Select>
+                {locationMode === "custom" && (
+                  <Input
+                    value={form.location}
+                    onChange={(e) => updateField("location", e.target.value)}
+                    placeholder="e.g., Zoom, Room 204"
+                  />
+                )}
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <Input
+                  value={form.location}
+                  onChange={(e) => updateField("location", e.target.value)}
+                  placeholder="Add location..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Add saved locations in Settings for time-to-leave alerts
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Category */}
