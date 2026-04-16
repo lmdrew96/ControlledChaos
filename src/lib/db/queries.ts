@@ -764,6 +764,7 @@ export async function getPendingTasks(userId: string) {
     .where(
       and(
         eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
         or(
           // Active tasks
           inArray(tasks.status, ["pending", "in_progress"]),

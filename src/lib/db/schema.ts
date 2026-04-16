@@ -231,7 +231,7 @@ export const locationNotificationLog = pgTable(
     locationId: uuid("location_id")
       .references(() => locations.id)
       .notNull(),
-    taskId: uuid("task_id").references(() => tasks.id),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     event: text("event").notNull(), // "arrival" | "departure"
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -255,7 +255,7 @@ export const taskActivity = pgTable(
       .references(() => users.id)
       .notNull(),
     taskId: uuid("task_id")
-      .references(() => tasks.id)
+      .references(() => tasks.id, { onDelete: "cascade" })
       .notNull(),
     action: text("action").notNull(), // recommended, accepted, snoozed, rejected, completed, skipped
     context: jsonb("context"), // {energy, location, time_of_day, time_available}
