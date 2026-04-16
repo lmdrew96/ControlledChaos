@@ -52,6 +52,7 @@ interface FormState {
   estimatedMinutes: string;
   deadline: string;
   status: string;
+  goalId: string;
 }
 
 function toDatetimeLocal(isoString: string, timezone: string): string {
@@ -71,6 +72,7 @@ function formFromTask(task: Task, timezone: string): FormState {
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
     status: task.status,
+    goalId: task.goalId ?? "",
   };
 }
 
@@ -90,6 +92,7 @@ export function TaskDetailModal({
     estimatedMinutes: "",
     deadline: "",
     status: "pending",
+    goalId: "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -100,12 +103,17 @@ export function TaskDetailModal({
   const [isChunking, setIsChunking] = useState(false);
   const [localStepIndex, setLocalStepIndex] = useState(0);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
+  const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
 
-  // Fetch user's saved locations
+  // Fetch user's saved locations and goals
   useEffect(() => {
     fetch("/api/locations")
       .then((r) => r.json())
       .then((data) => setSavedLocations(data.locations ?? []))
+      .catch(() => {});
+    fetch("/api/goals?status=active")
+      .then((r) => r.json())
+      .then((data) => setGoals(data.goals ?? []))
       .catch(() => {});
   }, []);
 
@@ -200,6 +208,8 @@ export function TaskDetailModal({
           ? toUTC(form.deadline, timezone)
           : null;
       if (form.status !== original.status) payload.status = form.status;
+      if (form.goalId !== original.goalId)
+        payload.goalId = form.goalId || null;
 
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
@@ -498,6 +508,29 @@ export function TaskDetailModal({
               onChange={(e) => updateField("deadline", e.target.value)}
             />
           </div>
+
+          {/* Goal */}
+          {goals.length > 0 && (
+            <div className="space-y-2">
+              <Label>Goal</Label>
+              <Select
+                value={form.goalId || "none"}
+                onValueChange={(v) => updateField("goalId", v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {goals.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Progress Steps — step-through UI */}
           {hasSteps && !allStepsDone && currentStep && (

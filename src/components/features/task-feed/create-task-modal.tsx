@@ -38,6 +38,7 @@ interface FormState {
   locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
+  goalId: string;
 }
 
 interface FormErrors {
@@ -54,6 +55,7 @@ const DEFAULT_FORM: FormState = {
   locationTags: [],
   estimatedMinutes: "",
   deadline: "",
+  goalId: "",
 };
 
 export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalProps) {
@@ -61,11 +63,16 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
+  const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/locations")
       .then((r) => r.json())
       .then((data) => setSavedLocations(data.locations ?? []))
+      .catch(() => {});
+    fetch("/api/goals?status=active")
+      .then((r) => r.json())
+      .then((data) => setGoals(data.goals ?? []))
       .catch(() => {});
   }, []);
 
@@ -112,6 +119,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           category: form.category || null,
           locationTags: form.locationTags.length ? form.locationTags : null,
           deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
+          goalId: form.goalId || null,
         }),
       });
 
@@ -263,6 +271,32 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
               </p>
             </div>
           </div>
+
+          {/* Goal */}
+          {goals.length > 0 && (
+            <div className="space-y-2">
+              <Label>Goal</Label>
+              <Select
+                value={form.goalId || "none"}
+                onValueChange={(v) => updateField("goalId", v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {goals.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Link this task to a goal for progress tracking.
+              </p>
+            </div>
+          )}
 
           {/* Time Estimate */}
           <div className="space-y-2">

@@ -19,6 +19,7 @@ export interface Task {
   parentTaskId: string | null;
   progressSteps: ProgressStep[] | null;
   currentStepIndex: number;
+  goalId: string | null;
   sortOrder?: number | null;
   createdAt: string;
   updatedAt: string;
