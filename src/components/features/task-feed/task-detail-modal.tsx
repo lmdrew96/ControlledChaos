@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight, Layers } from "lucide-react";
+import { Loader2, Check, Trash2, Undo2, Scissors, ChevronRight, Layers, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
@@ -209,7 +209,7 @@ export function TaskDetailModal({
 
       if (!res.ok) throw new Error("Failed to save");
 
-      toast.success("Task updated");
+      toast.success(`'${form.title.trim()}' updated`);
       onUpdate();
       onClose();
     } catch {
@@ -229,7 +229,7 @@ export function TaskDetailModal({
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error();
-      toast.success(isCompleted ? "Task reopened" : "Task completed!");
+      toast.success(isCompleted ? `'${task.title}' reopened` : `'${task.title}' marked complete`);
       if (!isCompleted) {
         fireTaskConfetti();
       }
@@ -252,7 +252,7 @@ export function TaskDetailModal({
     try {
       const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
-      toast.success("Task deleted");
+      toast.success(`'${task.title}' deleted`);
       onUpdate();
       onClose();
     } catch {
@@ -332,7 +332,10 @@ export function TaskDetailModal({
               className={titleError ? "border-destructive" : ""}
             />
             {titleError && (
-              <p className="text-xs text-destructive">{titleError}</p>
+              <p className="flex items-center gap-1 text-xs text-destructive">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                {titleError}
+              </p>
             )}
           </div>
 

@@ -130,7 +130,7 @@ export function TaskCard({
       if (action === "delete") {
         const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
         if (!res.ok) throw new Error("Delete failed");
-        toast.success("Task deleted");
+        toast.success(`'${task.title}' deleted`);
       } else {
         const status = action === "complete" ? "completed" : "pending";
         const res = await fetch(`/api/tasks/${task.id}`, {
@@ -140,7 +140,7 @@ export function TaskCard({
         });
         if (!res.ok) throw new Error("Update failed");
         if (action === "complete") {
-          toast.success("Task completed!");
+          toast.success(`'${task.title}' marked complete`);
           fireTaskConfetti();
         }
       }

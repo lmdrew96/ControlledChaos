@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "ND design P3 — specific toasts, visual density toggle, error icons"
+      },
+      {
+        "type": "added",
         "text": "ND design P2 — soft deletes, accessible tooltips, voice pause/resume, URL-persisted filters"
       },
       {

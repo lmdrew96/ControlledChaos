@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { ThemeProvider, useTheme } from "next-themes";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
@@ -28,6 +29,14 @@ function ClerkProviderWithTheme({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+  // Apply visual density preference on mount
+  useEffect(() => {
+    const density = localStorage.getItem("cc-density");
+    if (density === "compact") {
+      document.documentElement.classList.add("density-compact");
+    }
+  }, []);
 
   return (
     <ThemeProvider

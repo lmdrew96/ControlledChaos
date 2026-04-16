@@ -101,7 +101,8 @@ export function DoThisNext() {
         // feedback still fires below
       }
       await sendFeedback(taskId, "completed");
-      toast.success("Task completed!");
+      const taskTitle = recommendation?.task?.title;
+      toast.success(taskTitle ? `'${taskTitle}' marked complete` : "Task completed!");
       fireTaskConfetti();
       await refresh();
     },

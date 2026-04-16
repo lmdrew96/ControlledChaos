@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { Sun, Moon, Monitor, PartyPopper, BarChart3 } from "lucide-react";
+import { Sun, Moon, Monitor, PartyPopper, BarChart3, Rows3, Rows4 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CelebrationLevel } from "@/types";
 
@@ -31,11 +31,24 @@ const momentumOptions: Array<{
   { value: "motivational", label: "Motivational", description: "Encouraging tier messages like \"On fire!\" as you complete more." },
 ];
 
+type Density = "compact" | "relaxed";
+
+const densityOptions: Array<{
+  value: Density;
+  label: string;
+  icon: typeof Rows3;
+  description: string;
+}> = [
+  { value: "compact", label: "Compact", icon: Rows4, description: "Tighter spacing — more content visible at once." },
+  { value: "relaxed", label: "Relaxed", icon: Rows3, description: "More breathing room between elements." },
+];
+
 export function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [celebrationLevel, setCelebrationLevel] = useState<CelebrationLevel>("full");
   const [momentumStyle, setMomentumStyle] = useState<"motivational" | "neutral">("neutral");
+  const [density, setDensity] = useState<Density>("relaxed");
 
   useEffect(() => {
     setMounted(true);
@@ -44,6 +57,8 @@ export function AppearanceSettings() {
     if (stored) setCelebrationLevel(stored);
     const storedMomentum = localStorage.getItem("cc-momentum-style") as "motivational" | "neutral" | null;
     if (storedMomentum) setMomentumStyle(storedMomentum);
+    const storedDensity = localStorage.getItem("cc-density") as Density | null;
+    if (storedDensity) setDensity(storedDensity);
   }, []);
 
   function updateCelebration(level: CelebrationLevel) {
@@ -54,6 +69,13 @@ export function AppearanceSettings() {
   function updateMomentum(style: "motivational" | "neutral") {
     setMomentumStyle(style);
     localStorage.setItem("cc-momentum-style", style);
+  }
+
+  function updateDensity(d: Density) {
+    setDensity(d);
+    localStorage.setItem("cc-density", d);
+    // Apply/remove the class on the document element so CSS can respond globally
+    document.documentElement.classList.toggle("density-compact", d === "compact");
   }
 
   if (!mounted) return null;
@@ -149,6 +171,36 @@ export function AppearanceSettings() {
               >
                 <p className="text-sm font-medium">{opt.label}</p>
                 <p className="text-xs text-muted-foreground">{opt.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Visual Density */}
+      <div className="space-y-3">
+        <div className="text-sm font-medium">Visual Density</div>
+        <p className="text-xs text-muted-foreground">
+          Adjust spacing throughout the app. Compact shows more at a glance; relaxed gives more breathing room.
+        </p>
+        <div className="flex gap-2">
+          {densityOptions.map((opt) => {
+            const active = density === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => updateDensity(opt.value)}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-2 rounded-lg border px-4 py-3 text-sm transition-colors",
+                  active
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border text-muted-foreground hover:bg-accent/50"
+                )}
+              >
+                <opt.icon className="h-5 w-5" />
+                {opt.label}
               </button>
             );
           })}

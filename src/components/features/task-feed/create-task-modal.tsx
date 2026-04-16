@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
 
@@ -150,7 +150,10 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
               className={errors.title ? "border-destructive" : ""}
             />
             {errors.title && (
-              <p className="text-xs text-destructive">{errors.title}</p>
+              <p className="flex items-center gap-1 text-xs text-destructive">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                {errors.title}
+              </p>
             )}
           </div>
 
@@ -288,7 +291,10 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
 
         {/* Submit error */}
         {errors.submit && (
-          <p className="text-xs text-destructive">{errors.submit}</p>
+          <p className="flex items-center gap-1 text-xs text-destructive">
+            <AlertCircle className="h-3 w-3 shrink-0" />
+            {errors.submit}
+          </p>
         )}
 
         {/* Footer */}

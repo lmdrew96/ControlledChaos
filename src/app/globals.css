@@ -124,6 +124,24 @@
     @apply bg-background text-foreground leading-relaxed;
   }
 
+  /* Visual density: compact mode reduces spacing app-wide */
+  .density-compact body {
+    @apply leading-normal;
+  }
+  .density-compact [data-slot="card"] {
+    padding: 0.75rem;
+  }
+  .density-compact .space-y-6 {
+    gap: 1rem;
+  }
+  .density-compact .space-y-4 {
+    gap: 0.625rem;
+  }
+  .density-compact .py-4 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
   /* Ambient gradient blobs for glassmorphism */
   body::before {
     content: "";
