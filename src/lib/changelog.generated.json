@@ -3,6 +3,10 @@
     "weekOf": "2026-04-13",
     "items": [
       {
+        "type": "fixed",
+        "text": "Remove dead stats/daily route importing nonexistent getCompletionStats"
+      },
+      {
         "type": "added",
         "text": "ND design P3 — specific toasts, visual density toggle, error icons"
       },
