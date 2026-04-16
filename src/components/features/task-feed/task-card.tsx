@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { taskBadgeColor } from "@/lib/calendar/colors";
 import type { Task, CalendarColors, EventCategory } from "@/types";
 import { priorityConfig, energyConfig } from "./task-config";
@@ -296,36 +297,44 @@ export function TaskCard({
             <div className="flex items-center gap-1">
               {!isCompleted && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                    onClick={handleBreakdown}
-                    disabled={isBreakingDown || isUpdating}
-                    aria-label={`Break down "${task.title}"`}
-                    title="Break it down"
-                  >
-                    {isBreakingDown ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    ) : (
-                      <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                    onClick={handleFindTime}
-                    disabled={isScheduling || isUpdating}
-                    aria-label={`Find a time for "${task.title}"`}
-                    title="Find a time"
-                  >
-                    {isScheduling ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    ) : (
-                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                        onClick={handleBreakdown}
+                        disabled={isBreakingDown || isUpdating}
+                        aria-label={`Break down "${task.title}"`}
+                      >
+                        {isBreakingDown ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Break it down</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                        onClick={handleFindTime}
+                        disabled={isScheduling || isUpdating}
+                        aria-label={`Find a time for "${task.title}"`}
+                      >
+                        {isScheduling ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : (
+                          <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Find a time</TooltipContent>
+                  </Tooltip>
                 </>
               )}
               <Button
@@ -404,12 +413,14 @@ export function TaskCard({
               {priority.label}
             </Badge>
 
-            <span
-              className="text-xs text-muted-foreground"
-              title={energy.label}
-            >
-              {energy.icon}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground cursor-default">
+                  {energy.icon}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{energy.label} energy</TooltipContent>
+            </Tooltip>
 
             {task.estimatedMinutes && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">

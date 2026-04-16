@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -108,14 +109,46 @@ function SortableTaskCard({
   );
 }
 
+const VALID_FILTERS: Set<string> = new Set(["active", "completed", "all"]);
+const VALID_SORTS: Set<string> = new Set(["none", "priority", "deadline", "manual"]);
+
 export function TaskList() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read filter state from URL, with safe defaults
+  const filterParam = searchParams.get("filter");
+  const filter: FilterStatus = filterParam && VALID_FILTERS.has(filterParam) ? filterParam as FilterStatus : "active";
+  const sortParam = searchParams.get("sort");
+  const sortBy: SortBy = sortParam && VALID_SORTS.has(sortParam) ? sortParam as SortBy : "none";
+  const filterPriority = searchParams.get("priority") || "all";
+  const filterEnergy = searchParams.get("energy") || "all";
+  const filterCategory = searchParams.get("category") || "all";
+
+  // Helper to update URL search params without full navigation
+  const updateParams = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      // Remove param if it's the default value
+      const defaults: Record<string, string> = { filter: "active", sort: "none", priority: "all", energy: "all", category: "all" };
+      if (value === defaults[key]) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
+  }, [searchParams, router]);
+
+  const setFilter = useCallback((v: FilterStatus) => updateParams({ filter: v }), [updateParams]);
+  const setSortBy = useCallback((v: string) => updateParams({ sort: v }), [updateParams]);
+  const setFilterPriority = useCallback((v: string) => updateParams({ priority: v }), [updateParams]);
+  const setFilterEnergy = useCallback((v: string) => updateParams({ energy: v }), [updateParams]);
+  const setFilterCategory = useCallback((v: string) => updateParams({ category: v }), [updateParams]);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterStatus>("active");
-  const [sortBy, setSortBy] = useState<SortBy>("none");
-  const [filterPriority, setFilterPriority] = useState("all");
-  const [filterEnergy, setFilterEnergy] = useState("all");
-  const [filterCategory, setFilterCategory] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
@@ -177,10 +210,7 @@ export function TaskList() {
     filterCategory !== "all";
 
   function clearFilters() {
-    setSortBy("none");
-    setFilterPriority("all");
-    setFilterEnergy("all");
-    setFilterCategory("all");
+    updateParams({ sort: "none", priority: "all", energy: "all", category: "all" });
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {

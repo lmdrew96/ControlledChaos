@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "ND design P2 — soft deletes, accessible tooltips, voice pause/resume, URL-persisted filters"
+      },
+      {
+        "type": "added",
         "text": "Neurodivergent design improvements — celebration control, neutral momentum, inline validation, keyboard shortcuts"
       },
       {

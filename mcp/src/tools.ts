@@ -42,7 +42,7 @@ Returns: Markdown-formatted list of tasks with IDs, status, priority, energy, de
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      const conditions: string[] = ["user_id = $1"];
+      const conditions: string[] = ["user_id = $1", "deleted_at IS NULL"];
       const values: unknown[] = [userId];
       let paramIdx = 2;
 
@@ -300,10 +300,9 @@ Returns: Confirmation of deletion.`,
     },
     async (params) => {
       const userId = getUserId();
-      // Delete activity log first (FK constraint)
-      await sql(`DELETE FROM task_activity WHERE task_id = $1`, [params.task_id]);
+      // Soft delete — set deletedAt instead of removing the row
       const rows = await sql(
-        `DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING title`,
+        `UPDATE tasks SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING title`,
         [params.task_id, userId]
       );
 
@@ -539,7 +538,7 @@ Returns: Markdown-formatted daily stats summary.`,
       // Completed today
       const completedToday = await sql(
         `SELECT COUNT(*) as count FROM tasks
-         WHERE user_id = $1 AND status = 'completed'
+         WHERE user_id = $1 AND status = 'completed' AND deleted_at IS NULL
          AND completed_at >= (NOW() AT TIME ZONE $2)::date`,
         [userId, tz]
       );
@@ -547,14 +546,14 @@ Returns: Markdown-formatted daily stats summary.`,
       // Total pending
       const pending = await sql(
         `SELECT COUNT(*) as count FROM tasks
-         WHERE user_id = $1 AND status IN ('pending', 'in_progress')`,
+         WHERE user_id = $1 AND status IN ('pending', 'in_progress') AND deleted_at IS NULL`,
         [userId]
       );
 
       // Overdue
       const overdue = await sql(
         `SELECT COUNT(*) as count FROM tasks
-         WHERE user_id = $1 AND status IN ('pending', 'in_progress')
+         WHERE user_id = $1 AND status IN ('pending', 'in_progress') AND deleted_at IS NULL
          AND deadline IS NOT NULL AND deadline < NOW()`,
         [userId]
       );
@@ -562,7 +561,7 @@ Returns: Markdown-formatted daily stats summary.`,
       // Urgent tasks
       const urgent = await sql(
         `SELECT COUNT(*) as count FROM tasks
-         WHERE user_id = $1 AND status IN ('pending', 'in_progress')
+         WHERE user_id = $1 AND status IN ('pending', 'in_progress') AND deleted_at IS NULL
          AND priority = 'urgent'`,
         [userId]
       );
@@ -967,7 +966,7 @@ Returns: Markdown-formatted list of matching tasks.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      const conditions: string[] = ["user_id = $1", "(title ILIKE $2 OR description ILIKE $2)"];
+      const conditions: string[] = ["user_id = $1", "(title ILIKE $2 OR description ILIKE $2)", "deleted_at IS NULL"];
       const values: unknown[] = [userId, `%${params.query}%`];
       let paramIdx = 3;
 

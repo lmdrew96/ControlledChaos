@@ -59,6 +59,7 @@ export const goals = pgTable("goals", {
   description: text("description"),
   targetDate: timestamp("target_date"),
   status: text("status").default("active").notNull(), // active, completed, paused
+  deletedAt: timestamp("deleted_at"), // soft delete — null = active, set = deleted
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -113,6 +114,7 @@ export const tasks = pgTable(
     progressSteps: jsonb("progress_steps"), // ProgressStep[] — inline step-through for long tasks
     currentStepIndex: integer("current_step_index").default(0),
     snoozedUntil: timestamp("snoozed_until"), // set by Haiku snooze — task hidden until this time
+    deletedAt: timestamp("deleted_at"), // soft delete — null = active, set = deleted
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

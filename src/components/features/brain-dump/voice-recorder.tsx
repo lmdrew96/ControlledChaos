@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Square, Loader2, RotateCcw, Send } from "lucide-react";
+import { Mic, Square, Pause, Play, Loader2, RotateCcw, Send } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ export function VoiceRecorder({ category }: VoiceRecorderProps) {
     audioBlob,
     isSupported,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     reset,
   } = useVoiceRecorder();
@@ -187,23 +189,30 @@ export function VoiceRecorder({ category }: VoiceRecorderProps) {
     );
   }
 
-  // RECORDING state
-  if (recorderStatus === "recording") {
+  // RECORDING or PAUSED state
+  if (recorderStatus === "recording" || recorderStatus === "paused") {
+    const isPaused = recorderStatus === "paused";
     const remaining = 5 * 60 - durationSeconds;
 
     return (
       <div className="flex flex-col items-center gap-6 py-8">
         {/* Animated recording indicator */}
         <div className="relative flex h-24 w-24 items-center justify-center">
-          <div className="absolute inset-0 animate-ping rounded-full bg-destructive/20" />
-          <div className="absolute inset-2 animate-pulse rounded-full bg-destructive/10" />
+          {!isPaused && (
+            <>
+              <div className="absolute inset-0 animate-ping rounded-full bg-destructive/20" />
+              <div className="absolute inset-2 animate-pulse rounded-full bg-destructive/10" />
+            </>
+          )}
           <button
             onClick={stopRecording}
             className={cn(
               "relative z-10 flex h-24 w-24 items-center justify-center rounded-full",
               "bg-destructive text-destructive-foreground",
-              "transition-all hover:scale-105 active:scale-95"
+              "transition-all hover:scale-105 active:scale-95",
+              isPaused && "opacity-80"
             )}
+            aria-label="Stop recording"
           >
             <Square className="h-8 w-8" />
           </button>
@@ -214,17 +223,40 @@ export function VoiceRecorder({ category }: VoiceRecorderProps) {
           <p className="font-mono text-2xl font-semibold tabular-nums">
             {formatDuration(durationSeconds)}
           </p>
-          <p className="text-sm text-muted-foreground">Recording...</p>
+          <p className="text-sm text-muted-foreground">
+            {isPaused ? "Paused" : "Recording..."}
+          </p>
         </div>
 
-        {/* Waveform bars */}
+        {/* Pause/Resume button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={isPaused ? resumeRecording : pauseRecording}
+          className="gap-2"
+        >
+          {isPaused ? (
+            <>
+              <Play className="h-4 w-4" />
+              Resume
+            </>
+          ) : (
+            <>
+              <Pause className="h-4 w-4" />
+              Pause
+            </>
+          )}
+        </Button>
+
+        {/* Waveform bars — frozen when paused */}
         <div className="flex h-8 items-end gap-1">
           {Array.from({ length: 20 }).map((_, i) => (
             <div
               key={i}
-              className="waveform-bar w-1 rounded-full bg-primary"
+              className={cn("w-1 rounded-full bg-primary", !isPaused && "waveform-bar")}
               style={{
-                animationDelay: `${i * 0.05}s`,
+                animationDelay: !isPaused ? `${i * 0.05}s` : undefined,
+                height: isPaused ? "30%" : undefined,
               }}
             />
           ))}

@@ -235,7 +235,7 @@ export async function getTasksByUser(
   userId: string,
   options?: { status?: string }
 ) {
-  const conditions = [eq(tasks.userId, userId)];
+  const conditions = [eq(tasks.userId, userId), isNull(tasks.deletedAt)];
 
   if (options?.status) {
     conditions.push(eq(tasks.status, options.status));
@@ -296,11 +296,10 @@ export async function reorderTasks(
 }
 
 export async function deleteTask(taskId: string, userId: string) {
-  // Delete FK-constrained child rows first
-  await db.delete(taskActivity).where(eq(taskActivity.taskId, taskId));
-
+  // Soft delete — set deletedAt instead of removing the row
   const [deleted] = await db
-    .delete(tasks)
+    .update(tasks)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
     .returning();
 
@@ -311,7 +310,7 @@ export async function deleteTask(taskId: string, userId: string) {
 // Goals
 // ============================================================
 export async function getUserGoals(userId: string, status?: string) {
-  const conditions = [eq(goals.userId, userId)];
+  const conditions = [eq(goals.userId, userId), isNull(goals.deletedAt)];
   if (status) {
     conditions.push(eq(goals.status, status));
   }
@@ -376,8 +375,10 @@ export async function deleteGoal(goalId: string, userId: string) {
     .set({ goalId: null })
     .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId)));
 
+  // Soft delete — set deletedAt instead of removing the row
   const [deleted] = await db
-    .delete(goals)
+    .update(goals)
+    .set({ deletedAt: new Date() })
     .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
     .returning();
   return deleted ?? null;
@@ -391,7 +392,7 @@ export async function getGoalTaskCounts(userId: string) {
       completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
     })
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), sql`${tasks.goalId} is not null`))
+    .where(and(eq(tasks.userId, userId), sql`${tasks.goalId} is not null`, isNull(tasks.deletedAt)))
     .groupBy(tasks.goalId);
   return rows as { goalId: string; total: number; completed: number }[];
 }
@@ -453,7 +454,8 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
       and(
         eq(tasks.userId, userId),
         eq(tasks.status, "completed"),
-        gte(tasks.completedAt, startOfDay)
+        gte(tasks.completedAt, startOfDay),
+        isNull(tasks.deletedAt)
       )
     );
 }
@@ -472,7 +474,8 @@ export async function getCompletionStats(userId: string, timezone: string) {
         and(
           eq(tasks.userId, userId),
           eq(tasks.status, "completed"),
-          gte(tasks.completedAt, startOfDay)
+          gte(tasks.completedAt, startOfDay),
+          isNull(tasks.deletedAt)
         )
       ),
     db
@@ -482,7 +485,8 @@ export async function getCompletionStats(userId: string, timezone: string) {
         and(
           eq(tasks.userId, userId),
           eq(tasks.status, "completed"),
-          gte(tasks.completedAt, startOfWeek)
+          gte(tasks.completedAt, startOfWeek),
+          isNull(tasks.deletedAt)
         )
       ),
     db
@@ -491,7 +495,8 @@ export async function getCompletionStats(userId: string, timezone: string) {
       .where(
         and(
           eq(tasks.userId, userId),
-          eq(tasks.status, "completed")
+          eq(tasks.status, "completed"),
+          isNull(tasks.deletedAt)
         )
       ),
   ]);
@@ -560,6 +565,7 @@ export async function getMomentumStats(
       WHERE user_id = ${userId}
         AND status = 'completed'
         AND completed_at >= ${fourteenDaysAgo}
+        AND deleted_at IS NULL
       GROUP BY date
       ORDER BY date ASC`
     ),
@@ -578,6 +584,7 @@ export async function getMomentumStats(
       WHERE user_id = ${userId}
         AND status = 'completed'
         AND completed_at >= ${startOfWeek}
+        AND deleted_at IS NULL
       GROUP BY day_of_week, time_block`
     ),
     // 3. By category (current week)
@@ -587,6 +594,7 @@ export async function getMomentumStats(
       WHERE user_id = ${userId}
         AND status = 'completed'
         AND completed_at >= ${startOfWeek}
+        AND deleted_at IS NULL
       GROUP BY category
       ORDER BY count DESC`
     ),
@@ -597,6 +605,7 @@ export async function getMomentumStats(
       WHERE user_id = ${userId}
         AND status = 'completed'
         AND completed_at >= ${startOfWeek}
+        AND deleted_at IS NULL
       GROUP BY energy_level`
     ),
     // 5. Biggest day (all-time)
@@ -605,7 +614,7 @@ export async function getMomentumStats(
         DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
       FROM tasks
-      WHERE user_id = ${userId} AND status = 'completed'
+      WHERE user_id = ${userId} AND status = 'completed' AND deleted_at IS NULL
       GROUP BY date
       ORDER BY count DESC
       LIMIT 1`
@@ -616,7 +625,7 @@ export async function getMomentumStats(
       FROM (
         SELECT COUNT(*)::int AS daily_count
         FROM tasks
-        WHERE user_id = ${userId} AND status = 'completed'
+        WHERE user_id = ${userId} AND status = 'completed' AND deleted_at IS NULL
         GROUP BY DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
       ) AS daily_counts`
     ),
@@ -624,7 +633,7 @@ export async function getMomentumStats(
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed"))),
+      .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed"), isNull(tasks.deletedAt))),
     // 8. User settings (for calendarColors)
     getUserSettings(userId),
     // 9. Deadline tasks (current week) — for wins heuristic
@@ -638,6 +647,7 @@ export async function getMomentumStats(
         AND status = 'completed'
         AND completed_at >= ${startOfWeek}
         AND deadline IS NOT NULL
+        AND deleted_at IS NULL
       GROUP BY category`
     ),
   ]);
@@ -1398,7 +1408,7 @@ export async function getLastTaskCompletion(userId: string): Promise<Date | null
   const [result] = await db
     .select({ completedAt: tasks.completedAt })
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed")))
+    .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed"), isNull(tasks.deletedAt)))
     .orderBy(desc(tasks.completedAt))
     .limit(1);
 

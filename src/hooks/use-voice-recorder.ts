@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-export type RecordingStatus = "idle" | "recording" | "stopped" | "error";
+export type RecordingStatus = "idle" | "recording" | "paused" | "stopped" | "error";
 
 interface VoiceRecorderState {
   status: RecordingStatus;
@@ -27,6 +27,8 @@ export function useVoiceRecorder() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const elapsedBeforePauseRef = useRef(0);
+  const recordingStartRef = useRef<number>(0);
 
   // Check browser support on mount
   useEffect(() => {
@@ -38,15 +40,31 @@ export function useVoiceRecorder() {
     setState((prev) => ({ ...prev, isSupported: supported }));
   }, []);
 
-  const cleanup = useCallback(() => {
+  const stopTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  const cleanup = useCallback(() => {
+    stopTimer();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+  }, [stopTimer]);
+
+  const startTimer = useCallback(() => {
+    recordingStartRef.current = Date.now();
+    timerRef.current = setInterval(() => {
+      const elapsed = elapsedBeforePauseRef.current + Math.floor((Date.now() - recordingStartRef.current) / 1000);
+      setState((prev) => ({ ...prev, durationSeconds: elapsed }));
+
+      if (elapsed >= MAX_DURATION_SECONDS) {
+        mediaRecorderRef.current?.stop();
+      }
+    }, 1000);
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -60,6 +78,7 @@ export function useVoiceRecorder() {
 
       streamRef.current = stream;
       chunksRef.current = [];
+      elapsedBeforePauseRef.current = 0;
 
       // Prefer webm/opus, fall back for Safari
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -97,17 +116,7 @@ export function useVoiceRecorder() {
       };
 
       recorder.start(1000);
-
-      // Start duration timer
-      const startTime = Date.now();
-      timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        setState((prev) => ({ ...prev, durationSeconds: elapsed }));
-
-        if (elapsed >= MAX_DURATION_SECONDS) {
-          recorder.stop();
-        }
-      }, 1000);
+      startTimer();
 
       setState((prev) => ({
         ...prev,
@@ -128,12 +137,37 @@ export function useVoiceRecorder() {
         error: message,
       }));
     }
-  }, [cleanup]);
+  }, [cleanup, startTimer]);
+
+  const pauseRecording = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      mediaRecorderRef.current.pause();
+      // Save elapsed time so we can resume the counter correctly
+      elapsedBeforePauseRef.current += Math.floor((Date.now() - recordingStartRef.current) / 1000);
+      stopTimer();
+      setState((prev) => ({ ...prev, status: "paused" }));
+    }
+  }, [stopTimer]);
+
+  const resumeRecording = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "paused"
+    ) {
+      mediaRecorderRef.current.resume();
+      startTimer();
+      setState((prev) => ({ ...prev, status: "recording" }));
+    }
+  }, [startTimer]);
 
   const stopRecording = useCallback(() => {
     if (
       mediaRecorderRef.current &&
-      mediaRecorderRef.current.state === "recording"
+      (mediaRecorderRef.current.state === "recording" ||
+        mediaRecorderRef.current.state === "paused")
     ) {
       mediaRecorderRef.current.stop();
     }
@@ -141,6 +175,7 @@ export function useVoiceRecorder() {
 
   const reset = useCallback(() => {
     cleanup();
+    elapsedBeforePauseRef.current = 0;
     setState((prev) => ({
       ...prev,
       status: "idle",
@@ -158,6 +193,8 @@ export function useVoiceRecorder() {
   return {
     ...state,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     reset,
   };
