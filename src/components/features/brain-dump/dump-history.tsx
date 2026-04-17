@@ -90,9 +90,11 @@ export function DumpHistory() {
   if (dumps.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
-        <p className="text-sm font-medium text-muted-foreground">No dumps yet</p>
+        <p className="text-sm font-medium text-muted-foreground">
+          Nothing captured yet
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Your brain dumps will appear here after you submit one.
+          Brain dumps and journal entries will show up here after you submit one.
         </p>
       </div>
     );

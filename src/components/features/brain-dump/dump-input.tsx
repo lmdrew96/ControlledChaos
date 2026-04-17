@@ -41,7 +41,20 @@ export function DumpInput({ category }: DumpInputProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to process brain dump");
+        throw new Error(
+          data.error ||
+            (category === "junk_journal"
+              ? "Failed to save journal entry"
+              : "Failed to process brain dump")
+        );
+      }
+
+      if (category === "junk_journal") {
+        toast.success("Journal entry saved");
+        setContent("");
+        router.push("/journal");
+        router.refresh();
+        return;
       }
 
       const taskCount = data.tasks?.length ?? 0;
@@ -84,7 +97,11 @@ export function DumpInput({ category }: DumpInputProps) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="just start typing... assignments due friday, need to email professor, pick up groceries, that thing I keep forgetting about, call mom back..."
+          placeholder={
+            category === "junk_journal"
+              ? "write whatever — a half-formed essay, a paragraph about your day, a stray idea you want to keep. nothing will be parsed into tasks."
+              : "just start typing... assignments due friday, need to email professor, pick up groceries, that thing I keep forgetting about, call mom back..."
+          }
           className="min-h-[300px] resize-none border-border bg-card text-base leading-relaxed placeholder:text-muted-foreground/50 focus-visible:ring-1"
           disabled={isLoading}
         />
@@ -93,9 +110,15 @@ export function DumpInput({ category }: DumpInputProps) {
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-card/90 backdrop-blur-sm">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <div className="text-center">
-              <p className="font-medium">Parsing your brain dump...</p>
+              <p className="font-medium">
+                {category === "junk_journal"
+                  ? "Saving your journal entry..."
+                  : "Parsing your brain dump..."}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Turning chaos into tasks and events
+                {category === "junk_journal"
+                  ? "Writing it down and pulling a short summary"
+                  : "Turning chaos into tasks and events"}
               </p>
             </div>
           </div>
@@ -112,7 +135,11 @@ export function DumpInput({ category }: DumpInputProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Logo className="h-3 w-3" />
-          <span>AI will parse your thoughts into tasks and calendar events</span>
+          <span>
+            {category === "junk_journal"
+              ? "Saved as-is. A short summary is generated — no task extraction."
+              : "AI will parse your thoughts into tasks and calendar events"}
+          </span>
         </div>
 
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
