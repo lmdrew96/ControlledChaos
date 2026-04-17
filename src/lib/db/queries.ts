@@ -144,14 +144,18 @@ export async function updateUserSettings(
 // ============================================================
 export async function getBrainDumpsByUser(
   userId: string,
-  limit: number = 20
+  limit: number = 20,
+  opts?: { category?: DumpCategory; offset?: number }
 ) {
+  const conditions = [eq(brainDumps.userId, userId)];
+  if (opts?.category) conditions.push(eq(brainDumps.category, opts.category));
   return db
     .select()
     .from(brainDumps)
-    .where(eq(brainDumps.userId, userId))
+    .where(and(...conditions))
     .orderBy(desc(brainDumps.createdAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(opts?.offset ?? 0);
 }
 
 export async function getBrainDumpsByDateRange(
