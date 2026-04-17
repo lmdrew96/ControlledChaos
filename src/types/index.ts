@@ -126,6 +126,58 @@ export interface RecentMoment {
 }
 
 // ============================================================
+// Mirror View Types (chronological day timeline)
+// ============================================================
+export type MirrorKind =
+  | "task"
+  | "event"
+  | "dump"
+  | "journal"
+  | "moment"
+  | "med";
+
+interface MirrorEntryBase {
+  id: string;
+  /** ISO 8601 UTC timestamp used for ordering */
+  at: string;
+}
+
+export type MirrorEntry =
+  | (MirrorEntryBase & {
+      kind: "task";
+      title: string;
+      category: string | null;
+    })
+  | (MirrorEntryBase & {
+      kind: "event";
+      endAt: string;
+      title: string;
+      location: string | null;
+      isAllDay: boolean;
+    })
+  | (MirrorEntryBase & {
+      kind: "dump";
+      summary: string | null;
+      inputType: DumpInputType;
+    })
+  | (MirrorEntryBase & {
+      kind: "journal";
+      summary: string | null;
+      inputType: DumpInputType;
+    })
+  | (MirrorEntryBase & {
+      kind: "moment";
+      type: MomentType;
+      intensity: number | null;
+      note: string | null;
+    })
+  | (MirrorEntryBase & {
+      kind: "med";
+      medicationName: string;
+      dosage: string;
+    });
+
+// ============================================================
 // Recommendation Types
 // ============================================================
 export interface UserContext {

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
-import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, fmtTimeLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, fmtTimeLocal } from "./helpers.js";
 
 // ============================================================
 // Register all ControlledChaos tools on the given server
@@ -1207,6 +1207,147 @@ Returns: Updated moment.`,
           text: `✓ Moment updated\n\n${formatMoment(rows[0], tz)}`,
         }],
       };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 22. cc_get_mirror_day
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_get_mirror_day",
+    {
+      title: "Get Mirror Day",
+      description: `Read the chronological timeline for a single day — completed tasks, calendar events, brain dumps, journal entries, moments, and medication logs, merged and sorted in reverse-chronological order. Day boundaries are computed in the user's timezone.
+
+Args:
+  - date (required): YYYY-MM-DD for the local day to render.
+  - kinds: Optional array filter — subset of ["task","event","dump","journal","moment","med"]. Omit for all kinds.
+
+Returns: Markdown timeline with times in the user's timezone.`,
+      inputSchema: {
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Local date YYYY-MM-DD"),
+        kinds: z.array(z.enum(["task", "event", "dump", "journal", "moment", "med"])).optional(),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      type MirrorKind = "task" | "event" | "dump" | "journal" | "moment" | "med";
+      const want = (k: MirrorKind) => !params.kinds || params.kinds.includes(k);
+      const toIso = (v: unknown): string =>
+        v instanceof Date ? v.toISOString() : String(v);
+      const extractSummary = (v: unknown): string | null => {
+        if (!v || typeof v !== "object") return null;
+        const s = (v as { summary?: unknown }).summary;
+        return typeof s === "string" ? s : null;
+      };
+
+      // Single round-trip: compute the day window in user's timezone
+      const windowRows = await sql(
+        `SELECT
+           ($1::date AT TIME ZONE $2)::timestamptz AS day_start,
+           (($1::date + INTERVAL '1 day') AT TIME ZONE $2)::timestamptz AS day_end`,
+        [params.date, tz]
+      );
+      const start = windowRows[0].day_start as Date | string;
+      const end = windowRows[0].day_end as Date | string;
+
+      const [tasksRows, eventRows, dumpRows, journalRows, momentRows, medRows] = await Promise.all([
+        want("task")
+          ? sql(
+              `SELECT id, title, category, completed_at AS at
+               FROM tasks
+               WHERE user_id = $1 AND status = 'completed' AND deleted_at IS NULL
+                 AND completed_at >= $2 AND completed_at < $3`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("event")
+          ? sql(
+              `SELECT id, title, location, start_time AS at, end_time AS end_at, is_all_day
+               FROM calendar_events
+               WHERE user_id = $1 AND start_time <= $3 AND end_time > $2`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("dump")
+          ? sql(
+              `SELECT id, input_type, ai_response, created_at AS at
+               FROM brain_dumps
+               WHERE user_id = $1 AND category = 'braindump'
+                 AND created_at >= $2 AND created_at < $3`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("journal")
+          ? sql(
+              `SELECT id, input_type, ai_response, created_at AS at
+               FROM brain_dumps
+               WHERE user_id = $1 AND category = 'junk_journal'
+                 AND created_at >= $2 AND created_at < $3`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("moment")
+          ? sql(
+              `SELECT id, type, intensity, note, occurred_at AS at
+               FROM moments
+               WHERE user_id = $1 AND deleted_at IS NULL
+                 AND occurred_at >= $2 AND occurred_at < $3`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("med")
+          ? sql(
+              `SELECT ml.id, ml.medication_id, ml.taken_at AS at, m.name AS medication_name, m.dosage
+               FROM medication_logs ml
+               JOIN medications m ON m.id = ml.medication_id
+               WHERE ml.user_id = $1 AND ml.scheduled_date = $2`,
+              [userId, params.date]
+            )
+          : Promise.resolve([]),
+      ]);
+
+      type Entry = Record<string, unknown> & { kind: string; at: string };
+      const entries: Entry[] = [];
+
+      for (const r of tasksRows) {
+        entries.push({ kind: "task", id: r.id, at: toIso(r.at), title: r.title, category: r.category });
+      }
+      for (const r of eventRows) {
+        entries.push({ kind: "event", id: r.id, at: toIso(r.at), endAt: toIso(r.end_at), title: r.title, location: r.location, isAllDay: r.is_all_day });
+      }
+      for (const r of dumpRows) {
+        entries.push({ kind: "dump", id: r.id, at: toIso(r.at), summary: extractSummary(r.ai_response), inputType: r.input_type });
+      }
+      for (const r of journalRows) {
+        entries.push({ kind: "journal", id: r.id, at: toIso(r.at), summary: extractSummary(r.ai_response), inputType: r.input_type });
+      }
+      for (const r of momentRows) {
+        entries.push({ kind: "moment", id: r.id, at: toIso(r.at), type: r.type, intensity: r.intensity, note: r.note });
+      }
+      for (const r of medRows) {
+        entries.push({ kind: "med", id: r.id, at: toIso(r.at), medicationName: r.medication_name, dosage: r.dosage });
+      }
+
+      entries.sort((a, b) => b.at.localeCompare(a.at));
+
+      if (entries.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: `No activity on ${params.date} (${tz}).` }],
+        };
+      }
+
+      const text = `## Mirror — ${params.date} (${tz}) · ${entries.length} entries\n\n` +
+        entries.map((e) => `- ${formatMirrorEntry(e, tz)}`).join("\n");
+
+      return { content: [{ type: "text" as const, text }] };
     }
   );
 

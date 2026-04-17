@@ -124,6 +124,40 @@ export function formatBrainDump(dump: Record<string, unknown>, tz?: string): str
 }
 
 /**
+ * Format a Mirror timeline entry — receives the same shape as the
+ * /api/mirror response items. Branches on `kind`.
+ */
+export function formatMirrorEntry(
+  entry: Record<string, unknown>,
+  tz?: string
+): string {
+  const when = fmtTimeLocal(entry.at, tz);
+  switch (entry.kind) {
+    case "task":
+      return `✓ ${when} — **Task completed**: ${entry.title}`;
+    case "event": {
+      const endTime = fmtTimeLocal(entry.endAt, tz);
+      const loc = entry.location ? ` @ ${entry.location}` : "";
+      return `📅 ${when}–${endTime} — **Event**: ${entry.title}${loc}`;
+    }
+    case "dump":
+      return `🧠 ${when} — **Brain dump** (${entry.inputType}): ${entry.summary ?? "(no summary)"}`;
+    case "journal":
+      return `📖 ${when} — **Journal** (${entry.inputType}): ${entry.summary ?? "(no summary)"}`;
+    case "moment": {
+      const intensity =
+        typeof entry.intensity === "number" ? ` · ${entry.intensity}/5` : "";
+      const note = entry.note ? ` — ${entry.note}` : "";
+      return `✨ ${when} — **Moment**: ${entry.type}${intensity}${note}`;
+    }
+    case "med":
+      return `💊 ${when} — **Medication**: ${entry.medicationName} (${entry.dosage})`;
+    default:
+      return `${when} — ${JSON.stringify(entry)}`;
+  }
+}
+
+/**
  * Format a moment into a readable markdown string.
  */
 export function formatMoment(moment: Record<string, unknown>, tz?: string): string {

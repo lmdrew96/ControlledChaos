@@ -12,6 +12,7 @@ import {
   ListTodo,
   Target,
   Calendar,
+  Clock,
   Settings,
   Download,
   X,
@@ -46,6 +47,7 @@ const navItems = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/mirror", label: "Mirror", icon: Clock },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -59,6 +61,7 @@ const mobileMoreItems = [
   { href: "/dump", label: "Brain Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/goals", label: "Goals", icon: Target },
+  { href: "/mirror", label: "Mirror", icon: Clock },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
