@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { parseBrainDump } from "@/lib/ai/parse-dump";
+import { parseBrainDump, summarizeJunkJournal } from "@/lib/ai/parse-dump";
 import { AIUnavailableError } from "@/lib/ai";
 import { buildAIContext } from "@/lib/ai/context";
 import { startOfDayInTimezone } from "@/lib/timezone";
@@ -42,6 +42,24 @@ export async function POST(request: Request) {
     // Get user timezone for accurate date parsing
     const user = await getUser(userId);
     const timezone = user?.timezone ?? "America/New_York";
+
+    // Junk Journal: summarize only, no task/event extraction.
+    if (category === "junk_journal") {
+      const summary = await summarizeJunkJournal(extractedText);
+      const dump = await createBrainDump({
+        userId,
+        inputType: "photo",
+        rawContent: extractedText,
+        aiResponse: { tasks: [], events: [], summary },
+        mediaUrl: mediaUrl ?? undefined,
+        category: "junk_journal",
+      });
+      return NextResponse.json({
+        dump: { id: dump.id, summary },
+        tasks: [],
+        eventsCreated: 0,
+      });
+    }
 
     // Fetch context for anti-hallucination grounding
     const now = new Date();

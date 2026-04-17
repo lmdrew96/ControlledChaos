@@ -223,6 +223,36 @@ export async function parseBrainDump(
   };
 }
 
+/**
+ * Summarize a Junk Journal entry — no task or event extraction.
+ *
+ * Junk Journal is a longform-writing surface; the AI's only job here is to
+ * produce a 1-2 sentence summary for the history list. Tasks/events extraction
+ * would be noise for this content type.
+ */
+export async function summarizeJunkJournal(
+  content: string
+): Promise<string> {
+  if (!content.trim()) {
+    throw new Error("Junk journal content cannot be empty");
+  }
+
+  const system =
+    "You summarize longform writing in 1-2 short sentences. " +
+    "Capture the main idea, topic, or feeling — not an action or task. " +
+    "No lists, no bullets, no JSON. Just the summary itself. " +
+    "Max 200 characters.";
+
+  const result = await callHaiku({
+    system,
+    user: content,
+    maxTokens: 200,
+  });
+
+  const summary = result.text.trim().slice(0, 240);
+  return summary || "Journal entry";
+}
+
 function validateEnum<T extends string>(
   value: string | undefined,
   allowed: T[],

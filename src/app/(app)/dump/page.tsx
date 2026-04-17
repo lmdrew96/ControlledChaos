@@ -35,8 +35,8 @@ export default function BrainDumpPage() {
             </>
           ) : (
             <>
-              Raw material for essays, analysis, opinion pieces.
-              Cosma will pull from here.
+              A space for longer writing — drafts, journal entries, raw thoughts.
+              Saved and summarized, but not parsed for tasks or events.
             </>
           )}
         </p>
