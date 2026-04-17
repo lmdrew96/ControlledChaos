@@ -97,7 +97,8 @@ export type MomentType =
   | "energy_crash"
   | "focus_start"
   | "focus_end"
-  | "tough_moment";
+  | "tough_moment"
+  | "sleep_logged";
 
 export type MomentSource = "manual" | "voice";
 

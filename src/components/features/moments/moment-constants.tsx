@@ -5,6 +5,7 @@ import {
   Target,
   CircleStop,
   LifeBuoy,
+  Moon,
   type LucideIcon,
 } from "lucide-react";
 import type { MomentType } from "@/types";
@@ -25,6 +26,9 @@ export interface MomentCopy {
 }
 
 export const MOMENT_TYPES: MomentType[] = [
+  // Positioned first so it's the easiest chip to reach during the
+  // morning routine, which is when you'd log sleep.
+  "sleep_logged",
   "energy_high",
   "energy_low",
   "energy_crash",
@@ -34,6 +38,24 @@ export const MOMENT_TYPES: MomentType[] = [
 ];
 
 export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
+  // sleep_logged: lightweight sleep tracking as a Moment.
+  //
+  // Convention (see ChaosPatch c880919c-...):
+  //   intensity = rested-feeling 1-5
+  //   note      = hours as free text ("7h", "6h 30m", "restless night")
+  //
+  // Future migration path: if Patterns needs structured hours, extract to
+  // a dedicated `sleep_logs` table. Backfill by parsing `note` from rows
+  // where type = 'sleep_logged'. Keep the raw moment rows for audit.
+  sleep_logged: {
+    label: "Slept",
+    toastLabel: "Sleep logged",
+    detailHint:
+      "Intensity = how rested you feel (1-5). Drop hours in the note: “7h”, “6h 30m”, “restless night”.",
+    icon: Moon,
+    tintClassName:
+      "border-[#5B6B8F]/50 bg-[#5B6B8F]/12 text-[#3d4a66] dark:text-[#a3b0cc]",
+  },
   energy_high: {
     label: "Energy high",
     toastLabel: "Energy high logged",

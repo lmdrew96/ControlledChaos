@@ -208,6 +208,7 @@ const VALID_MOMENT_TYPES: MomentType[] = [
   "focus_start",
   "focus_end",
   "tough_moment",
+  "sleep_logged",
 ];
 
 export function isValidMomentType(value: string): value is MomentType {

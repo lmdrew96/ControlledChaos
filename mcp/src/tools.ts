@@ -1001,7 +1001,7 @@ Returns: Markdown-formatted list of matching tasks.`,
       description: `Log a behavioral state moment. Lightweight one-tap entity for ADHD-friendly state tracking — adjacent to brain dumps but structured.
 
 Args:
-  - type (required): Moment type — energy_high, energy_low, energy_crash, focus_start, focus_end, tough_moment.
+  - type (required): Moment type — energy_high, energy_low, energy_crash, focus_start, focus_end, tough_moment, sleep_logged.
   - intensity: Optional 1-5 intensity rating.
   - note: Optional one-liner (max 500 chars).
   - occurred_at: Optional ISO 8601 UTC timestamp. Defaults to now (for retro-logging).
@@ -1015,6 +1015,7 @@ Returns: Confirmation with the moment ID.`,
           "focus_start",
           "focus_end",
           "tough_moment",
+          "sleep_logged",
         ]).describe("Moment type"),
         intensity: z.number().int().min(1).max(5).optional().describe("Optional 1-5 intensity"),
         note: z.string().max(500).optional().describe("Optional one-liner note"),
@@ -1080,6 +1081,7 @@ Returns: Markdown-formatted list of moments with times in the user's timezone.`,
           "focus_start",
           "focus_end",
           "tough_moment",
+          "sleep_logged",
         ])).optional().describe("Filter by moment types"),
         limit: z.number().int().min(1).max(200).default(50).describe("Max results"),
       },
