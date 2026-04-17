@@ -18,7 +18,7 @@ import {
 import { Loader2, ArrowLeft, ArrowRight, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
+import type { PersonalityPrefs } from "@/types";
 import { Logo } from "@/components/ui/logo";
 import { LegalFooter } from "@/components/layout/legal-footer";
 import { OnboardingLocationStep } from "@/components/features/onboarding/onboarding-location-step";
@@ -28,7 +28,7 @@ import { OnboardingNotificationStep } from "@/components/features/onboarding/onb
 // Constants
 // ============================================================
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -38,19 +38,6 @@ const TIMEZONES = [
   { value: "America/Phoenix", label: "Arizona (Phoenix)" },
   { value: "America/Anchorage", label: "Alaska" },
   { value: "Pacific/Honolulu", label: "Hawaii" },
-];
-
-const TIME_BLOCKS: { key: keyof EnergyProfile; label: string; desc: string }[] = [
-  { key: "morning", label: "Morning", desc: "6am – 12pm" },
-  { key: "afternoon", label: "Afternoon", desc: "12pm – 5pm" },
-  { key: "evening", label: "Evening", desc: "5pm – 9pm" },
-  { key: "night", label: "Night", desc: "9pm – 12am" },
-];
-
-const ENERGY_LEVELS: { value: EnergyLevel; label: string; emoji: string }[] = [
-  { value: "low", label: "Low", emoji: "🔋" },
-  { value: "medium", label: "Medium", emoji: "⚡" },
-  { value: "high", label: "High", emoji: "🔥" },
 ];
 
 const PERSONALITY_AXES = [
@@ -76,7 +63,6 @@ const PERSONALITY_AXES = [
 
 const STEP_TITLES = [
   "What should I call you?",
-  "When do you have the most energy?",
   "How should I talk to you?",
   "Where are you usually?",
   "How do you want to be reminded?",
@@ -130,31 +116,23 @@ export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
 
-  // Step 2: Energy
-  const [energyProfile, setEnergyProfile] = useState<EnergyProfile>({
-    morning: "medium",
-    afternoon: "medium",
-    evening: "medium",
-    night: "medium",
-  });
-
-  // Step 3: Personality
+  // Step 2: Personality
   const [personalityPrefs, setPersonalityPrefs] = useState<PersonalityPrefs>({
     supportive: 1,
     formality: 1,
     language: 1,
   });
 
-  // Step 4: Locations
+  // Step 3: Locations
   const [homeLocation, setHomeLocation] = useState<{ name: string; latitude: string; longitude: string } | null>(null);
   const [secondLocation, setSecondLocation] = useState<{ name: string; latitude: string; longitude: string } | null>(null);
 
-  // Step 5: Notifications
+  // Step 4: Notifications
   const [pushEnabled, setPushEnabled] = useState(false);
   const [morningDigest, setMorningDigest] = useState(true);
   const [eveningDigest, setEveningDigest] = useState(false);
 
-  // Step 6: Canvas
+  // Step 5: Canvas
   const [canvasIcalUrl, setCanvasIcalUrl] = useState("");
 
   // Auto-detect timezone + prefill name
@@ -189,7 +167,6 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           displayName: displayName.trim(),
           timezone,
-          energyProfile,
           personalityPrefs,
           canvasIcalUrl: canvasIcalUrl.trim() || null,
           notificationPrefs: {
@@ -270,50 +247,8 @@ export default function OnboardingPage() {
               </>
             )}
 
-            {/* Step 2: Energy Profile */}
+            {/* Step 2: Personality Prefs */}
             {step === 2 && (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  This helps me recommend the right tasks at the right time.
-                </p>
-                {TIME_BLOCKS.map((block) => (
-                  <div
-                    key={block.key}
-                    className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{block.label}</p>
-                      <p className="text-xs text-muted-foreground">{block.desc}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {ENERGY_LEVELS.map((level) => (
-                        <button
-                          key={level.value}
-                          type="button"
-                          onClick={() =>
-                            setEnergyProfile((prev) => ({
-                              ...prev,
-                              [block.key]: level.value,
-                            }))
-                          }
-                          className={cn(
-                            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                            energyProfile[block.key] === level.value
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-accent"
-                          )}
-                        >
-                          {level.emoji} {level.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Step 3: Personality Prefs */}
-            {step === 3 && (
               <div className="space-y-5">
                 {PERSONALITY_AXES.map((axis) => (
                   <div key={axis.key} className="space-y-2">
@@ -351,8 +286,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 4: Locations */}
-            {step === 4 && (
+            {/* Step 3: Locations */}
+            {step === 3 && (
               <OnboardingLocationStep
                 homeLocation={homeLocation}
                 onHomeChange={setHomeLocation}
@@ -361,8 +296,8 @@ export default function OnboardingPage() {
               />
             )}
 
-            {/* Step 5: Notifications */}
-            {step === 5 && (
+            {/* Step 4: Notifications */}
+            {step === 4 && (
               <OnboardingNotificationStep
                 pushEnabled={pushEnabled}
                 onPushChange={setPushEnabled}
@@ -373,8 +308,8 @@ export default function OnboardingPage() {
               />
             )}
 
-            {/* Step 6: Canvas iCal */}
-            {step === 6 && (
+            {/* Step 5: Canvas iCal */}
+            {step === 5 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
                   If you use Canvas, paste your calendar feed URL to sync your class schedule.
@@ -408,7 +343,7 @@ export default function OnboardingPage() {
 
               <div className="flex gap-2">
                 {/* Skip button for optional steps */}
-                {(step === 4 || step === 5) && (
+                {(step === 3 || step === 4) && (
                   <Button variant="ghost" size="sm" onClick={handleNext}>
                     Skip
                   </Button>

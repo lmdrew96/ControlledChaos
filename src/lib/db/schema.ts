@@ -87,6 +87,30 @@ export const brainDumps = pgTable(
 );
 
 // ============================================================
+// Moments (typed one-tap behavioral state log)
+// ============================================================
+export const moments = pgTable(
+  "moments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    type: text("type").notNull(), // energy_high | energy_low | energy_crash | focus_start | focus_end | tough_moment
+    intensity: integer("intensity"), // 1-5, nullable
+    note: text("note"),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(), // editable for retro-logging
+    source: text("source").default("manual").notNull(), // manual | voice (future)
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete
+  },
+  (table) => [
+    index("idx_moments_user_time").on(table.userId, table.occurredAt),
+    index("idx_moments_user_type").on(table.userId, table.type),
+  ]
+);
+
+// ============================================================
 // Tasks (the core entity)
 // ============================================================
 export const tasks = pgTable(

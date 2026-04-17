@@ -27,6 +27,7 @@ import { NotificationBell } from "@/components/features/notifications/notificati
 import { WhatsNewDialog } from "@/components/features/changelog/whats-new-dialog";
 import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
 import { CreateTaskModal } from "@/components/features/task-feed/create-task-modal";
+import { MomentsBar } from "@/components/features/moments/moments-bar";
 import {
   Sheet,
   SheetClose,
@@ -295,11 +296,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Sheet>
       </nav>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+      {/* Main content — padded to clear the MomentsBar (mobile: above bottom nav; desktop: at viewport bottom) */}
+      <main className="flex-1 overflow-auto pb-[calc(8.5rem+env(safe-area-inset-bottom))] md:pb-16">
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
+
+      {/* Global Moments chip-bar — logs behavioral state with one tap */}
+      <MomentsBar />
 
       {/* Global dialogs triggered by keyboard shortcuts */}
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />

@@ -7,7 +7,6 @@
 
 import {
   getUser,
-  getUserSettings,
   getPendingTasks,
   getTasksCompletedToday,
   getCalendarEventsByDateRange,
@@ -18,12 +17,12 @@ import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
-import type { EnergyProfile } from "@/types";
 
 export interface UserSnapshot {
   timezone: string;
   currentTime: string;
-  energyLevel: string;
+  /** Most recent energy signal from Moments, or null if none logged recently. */
+  energyLevel: string | null;
   pendingTaskCount: number;
   completedTodayCount: number;
   topPendingTasks: Array<{
@@ -51,10 +50,7 @@ export interface UserSnapshot {
  * The `formatted` field is a ready-to-use text block for AI prompts.
  */
 export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
-  const [user, settings] = await Promise.all([
-    getUser(userId),
-    getUserSettings(userId),
-  ]);
+  const user = await getUser(userId);
 
   const timezone = user?.timezone ?? "America/New_York";
   const currentTime = formatCurrentDateTime(timezone);
@@ -62,17 +58,16 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   const now = new Date();
   const endOfDay = new Date(startOfDayInTimezone(now, timezone).getTime() + 86_400_000 - 1);
 
-  const [pendingTasks, completedToday, todayEvents, recentActivity, crisisPlans] =
+  const [pendingTasks, completedToday, todayEvents, recentActivity, crisisPlans, energyLevel] =
     await Promise.all([
       getPendingTasks(userId),
       getTasksCompletedToday(userId, timezone),
       getCalendarEventsByDateRange(userId, now, endOfDay),
       getRecentTaskActivity(userId, 10),
       getActiveCrisisPlans(userId),
+      getCurrentEnergy(userId, timezone),
     ]);
 
-  const energyProfile = (settings?.energyProfile as EnergyProfile) ?? null;
-  const energyLevel = getCurrentEnergy(energyProfile, timezone);
   const timeBlock = getTimeOfDayBlock(timezone);
 
   // Top 5 pending tasks (already sorted by deadline priority from query)
@@ -93,7 +88,9 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   const lines: string[] = [];
   lines.push(`--- User's Current Context ---`);
   lines.push(`Time: ${currentTime}`);
-  lines.push(`Energy: ${energyLevel} (${timeBlock})`);
+  lines.push(
+    `Energy: ${energyLevel ?? "not logged recently"} (${timeBlock})`
+  );
   lines.push(`Tasks completed today: ${completedToday.length}`);
   lines.push(`Pending tasks: ${pendingTasks.length}`);
 

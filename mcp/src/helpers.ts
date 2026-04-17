@@ -124,6 +124,23 @@ export function formatBrainDump(dump: Record<string, unknown>, tz?: string): str
 }
 
 /**
+ * Format a moment into a readable markdown string.
+ */
+export function formatMoment(moment: Record<string, unknown>, tz?: string): string {
+  const parts: string[] = [
+    `**${moment.type}**`,
+    `ID: \`${moment.id}\``,
+    `Occurred: ${fmtLocal(moment.occurred_at, tz)}`,
+  ];
+  if (moment.intensity != null) parts.push(`Intensity: ${moment.intensity}/5`);
+  if (moment.note) parts.push(`Note: ${moment.note}`);
+  if (moment.source && moment.source !== "manual") {
+    parts.push(`Source: ${moment.source}`);
+  }
+  return parts.join("\n");
+}
+
+/**
  * Format a goal into a readable markdown string.
  */
 export function formatGoal(goal: Record<string, unknown>, tz?: string): string {

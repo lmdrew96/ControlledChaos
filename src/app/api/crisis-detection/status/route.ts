@@ -7,9 +7,10 @@ import {
   getCalendarEventsByDateRange,
   getUserSettings,
   getUser,
+  getRecentMoments,
 } from "@/lib/db/queries";
 import { detectCrisis } from "@/lib/crisis-detection";
-import type { CrisisDetectionStatus } from "@/types";
+import type { CrisisDetectionStatus, MomentType } from "@/types";
 
 /**
  * GET /api/crisis-detection/status
@@ -74,8 +75,11 @@ export async function GET() {
       return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
     }
 
-    // Fetch calendar events for the detection window
-    const calendarRows = await getCalendarEventsByDateRange(userId, now, windowEnd);
+    // Fetch calendar events for the detection window + recent Moments for augmentation
+    const [calendarRows, recentMomentRows] = await Promise.all([
+      getCalendarEventsByDateRange(userId, now, windowEnd),
+      getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
+    ]);
 
     const result = detectCrisis({
       tasks: tasksWithDeadlines.map((t) => ({
@@ -89,6 +93,11 @@ export async function GET() {
         startTime: new Date(e.startTime),
         endTime: new Date(e.endTime),
         isAllDay: e.isAllDay ?? false,
+      })),
+      recentMoments: recentMomentRows.map((m) => ({
+        type: m.type as MomentType,
+        intensity: m.intensity,
+        occurredAt: m.occurredAt,
       })),
       timezone,
       wakeTime,

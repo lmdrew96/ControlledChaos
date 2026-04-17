@@ -14,7 +14,8 @@ import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { scheduleOneTask } from "@/lib/ai/schedule";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import type { EnergyProfile, PersonalityPrefs } from "@/types";
+import { getCurrentEnergy } from "@/lib/context/energy";
+import type { PersonalityPrefs } from "@/types";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -103,10 +104,12 @@ export async function POST(_req: Request, context: RouteContext) {
       updatedAt: task.updatedAt.toISOString(),
     };
 
+    const currentEnergy = await getCurrentEnergy(userId, timezone);
+
     const block = await scheduleOneTask({
       task: serializedTask,
       calendarEvents: serializedEvents,
-      energyProfile: (settings?.energyProfile as EnergyProfile) ?? null,
+      currentEnergy,
       timezone,
       wakeTime,
       sleepTime,

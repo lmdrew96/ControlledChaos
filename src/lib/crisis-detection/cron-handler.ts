@@ -14,13 +14,14 @@ import {
   getCalendarEventsByDateRange,
   getUserSettings,
   getUser,
+  getRecentMoments,
 } from "@/lib/db/queries";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { generatePushMessage, hasEverBeenNotified } from "@/lib/notifications/triggers";
 import { getSleepBlockedMinutes } from "./time-math";
-import type { CrisisDetectionResult, CrisisDetectionTier, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
+import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
 
 interface CronContext {
   userId: string;
@@ -72,8 +73,15 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     return dl > now && dl <= windowEnd;
   });
 
-  // Fetch calendar events for the window
-  const calendarRows = await getCalendarEventsByDateRange(userId, now, windowEnd);
+  // Fetch calendar events for the window and recent Moments for augmentation
+  const [calendarRows, recentMomentRows] = await Promise.all([
+    getCalendarEventsByDateRange(userId, now, windowEnd),
+    // 2-hour window is the widest any Moment augmentation rule cares about
+    getRecentMoments(userId, 120, [
+      "tough_moment",
+      "energy_crash",
+    ]),
+  ]);
 
   // Run detection
   const result = detectCrisis({
@@ -88,6 +96,11 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       startTime: new Date(e.startTime),
       endTime: new Date(e.endTime),
       isAllDay: e.isAllDay ?? false,
+    })),
+    recentMoments: recentMomentRows.map((m) => ({
+      type: m.type as MomentType,
+      intensity: m.intensity,
+      occurredAt: m.occurredAt,
     })),
     timezone: userTimezone,
     wakeTime,

@@ -21,7 +21,7 @@ import {
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
-import type { EnergyProfile, PersonalityPrefs } from "@/types";
+import type { PersonalityPrefs } from "@/types";
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -79,9 +79,6 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     (t) => t.deadline && new Date(t.deadline) <= weekEnd
   );
 
-  // Energy profile for context
-  const energyProfile = settings?.energyProfile as EnergyProfile | null;
-
   // Fetch crises and recent activity for holistic context
   const [activeCrises, recentActivity] = await Promise.all([
     getActiveCrisisPlans(userId),
@@ -107,9 +104,6 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
     locationName ? `User's current location: ${locationName}` : null,
-    energyProfile
-      ? `Energy profile: Morning=${energyProfile.morning}, Afternoon=${energyProfile.afternoon}, Evening=${energyProfile.evening}`
-      : null,
     `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `Deadlines this week: ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,

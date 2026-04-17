@@ -18,7 +18,7 @@ import {
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import { startOfDayInTimezone, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
-import type { EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
+import type { EnergyLevel, PersonalityPrefs } from "@/types";
 
 // ============================================================
 // Types
@@ -29,7 +29,8 @@ export interface AIContext {
   currentTime: string;
   currentDate: string;
   timeOfDay: string;
-  energyLevel: EnergyLevel;
+  /** Most recent energy signal from Moments, or null if none logged recently. */
+  energyLevel: EnergyLevel | null;
   personalityPrefs: PersonalityPrefs | null;
 
   // Location
@@ -115,8 +116,7 @@ export async function buildAIContext(
       getUserLocation(userId),
     ]);
 
-  const energyProfile = (settings?.energyProfile as EnergyProfile) ?? null;
-  const energyLevel = getCurrentEnergy(energyProfile, timezone, options.energyOverride);
+  const energyLevel = await getCurrentEnergy(userId, timezone, options.energyOverride);
   const timeOfDay = getTimeOfDayBlock(timezone);
   const personalityPrefs = (settings?.personalityPrefs as PersonalityPrefs | null) ?? null;
 
@@ -204,7 +204,9 @@ export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   lines.push(`- Time: ${ctx.currentTime}`);
   lines.push(`- Timezone: ${ctx.timezone}`);
   lines.push(`- Time of day: ${ctx.timeOfDay}`);
-  lines.push(`- Energy level: ${ctx.energyLevel}`);
+  lines.push(
+    `- Energy level: ${ctx.energyLevel ?? "not logged recently"}`
+  );
   lines.push(`- Location: ${ctx.locationName ?? "Unknown"}`);
 
   // Tasks summary

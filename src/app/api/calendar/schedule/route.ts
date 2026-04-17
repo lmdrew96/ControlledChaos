@@ -12,7 +12,8 @@ import {
 } from "@/lib/db/queries";
 import { generateSchedule } from "@/lib/ai/schedule";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
-import type { EnergyProfile, PersonalityPrefs } from "@/types";
+import { getCurrentEnergy } from "@/lib/context/energy";
+import type { PersonalityPrefs } from "@/types";
 
 export async function POST() {
   try {
@@ -101,10 +102,12 @@ export async function POST() {
     const wakeTime = (settings?.wakeTime as number) ?? 7;
     const sleepTime = (settings?.sleepTime as number) ?? 22;
 
+    const currentEnergy = await getCurrentEnergy(userId, timezone);
+
     const blocks = await generateSchedule({
       pendingTasks: serializedTasks,
       calendarEvents: serializedEvents,
-      energyProfile: (settings?.energyProfile as EnergyProfile) ?? null,
+      currentEnergy,
       timezone,
       scheduleDays,
       wakeTime,

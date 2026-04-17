@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { getTimeOfDayBlock, getCurrentEnergy } from "../context/energy";
-import type { EnergyProfile } from "@/types";
+
+// The energy helpers import from @/lib/db/queries which triggers a DB
+// connection at module load. Mock that module to keep unit tests pure.
+vi.mock("@/lib/db/queries", () => ({
+  getRecentMoment: vi.fn(),
+}));
+
+import { getTimeOfDayBlock, deriveEnergyFromMoment } from "../context/energy";
 
 // ---------------------------------------------------------------------------
 // getTimeOfDayBlock
@@ -90,31 +96,19 @@ describe("getTimeOfDayBlock", () => {
 // getCurrentEnergy
 // ---------------------------------------------------------------------------
 
-describe("getCurrentEnergy", () => {
-  const profile: EnergyProfile = {
-    morning: "high",
-    afternoon: "medium",
-    evening: "low",
-    night: "low",
-  };
-
-  it("returns profile energy when no override", () => {
-    // We need to control "now" — mock to 10 AM EDT (morning block)
-    const result = getCurrentEnergy(profile, "America/New_York");
-    // Result depends on current time — just verify it returns a valid energy level
-    expect(["high", "medium", "low"]).toContain(result);
+describe("deriveEnergyFromMoment", () => {
+  it("maps energy_high to high", () => {
+    expect(deriveEnergyFromMoment("energy_high")).toBe("high");
   });
 
-  it("returns override when provided", () => {
-    expect(getCurrentEnergy(profile, "America/New_York", "high")).toBe("high");
-    expect(getCurrentEnergy(profile, "America/New_York", "low")).toBe("low");
+  it("maps energy_low and energy_crash to low", () => {
+    expect(deriveEnergyFromMoment("energy_low")).toBe("low");
+    expect(deriveEnergyFromMoment("energy_crash")).toBe("low");
   });
 
-  it("returns medium when no profile and no override", () => {
-    expect(getCurrentEnergy(null, "America/New_York")).toBe("medium");
-  });
-
-  it("returns override even when no profile", () => {
-    expect(getCurrentEnergy(null, "America/New_York", "high")).toBe("high");
+  it("returns null for non-energy Moment types", () => {
+    expect(deriveEnergyFromMoment("focus_start")).toBeNull();
+    expect(deriveEnergyFromMoment("focus_end")).toBeNull();
+    expect(deriveEnergyFromMoment("tough_moment")).toBeNull();
   });
 });

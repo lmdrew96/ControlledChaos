@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
-import { formatTask, formatEvent, formatGoal, formatBrainDump, fmtTimeLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, fmtTimeLocal } from "./helpers.js";
 
 // ============================================================
 // Register all ControlledChaos tools on the given server
@@ -988,6 +988,270 @@ Returns: Markdown-formatted list of matching tasks.`,
       const text = `## Search Results for "${params.query}" (${rows.length} found)\n\n` +
         rows.map((r, i) => `### ${i + 1}. ${formatTask(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 18. cc_log_moment
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_log_moment",
+    {
+      title: "Log Moment",
+      description: `Log a behavioral state moment. Lightweight one-tap entity for ADHD-friendly state tracking — adjacent to brain dumps but structured.
+
+Args:
+  - type (required): Moment type — energy_high, energy_low, energy_crash, focus_start, focus_end, tough_moment.
+  - intensity: Optional 1-5 intensity rating.
+  - note: Optional one-liner (max 500 chars).
+  - occurred_at: Optional ISO 8601 UTC timestamp. Defaults to now (for retro-logging).
+
+Returns: Confirmation with the moment ID.`,
+      inputSchema: {
+        type: z.enum([
+          "energy_high",
+          "energy_low",
+          "energy_crash",
+          "focus_start",
+          "focus_end",
+          "tough_moment",
+        ]).describe("Moment type"),
+        intensity: z.number().int().min(1).max(5).optional().describe("Optional 1-5 intensity"),
+        note: z.string().max(500).optional().describe("Optional one-liner note"),
+        occurred_at: z.string().optional().describe("Optional ISO 8601 UTC timestamp (defaults to now)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const occurredAt = params.occurred_at ?? new Date().toISOString();
+
+      const rows = await sql(
+        `INSERT INTO moments (user_id, type, intensity, note, occurred_at, source)
+         VALUES ($1, $2, $3, $4, $5, 'manual')
+         RETURNING id, type, intensity, note, occurred_at, source`,
+        [
+          userId,
+          params.type,
+          params.intensity ?? null,
+          params.note ?? null,
+          occurredAt,
+        ]
+      );
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `✓ Moment logged\n\n${formatMoment(rows[0], tz)}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 19. cc_list_moments
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_moments",
+    {
+      title: "List Moments",
+      description: `List recent moments, optionally filtered by date range or type.
+
+Args:
+  - start_date: ISO 8601 UTC start of range (optional).
+  - end_date: ISO 8601 UTC end of range (optional).
+  - types: Array of moment types to include (optional — defaults to all).
+  - limit: Max results (1-200, default 50).
+
+Returns: Markdown-formatted list of moments with times in the user's timezone.`,
+      inputSchema: {
+        start_date: z.string().optional().describe("Start of range (ISO 8601 UTC)"),
+        end_date: z.string().optional().describe("End of range (ISO 8601 UTC)"),
+        types: z.array(z.enum([
+          "energy_high",
+          "energy_low",
+          "energy_crash",
+          "focus_start",
+          "focus_end",
+          "tough_moment",
+        ])).optional().describe("Filter by moment types"),
+        limit: z.number().int().min(1).max(200).default(50).describe("Max results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+
+      const conditions: string[] = ["user_id = $1", "deleted_at IS NULL"];
+      const values: unknown[] = [userId];
+      let paramIdx = 2;
+
+      if (params.start_date) {
+        conditions.push(`occurred_at >= $${paramIdx}`);
+        values.push(params.start_date);
+        paramIdx++;
+      }
+      if (params.end_date) {
+        conditions.push(`occurred_at <= $${paramIdx}`);
+        values.push(params.end_date);
+        paramIdx++;
+      }
+      if (params.types && params.types.length > 0) {
+        const placeholders = params.types.map(() => {
+          const p = `$${paramIdx}`;
+          paramIdx++;
+          return p;
+        });
+        conditions.push(`type IN (${placeholders.join(", ")})`);
+        values.push(...params.types);
+      }
+
+      const query = `SELECT * FROM moments WHERE ${conditions.join(" AND ")} ORDER BY occurred_at DESC LIMIT $${paramIdx}`;
+      values.push(params.limit);
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "No moments found for those filters." }] };
+      }
+
+      const text = `## Moments (${rows.length} found)\n\n` +
+        rows.map((r, i) => `### ${i + 1}. ${formatMoment(r, tz)}`).join("\n\n---\n\n");
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 20. cc_update_moment
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_moment",
+    {
+      title: "Update Moment",
+      description: `Update a moment's intensity, note, or timestamp. Moment type is immutable — delete and re-log if the type was wrong.
+
+Args:
+  - id (required): Moment UUID.
+  - intensity: Set to null to clear.
+  - note: Set to null to clear.
+  - occurred_at: ISO 8601 UTC timestamp.
+
+Returns: Updated moment.`,
+      inputSchema: {
+        id: z.string().uuid().describe("Moment ID"),
+        intensity: z.number().int().min(1).max(5).nullable().optional(),
+        note: z.string().max(500).nullable().optional(),
+        occurred_at: z.string().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+
+      const setParts: string[] = [];
+      const values: unknown[] = [];
+      let paramIdx = 1;
+
+      if (params.intensity !== undefined) {
+        setParts.push(`intensity = $${paramIdx}`);
+        values.push(params.intensity);
+        paramIdx++;
+      }
+      if (params.note !== undefined) {
+        setParts.push(`note = $${paramIdx}`);
+        values.push(params.note);
+        paramIdx++;
+      }
+      if (params.occurred_at !== undefined) {
+        setParts.push(`occurred_at = $${paramIdx}`);
+        values.push(params.occurred_at);
+        paramIdx++;
+      }
+
+      if (setParts.length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }] };
+      }
+
+      values.push(params.id, userId);
+      const query = `UPDATE moments SET ${setParts.join(", ")}
+                     WHERE id = $${paramIdx} AND user_id = $${paramIdx + 1} AND deleted_at IS NULL
+                     RETURNING id, type, intensity, note, occurred_at, source`;
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Moment ${params.id} not found.` }] };
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `✓ Moment updated\n\n${formatMoment(rows[0], tz)}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 21. cc_delete_moment
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_delete_moment",
+    {
+      title: "Delete Moment",
+      description: `Soft-delete a moment. The row remains in the DB with deleted_at set — not visible in lists but recoverable with direct DB access.
+
+Args:
+  - id (required): Moment UUID.
+
+Returns: Confirmation.`,
+      inputSchema: {
+        id: z.string().uuid().describe("Moment ID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `UPDATE moments SET deleted_at = NOW()
+         WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+         RETURNING id, type`,
+        [params.id, userId]
+      );
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Moment ${params.id} not found.` }] };
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `🗑 Moment deleted (${rows[0].type})`,
+        }],
+      };
     }
   );
 }

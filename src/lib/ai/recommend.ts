@@ -146,10 +146,15 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     return lines.join("\n");
   })();
 
-  // Format energy profile as human-readable text
-  const energyProfileLine = context.energyProfile
-    ? `\n- Energy profile: Morning=${context.energyProfile.morning}, Afternoon=${context.energyProfile.afternoon}, Evening=${context.energyProfile.evening}, Night=${context.energyProfile.night}`
-    : "";
+  // Build a "current state" line from the most recent Moment if available
+  const recentMomentLine = (() => {
+    const m = context.recentMoment;
+    if (!m) return "";
+    const intensityStr =
+      typeof m.intensity === "number" ? `, intensity ${m.intensity}/5` : "";
+    const noteStr = m.note ? `, note: "${m.note}"` : "";
+    return `\n- Current state: logged ${m.type} ${m.minutesAgo} min ago${intensityStr}${noteStr}`;
+  })();
 
   const descriptionNote =
     pendingTasks.length > 50
@@ -162,7 +167,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
   return `## Current Context
 - Time of day: ${timeOfDay}
 - Location: ${locationLine}
-- Current energy level: ${context.energyLevel ?? "Unknown"}${energyProfileLine}${currentEventLine}
+- Current energy level: ${context.energyLevel ?? "Unknown"}${recentMomentLine}${currentEventLine}
 - Next event: ${eventLine}${availableTimeLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}

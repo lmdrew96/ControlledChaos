@@ -12,7 +12,7 @@
  */
 
 import { getAvailableMinutes } from "./time-math";
-import type { CrisisDetectionResult } from "@/types";
+import type { CrisisDetectionResult, MomentType } from "@/types";
 
 // ============================================================
 // Input types
@@ -32,6 +32,12 @@ export interface DetectionCalendarEvent {
   isAllDay: boolean;
 }
 
+export interface DetectionMoment {
+  type: MomentType;
+  intensity: number | null;
+  occurredAt: Date;
+}
+
 export interface CrisisDetectionInput {
   /** Pending/in-progress tasks with deadlines and time estimates */
   tasks: DetectionTask[];
@@ -45,6 +51,12 @@ export interface CrisisDetectionInput {
   sleepTime: number;
   /** How far ahead to look in hours (default 48) */
   detectionWindowHours?: number;
+  /**
+   * Recent Moments (default: empty). Used to AUGMENT detection with
+   * explicit user-reported state signals — never replaces the base logic.
+   * When empty, detection behaves exactly as before.
+   */
+  recentMoments?: DetectionMoment[];
 }
 
 // ============================================================
@@ -55,6 +67,15 @@ const DEFAULT_DETECTION_WINDOW_HOURS = 48;
 const CRISIS_RATIO_HARD = 1.0;      // More work than available time
 const CRISIS_RATIO_SOFT = 0.8;      // Tight but maybe doable — crisis only with 2+ deadlines
 const MIN_CONFLICTING_DEADLINES = 2; // Required for soft threshold
+
+// Moment augmentation thresholds
+const TOUGH_MOMENT_OVERRIDE_MINUTES = 60;   // Rule 1 window
+const TOUGH_MOMENT_OVERRIDE_INTENSITY = 4;  // ≥ this intensity triggers override
+const CRISIS_RATIO_MOMENT_OVERRIDE = 0.6;   // Ratio floor when override fires
+const CONSECUTIVE_TOUGH_WINDOW_MINUTES = 120; // Rule 2 window
+const CONSECUTIVE_TOUGH_COUNT = 2;
+const ENERGY_CRASH_BIAS_MINUTES = 30;       // Rule 3 window
+const ENERGY_CRASH_BIAS = 0.1;              // Additive bias for threshold comparison only
 
 // ============================================================
 // Core detection
@@ -72,6 +93,7 @@ export function detectCrisis(input: CrisisDetectionInput): CrisisDetectionResult
     wakeTime,
     sleepTime,
     detectionWindowHours = DEFAULT_DETECTION_WINDOW_HOURS,
+    recentMoments = [],
   } = input;
 
   const now = new Date();
@@ -113,11 +135,51 @@ export function detectCrisis(input: CrisisDetectionInput): CrisisDetectionResult
   );
   const deadlineCount = uniqueDeadlines.size;
 
-  // Detection conditions
-  const hardThresholdMet = crisisRatio > CRISIS_RATIO_HARD;
-  const softThresholdMet = crisisRatio > CRISIS_RATIO_SOFT && deadlineCount >= MIN_CONFLICTING_DEADLINES;
+  // ============================================================
+  // Moment augmentation — explicit user-reported state signals
+  // Augment, never replace. recentMoments empty => base behavior.
+  // ============================================================
+  const msSinceMoment = (m: DetectionMoment) =>
+    now.getTime() - m.occurredAt.getTime();
 
-  if (!hardThresholdMet && !softThresholdMet) return null;
+  // Rule 1: tough_moment with intensity ≥ 4 in the last 60 min → override to
+  // a lower ratio floor so we trigger earlier.
+  const toughOverride = recentMoments.some(
+    (m) =>
+      m.type === "tough_moment" &&
+      (m.intensity ?? 0) >= TOUGH_MOMENT_OVERRIDE_INTENSITY &&
+      msSinceMoment(m) <= TOUGH_MOMENT_OVERRIDE_MINUTES * 60 * 1000
+  );
+
+  // Rule 2: ≥ 2 tough_moment events in the last 2 hours → same override.
+  const consecutiveTough =
+    recentMoments.filter(
+      (m) =>
+        m.type === "tough_moment" &&
+        msSinceMoment(m) <= CONSECUTIVE_TOUGH_WINDOW_MINUTES * 60 * 1000
+    ).length >= CONSECUTIVE_TOUGH_COUNT;
+
+  // Rule 3: energy_crash in the last 30 min → bias the ratio upward for
+  // threshold comparison only (the stored crisis_ratio stays the real value).
+  const energyCrashBias = recentMoments.some(
+    (m) =>
+      m.type === "energy_crash" &&
+      msSinceMoment(m) <= ENERGY_CRASH_BIAS_MINUTES * 60 * 1000
+  )
+    ? ENERGY_CRASH_BIAS
+    : 0;
+
+  const effectiveRatio = crisisRatio + energyCrashBias;
+  const momentOverride = toughOverride || consecutiveTough;
+
+  // Detection conditions
+  const hardThresholdMet = effectiveRatio > CRISIS_RATIO_HARD;
+  const softThresholdMet =
+    effectiveRatio > CRISIS_RATIO_SOFT && deadlineCount >= MIN_CONFLICTING_DEADLINES;
+  const momentThresholdMet =
+    momentOverride && effectiveRatio > CRISIS_RATIO_MOMENT_OVERRIDE;
+
+  if (!hardThresholdMet && !softThresholdMet && !momentThresholdMet) return null;
 
   return {
     detected: true,

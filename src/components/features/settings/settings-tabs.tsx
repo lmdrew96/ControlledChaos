@@ -7,7 +7,6 @@ import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
 import { PersonalitySettings } from "./personality-settings";
-import { EnergyProfileEditor } from "./energy-profile";
 import { SavedLocations } from "./saved-locations";
 import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
@@ -120,14 +119,6 @@ export function SettingsTabs() {
           </CardHeader>
           <CardContent>
             <PersonalitySettings />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Energy Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EnergyProfileEditor />
           </CardContent>
         </Card>
       </TabsContent>

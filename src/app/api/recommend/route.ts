@@ -18,8 +18,9 @@ import {
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { getCurrentEnergy } from "@/lib/context/energy";
+import { getRecentMoment } from "@/lib/db/queries";
 import { matchLocation } from "@/lib/context/location";
-import type { UserContext, EnergyLevel, EnergyProfile, PersonalityPrefs } from "@/types";
+import type { UserContext, EnergyLevel, MomentType, PersonalityPrefs } from "@/types";
 
 export async function POST(request: Request) {
   try {
@@ -97,12 +98,22 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determine energy level
-    const energyLevel = getCurrentEnergy(
-      (settings?.energyProfile as EnergyProfile) ?? null,
-      timezone,
-      energyOverride
-    );
+    // Determine energy level + most recent Moment (for AI prompt context)
+    const [energyLevel, recentMomentRow] = await Promise.all([
+      getCurrentEnergy(userId, timezone, energyOverride),
+      getRecentMoment(userId, 120),
+    ]);
+    const recentMoment = recentMomentRow
+      ? {
+          type: recentMomentRow.type as MomentType,
+          intensity: recentMomentRow.intensity,
+          note: recentMomentRow.note,
+          minutesAgo: Math.max(
+            0,
+            Math.round((Date.now() - recentMomentRow.occurredAt.getTime()) / 60000)
+          ),
+        }
+      : null;
 
     // Minutes until current event ends (if in one right now)
     const minutesUntilFree = currentEvent
@@ -167,7 +178,7 @@ export async function POST(request: Request) {
         source: e.source,
       })),
       energyLevel,
-      energyProfile: (settings?.energyProfile as EnergyProfile) ?? undefined,
+      recentMoment,
       recentActivity: {
         tasksCompletedToday: completedToday.length,
         lastAction: recentActivity[0]?.action,

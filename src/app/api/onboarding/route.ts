@@ -8,7 +8,7 @@ import {
   updateUser,
   createLocation,
 } from "@/lib/db/queries";
-import type { EnergyProfile, PersonalityPrefs, NotificationPrefs } from "@/types";
+import type { PersonalityPrefs, NotificationPrefs } from "@/types";
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +21,6 @@ export async function POST(request: Request) {
     const {
       displayName,
       timezone,
-      energyProfile,
       canvasIcalUrl,
       personalityPrefs,
       notificationPrefs,
@@ -29,7 +28,6 @@ export async function POST(request: Request) {
     } = body as {
       displayName?: string;
       timezone?: string;
-      energyProfile?: EnergyProfile;
       canvasIcalUrl?: string;
       personalityPrefs?: PersonalityPrefs;
       notificationPrefs?: {
@@ -92,7 +90,6 @@ export async function POST(request: Request) {
 
     // Create or update user settings
     const settingsData: Record<string, unknown> = {
-      energyProfile: energyProfile ?? null,
       canvasIcalUrl: canvasIcalUrl?.trim() || null,
       onboardingComplete: true,
     };
@@ -105,7 +102,6 @@ export async function POST(request: Request) {
     } else {
       await createUserSettings({
         userId,
-        energyProfile: (energyProfile as EnergyProfile) ?? null,
         canvasIcalUrl: canvasIcalUrl?.trim() || null,
         onboardingComplete: true,
       });

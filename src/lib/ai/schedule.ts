@@ -5,7 +5,6 @@ import { toUTC, formatForDisplay, DISPLAY_DATETIME, DISPLAY_TIME } from "@/lib/t
 import type {
   Task,
   CalendarEvent,
-  EnergyProfile,
   PersonalityPrefs,
   ScheduledBlock,
   FreeTimeBlock,
@@ -14,7 +13,8 @@ import type {
 interface SchedulingInput {
   pendingTasks: Task[];
   calendarEvents: CalendarEvent[];
-  energyProfile: EnergyProfile | null;
+  /** Current energy signal from most recent Moment, or null if none logged recently. */
+  currentEnergy: "low" | "medium" | "high" | null;
   timezone: string;
   scheduleDays: number;
   wakeTime?: number; // Hour 0-23, defaults to 7
@@ -173,8 +173,8 @@ ${input.timezone}
 ## Active Hours
 ${fmtHour(wakeHour)} – ${fmtHour(sleepHour)}. NEVER schedule outside this window.
 
-## Energy Profile
-${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
+## Current Energy
+${input.currentEnergy ? `Current user-reported energy: ${input.currentEnergy} (logged via Moment)` : "Current energy: not logged recently (assume medium energy)"}
 
 ## Free Time Blocks (next ${input.scheduleDays} days)
 ${JSON.stringify(freeBlocksWithLabels, null, 2)}
@@ -244,7 +244,8 @@ export async function generateSchedule(
 interface SingleTaskSchedulingInput {
   task: Task;
   calendarEvents: CalendarEvent[];
-  energyProfile: EnergyProfile | null;
+  /** Current energy signal from most recent Moment, or null if none logged recently. */
+  currentEnergy: "low" | "medium" | "high" | null;
   timezone: string;
   wakeTime?: number;
   sleepTime?: number;
@@ -309,8 +310,8 @@ ${formatCurrentDateTime(input.timezone)}
 ## User's Timezone
 ${input.timezone}
 
-## Energy Profile
-${input.energyProfile ? `Morning (6am-12pm): ${input.energyProfile.morning}, Afternoon (12pm-5pm): ${input.energyProfile.afternoon}, Evening (5pm-9pm): ${input.energyProfile.evening}, Night (9pm-12am): ${input.energyProfile.night}` : "Not set (assume medium energy throughout the day)"}
+## Current Energy
+${input.currentEnergy ? `Current user-reported energy: ${input.currentEnergy} (logged via Moment)` : "Current energy: not logged recently (assume medium energy)"}
 
 ## Task to Schedule
 ${JSON.stringify({

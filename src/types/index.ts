@@ -89,6 +89,43 @@ export interface BrainDumpResult {
 }
 
 // ============================================================
+// Moment Types (typed behavioral state log)
+// ============================================================
+export type MomentType =
+  | "energy_high"
+  | "energy_low"
+  | "energy_crash"
+  | "focus_start"
+  | "focus_end"
+  | "tough_moment";
+
+export type MomentSource = "manual" | "voice";
+
+export interface Moment {
+  id: string;
+  type: MomentType;
+  intensity: number | null; // 1-5
+  note: string | null;
+  occurredAt: string; // ISO 8601
+  source: MomentSource;
+  createdAt: string;
+}
+
+export interface MomentInput {
+  type: MomentType;
+  intensity?: number | null;
+  note?: string | null;
+  occurredAt?: string; // defaults to now
+}
+
+/** Lightweight shape for crisis detection + AI recommendation inputs */
+export interface RecentMoment {
+  type: MomentType;
+  intensity: number | null;
+  occurredAt: Date;
+}
+
+// ============================================================
 // Recommendation Types
 // ============================================================
 export interface UserContext {
@@ -115,8 +152,15 @@ export interface UserContext {
     endTime: string;
     source: string;
   }>;
-  energyLevel?: EnergyLevel;
-  energyProfile?: EnergyProfile;
+  /** Most recent energy signal derived from Moments, or null if none recent */
+  energyLevel?: EnergyLevel | null;
+  /** Most recent Moment (any type) for AI prompt context */
+  recentMoment?: {
+    type: MomentType;
+    intensity: number | null;
+    note: string | null;
+    minutesAgo: number;
+  } | null;
   recentActivity?: {
     tasksCompletedToday: number;
     lastAction?: string;
@@ -136,6 +180,10 @@ export interface TaskRecommendation {
 // ============================================================
 // User Settings Types
 // ============================================================
+/**
+ * @deprecated Retired in favor of Moments. Column remains in DB pending follow-up
+ * migration; type kept only for the residual dead-column read path.
+ */
 export interface EnergyProfile {
   morning: EnergyLevel; // 6am-12pm
   afternoon: EnergyLevel; // 12pm-5pm

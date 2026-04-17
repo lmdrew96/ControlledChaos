@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
-import type { CalendarColorKey, CalendarColors, CrisisDetectionTier, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
+import type { CalendarColorKey, CalendarColors, CrisisDetectionTier, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
 const VALID_CRISIS_DETECTION_TIERS = new Set<CrisisDetectionTier>(["off", "watch", "nudge", "auto_triage"]);
@@ -20,7 +20,6 @@ export async function GET() {
     return NextResponse.json({
       displayName: user?.displayName ?? "",
       timezone: user?.timezone ?? "America/New_York",
-      energyProfile: settings?.energyProfile ?? null,
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
@@ -51,9 +50,6 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const data: Record<string, unknown> = {};
 
-    if (body.energyProfile !== undefined) {
-      data.energyProfile = body.energyProfile as EnergyProfile;
-    }
     if (body.canvasIcalUrl !== undefined) {
       data.canvasIcalUrl = body.canvasIcalUrl;
     }
