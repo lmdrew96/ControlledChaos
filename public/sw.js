@@ -1,6 +1,6 @@
 // ControlledChaos Service Worker — Offline + Push Notifications
 
-const CACHE_NAME = "cc-shell-v1";
+const CACHE_NAME = "cc-shell-v2";
 const SHELL_ASSETS = ["/dashboard", "/dump", "/tasks", "/calendar", "/settings"];
 
 // Cache app shell on install — non-critical, don't block SW activation
