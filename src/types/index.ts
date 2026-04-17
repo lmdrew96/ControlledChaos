@@ -161,7 +161,11 @@ export interface NotificationPrefs {
   mutedFriendIds: string[];
   celebrationLevel: CelebrationLevel;
   momentumStyle: "motivational" | "neutral";
+  /** Minutes before a deadline/event to fire a reminder. Defaults to [1440, 60, 10] (1 day, 1 hour, 10 min). */
+  reminderIntervals?: number[];
 }
+
+export const DEFAULT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 
 export interface PersonalityPrefs {
   /** 0 = strict, 1 = balanced, 2 = supportive */

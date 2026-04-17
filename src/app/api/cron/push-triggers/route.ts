@@ -8,7 +8,8 @@ import {
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { todayInTimezone } from "@/lib/timezone";
 import {
-  getDeadlineWarnings,
+  getDeadlineReminders,
+  getEventReminders,
   getDailyPushCap,
   getAssertivenessMode,
   getScheduledTaskAlerts,
@@ -49,10 +50,14 @@ const MED_ACTIONS = [
   { action: "snooze", title: "⏰ Snooze 30 min" },
 ];
 
+const EVENT_ACTIONS = [
+  { action: "see_calendar", title: "📅 View" },
+];
+
 /**
  * GET /api/cron/push-triggers
  * Runs every 15 minutes via Vercel cron.
- * Checks all push-enabled users for deadline warnings, scheduled task alerts,
+ * Checks all push-enabled users for deadline reminders, event reminders, scheduled task alerts,
  * idle check-ins (11am + 3pm + 6:00pm), inactivity nudges, and pending snoozed pushes.
  */
 export async function GET(request: Request) {
@@ -128,17 +133,17 @@ export async function GET(request: Request) {
         totalSent += 1;
       };
 
-      // --- Deadline Warnings ---
-      const warnings = await getDeadlineWarnings(userId);
-      for (const warning of warnings) {
-        const priority = warning.level === "30min" || warning.level === "2h" ? "high" : "normal";
+      // --- Deadline Reminders ---
+      const deadlineReminders = await getDeadlineReminders(userId, notificationPrefs);
+      for (const reminder of deadlineReminders) {
+        const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
         if (!canSend(priority)) continue;
 
-        const dedupKey = `deadline-${warning.taskId}-${warning.level}`;
-        if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
+        const dedupKey = `deadline-${reminder.taskId}-${reminder.intervalMinutes}-${reminder.deadline.toISOString()}`;
+        if (await hasEverBeenNotified(userId, dedupKey)) continue;
 
         const message = await generatePushMessage(
-          { type: `deadline_${warning.level}` as "deadline_24h" | "deadline_2h" | "deadline_30min", taskTitle: warning.taskTitle },
+          { type: "deadline_reminder", taskTitle: reminder.taskTitle, minutesUntil: reminder.intervalMinutes },
           personalityPrefs,
           timezone,
           mode,
@@ -148,12 +153,41 @@ export async function GET(request: Request) {
         const sent = await sendPushToUser(userId, {
           title: "ControlledChaos",
           body: message,
-          url: `/tasks?taskId=${warning.taskId}`,
+          url: `/tasks?taskId=${reminder.taskId}`,
           tag: dedupKey,
-          taskId: warning.taskId,
+          taskId: reminder.taskId,
           userId,
           actions: TASK_ACTIONS,
-          bypassQuietHours: warning.level === "30min",
+          bypassQuietHours: reminder.intervalMinutes <= 30,
+        });
+        if (sent) markSent();
+      }
+
+      // --- Event Reminders ---
+      const eventReminders = await getEventReminders(userId, notificationPrefs);
+      for (const reminder of eventReminders) {
+        const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
+        if (!canSend(priority)) continue;
+
+        const dedupKey = `event-${reminder.eventId}-${reminder.intervalMinutes}-${reminder.startTime.toISOString()}`;
+        if (await hasEverBeenNotified(userId, dedupKey)) continue;
+
+        const message = await generatePushMessage(
+          { type: "event_reminder", eventTitle: reminder.eventTitle, minutesUntil: reminder.intervalMinutes },
+          personalityPrefs,
+          timezone,
+          mode,
+          await getLocationName(),
+          await getSnapshot()
+        );
+        const sent = await sendPushToUser(userId, {
+          title: "ControlledChaos",
+          body: message,
+          url: "/calendar",
+          tag: dedupKey,
+          userId,
+          actions: EVENT_ACTIONS,
+          bypassQuietHours: reminder.intervalMinutes <= 30,
         });
         if (sent) markSent();
       }

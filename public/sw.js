@@ -141,6 +141,7 @@ self.addEventListener("notificationclick", (event) => {
   const navigateTo =
     action === "brain_dump" ? "/dump"
     : action === "see_tasks" ? "/tasks"
+    : action === "see_calendar" ? "/calendar"
     : action === "see_location_tasks" && locationName ? `/tasks?location=${encodeURIComponent(locationName)}`
     : action === "start_task" && taskId ? `/tasks?taskId=${taskId}`
     : url || "/dashboard";

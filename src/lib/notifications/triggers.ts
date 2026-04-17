@@ -13,13 +13,57 @@ import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callSonnet } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
-import type { NotificationAssertiveness, NotificationPrefs, PersonalityPrefs } from "@/types";
+import {
+  DEFAULT_REMINDER_INTERVALS,
+  type NotificationAssertiveness,
+  type NotificationPrefs,
+  type PersonalityPrefs,
+} from "@/types";
 
-interface DeadlineWarning {
+interface DeadlineReminder {
   taskId: string;
   taskTitle: string;
-  level: "24h" | "2h" | "30min";
+  intervalMinutes: number;
   deadline: Date;
+}
+
+export interface EventReminder {
+  eventId: string;
+  eventTitle: string;
+  intervalMinutes: number;
+  startTime: Date;
+}
+
+/**
+ * Normalize a user's reminder intervals. Defaults to [1440, 60, 10] (1 day, 1 hour, 10 min).
+ * Returned intervals are unique positive minutes, sorted descending.
+ */
+export function getReminderIntervals(prefs: NotificationPrefs | null | undefined): number[] {
+  const raw = prefs?.reminderIntervals;
+  // null/undefined = use defaults. Empty array = user explicitly opted out.
+  const source = Array.isArray(raw) ? raw : DEFAULT_REMINDER_INTERVALS;
+  const cleaned = Array.from(
+    new Set(
+      source
+        .filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0)
+        .map((n) => Math.floor(n))
+    )
+  );
+  return cleaned.sort((a, b) => b - a);
+}
+
+/**
+ * Return the interval (minutes) whose window currently covers `diffMs`, or null if none.
+ * Interval I fires when `next_smaller < diffMs <= I`. Intervals must be sorted descending.
+ */
+function pickIntervalForDiff(diffMs: number, intervalsDesc: number[]): number | null {
+  if (diffMs <= 0) return null;
+  for (let i = 0; i < intervalsDesc.length; i++) {
+    const upperMs = intervalsDesc[i] * 60 * 1000;
+    const lowerMs = (intervalsDesc[i + 1] ?? 0) * 60 * 1000;
+    if (diffMs > lowerMs && diffMs <= upperMs) return intervalsDesc[i];
+  }
+  return null;
 }
 
 interface ScheduledAlert {
@@ -58,52 +102,87 @@ export async function getPushNotificationsSentToday(userId: string, timezone = "
 }
 
 /**
- * Check for tasks with upcoming deadlines that need push warnings.
- * Returns tasks at 24h, 2h, and 30min thresholds.
+ * Check for tasks with upcoming deadlines that need push reminders.
+ * For each pending task with a deadline, picks the configured interval whose
+ * window currently covers the time remaining (e.g. [1440, 60, 10] fires once
+ * at each crossing). Dedup is handled at the cron layer.
  */
-export async function getDeadlineWarnings(
-  userId: string
-): Promise<DeadlineWarning[]> {
+export async function getDeadlineReminders(
+  userId: string,
+  prefs: NotificationPrefs | null | undefined
+): Promise<DeadlineReminder[]> {
+  const intervals = getReminderIntervals(prefs);
+  if (intervals.length === 0) return [];
+
   const tasks = await getPendingTasks(userId);
   const now = Date.now();
-  const warnings: DeadlineWarning[] = [];
+  const reminders: DeadlineReminder[] = [];
 
   for (const task of tasks) {
     if (!task.deadline) continue;
-
     const deadlineMs = new Date(task.deadline).getTime();
     const diff = deadlineMs - now;
+    const interval = pickIntervalForDiff(diff, intervals);
+    if (interval === null) continue;
 
-    if (diff <= 0) continue; // Already past
-
-    if (diff <= 30 * 60 * 1000) {
-      warnings.push({
-        taskId: task.id,
-        taskTitle: task.title,
-        level: "30min",
-        deadline: task.deadline,
-      });
-    } else if (diff <= 2 * 60 * 60 * 1000) {
-      warnings.push({
-        taskId: task.id,
-        taskTitle: task.title,
-        level: "2h",
-        deadline: task.deadline,
-      });
-    } else if (diff <= 24 * 60 * 60 * 1000) {
-      warnings.push({
-        taskId: task.id,
-        taskTitle: task.title,
-        level: "24h",
-        deadline: task.deadline,
-      });
-    }
+    reminders.push({
+      taskId: task.id,
+      taskTitle: task.title,
+      intervalMinutes: interval,
+      deadline: task.deadline,
+    });
   }
 
-  // Sort by nearest deadline first so the most urgent warnings fire first
-  warnings.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  reminders.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  return reminders;
+}
 
-  return warnings;
+/**
+ * Check for upcoming calendar events that need push reminders.
+ *
+ * Skipped:
+ * - All-day events (start time is midnight in user's timezone — reminders fire at odd hours).
+ * - Events whose location matches a saved location (handled by getDepartureAlerts instead,
+ *   to avoid double-firing time-to-leave + reminder within the same window).
+ */
+export async function getEventReminders(
+  userId: string,
+  prefs: NotificationPrefs | null | undefined
+): Promise<EventReminder[]> {
+  const intervals = getReminderIntervals(prefs);
+  if (intervals.length === 0) return [];
+
+  const now = new Date();
+  const maxLookAheadMs = intervals[0] * 60 * 1000;
+  const lookAheadEnd = new Date(now.getTime() + maxLookAheadMs);
+
+  const [events, savedLocs] = await Promise.all([
+    getCalendarEventsByDateRange(userId, now, lookAheadEnd),
+    getSavedLocations(userId),
+  ]);
+
+  const nowMs = now.getTime();
+  const reminders: EventReminder[] = [];
+
+  for (const event of events) {
+    if (event.isAllDay) continue;
+    if (matchEventLocationToSavedLocation(event.location, savedLocs)) continue;
+
+    const startMs = new Date(event.startTime).getTime();
+    const diff = startMs - nowMs;
+    const interval = pickIntervalForDiff(diff, intervals);
+    if (interval === null) continue;
+
+    reminders.push({
+      eventId: event.id,
+      eventTitle: event.title,
+      intervalMinutes: interval,
+      startTime: event.startTime,
+    });
+  }
+
+  reminders.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  return reminders;
 }
 
 /**
@@ -223,9 +302,8 @@ export async function hasEverBeenNotified(
 }
 
 type PushNotificationContext =
-  | { type: "deadline_24h"; taskTitle: string }
-  | { type: "deadline_2h"; taskTitle: string }
-  | { type: "deadline_30min"; taskTitle: string }
+  | { type: "deadline_reminder"; taskTitle: string; minutesUntil: number }
+  | { type: "event_reminder"; eventTitle: string; minutesUntil: number }
   | { type: "scheduled"; taskTitle: string }
   | { type: "scheduled_missed"; taskTitle: string }
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
@@ -238,10 +316,24 @@ type PushNotificationContext =
   | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
   | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
 
+/**
+ * Human-readable label for an interval (e.g. 1440 → "1 day", 90 → "90 minutes").
+ */
+export function formatReminderInterval(minutes: number): string {
+  if (minutes % (60 * 24) === 0) {
+    const days = minutes / (60 * 24);
+    return days === 1 ? "1 day" : `${days} days`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 hour" : `${hours} hours`;
+  }
+  return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+}
+
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
-  deadline_24h: "Heads up — something's due tomorrow. You've got this.",
-  deadline_2h: "Two hours out. You can still knock this one out.",
-  deadline_30min: "30 minutes. This is happening.",
+  deadline_reminder: "Heads up — a deadline is coming up.",
+  event_reminder: "Heads up — an event is coming up.",
   scheduled: "You planned this. Past-you had your back.",
   scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
@@ -271,7 +363,11 @@ export async function generatePushMessage(
   scheduleContext?: string
 ): Promise<string> {
   let userMsg: string;
-  if (ctx.type === "idle_checkin") {
+  if (ctx.type === "deadline_reminder") {
+    userMsg = `Type: deadline_reminder\nTask: "${ctx.taskTitle}"\nTime until deadline: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+  } else if (ctx.type === "event_reminder") {
+    userMsg = `Type: event_reminder\nEvent: "${ctx.eventTitle}"\nTime until event: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+  } else if (ctx.type === "idle_checkin") {
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
       : `Type: idle_checkin\nActivity: ${ctx.activityLevel}`;
@@ -322,17 +418,15 @@ export async function generatePushMessage(
     return enforceWordLimit(cleaned, 35) || PUSH_FALLBACKS[ctx.type];
   } catch (error) {
     console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
-    if (
-      ctx.type === "deadline_24h" ||
-      ctx.type === "deadline_2h" ||
-      ctx.type === "deadline_30min" ||
-      ctx.type === "scheduled" ||
-      ctx.type === "scheduled_missed"
-    ) {
+    if (ctx.type === "deadline_reminder") {
+      return `${ctx.taskTitle} is due in ${formatReminderInterval(ctx.minutesUntil)}.`;
+    }
+    if (ctx.type === "event_reminder") {
+      return `${ctx.eventTitle} starts in ${formatReminderInterval(ctx.minutesUntil)}.`;
+    }
+    if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
       const fallback = PUSH_FALLBACKS[ctx.type];
-      return fallback
-        .replace("something's due", `${ctx.taskTitle} is due`)
-        .replace("You planned this", `Time for ${ctx.taskTitle}`);
+      return fallback.replace("You planned this", `Time for ${ctx.taskTitle}`);
     }
     return PUSH_FALLBACKS[ctx.type];
   }
@@ -535,7 +629,7 @@ const DEPARTURE_BUFFER_MINUTES = 5; // Extra buffer on top of commute time
  * Match a calendar event's location string to a saved location by name.
  * Uses case-insensitive substring matching in both directions.
  */
-function matchEventLocationToSavedLocation(
+export function matchEventLocationToSavedLocation(
   eventLocation: string | null,
   savedLocations: Array<{ id: string; name: string }>
 ): { id: string; name: string } | null {

@@ -95,6 +95,16 @@ export async function PATCH(request: Request) {
         timeRegex.test(prefs.quietHoursStart) &&
         timeRegex.test(prefs.quietHoursEnd)
       ) {
+        const reminderIntervals = Array.isArray(prefs.reminderIntervals)
+          ? Array.from(
+              new Set(
+                prefs.reminderIntervals
+                  .filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0)
+                  .map((n) => Math.floor(n))
+              )
+            ).sort((a, b) => b - a)
+          : undefined;
+
         data.notificationPrefs = {
           ...prefs,
           assertivenessMode,
@@ -102,6 +112,7 @@ export async function PATCH(request: Request) {
             typeof prefs.locationNotificationsEnabled === "boolean"
               ? prefs.locationNotificationsEnabled
               : false,
+          ...(reminderIntervals !== undefined ? { reminderIntervals } : {}),
         };
       }
     }
