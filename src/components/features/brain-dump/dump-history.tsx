@@ -30,6 +30,8 @@ interface DumpSummary {
   taskCount: number;
   eventCount: number;
   createdAt: string;
+  /** Resolved from schema — array even for single-photo legacy rows */
+  media?: string[];
 }
 
 const inputTypeIcon = {
@@ -117,6 +119,8 @@ export function DumpHistory() {
           const Icon =
             inputTypeIcon[dump.inputType as keyof typeof inputTypeIcon] ?? Type;
           const isExpanded = expandedId === dump.id;
+          const media = dump.media ?? [];
+          const hasExpandable = !!dump.rawContent || media.length > 0;
 
           return (
             <button
@@ -138,6 +142,12 @@ export function DumpHistory() {
                           journal
                         </span>
                       )}
+                      {media.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Camera className="h-3 w-3" />
+                          {media.length} photo{media.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
                       {dump.taskCount > 0 && (
                         <span className="flex items-center gap-1">
                           <CheckSquare className="h-3 w-3" />
@@ -154,7 +164,7 @@ export function DumpHistory() {
                     </div>
                   </div>
                 </div>
-                {dump.rawContent && (
+                {hasExpandable && (
                   <div className="shrink-0 text-muted-foreground">
                     {isExpanded ? (
                       <ChevronUp className="h-4 w-4" />
@@ -165,13 +175,30 @@ export function DumpHistory() {
                 )}
               </div>
 
-              {isExpanded && dump.rawContent && (
-                <div className="mt-3 rounded-md bg-muted/50 p-3">
-                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                    {dump.rawContent.length > 500
-                      ? `${dump.rawContent.slice(0, 500)}...`
-                      : dump.rawContent}
-                  </p>
+              {isExpanded && hasExpandable && (
+                <div className="mt-3 space-y-3">
+                  {dump.rawContent && (
+                    <div className="rounded-md bg-muted/50 p-3">
+                      <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                        {dump.rawContent.length > 500
+                          ? `${dump.rawContent.slice(0, 500)}...`
+                          : dump.rawContent}
+                      </p>
+                    </div>
+                  )}
+                  {media.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {media.map((url, i) => (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          key={url}
+                          src={url}
+                          alt={`Attachment ${i + 1}`}
+                          className="h-20 w-full rounded-md object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </button>

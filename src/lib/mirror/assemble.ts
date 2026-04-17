@@ -31,6 +31,8 @@ export interface DumpRow {
   inputType: string;
   aiResponse: unknown;
   createdAt: Date;
+  mediaUrl?: string | null;
+  mediaUrls?: string[] | null;
 }
 
 export interface MomentRow {
@@ -118,6 +120,7 @@ export function assembleMirrorEntries(input: AssembleInput): MirrorEntry[] {
         at: j.createdAt.toISOString(),
         summary: extractDumpSummary(j.aiResponse),
         inputType: j.inputType as DumpInputType,
+        mediaCount: countMedia(j),
       });
     }
   }
@@ -158,4 +161,9 @@ function extractDumpSummary(aiResponse: unknown): string | null {
   if (!aiResponse || typeof aiResponse !== "object") return null;
   const s = (aiResponse as { summary?: unknown }).summary;
   return typeof s === "string" ? s : null;
+}
+
+function countMedia(row: DumpRow): number {
+  if (row.mediaUrls && row.mediaUrls.length > 0) return row.mediaUrls.length;
+  return row.mediaUrl ? 1 : 0;
 }

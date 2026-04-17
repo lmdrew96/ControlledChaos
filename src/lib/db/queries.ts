@@ -180,9 +180,10 @@ export async function getBrainDumpsByDateRange(
 export async function createBrainDump(params: {
   userId: string;
   inputType: DumpInputType;
-  rawContent: string;
+  rawContent: string | null;
   aiResponse: BrainDumpResult;
-  mediaUrl?: string;
+  mediaUrl?: string | null;
+  mediaUrls?: string[];
   category?: DumpCategory;
 }) {
   const [dump] = await db
@@ -194,6 +195,7 @@ export async function createBrainDump(params: {
       parsed: true,
       aiResponse: params.aiResponse,
       mediaUrl: params.mediaUrl ?? null,
+      mediaUrls: params.mediaUrls ?? [],
       category: params.category ?? "braindump",
     })
     .returning();

@@ -165,6 +165,7 @@ export type MirrorEntry =
       kind: "journal";
       summary: string | null;
       inputType: DumpInputType;
+      mediaCount: number;
     })
   | (MirrorEntryBase & {
       kind: "moment";

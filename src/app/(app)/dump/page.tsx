@@ -7,6 +7,7 @@ import { DumpInput } from "@/components/features/brain-dump/dump-input";
 import { VoiceRecorder } from "@/components/features/brain-dump/voice-recorder";
 import { PhotoUploader } from "@/components/features/brain-dump/photo-uploader";
 import { DumpHistory } from "@/components/features/brain-dump/dump-history";
+import { JournalCompose } from "@/components/features/brain-dump/journal-compose";
 import type { DumpCategory } from "@/types";
 
 type InputMode = "text" | "voice" | "photo";
@@ -72,50 +73,54 @@ export default function BrainDumpPage() {
         </button>
       </div>
 
-      {/* Mode toggle */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setMode("text")}
-          aria-pressed={mode === "text"}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-            mode === "text"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          <Type className="h-4 w-4" />
-          Text
-        </button>
-        <button
-          onClick={() => setMode("voice")}
-          aria-pressed={mode === "voice"}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-            mode === "voice"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          <Mic className="h-4 w-4" />
-          Voice
-        </button>
-        <button
-          onClick={() => setMode("photo")}
-          aria-pressed={mode === "photo"}
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-            mode === "photo"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          <Camera className="h-4 w-4" />
-          Photo
-        </button>
-      </div>
+      {/* Mode toggle — Brain Dump only; Junk Journal uses the unified compose surface */}
+      {category === "braindump" && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMode("text")}
+            aria-pressed={mode === "text"}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+              mode === "text"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            <Type className="h-4 w-4" />
+            Text
+          </button>
+          <button
+            onClick={() => setMode("voice")}
+            aria-pressed={mode === "voice"}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+              mode === "voice"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            <Mic className="h-4 w-4" />
+            Voice
+          </button>
+          <button
+            onClick={() => setMode("photo")}
+            aria-pressed={mode === "photo"}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+              mode === "photo"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            <Camera className="h-4 w-4" />
+            Photo
+          </button>
+        </div>
+      )}
 
-      {mode === "text" ? (
+      {category === "junk_journal" ? (
+        <JournalCompose />
+      ) : mode === "text" ? (
         <DumpInput category={category} />
       ) : mode === "voice" ? (
         <VoiceRecorder category={category} />

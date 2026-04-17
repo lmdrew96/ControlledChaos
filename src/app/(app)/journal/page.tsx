@@ -21,6 +21,7 @@ interface JournalEntry {
   inputType: "text" | "voice" | "photo";
   rawContent: string | null;
   mediaUrl: string | null;
+  media?: string[];
   summary: string | null;
   createdAt: string;
 }
@@ -147,6 +148,8 @@ interface EntryCardProps {
 function EntryCard({ entry, timezone, isExpanded, onToggle }: EntryCardProps) {
   const Icon = inputTypeIcon[entry.inputType] ?? Type;
   const hasContent = !!entry.rawContent;
+  const media = entry.media ?? (entry.mediaUrl ? [entry.mediaUrl] : []);
+  const hasMedia = media.length > 0;
 
   return (
     <article className="rounded-lg border border-border bg-card p-5 transition-colors">
@@ -156,6 +159,9 @@ function EntryCard({ entry, timezone, isExpanded, onToggle }: EntryCardProps) {
           <time dateTime={entry.createdAt}>
             {formatFullDate(entry.createdAt, timezone)}
           </time>
+          {hasMedia && (
+            <span>· {media.length} photo{media.length !== 1 ? "s" : ""}</span>
+          )}
         </div>
       </header>
 
@@ -163,6 +169,20 @@ function EntryCard({ entry, timezone, isExpanded, onToggle }: EntryCardProps) {
         <p className="text-sm italic text-muted-foreground">
           {entry.summary}
         </p>
+      )}
+
+      {hasMedia && (
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {media.map((url, i) => (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={url}
+              src={url}
+              alt={`Attachment ${i + 1}`}
+              className="h-40 w-full rounded-md object-cover"
+            />
+          ))}
+        </div>
       )}
 
       {hasContent && (

@@ -142,8 +142,12 @@ export function formatMirrorEntry(
     }
     case "dump":
       return `🧠 ${when} — **Brain dump** (${entry.inputType}): ${entry.summary ?? "(no summary)"}`;
-    case "journal":
-      return `📖 ${when} — **Journal** (${entry.inputType}): ${entry.summary ?? "(no summary)"}`;
+    case "journal": {
+      const photoCount =
+        typeof entry.mediaCount === "number" ? entry.mediaCount : 0;
+      const photosTag = photoCount > 0 ? ` · 📎 ${photoCount}` : "";
+      return `📖 ${when} — **Journal** (${entry.inputType}${photosTag}): ${entry.summary ?? "(no summary)"}`;
+    }
     case "moment": {
       const intensity =
         typeof entry.intensity === "number" ? ` · ${entry.intensity}/5` : "";

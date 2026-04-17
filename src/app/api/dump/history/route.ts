@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getBrainDumpsByUser } from "@/lib/db/queries";
+import { resolveMediaUrls } from "@/lib/journal/media";
 import type { DumpCategory } from "@/types";
 
 const VALID_CATEGORIES: DumpCategory[] = ["braindump", "junk_journal"];
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
         category: d.category,
         rawContent: d.rawContent,
         mediaUrl: d.mediaUrl,
+        media: resolveMediaUrls(d),
         summary: (d.aiResponse as { summary?: string })?.summary ?? null,
         taskCount:
           (d.aiResponse as { tasks?: unknown[] })?.tasks?.length ?? 0,

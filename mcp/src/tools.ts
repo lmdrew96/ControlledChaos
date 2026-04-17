@@ -1289,7 +1289,7 @@ Returns: Markdown timeline with times in the user's timezone.`,
           : Promise.resolve([]),
         want("journal")
           ? sql(
-              `SELECT id, input_type, ai_response, created_at AS at
+              `SELECT id, input_type, ai_response, media_url, media_urls, created_at AS at
                FROM brain_dumps
                WHERE user_id = $1 AND category = 'junk_journal'
                  AND created_at >= $2 AND created_at < $3`,
@@ -1329,7 +1329,17 @@ Returns: Markdown timeline with times in the user's timezone.`,
         entries.push({ kind: "dump", id: r.id, at: toIso(r.at), summary: extractSummary(r.ai_response), inputType: r.input_type });
       }
       for (const r of journalRows) {
-        entries.push({ kind: "journal", id: r.id, at: toIso(r.at), summary: extractSummary(r.ai_response), inputType: r.input_type });
+        const mediaArr = Array.isArray(r.media_urls) ? (r.media_urls as string[]) : [];
+        const mediaCount =
+          mediaArr.length > 0 ? mediaArr.length : r.media_url ? 1 : 0;
+        entries.push({
+          kind: "journal",
+          id: r.id,
+          at: toIso(r.at),
+          summary: extractSummary(r.ai_response),
+          inputType: r.input_type,
+          mediaCount,
+        });
       }
       for (const r of momentRows) {
         entries.push({ kind: "moment", id: r.id, at: toIso(r.at), type: r.type, intensity: r.intensity, note: r.note });

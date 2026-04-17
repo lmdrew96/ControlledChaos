@@ -8,66 +8,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  compressImage,
+  IMAGE_ALLOWED_TYPES as ALLOWED_TYPES,
+  IMAGE_MAX_FILE_SIZE as MAX_FILE_SIZE,
+} from "@/lib/storage/compress";
 import type { DumpCategory } from "@/types";
 
 type PhotoStage = "ready" | "uploading" | "parsing" | "reviewing";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-]);
-
-/**
- * Resize an image to fit within maxWidth while maintaining aspect ratio.
- * Returns a compressed JPEG blob. Keeps text perfectly readable at 1500px.
- */
-function compressImage(
-  file: File,
-  maxWidth = 1500,
-  quality = 0.8
-): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas not supported"));
-
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) return reject(new Error("Compression failed"));
-          resolve(
-            new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
-              type: "image/jpeg",
-            })
-          );
-        },
-        "image/jpeg",
-        quality
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
-    };
-    img.src = url;
-  });
-}
 
 interface PhotoUploaderProps {
   category: DumpCategory;

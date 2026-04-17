@@ -100,11 +100,18 @@ function describe(
         label: entry.summary ?? "Brain dump",
         snippet: inputTypeLabel(entry.inputType),
       };
-    case "journal":
+    case "journal": {
+      const base = inputTypeLabel(entry.inputType);
+      const photos =
+        entry.mediaCount > 0
+          ? `${entry.mediaCount} photo${entry.mediaCount !== 1 ? "s" : ""}`
+          : null;
+      const snippet = photos ? `${base} · ${photos}` : base;
       return {
         label: entry.summary ?? "Journal entry",
-        snippet: inputTypeLabel(entry.inputType),
+        snippet,
       };
+    }
     case "moment": {
       const copy = MOMENT_COPY[entry.type];
       const intensity =
