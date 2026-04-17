@@ -6,66 +6,103 @@ interface UseLongPressOptions {
   onShortPress: () => void;
   onLongPress: () => void;
   thresholdMs?: number;
+  /** Pixels of movement that cancel the press (treated as a scroll/drag). */
+  moveToleranceInPx?: number;
 }
 
 interface LongPressHandlers {
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseUp: (e: React.MouseEvent) => void;
+  onMouseMove: (e: React.MouseEvent) => void;
   onMouseLeave: (e: React.MouseEvent) => void;
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchEnd: (e: React.TouchEvent) => void;
+  onTouchMove: (e: React.TouchEvent) => void;
   onTouchCancel: (e: React.TouchEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
 /**
- * Long-press vs short-press discriminator. Short press fires on release
- * before the threshold; long press fires at threshold while still pressed
- * (and suppresses the subsequent short press).
+ * Tap vs long-press vs swipe discriminator.
+ *
+ * - Short press: touchend within threshold and no significant movement.
+ * - Long press: press held past threshold (fires mid-hold).
+ * - Swipe / drag: movement past moveToleranceInPx cancels the press —
+ *   the touch is treated as a scroll and no press handler fires. This is
+ *   critical for buttons inside horizontally-scrollable containers: the
+ *   user expects to pan the list without triggering chip taps.
  */
 export function useLongPress({
   onShortPress,
   onLongPress,
   thresholdMs = 500,
+  moveToleranceInPx = 10,
 }: UseLongPressOptions): LongPressHandlers {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firedLongRef = useRef(false);
+  const cancelledRef = useRef(false);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  const start = useCallback(() => {
-    firedLongRef.current = false;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      firedLongRef.current = true;
-      onLongPress();
-    }, thresholdMs);
-  }, [onLongPress, thresholdMs]);
-
-  const end = useCallback(() => {
+  const clearTimer = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (!firedLongRef.current) {
-      onShortPress();
-    }
+  };
+
+  const start = useCallback(
+    (x: number, y: number) => {
+      firedLongRef.current = false;
+      cancelledRef.current = false;
+      startPosRef.current = { x, y };
+      clearTimer();
+      timerRef.current = setTimeout(() => {
+        if (cancelledRef.current) return;
+        firedLongRef.current = true;
+        onLongPress();
+      }, thresholdMs);
+    },
+    [onLongPress, thresholdMs]
+  );
+
+  const move = useCallback(
+    (x: number, y: number) => {
+      if (cancelledRef.current || !startPosRef.current) return;
+      const dx = x - startPosRef.current.x;
+      const dy = y - startPosRef.current.y;
+      if (Math.hypot(dx, dy) > moveToleranceInPx) {
+        cancelledRef.current = true;
+        clearTimer();
+      }
+    },
+    [moveToleranceInPx]
+  );
+
+  const end = useCallback(() => {
+    clearTimer();
+    if (cancelledRef.current || firedLongRef.current) return;
+    onShortPress();
   }, [onShortPress]);
 
   const cancel = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+    cancelledRef.current = true;
+    clearTimer();
   }, []);
 
   return {
-    onMouseDown: () => start(),
+    onMouseDown: (e) => start(e.clientX, e.clientY),
+    onMouseMove: (e) => move(e.clientX, e.clientY),
     onMouseUp: () => end(),
     onMouseLeave: () => cancel(),
-    onTouchStart: () => start(),
-    onTouchEnd: (e) => {
-      e.preventDefault(); // prevent emulated mouse events on mobile
-      end();
+    onTouchStart: (e) => {
+      const t = e.touches[0];
+      if (t) start(t.clientX, t.clientY);
     },
+    onTouchMove: (e) => {
+      const t = e.touches[0];
+      if (t) move(t.clientX, t.clientY);
+    },
+    onTouchEnd: () => end(),
     onTouchCancel: () => cancel(),
     onContextMenu: (e) => e.preventDefault(),
   };

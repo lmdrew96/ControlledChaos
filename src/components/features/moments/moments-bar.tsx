@@ -33,29 +33,43 @@ async function softDeleteMoment(id: string): Promise<boolean> {
   return res.ok;
 }
 
-export function MomentsBar() {
+// ============================================================
+// Shared logging logic — kept separate so both the mobile bar
+// and the sidebar group can reuse the same toast + undo flow.
+// ============================================================
+
+interface MomentLogging {
+  logQuick: (type: MomentType) => Promise<void>;
+  openDetail: (type: MomentType) => void;
+  detailOpen: boolean;
+  setDetailOpen: (open: boolean) => void;
+  detailType: MomentType | null;
+  handleDetailSave: (data: {
+    type: MomentType;
+    intensity: number | null;
+    note: string | null;
+    occurredAt: Date;
+  }) => Promise<void>;
+}
+
+function useMomentLogging(): MomentLogging {
   const [detailType, setDetailType] = useState<MomentType | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const logQuick = useCallback(async (type: MomentType) => {
     const copy = MOMENT_COPY[type];
-    // Optimistic toast — literal confirmation (ND principle: "say what you mean")
     const result = await postMoment({ type });
     if (!result) {
       toast.error(`Couldn't log ${copy.label.toLowerCase()}. Try again.`);
       return;
     }
-
     toast.success(copy.toastLabel, {
       action: {
         label: "Undo",
         onClick: async () => {
           const ok = await softDeleteMoment(result.id);
-          if (ok) {
-            toast.success("Undone");
-          } else {
-            toast.error("Couldn't undo — please check the moments list.");
-          }
+          if (ok) toast.success("Undone");
+          else toast.error("Couldn't undo — please check the moments list.");
         },
       },
     });
@@ -66,85 +80,153 @@ export function MomentsBar() {
     setDetailOpen(true);
   }, []);
 
+  const handleDetailSave = useCallback(
+    async ({
+      type,
+      intensity,
+      note,
+      occurredAt,
+    }: {
+      type: MomentType;
+      intensity: number | null;
+      note: string | null;
+      occurredAt: Date;
+    }) => {
+      const copy = MOMENT_COPY[type];
+      const result = await postMoment({
+        type,
+        intensity,
+        note,
+        occurredAt: occurredAt.toISOString(),
+      });
+      if (!result) {
+        toast.error(`Couldn't log ${copy.label.toLowerCase()}. Try again.`);
+        return;
+      }
+      toast.success(copy.toastLabel, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const ok = await softDeleteMoment(result.id);
+            if (ok) toast.success("Undone");
+          },
+        },
+      });
+    },
+    []
+  );
+
+  return {
+    logQuick,
+    openDetail,
+    detailOpen,
+    setDetailOpen,
+    detailType,
+    handleDetailSave,
+  };
+}
+
+// ============================================================
+// Mobile variant — fixed strip above the bottom nav (md:hidden).
+// Horizontally scrollable row of chips with touch-action: pan-x so
+// swipes pan the list rather than getting intercepted by chip taps.
+// ============================================================
+
+export function MomentsBar() {
+  const logging = useMomentLogging();
+
   return (
     <>
-      {/* Mobile variant — positioned above the bottom nav (5rem + safe-area inset) */}
       <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-xl md:hidden">
-        <MomentsBarInner onTap={logQuick} onLongPress={openDetail} />
-      </div>
-      {/* Desktop variant — pinned to viewport bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 hidden border-t border-border bg-card/95 backdrop-blur-xl md:block">
-        <MomentsBarInner onTap={logQuick} onLongPress={openDetail} />
+        <div
+          className="flex items-center gap-2 overflow-x-auto px-3 py-2 [touch-action:pan-x]"
+          role="toolbar"
+          aria-label="Log a moment"
+        >
+          {MOMENT_TYPES.map((type) => (
+            <MomentChip
+              key={type}
+              type={type}
+              onTap={() => logging.logQuick(type)}
+              onLongPress={() => logging.openDetail(type)}
+              layout="row"
+            />
+          ))}
+        </div>
       </div>
 
       <MomentDetailSheet
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        type={detailType}
-        onSave={async ({ type, intensity, note, occurredAt }) => {
-          const copy = MOMENT_COPY[type];
-          const result = await postMoment({
-            type,
-            intensity,
-            note,
-            occurredAt: occurredAt.toISOString(),
-          });
-          if (!result) {
-            toast.error(`Couldn't log ${copy.label.toLowerCase()}. Try again.`);
-            return;
-          }
-          toast.success(copy.toastLabel, {
-            action: {
-              label: "Undo",
-              onClick: async () => {
-                const ok = await softDeleteMoment(result.id);
-                if (ok) toast.success("Undone");
-              },
-            },
-          });
-        }}
+        open={logging.detailOpen}
+        onOpenChange={logging.setDetailOpen}
+        type={logging.detailType}
+        onSave={logging.handleDetailSave}
       />
     </>
   );
 }
 
-interface MomentsBarInnerProps {
-  onTap: (type: MomentType) => void;
-  onLongPress: (type: MomentType) => void;
-}
+// ============================================================
+// Desktop variant — inline group for the sidebar.
+// Compact two-per-row grid so the sidebar stays narrow (w-64).
+// ============================================================
 
-function MomentsBarInner({ onTap, onLongPress }: MomentsBarInnerProps) {
+export function MomentsSidebarGroup() {
+  const logging = useMomentLogging();
+
   return (
-    <div
-      className="flex items-center gap-2 overflow-x-auto px-3 py-2"
-      role="toolbar"
-      aria-label="Log a moment"
-    >
-      {MOMENT_TYPES.map((type) => (
-        <MomentChip
-          key={type}
-          type={type}
-          onTap={() => onTap(type)}
-          onLongPress={() => onLongPress(type)}
-        />
-      ))}
-    </div>
+    <>
+      <div
+        className="border-t border-border px-3 py-3"
+        role="toolbar"
+        aria-label="Log a moment"
+      >
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Log a moment
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {MOMENT_TYPES.map((type) => (
+            <MomentChip
+              key={type}
+              type={type}
+              onTap={() => logging.logQuick(type)}
+              onLongPress={() => logging.openDetail(type)}
+              layout="grid"
+            />
+          ))}
+        </div>
+      </div>
+
+      <MomentDetailSheet
+        open={logging.detailOpen}
+        onOpenChange={logging.setDetailOpen}
+        type={logging.detailType}
+        onSave={logging.handleDetailSave}
+      />
+    </>
   );
 }
+
+// ============================================================
+// Chip — shared between variants.
+// layout="row" = mobile-bar pill
+// layout="grid" = sidebar cell (full-width within its grid column)
+// ============================================================
 
 interface MomentChipProps {
   type: MomentType;
   onTap: () => void;
   onLongPress: () => void;
+  layout: "row" | "grid";
 }
 
-function MomentChip({ type, onTap, onLongPress }: MomentChipProps) {
+function MomentChip({ type, onTap, onLongPress, layout }: MomentChipProps) {
   const copy = MOMENT_COPY[type];
   const Icon = copy.icon;
   const handlers = useLongPress({
     onShortPress: onTap,
     onLongPress,
     thresholdMs: 500,
+    moveToleranceInPx: 10,
   });
 
   return (
@@ -152,13 +234,15 @@ function MomentChip({ type, onTap, onLongPress }: MomentChipProps) {
       type="button"
       {...handlers}
       className={cn(
-        "flex shrink-0 select-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-transform active:scale-95",
-        copy.tintClassName
+        "flex select-none items-center gap-1.5 rounded-full border text-xs font-medium transition-transform active:scale-95",
+        copy.tintClassName,
+        layout === "row" && "shrink-0 px-3 py-1.5",
+        layout === "grid" && "w-full justify-center px-2 py-1.5"
       )}
       aria-label={`${copy.label} — tap to log, long-press for details`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden />
-      <span>{copy.label}</span>
+      <span className="truncate">{copy.label}</span>
     </button>
   );
 }
