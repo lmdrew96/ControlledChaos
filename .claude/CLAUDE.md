@@ -20,7 +20,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 | **Styling** | Tailwind CSS 4 + shadcn/ui + Radix UI | `next-themes` for dark/light |
 | **Database** | Neon Postgres (`@neondatabase/serverless`) | Serverless driver, NOT full `pg` |
 | **ORM** | Drizzle ORM (`drizzle-kit`) | Type-safe queries, push/migrate/generate |
-| **Auth** | Clerk (`@clerk/nextjs`) | Google OAuth (needed for GCal integration) |
+| **Auth** | Clerk (`@clerk/nextjs`) | Email + social providers |
 | **AI** | Claude Haiku 4.5 (`@anthropic-ai/sdk`) | Task parsing, scheduling, crisis support |
 | **Speech-to-Text** | Groq (`groq-sdk`) | Whisper — brain dump voice input |
 | **File Storage** | Cloudflare R2 (`@aws-sdk/client-s3`) | Brain dump photos/audio |
@@ -28,7 +28,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 | **Animations** | Framer Motion | Micro-interactions, transitions |
 | **Notifications** | Web Push (`web-push`) | Push notification scheduling |
 | **Email** | Resend + React Email | Digest emails |
-| **Calendar** | Google Calendar API + Canvas iCal (`node-ical`) | Academic schedule import |
+| **Calendar** | Canvas iCal (`node-ical`) | Academic schedule import — no Google Calendar integration |
 | **Testing** | Vitest | Unit tests |
 
 ---
@@ -60,9 +60,10 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - Notification scheduling is timezone-sensitive — see global CLAUDE.md timezone rules
 
 ### Calendar Integration
-- Google Calendar: OAuth through Clerk, read/write events
 - Canvas iCal: URL-based import, parsed with `node-ical` — no auth needed
-- **Known gotcha:** Google Calendar aggressively caches iCal feeds. If imported data looks stale, it's Google's cache, not your code.
+- Recurrence expansion handled in `src/lib/calendar/expand-recurrence.ts`
+- Re-synced every 15 min via `/api/cron/calendar-sync`
+- **No Google Calendar integration** — do not add `googleapis` or GCal OAuth without explicit request
 
 ### Changelog
 - Auto-generated at build time via `scripts/generate-changelog.ts`
@@ -103,7 +104,7 @@ pnpm lint             # ESLint
 | DB connection fails | Check `DATABASE_URL` in `.env.local` — must be Neon connection string |
 | Drizzle types out of sync | Run `pnpm db:generate` then restart TS server |
 | Push notifications not firing | Check VAPID keys in env vars, verify service worker registration |
-| Calendar import shows stale data | Google Calendar caches iCal feeds aggressively — not a code bug |
+| Calendar import shows stale data | Canvas iCal feeds can be slow to update on Canvas's side; check the source URL directly before assuming it's a code bug |
 | AI actions failing | Check `ANTHROPIC_API_KEY` in `.env.local` |
 | Clerk auth issues | Check `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` |
 | Timezone bugs | Read the global CLAUDE.md timezone rules. Always test with explicit timezone examples. |
