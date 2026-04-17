@@ -39,8 +39,9 @@ function parseCommits(): CommitInfo[] {
     const date = line.slice(firstPipe + 1, secondPipe);
     const subject = line.slice(secondPipe + 1);
 
-    // Only feat: and fix: conventional commits
-    const match = subject.match(/^(feat|fix):\s*(.+)$/i);
+    // Only feat: and fix: conventional commits — scope optional, e.g.
+    // "feat: ..." or "feat(moments): ..."
+    const match = subject.match(/^(feat|fix)(?:\([^)]+\))?:\s*(.+)$/i);
     if (!match) continue;
 
     commits.push({

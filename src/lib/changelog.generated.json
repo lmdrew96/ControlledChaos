@@ -4,7 +4,43 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Force SW update checks and auto-reload when a new SW takes control"
+      },
+      {
+        "type": "fixed",
+        "text": "Stop swipes from triggering chip taps; move desktop bar to sidebar"
+      },
+      {
+        "type": "added",
+        "text": "Add behavioral state logging + retire energy profile"
+      },
+      {
+        "type": "added",
+        "text": "Configurable event and deadline reminders"
+      },
+      {
+        "type": "fixed",
+        "text": "Prevent vertical scroll on tabs bar"
+      },
+      {
+        "type": "fixed",
+        "text": "Stop ghost notifications from soft-deleted tasks"
+      },
+      {
+        "type": "added",
+        "text": "Populate event location from saved locations dropdown"
+      },
+      {
+        "type": "added",
+        "text": "Add goal-task linking across API and UI"
+      },
+      {
+        "type": "fixed",
         "text": "Remove dead stats/daily route importing nonexistent getCompletionStats"
+      },
+      {
+        "type": "fixed",
+        "text": "Undo on abandon, empty state dashboard, and plan history"
       },
       {
         "type": "added",
@@ -407,6 +443,108 @@
       {
         "type": "added",
         "text": "Integrate Leaflet map for visualizing saved locations with interactive markers and radius circles"
+      },
+      {
+        "type": "fixed",
+        "text": "Support time edits on recurring event series"
+      },
+      {
+        "type": "fixed",
+        "text": "Allow end hour to extend to midnight (hour 24)"
+      },
+      {
+        "type": "fixed",
+        "text": "Convert Canvas assignment all-day events to 23:59 timed events"
+      },
+      {
+        "type": "fixed",
+        "text": "Update Google Sign-In information to include profile picture access"
+      },
+      {
+        "type": "added",
+        "text": "Add About section with information on ControlledChaos and Google Sign-In"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-03-23",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Constrain panicLabel to 2-3 words in system prompt"
+      },
+      {
+        "type": "fixed",
+        "text": "Increase max_tokens from 1024 to 2048"
+      },
+      {
+        "type": "fixed",
+        "text": "Normalize datetime-local value to ISO before sending to API"
+      },
+      {
+        "type": "fixed",
+        "text": "Improve JSON extraction with bracket-scan fallback and better error logging"
+      },
+      {
+        "type": "added",
+        "text": "Add Crisis Mode feature with DB persistence and file attachments"
+      },
+      {
+        "type": "added",
+        "text": "Replace all hardcoded push messages with Haiku generation"
+      },
+      {
+        "type": "added",
+        "text": "Generate nudge messages via Claude Haiku"
+      },
+      {
+        "type": "added",
+        "text": "Add empathetic inactivity nudge system"
+      },
+      {
+        "type": "fixed",
+        "text": "Make /privacy and /terms publicly accessible"
+      },
+      {
+        "type": "added",
+        "text": "Replace Sparkles with Logo, add swipe delete confirmation, polish calendar"
+      },
+      {
+        "type": "fixed",
+        "text": "Update contact email to nae@adhdesigns.dev"
+      },
+      {
+        "type": "added",
+        "text": "Expand policy to cover all Google OAuth verification requirements"
+      },
+      {
+        "type": "fixed",
+        "text": "Correct import statement for Link component"
+      },
+      {
+        "type": "added",
+        "text": "Add Terms & Privacy links to every page"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-03-16",
+    "items": [
+      {
+        "type": "added",
+        "text": "Synchronize selected day and week start with initial date"
+      },
+      {
+        "type": "added",
+        "text": "Enhance mobile navigation with mobile labels and improved text alignment"
+      },
+      {
+        "type": "added",
+        "text": "Enhance mobile navigation with new options sheet and improve layout responsiveness"
+      },
+      {
+        "type": "added",
+        "text": "Add MCP server for ControlledChaos"
       }
     ]
   }
