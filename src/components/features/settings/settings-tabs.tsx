@@ -25,7 +25,7 @@ export function SettingsTabs() {
 
   return (
     <Tabs defaultValue={defaultTab} className="space-y-6">
-      <TabsList className="w-full flex overflow-x-auto flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
+      <TabsList className="w-full flex overflow-x-auto overflow-y-hidden flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
         <TabsTrigger
           value="profile"
           className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
