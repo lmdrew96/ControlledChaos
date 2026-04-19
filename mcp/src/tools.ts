@@ -1409,6 +1409,277 @@ Returns: Confirmation.`,
   );
 
   // ----------------------------------------------------------
+  // cc_list_medications — list the user's active medications
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_medications",
+    {
+      title: "List Medications",
+      description: `List the user's medications (definitions, not dose logs). You'll typically need a medication_id from this list before calling cc_log_med or cc_list_meds. Medications themselves are created in the ControlledChaos app UI — this tool is read-only.
+
+Args:
+  - active_only: If true (default), only return active medications.
+
+Returns: Markdown-formatted list with IDs, name, dosage, reminder times, and active status.`,
+      inputSchema: {
+        active_only: z.boolean().default(true).describe("Only return active medications"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const conditions: string[] = ["user_id = $1"];
+      const values: unknown[] = [userId];
+      if (params.active_only !== false) {
+        conditions.push("is_active = true");
+      }
+      const rows = await sql(
+        `SELECT id, name, dosage, reminder_times, is_active
+         FROM medications
+         WHERE ${conditions.join(" AND ")}
+         ORDER BY name ASC`,
+        values
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: "No medications found. Add medications in the ControlledChaos app under Settings → Medications.",
+          }],
+        };
+      }
+
+      const lines = rows.map((r) => {
+        const times = Array.isArray(r.reminder_times)
+          ? (r.reminder_times as string[]).join(", ")
+          : "";
+        const activeTag = r.is_active ? "" : " (inactive)";
+        return `- **${r.name}** (${r.dosage})${activeTag}\n  ID: \`${r.id}\`\n  Reminder times: ${times || "—"}`;
+      });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `## Medications (${rows.length})\n\n${lines.join("\n\n")}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_log_med — record a dose taken
+  // Rows are tied to (medication_id, scheduled_date, scheduled_time) via a
+  // unique index, matching the adherence-tracking model. For retroactive
+  // logging, pass an explicit scheduled_date/scheduled_time from the
+  // medication's reminder_times.
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_log_med",
+    {
+      title: "Log Medication Dose",
+      description: `Log that a medication dose was taken. Schema ties each log to a scheduled slot (medication + date + time), so pass scheduled_date and scheduled_time matching one of the medication's reminder_times.
+
+Args:
+  - medication_id (required): UUID of the medication (get from cc_list_medications).
+  - scheduled_date (required): Slot date as "YYYY-MM-DD" in the user's timezone.
+  - scheduled_time (required): Slot time as "HH:MM" (24h, matches one of the medication's reminder_times).
+  - taken_at: Actual time taken (ISO 8601 UTC). Defaults to now. Use this for retro-logging.
+
+Returns: Confirmation with the log entry ID, or a note that the slot was already logged (idempotent).`,
+      inputSchema: {
+        medication_id: z.string().uuid().describe("Medication UUID"),
+        scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Scheduled date YYYY-MM-DD"),
+        scheduled_time: z.string().regex(/^\d{2}:\d{2}$/).describe("Scheduled time HH:MM (24h)"),
+        taken_at: z.string().datetime().optional().describe("Actual time taken (ISO 8601 UTC)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+
+      // Verify the medication exists and belongs to this user
+      const medRows = await sql(
+        `SELECT id, name, dosage FROM medications WHERE id = $1 AND user_id = $2`,
+        [params.medication_id, userId]
+      );
+      if (medRows.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `Medication \`${params.medication_id}\` not found. Use cc_list_medications to find the right ID.`,
+          }],
+        };
+      }
+
+      const insertValues: unknown[] = [
+        userId,
+        params.medication_id,
+        params.scheduled_date,
+        params.scheduled_time,
+      ];
+      const takenAtClause = params.taken_at ? ", taken_at" : "";
+      const takenAtPlaceholder = params.taken_at ? ", $5" : "";
+      if (params.taken_at) insertValues.push(params.taken_at);
+
+      const rows = await sql(
+        `INSERT INTO medication_logs (user_id, medication_id, scheduled_date, scheduled_time${takenAtClause})
+         VALUES ($1, $2, $3, $4${takenAtPlaceholder})
+         ON CONFLICT (medication_id, scheduled_date, scheduled_time) DO NOTHING
+         RETURNING id, taken_at`,
+        insertValues
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `💊 Already logged: ${medRows[0].name} (${medRows[0].dosage}) for ${params.scheduled_date} at ${params.scheduled_time}.`,
+          }],
+        };
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `💊 Logged: ${medRows[0].name} (${medRows[0].dosage}) for ${params.scheduled_date} at ${params.scheduled_time}.\nLog ID: \`${rows[0].id}\``,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_list_meds — list medication log entries (adherence history)
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_meds",
+    {
+      title: "List Medication Log Entries",
+      description: `List medication dose log entries (adherence history). Filter by date range or specific medication.
+
+Args:
+  - medication_id: Filter to a single medication. Optional.
+  - start_date: Start of slot-date range (YYYY-MM-DD). Optional.
+  - end_date: End of slot-date range (YYYY-MM-DD). Optional.
+  - limit: Max results (1-200, default 50).
+
+Returns: Markdown-formatted list of dose logs with med name, dosage, scheduled slot, and actual taken_at time.`,
+      inputSchema: {
+        medication_id: z.string().uuid().optional().describe("Filter by medication ID"),
+        start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Start date YYYY-MM-DD"),
+        end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("End date YYYY-MM-DD"),
+        limit: z.number().int().min(1).max(200).default(50).describe("Max results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const conditions: string[] = ["ml.user_id = $1"];
+      const values: unknown[] = [userId];
+      let paramIdx = 2;
+
+      if (params.medication_id) {
+        conditions.push(`ml.medication_id = $${paramIdx}`);
+        values.push(params.medication_id);
+        paramIdx++;
+      }
+      if (params.start_date) {
+        conditions.push(`ml.scheduled_date >= $${paramIdx}`);
+        values.push(params.start_date);
+        paramIdx++;
+      }
+      if (params.end_date) {
+        conditions.push(`ml.scheduled_date <= $${paramIdx}`);
+        values.push(params.end_date);
+        paramIdx++;
+      }
+
+      const query = `
+        SELECT ml.id, ml.scheduled_date, ml.scheduled_time, ml.taken_at,
+               m.name AS medication_name, m.dosage
+        FROM medication_logs ml
+        JOIN medications m ON m.id = ml.medication_id
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY ml.scheduled_date DESC, ml.scheduled_time DESC
+        LIMIT $${paramIdx}`;
+      values.push(params.limit);
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "No medication logs found matching those filters." }] };
+      }
+
+      const lines = rows.map((r) => {
+        return `- \`${r.id}\` · **${r.medication_name}** (${r.dosage}) — ${r.scheduled_date} ${r.scheduled_time} (taken ${fmtTimeLocal(r.taken_at, tz)})`;
+      });
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `## Medication Logs (${rows.length})\n\n${lines.join("\n")}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_delete_med — remove a medication log entry
+  // Hard delete — medication_logs has no deleted_at column. The unique
+  // slot index is released, so a new log for the same slot can be created.
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_delete_med",
+    {
+      title: "Delete Medication Log Entry",
+      description: `Remove a medication dose log entry. Hard delete (irreversible). Use this to correct mis-logged doses — the slot frees up so you can re-log cleanly.
+
+Args:
+  - id (required): UUID of the medication log entry (from cc_list_meds).`,
+      inputSchema: {
+        id: z.string().uuid().describe("Medication log entry ID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `DELETE FROM medication_logs
+         WHERE id = $1 AND user_id = $2
+         RETURNING id`,
+        [params.id, userId]
+      );
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Medication log \`${params.id}\` not found.` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `🗑 Medication log deleted.` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
   // cc_create_journal — dedicated journal entry creator
   // Stores into brain_dumps with category='junk_journal'. A thin wrapper
   // around cc_brain_dump for cleaner tool semantics when the caller
