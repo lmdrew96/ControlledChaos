@@ -457,6 +457,7 @@ export async function createTask(
     locationTags?: string[] | null;
     deadline?: Date | null;
     goalId?: string | null;
+    sourceEventId?: string | null;
   }
 ) {
   const [task] = await db
@@ -472,9 +473,33 @@ export async function createTask(
       locationTags: params.locationTags?.length ? params.locationTags : null,
       deadline: params.deadline ?? null,
       goalId: params.goalId ?? null,
+      sourceEventId: params.sourceEventId ?? null,
     })
     .returning();
   return task;
+}
+
+/**
+ * Look up a task previously auto-generated from a Canvas event.
+ * Returns the task regardless of status or deletedAt state — callers use this
+ * for dedup, and we never want to recreate a task the user already has or
+ * soft-deleted.
+ */
+export async function findTaskBySourceEventId(
+  userId: string,
+  sourceEventId: string
+) {
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        eq(tasks.sourceEventId, sourceEventId)
+      )
+    )
+    .limit(1);
+  return task ?? null;
 }
 
 export async function createTasksFromDump(

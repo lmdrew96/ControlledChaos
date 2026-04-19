@@ -134,6 +134,7 @@ export const tasks = pgTable(
     completedAt: timestamp("completed_at"),
     parentTaskId: uuid("parent_task_id"),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
+    sourceEventId: text("source_event_id"), // Canvas externalId for auto-generated prep tasks (null = manual task)
     goalId: uuid("goal_id").references(() => goals.id),
     sortOrder: integer("sort_order"),
     progressSteps: jsonb("progress_steps"), // ProgressStep[] — inline step-through for long tasks
@@ -147,6 +148,10 @@ export const tasks = pgTable(
     index("idx_tasks_user_status").on(table.userId, table.status),
     index("idx_tasks_user_deadline").on(table.userId, table.deadline),
     index("idx_tasks_user_scheduled").on(table.userId, table.scheduledFor),
+    uniqueIndex("idx_tasks_user_source_event").on(
+      table.userId,
+      table.sourceEventId
+    ),
   ]
 );
 

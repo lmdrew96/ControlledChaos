@@ -2,8 +2,11 @@ import ical, { VEvent, ParameterValue } from "node-ical";
 import {
   upsertCalendarEvent,
   deleteStaleCalendarEvents,
+  createTask,
+  findTaskBySourceEventId,
 } from "@/lib/db/queries";
 import { toUTC, getCalendarParts } from "@/lib/timezone";
+import { isAssessmentTitle } from "@/lib/calendar/assessments";
 import type { CalendarSyncResult } from "@/types";
 
 const MAX_EVENTS = 500;
@@ -13,6 +16,27 @@ const ASSIGNMENT_UID_PATTERNS = ["assignment", "quiz", "discussion_topic"];
 
 function isAssignmentEvent(uid: string): boolean {
   return ASSIGNMENT_UID_PATTERNS.some((p) => uid.includes(p));
+}
+
+/**
+ * Prep task deadline = 10:00 PM local on the day BEFORE the event starts.
+ * Gives the user the evening before to prep without forcing same-day crunch.
+ * Returns null if the computed prep time is in the past.
+ */
+function computePrepDeadline(
+  eventStart: Date,
+  timezone: string
+): Date | null {
+  const { year, month, day } = getCalendarParts(eventStart, timezone);
+  const eventDayMidnight = new Date(
+    toUTC(`${year}-${month}-${day}T00:00:00`, timezone)
+  );
+  // 10:00 PM on the PREVIOUS day = event-day midnight - 2 hours
+  const prepDeadline = new Date(
+    eventDayMidnight.getTime() - 2 * 60 * 60 * 1000
+  );
+  if (prepDeadline.getTime() <= Date.now()) return null;
+  return prepDeadline;
 }
 
 /**
@@ -78,6 +102,7 @@ export async function syncCanvasCalendar(
 
   // Upsert each event
   let synced = 0;
+  let prepTasksCreated = 0;
   const currentExternalIds: string[] = [];
 
   for (const event of events) {
@@ -105,11 +130,13 @@ export async function syncCanvasCalendar(
       isAllDay = false;
     }
 
+    const title = paramValue(event.summary) ?? "Untitled Event";
+
     await upsertCalendarEvent({
       userId,
       source: "canvas",
       externalId: uid,
-      title: paramValue(event.summary) ?? "Untitled Event",
+      title,
       description: paramValue(event.description),
       startTime: startDate,
       endTime: endDate,
@@ -119,6 +146,39 @@ export async function syncCanvasCalendar(
     });
 
     synced++;
+
+    // Auto-generate a prep task for assessment-keyword events (QUIZ/EXAM/
+    // etc.). ADHD brains act on tasks, not calendar entries — the prep task
+    // closes the activation-energy gap. sourceEventId uniquely ties the task
+    // to its originating Canvas event so we don't create duplicates on
+    // subsequent syncs, and so we never recreate one the user deleted.
+    if (isAssessmentTitle(title)) {
+      try {
+        const prepDeadline = computePrepDeadline(startDate, timezone);
+        if (prepDeadline) {
+          const existing = await findTaskBySourceEventId(userId, uid);
+          if (!existing) {
+            await createTask(userId, {
+              title: `Prep: ${title}`,
+              description: `Auto-generated from Canvas. Original event: ${title}`,
+              priority: "important",
+              energyLevel: "high",
+              category: "school",
+              deadline: prepDeadline,
+              sourceEventId: uid,
+            });
+            prepTasksCreated++;
+          }
+        }
+      } catch (err) {
+        // Don't fail the whole sync if one prep task insert hits a race on
+        // the unique index — log and move on.
+        console.warn(
+          `[Calendar] Prep task creation failed for "${title}":`,
+          err
+        );
+      }
+    }
   }
 
   // Delete stale events no longer in the feed
@@ -129,7 +189,7 @@ export async function syncCanvasCalendar(
   );
 
   console.log(
-    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted`
+    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted, ${prepTasksCreated} prep tasks created`
   );
 
   return {
