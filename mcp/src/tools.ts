@@ -1407,4 +1407,110 @@ Returns: Confirmation.`,
       };
     }
   );
+
+  // ----------------------------------------------------------
+  // cc_create_journal — dedicated journal entry creator
+  // Stores into brain_dumps with category='junk_journal'. A thin wrapper
+  // around cc_brain_dump for cleaner tool semantics when the caller
+  // specifically wants a journal entry (longer-form, separate from task
+  // brain dumps).
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_create_journal",
+    {
+      title: "Create Journal Entry",
+      description: `Save a new junk journal entry — longer-form, reflective writing kept separate from task brain dumps. Stored in the brain_dumps table with category='junk_journal'.
+
+Args:
+  - content (required): Journal entry text (max 20000 chars).
+
+Returns: Confirmation with the new entry's ID.`,
+      inputSchema: {
+        content: z.string().min(1).max(20000).describe("Journal entry text"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `INSERT INTO brain_dumps (user_id, input_type, raw_content, parsed, category)
+         VALUES ($1, 'text', $2, false, 'junk_journal')
+         RETURNING id, created_at`,
+        [userId, params.content]
+      );
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `📖 Journal entry saved!\nID: \`${rows[0].id}\`\nCreated: ${rows[0].created_at}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_list_journals — list junk_journal entries
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_journals",
+    {
+      title: "List Journal Entries",
+      description: `List junk journal entries (category='junk_journal'). Optionally filter by date range.
+
+Args:
+  - start_date: Start of range (ISO 8601 UTC). Optional.
+  - end_date: End of range (ISO 8601 UTC). Optional.
+  - limit: Max results (1-50, default 20).
+
+Returns: Markdown-formatted list of entries with IDs, content previews, and timestamps in the user's timezone.`,
+      inputSchema: {
+        start_date: z.string().datetime().optional().describe("ISO 8601 UTC start date"),
+        end_date: z.string().datetime().optional().describe("ISO 8601 UTC end date"),
+        limit: z.number().int().min(1).max(50).default(20).describe("Max results"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const conditions: string[] = ["user_id = $1", "category = 'junk_journal'"];
+      const values: unknown[] = [userId];
+      let paramIdx = 2;
+
+      if (params.start_date) {
+        conditions.push(`created_at >= $${paramIdx}`);
+        values.push(params.start_date);
+        paramIdx++;
+      }
+
+      if (params.end_date) {
+        conditions.push(`created_at <= $${paramIdx}`);
+        values.push(params.end_date);
+        paramIdx++;
+      }
+
+      const query = `SELECT * FROM brain_dumps WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      values.push(params.limit);
+
+      const rows = await sql(query, values);
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "No journal entries found matching those filters." }] };
+      }
+
+      const text = `## Journal Entries (${rows.length} found)\n\n` +
+        rows.map((r, i) => `### ${i + 1}. ${formatBrainDump(r, tz)}`).join("\n\n---\n\n");
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
 }
