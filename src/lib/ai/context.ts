@@ -22,6 +22,7 @@ import { isAssessmentTitle } from "@/lib/calendar/assessments";
 import type { EnergyLevel, PersonalityPrefs } from "@/types";
 
 const UPCOMING_HORIZON_DAYS = 7;
+const URGENT_HORIZON_HOURS = 72;
 
 // ============================================================
 // Types
@@ -66,6 +67,27 @@ export interface AIContext {
     dateLabel: string;
     timeLabel: string;
     source: string;
+    isAssessment: boolean;
+  }>;
+
+  /**
+   * Tasks and events hitting in the next 72 hours, merged and sorted
+   * chronologically. This is the AI's "urgent horizon" — external working
+   * memory that must actively surface or it's just a prettier forgetting
+   * machine. Injected at the top of the context block so the model sees
+   * time-sensitive items before anything else.
+   */
+  urgent72hr: Array<{
+    kind: "task" | "event";
+    title: string;
+    hitTime: string;
+    dateLabel: string;
+    timeLabel: string;
+    /** For events: 'canvas' | 'controlledchaos'. For tasks: null. */
+    source: string | null;
+    /** Task priority (for tasks) or null (for events). */
+    priority: string | null;
+    /** True if a Canvas event with an assessment-keyword title. */
     isAssessment: boolean;
   }>;
 
@@ -165,6 +187,56 @@ export async function buildAIContext(
     isAssessment: e.source === "canvas" && isAssessmentTitle(e.title),
   }));
 
+  // Build the 72-hour urgent horizon: any task (with a deadline) or event
+  // landing within the next 72 hours, merged and sorted by hit-time. This
+  // is additive to Top Priority / Today / Upcoming — it's a focused view
+  // of what's immediately pressing regardless of type.
+  const urgentCutoff = new Date(now.getTime() + URGENT_HORIZON_HOURS * 3_600_000);
+  type UrgentItem = {
+    kind: "task" | "event";
+    title: string;
+    hitTime: string;
+    dateLabel: string;
+    timeLabel: string;
+    source: string | null;
+    priority: string | null;
+    isAssessment: boolean;
+    _sort: number;
+  };
+  const urgentItems: UrgentItem[] = [];
+  for (const t of pendingTasks) {
+    if (!t.deadline) continue;
+    if (t.deadline.getTime() > urgentCutoff.getTime()) continue;
+    urgentItems.push({
+      kind: "task",
+      title: t.title,
+      hitTime: t.deadline.toISOString(),
+      dateLabel: formatForDisplay(t.deadline, timezone, DISPLAY_DATE),
+      timeLabel: formatForDisplay(t.deadline, timezone, DISPLAY_TIME),
+      source: null,
+      priority: t.priority,
+      isAssessment: false,
+      _sort: t.deadline.getTime(),
+    });
+  }
+  for (const e of horizonEvents) {
+    if (e.startTime.getTime() > urgentCutoff.getTime()) continue;
+    if (e.endTime.getTime() < now.getTime()) continue; // skip already-ended events
+    urgentItems.push({
+      kind: "event",
+      title: e.title,
+      hitTime: e.startTime.toISOString(),
+      dateLabel: formatForDisplay(e.startTime, timezone, DISPLAY_DATE),
+      timeLabel: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
+      source: e.source,
+      priority: null,
+      isAssessment: e.source === "canvas" && isAssessmentTitle(e.title),
+      _sort: e.startTime.getTime(),
+    });
+  }
+  urgentItems.sort((a, b) => a._sort - b._sort);
+  const urgent72hr = urgentItems.map(({ _sort: _unused, ...rest }) => rest);
+
   // Sort upcoming: assessments first (they drive ADHD planning), then
   // chronological within each group. Assessment-first surfacing is the core
   // point of including these in context.
@@ -217,6 +289,7 @@ export async function buildAIContext(
     topTasks,
     todayEvents: formattedEvents,
     upcomingEvents: formattedUpcoming,
+    urgent72hr,
     activeCrises,
     activityPatterns,
     personalityPrefs,
@@ -235,6 +308,7 @@ export async function buildAIContext(
     topTasks,
     todayEvents: formattedEvents,
     upcomingEvents: formattedUpcoming,
+    urgent72hr,
     activeCrises,
     activityPatterns,
     formatted,
@@ -261,6 +335,30 @@ export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   // Tasks summary
   lines.push(`- Pending tasks: ${ctx.pendingTaskCount}`);
   lines.push(`- Completed today: ${ctx.completedTodayCount}`);
+
+  // ⚠️ Urgent horizon — placed FIRST so the model encounters time-sensitive
+  // items before anything else. ADHD support relies on externalizing working
+  // memory; passive storage isn't enough, it has to actively surface.
+  if (ctx.urgent72hr.length > 0) {
+    lines.push("\n### ⚠️ Next 72 Hours — prioritize these");
+    lines.push(
+      "The following tasks and events are hitting within 72 hours. Reference them whenever relevant; open dashboard briefings with what's most urgent."
+    );
+    for (const item of ctx.urgent72hr) {
+      const kindTag = item.kind === "task" ? "[TASK]" : "[EVENT]";
+      const metaParts: string[] = [];
+      if (item.kind === "task" && item.priority) {
+        metaParts.push(item.priority);
+      }
+      if (item.kind === "event" && item.source === "canvas") {
+        metaParts.push(item.isAssessment ? "CANVAS ASSESSMENT ⚠️" : "CANVAS");
+      }
+      const metaStr = metaParts.length > 0 ? ` [${metaParts.join(", ")}]` : "";
+      lines.push(
+        `- ${item.dateLabel} ${item.timeLabel} · ${kindTag} ${item.title}${metaStr}`
+      );
+    }
+  }
 
   if (ctx.topTasks.length > 0) {
     lines.push("\n### Top Priority Tasks");
