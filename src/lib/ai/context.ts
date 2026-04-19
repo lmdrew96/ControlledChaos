@@ -18,7 +18,10 @@ import {
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import { startOfDayInTimezone, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
+import { isAssessmentTitle } from "@/lib/calendar/assessments";
 import type { EnergyLevel, PersonalityPrefs } from "@/types";
+
+const UPCOMING_HORIZON_DAYS = 7;
 
 // ============================================================
 // Types
@@ -51,6 +54,19 @@ export interface AIContext {
     title: string;
     startTime: string;
     endTime: string;
+    source: string;
+    isAssessment: boolean;
+  }>;
+
+  /** Canvas + user-created events for the next ~7 days (excluding today). */
+  upcomingEvents: Array<{
+    title: string;
+    startTime: string;
+    endTime: string;
+    dateLabel: string;
+    timeLabel: string;
+    source: string;
+    isAssessment: boolean;
   }>;
 
   // Crises
@@ -97,18 +113,24 @@ export async function buildAIContext(
   const timezone = user?.timezone ?? "America/New_York";
   const currentTime = formatCurrentDateTime(timezone);
   const now = new Date();
-  const endOfDay = new Date(
-    startOfDayInTimezone(now, timezone).getTime() + 86_400_000 - 1
+  const startOfToday = startOfDayInTimezone(now, timezone);
+  const endOfDay = new Date(startOfToday.getTime() + 86_400_000 - 1);
+  // End of user's local day + horizon days → inclusive of assessment events
+  // scheduled late in the final day (e.g., an 11:59 PM Canvas assignment).
+  const endOfHorizon = new Date(
+    startOfToday.getTime() + (UPCOMING_HORIZON_DAYS + 1) * 86_400_000 - 1
   );
 
-  // Parallel fetch all context data
-  const [pendingTasks, completedToday, todayEvents, recentActivity, crisisPlans, userLoc] =
+  // Parallel fetch all context data. Calendar fetch pulls the full horizon so
+  // the AI sees upcoming Canvas assessments (quizzes/exams/assignments) that
+  // would otherwise fall outside today's window.
+  const [pendingTasks, completedToday, horizonEvents, recentActivity, crisisPlans, userLoc] =
     await Promise.all([
       getPendingTasks(userId),
       getTasksCompletedToday(userId, timezone),
       options.skipCalendar
         ? Promise.resolve([])
-        : getCalendarEventsByDateRange(userId, now, endOfDay),
+        : getCalendarEventsByDateRange(userId, now, endOfHorizon),
       getRecentTaskActivity(userId, 20),
       options.skipCrises
         ? Promise.resolve([])
@@ -131,12 +153,37 @@ export async function buildAIContext(
     energyLevel: t.energyLevel,
   }));
 
-  // Format events
-  const formattedEvents = todayEvents.map((e) => ({
+  // Split horizon events into today vs. upcoming (day+1 through horizon end).
+  const todayRaw = horizonEvents.filter((e) => e.startTime <= endOfDay);
+  const upcomingRaw = horizonEvents.filter((e) => e.startTime > endOfDay);
+
+  const formattedEvents = todayRaw.map((e) => ({
     title: e.title,
     startTime: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_TIME),
+    source: e.source,
+    isAssessment: e.source === "canvas" && isAssessmentTitle(e.title),
   }));
+
+  // Sort upcoming: assessments first (they drive ADHD planning), then
+  // chronological within each group. Assessment-first surfacing is the core
+  // point of including these in context.
+  const formattedUpcoming = upcomingRaw
+    .map((e) => ({
+      title: e.title,
+      startTime: e.startTime.toISOString(),
+      endTime: e.endTime.toISOString(),
+      dateLabel: formatForDisplay(e.startTime, timezone, DISPLAY_DATE),
+      timeLabel: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
+      source: e.source,
+      isAssessment: e.source === "canvas" && isAssessmentTitle(e.title),
+      _start: e.startTime,
+    }))
+    .sort((a, b) => {
+      if (a.isAssessment !== b.isAssessment) return a.isAssessment ? -1 : 1;
+      return a._start.getTime() - b._start.getTime();
+    })
+    .map(({ _start: _unused, ...rest }) => rest);
 
   // Format crises
   const activeCrises = crisisPlans.map((c) => {
@@ -169,6 +216,7 @@ export async function buildAIContext(
     completedTodayCount: completedToday.length,
     topTasks,
     todayEvents: formattedEvents,
+    upcomingEvents: formattedUpcoming,
     activeCrises,
     activityPatterns,
     personalityPrefs,
@@ -186,6 +234,7 @@ export async function buildAIContext(
     completedTodayCount: completedToday.length,
     topTasks,
     todayEvents: formattedEvents,
+    upcomingEvents: formattedUpcoming,
     activeCrises,
     activityPatterns,
     formatted,
@@ -227,10 +276,34 @@ export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   if (ctx.todayEvents.length > 0) {
     lines.push("\n### Today's Schedule");
     for (const e of ctx.todayEvents) {
-      lines.push(`- ${e.startTime}–${e.endTime}: ${e.title}`);
+      const tag = e.isAssessment ? " ⚠️ [CANVAS ASSESSMENT]" : "";
+      lines.push(`- ${e.startTime}–${e.endTime}: ${e.title}${tag}`);
     }
   } else {
     lines.push("\n### Today's Schedule\nNo events remaining today.");
+  }
+
+  // Upcoming (next 7 days, excluding today). Canvas assessments sort first so
+  // the AI sees them before non-urgent items, making it much more likely to
+  // flag quizzes/exams/assignments in recommendations.
+  if (ctx.upcomingEvents.length > 0) {
+    const assessments = ctx.upcomingEvents.filter((e) => e.isAssessment);
+    const other = ctx.upcomingEvents.filter((e) => !e.isAssessment);
+
+    lines.push("\n### Upcoming (Next 7 Days)");
+    if (assessments.length > 0) {
+      lines.push("**Canvas assessments — prioritize these in recommendations:**");
+      for (const e of assessments) {
+        lines.push(`- ⚠️ ${e.dateLabel} ${e.timeLabel}: ${e.title} [CANVAS]`);
+      }
+    }
+    if (other.length > 0) {
+      if (assessments.length > 0) lines.push("\n**Other upcoming events:**");
+      for (const e of other) {
+        const sourceTag = e.source === "canvas" ? " [CANVAS]" : "";
+        lines.push(`- ${e.dateLabel} ${e.timeLabel}: ${e.title}${sourceTag}`);
+      }
+    }
   }
 
   // Active crises
