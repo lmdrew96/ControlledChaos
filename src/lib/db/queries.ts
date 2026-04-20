@@ -768,17 +768,28 @@ export interface MomentumStats {
   biggestDay: { count: number; date: string } | null;
   avgPerActiveDay: number;
   daily: Array<{ date: string; count: number }>;
-  heatmap: Array<{
-    dayOfWeek: number;
-    timeBlock: "morning" | "afternoon" | "evening" | "night";
+  hourlyHeatmap: Array<{
+    dayOfWeek: number; // 0 = Mon ... 6 = Sun
+    hour: number; // 0..23 in user's timezone
     count: number;
   }>;
+  marination: {
+    active: MarinationBuckets;
+    historical: MarinationBuckets;
+  };
   byCategory: Array<{ category: string | null; count: number }>;
   byEnergy: { low: number; medium: number; high: number };
   wins: Array<{ icon: string; title: string; subtitle: string }>;
   calendarColors: CalendarColors;
   weekStartDate: string; // ISO "YYYY-MM-DD" of Monday in user's timezone
 }
+
+export type MarinationBuckets = {
+  fresh: number; // <1 day
+  week: number; // 1–7 days
+  marinating: number; // 7–30 days
+  aging: number; // 30+ days
+};
 
 export async function getMomentumStats(
   userId: string,
@@ -796,7 +807,9 @@ export async function getMomentumStats(
   // All queries in parallel
   const [
     dailyRows,
-    heatmapRows,
+    hourlyHeatmapRows,
+    marinationActiveRows,
+    marinationHistoricalRows,
     categoryRows,
     energyRows,
     biggestDayRows,
@@ -818,23 +831,53 @@ export async function getMomentumStats(
       GROUP BY date
       ORDER BY date ASC`
     ),
-    // 2. Heatmap (current week)
-    db.execute<{ day_of_week: number; time_block: string; count: number }>(
+    // 2. Hourly heatmap (all-time, 7 days × 24 hours)
+    db.execute<{ day_of_week: number; hour: number; count: number }>(
       sql`SELECT
         (EXTRACT(ISODOW FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
-        CASE
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 6 AND 11 THEN 'morning'
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 12 AND 16 THEN 'afternoon'
-          WHEN EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) BETWEEN 17 AND 20 THEN 'evening'
-          ELSE 'night'
-        END AS time_block,
+        EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int AS hour,
         COUNT(*)::int AS count
       FROM tasks
       WHERE user_id = ${userId}
         AND status = 'completed'
-        AND completed_at >= ${startOfWeek}
         AND deleted_at IS NULL
-      GROUP BY day_of_week, time_block`
+      GROUP BY day_of_week, hour`
+    ),
+    // 2a. Marination — active tasks bucketed by current age (top-level only)
+    db.execute<{ bucket: string; count: number }>(
+      sql`SELECT
+        CASE
+          WHEN NOW() - created_at < INTERVAL '1 day' THEN 'fresh'
+          WHEN NOW() - created_at < INTERVAL '7 days' THEN 'week'
+          WHEN NOW() - created_at < INTERVAL '30 days' THEN 'marinating'
+          ELSE 'aging'
+        END AS bucket,
+        COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status IN ('pending', 'in_progress')
+        AND completed_at IS NULL
+        AND deleted_at IS NULL
+        AND parent_task_id IS NULL
+      GROUP BY bucket`
+    ),
+    // 2b. Marination — historical distribution: age at completion (top-level only)
+    db.execute<{ bucket: string; count: number }>(
+      sql`SELECT
+        CASE
+          WHEN completed_at - created_at < INTERVAL '1 day' THEN 'fresh'
+          WHEN completed_at - created_at < INTERVAL '7 days' THEN 'week'
+          WHEN completed_at - created_at < INTERVAL '30 days' THEN 'marinating'
+          ELSE 'aging'
+        END AS bucket,
+        COUNT(*)::int AS count
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND status = 'completed'
+        AND completed_at IS NOT NULL
+        AND deleted_at IS NULL
+        AND parent_task_id IS NULL
+      GROUP BY bucket`
     ),
     // 3. By category (current week)
     db.execute<{ category: string | null; count: number }>(
@@ -942,12 +985,34 @@ export async function getMomentumStats(
   // Avg per active day
   const avgPerActiveDay = Number(avgRows.rows[0]?.avg ?? 0);
 
-  // Heatmap
-  const heatmap = heatmapRows.rows.map((r) => ({
+  // Hourly heatmap (all-time)
+  const hourlyHeatmap = hourlyHeatmapRows.rows.map((r) => ({
     dayOfWeek: Number(r.day_of_week),
-    timeBlock: r.time_block as "morning" | "afternoon" | "evening" | "night",
+    hour: Number(r.hour),
     count: Number(r.count),
   }));
+
+  // Marination buckets
+  const emptyBuckets: MarinationBuckets = {
+    fresh: 0,
+    week: 0,
+    marinating: 0,
+    aging: 0,
+  };
+  const readBuckets = (
+    rows: Array<{ bucket: string; count: number }>
+  ): MarinationBuckets => {
+    const buckets: MarinationBuckets = { ...emptyBuckets };
+    for (const r of rows) {
+      const key = r.bucket as keyof MarinationBuckets;
+      if (key in buckets) buckets[key] = Number(r.count);
+    }
+    return buckets;
+  };
+  const marination = {
+    active: readBuckets(marinationActiveRows.rows),
+    historical: readBuckets(marinationHistoricalRows.rows),
+  };
 
   // By category
   const byCategory = categoryRows.rows.map((r) => ({
@@ -1038,7 +1103,8 @@ export async function getMomentumStats(
     biggestDay,
     avgPerActiveDay,
     daily,
-    heatmap,
+    hourlyHeatmap,
+    marination,
     byCategory,
     byEnergy,
     wins,

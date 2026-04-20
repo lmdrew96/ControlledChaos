@@ -5,32 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { categoryHex } from "@/lib/calendar/colors";
 import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
-import type { CalendarColors, EventCategory } from "@/types";
+import type { EventCategory } from "@/types";
 import type { MomentumStats } from "@/lib/db/queries";
+import { CircadianSignature } from "./_components/circadian-signature";
+import { TaskMarination } from "./_components/task-marination";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
-const TIME_BLOCKS = ["morning", "afternoon", "evening", "night"] as const;
-const TIME_LABELS: Record<string, string> = {
-  morning: "Morning",
-  afternoon: "Afternoon",
-  evening: "Evening",
-  night: "Night",
-};
-
-// Orange intensity ramp for heatmap: 1/2/3/4+ completions (0 uses CSS class)
-const HEATMAP_FILLS = [
-  "", // 0: handled by CSS class
-  "rgba(249,115,22,0.12)",
-  "rgba(249,115,22,0.25)",
-  "rgba(249,115,22,0.45)",
-  "rgba(249,115,22,0.7)",
-];
-
-function heatmapStyle(count: number): { backgroundColor?: string } {
-  if (count === 0) return {};
-  return { backgroundColor: HEATMAP_FILLS[Math.min(count, 4)] };
-}
 
 function formatWeekRange(weekStartDate: string): string {
   const start = new Date(weekStartDate + "T12:00:00");
@@ -38,37 +18,6 @@ function formatWeekRange(weekStartDate: string): string {
   end.setDate(end.getDate() + 6);
   const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
   return `${fmt.format(start)}\u2013${fmt.format(end)}`;
-}
-
-function generateInsight(
-  heatmap: MomentumStats["heatmap"],
-  completedThisWeek: number
-): string | null {
-  if (completedThisWeek < 5) return null;
-  if (heatmap.length === 0) return null;
-
-  const maxCell = heatmap.reduce((best, cell) =>
-    cell.count > best.count ? cell : best
-  );
-  if (maxCell.count === 0) return null;
-
-  // Check if all cells are roughly equal (no clear pattern)
-  const total = heatmap.reduce((s, c) => s + c.count, 0);
-  const avg = total / heatmap.length;
-  const isBalanced = heatmap.every((c) => Math.abs(c.count - avg) <= 1);
-  if (isBalanced) {
-    return "You've been spreading tasks across the whole week — nice balance.";
-  }
-
-  const dayName =
-    maxCell.dayOfWeek >= 5 ? "weekend" : "weekday";
-  const daySpecific = DAY_LABELS[maxCell.dayOfWeek];
-  const timeLabel = TIME_LABELS[maxCell.timeBlock].toLowerCase();
-
-  if (maxCell.dayOfWeek >= 5) {
-    return `You've been most productive on **${dayName} ${timeLabel}s** lately.`;
-  }
-  return `**${daySpecific} ${timeLabel}s** are your power zone this week.`;
 }
 
 function formatBiggestDayDate(dateStr: string, timezone: string): string {
@@ -125,13 +74,6 @@ export default function MomentumPage() {
     currentWeek.push({ date: dateStr, count: existing?.count ?? 0 });
   }
   const maxDailyCount = Math.max(...currentWeek.map((d) => d.count), 1);
-  const insight = generateInsight(stats.heatmap, stats.completedThisWeek);
-
-  // Build heatmap lookup
-  const heatmapLookup = new Map<string, number>();
-  for (const h of stats.heatmap) {
-    heatmapLookup.set(`${h.dayOfWeek}-${h.timeBlock}`, h.count);
-  }
 
   const maxCategoryCount = Math.max(
     ...stats.byCategory.map((c) => c.count),
@@ -147,18 +89,6 @@ export default function MomentumPage() {
           This week &middot; {formatWeekRange(stats.weekStartDate)}
         </span>
       </div>
-
-      {/* Insight bar */}
-      {insight && (
-        <div className="rounded-lg bg-muted/50 px-4 py-3 text-[13px] text-muted-foreground">
-          <span
-            dangerouslySetInnerHTML={{
-              __html: insight
-                .replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>'),
-            }}
-          />
-        </div>
-      )}
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -255,60 +185,8 @@ export default function MomentumPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Left column */}
         <div className="space-y-4">
-          {/* Heatmap */}
-          <Card>
-            <CardContent className="p-5">
-              <h3 className="mb-3 text-sm font-medium">
-                When you get stuff done
-              </h3>
-              <div className="space-y-1">
-                {/* Column headers */}
-                <div className="flex gap-1">
-                  <div className="w-20" />
-                  {DAY_LETTERS.map((letter, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 text-center text-[10px] text-muted-foreground"
-                    >
-                      {letter}
-                    </div>
-                  ))}
-                </div>
-                {/* Rows */}
-                {TIME_BLOCKS.map((block) => (
-                  <div key={block} className="flex items-center gap-1">
-                    <div className="w-20 text-xs text-muted-foreground">
-                      {TIME_LABELS[block]}
-                    </div>
-                    {Array.from({ length: 7 }, (_, dayIdx) => {
-                      const count =
-                        heatmapLookup.get(`${dayIdx}-${block}`) ?? 0;
-                      return (
-                        <div
-                          key={dayIdx}
-                          className={`flex flex-1 items-center justify-center rounded-sm ${
-                            count === 0
-                              ? "bg-muted/50"
-                              : ""
-                          }`}
-                          style={{
-                            ...heatmapStyle(count),
-                            aspectRatio: "1",
-                          }}
-                        >
-                          {count >= 4 && (
-                            <span className="text-[10px] font-medium text-orange-900 dark:text-orange-100">
-                              {count}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Circadian Signature (all-time hour × day heatmap) */}
+          <CircadianSignature hourlyHeatmap={stats.hourlyHeatmap} />
 
           {/* Energy chips */}
           <Card>
@@ -407,6 +285,9 @@ export default function MomentumPage() {
           )}
         </div>
       </div>
+
+      {/* Task Marination — full width below the two-column section */}
+      <TaskMarination marination={stats.marination} />
     </div>
   );
 }
