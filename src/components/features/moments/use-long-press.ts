@@ -102,7 +102,12 @@ export function useLongPress({
       const t = e.touches[0];
       if (t) move(t.clientX, t.clientY);
     },
-    onTouchEnd: () => end(),
+    onTouchEnd: (e) => {
+      // Prevent the browser from synthesizing a mouse event after the touch,
+      // which would otherwise fire onMouseUp and call end() a second time.
+      e.preventDefault();
+      end();
+    },
     onTouchCancel: () => cancel(),
     onContextMenu: (e) => e.preventDefault(),
   };
