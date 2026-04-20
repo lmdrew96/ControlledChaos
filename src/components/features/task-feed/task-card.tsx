@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Check,
   Trash2,
@@ -10,8 +10,10 @@ import {
   CalendarClock,
   Layers,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { formatForDisplay, DISPLAY_DATETIME, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
@@ -31,7 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { taskBadgeColor } from "@/lib/calendar/colors";
-import type { Task, CalendarColors, EventCategory } from "@/types";
+import type { Task, CalendarColors, EventCategory, ProgressStep } from "@/types";
 import { priorityConfig, energyConfig } from "./task-config";
 
 export function TaskCard({
@@ -52,6 +54,13 @@ export function TaskCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showSwipeDeleteDialog, setShowSwipeDeleteDialog] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [localStepIndex, setLocalStepIndex] = useState(task.currentStepIndex ?? 0);
+  const [isAdvancingStep, setIsAdvancingStep] = useState(false);
+
+  useEffect(() => {
+    setLocalStepIndex(task.currentStepIndex ?? 0);
+  }, [task.currentStepIndex, task.id]);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const isSwiping = useRef(false);
@@ -60,6 +69,7 @@ export function TaskCard({
   const SWIPE_THRESHOLD = 80;
 
   function handleTouchStart(e: React.TouchEvent) {
+    if (isExpanded) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
     isSwiping.current = false;
@@ -67,6 +77,7 @@ export function TaskCard({
   }
 
   function handleTouchMove(e: React.TouchEvent) {
+    if (isExpanded) return;
     if (touchStartX.current === null || touchStartY.current === null) return;
     const dx = e.touches[0].clientX - touchStartX.current;
     const dy = e.touches[0].clientY - touchStartY.current;
@@ -207,6 +218,46 @@ export function TaskCard({
     e.stopPropagation();
     void handleFindTimeAction();
   }
+
+  const steps = (task.progressSteps as ProgressStep[] | null) ?? null;
+
+  const handleStepDone = useCallback(async () => {
+    if (!steps) return;
+    const nextIndex = localStepIndex + 1;
+    const isLast = nextIndex >= steps.length;
+
+    if (isLast) {
+      fireTaskConfetti();
+    } else {
+      confetti({
+        particleCount: 60,
+        spread: 80,
+        startVelocity: 45,
+        origin: { x: 0.5, y: 0.6 },
+        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
+        zIndex: 9999,
+      });
+    }
+
+    setLocalStepIndex(nextIndex);
+    setIsAdvancingStep(true);
+
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStepIndex: nextIndex }),
+      });
+      if (isLast) {
+        toast.success("All steps done — task completed!");
+      }
+      onUpdate();
+    } catch {
+      toast.error("Couldn't update step. Try again.");
+    } finally {
+      setIsAdvancingStep(false);
+    }
+  }, [steps, localStepIndex, task.id, onUpdate]);
 
   function handleDeleteClick(e: React.MouseEvent) {
     e.stopPropagation();
@@ -457,27 +508,114 @@ export function TaskCard({
               </span>
             )}
 
-            {task.progressSteps && task.progressSteps.length > 0 && (
-              <span className="flex items-center gap-1.5 text-xs text-blue-500 font-medium">
+            {steps && steps.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded((v) => !v);
+                }}
+                aria-expanded={isExpanded}
+                aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
+              >
                 <span className="inline-flex gap-0.5">
-                  {task.progressSteps.map((_, i) => (
+                  {steps.map((_, i) => (
                     <span
                       key={i}
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
-                        i < (task.currentStepIndex ?? 0)
+                        i < localStepIndex
                           ? "bg-blue-500"
                           : "bg-blue-500/25"
                       )}
                     />
                   ))}
                 </span>
-                {task.currentStepIndex ?? 0}/{task.progressSteps.length}
-              </span>
+                {localStepIndex}/{steps.length}
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform",
+                    isExpanded && "rotate-180"
+                  )}
+                />
+              </button>
             )}
           </div>
         </div>
       </div>
+
+      {steps && steps.length > 0 && isExpanded && (
+        <div
+          className="mt-3 space-y-2 rounded-md border border-blue-500/20 bg-blue-500/5 p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ul className="space-y-1.5">
+            {steps.map((step, i) => {
+              const isDone = i < localStepIndex;
+              const isCurrent = i === localStepIndex;
+              return (
+                <li
+                  key={i}
+                  className={cn(
+                    "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
+                    isCurrent && "bg-background border-l-4 border-l-blue-500 shadow-sm"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                      isDone
+                        ? "border-blue-500 bg-blue-500 text-white"
+                        : isCurrent
+                          ? "border-blue-500 bg-blue-500/20"
+                          : "border-muted-foreground/30"
+                    )}
+                  >
+                    {isDone ? <Check className="h-2.5 w-2.5" /> : null}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex-1",
+                      isDone && "text-muted-foreground line-through",
+                      isCurrent && "font-medium"
+                    )}
+                  >
+                    {step.title}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {step.estimatedMinutes}m
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {!isCompleted && localStepIndex < steps.length && (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleStepDone();
+              }}
+              disabled={isAdvancingStep}
+            >
+              {isAdvancingStep ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              {localStepIndex === steps.length - 1
+                ? "Done — finish task!"
+                : "Done, next step"}
+            </Button>
+          )}
+          {localStepIndex >= steps.length && (
+            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-600">
+              <Check className="h-4 w-4" />
+              All {steps.length} steps completed
+            </div>
+          )}
+        </div>
+      )}
       </Card>
 
       <AlertDialog open={showSwipeDeleteDialog} onOpenChange={setShowSwipeDeleteDialog}>
