@@ -14,19 +14,16 @@ export default function MomentumLoading() {
           <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
-      {/* Bar chart */}
+      {/* Daily bar chart */}
       <Skeleton className="h-48 w-full rounded-xl" />
-      {/* Two-column */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4">
-          <Skeleton className="h-52 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-40 rounded-xl" />
-          <Skeleton className="h-36 rounded-xl" />
-        </div>
-      </div>
+      {/* Circadian */}
+      <Skeleton className="h-64 w-full rounded-xl" />
+      {/* Stacked full-width cards */}
+      <Skeleton className="h-40 w-full rounded-xl" />
+      <Skeleton className="h-44 w-full rounded-xl" />
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-40 w-full rounded-xl" />
+      <Skeleton className="h-36 w-full rounded-xl" />
     </div>
   );
 }

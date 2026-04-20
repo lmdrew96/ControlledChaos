@@ -185,113 +185,104 @@ export default function MomentumPage() {
       {/* Circadian Signature — full width, all-time hour × day heatmap */}
       <CircadianSignature hourlyHeatmap={stats.hourlyHeatmap} />
 
-      {/* Two-column section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Left column */}
-        <div className="space-y-4">
-          {/* Chunk outcomes */}
-          <ChunkOutcomes chunkOutcomes={stats.chunkOutcomes} />
+      {/* Chunk outcomes */}
+      <ChunkOutcomes chunkOutcomes={stats.chunkOutcomes} />
 
-          {/* Energy chips */}
-          <Card>
-            <CardContent className="p-5">
-              <h3 className="mb-3 text-sm font-medium">Energy spent</h3>
-              <div className="flex gap-3">
-                <div className="flex-1 rounded-lg bg-green-500/10 p-3 text-center">
-                  <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                    {stats.byEnergy.low}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Low</p>
-                </div>
-                <div className="flex-1 rounded-lg bg-orange-500/10 p-3 text-center">
-                  <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                    {stats.byEnergy.medium}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Medium</p>
-                </div>
-                <div className="flex-1 rounded-lg bg-red-500/10 p-3 text-center">
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                    {stats.byEnergy.high}
-                  </p>
-                  <p className="text-xs text-muted-foreground">High</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-4">
-          {/* Category bars */}
-          {stats.byCategory.length > 0 && (
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="mb-3 text-sm font-medium">By category</h3>
-                <div className="space-y-2.5">
-                  {stats.byCategory.map((cat) => {
-                    const hex = categoryHex(
-                      cat.category as EventCategory | null,
-                      stats.calendarColors
-                    );
-                    const widthPct = (cat.count / maxCategoryCount) * 100;
-                    return (
-                      <div key={cat.category ?? "none"} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="capitalize text-muted-foreground">
-                            {cat.category ?? "Uncategorized"}
-                          </span>
-                          <span className="tabular-nums font-medium">
-                            {cat.count}
-                          </span>
-                        </div>
-                        <div className="h-2.5 w-full rounded-full bg-secondary">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                              width: `${widthPct}%`,
-                              backgroundColor: hex.solid,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Wins */}
-          {stats.wins.length > 0 && (
-            <Card>
-              <CardContent className="p-5">
-                <h3 className="mb-3 text-sm font-medium">
-                  This week&apos;s wins
-                </h3>
-                <div className="space-y-2">
-                  {stats.wins.map((win, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-2.5"
-                    >
-                      <span className="text-lg">{win.icon}</span>
-                      <div>
-                        <p className="text-sm font-medium">{win.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {win.subtitle}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* Task Marination — full width below the two-column section */}
+      {/* Task Marination */}
       <TaskMarination marination={stats.marination} />
+
+      {/* Energy chips */}
+      <Card>
+        <CardContent className="p-5">
+          <h3 className="mb-3 text-sm font-medium">Energy spent</h3>
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-lg bg-green-500/10 p-3 text-center">
+              <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                {stats.byEnergy.low}
+              </p>
+              <p className="text-xs text-muted-foreground">Low</p>
+            </div>
+            <div className="flex-1 rounded-lg bg-orange-500/10 p-3 text-center">
+              <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                {stats.byEnergy.medium}
+              </p>
+              <p className="text-xs text-muted-foreground">Medium</p>
+            </div>
+            <div className="flex-1 rounded-lg bg-red-500/10 p-3 text-center">
+              <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                {stats.byEnergy.high}
+              </p>
+              <p className="text-xs text-muted-foreground">High</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Category bars */}
+      {stats.byCategory.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="mb-3 text-sm font-medium">By category</h3>
+            <div className="space-y-2.5">
+              {stats.byCategory.map((cat) => {
+                const hex = categoryHex(
+                  cat.category as EventCategory | null,
+                  stats.calendarColors
+                );
+                const widthPct = (cat.count / maxCategoryCount) * 100;
+                return (
+                  <div key={cat.category ?? "none"} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="capitalize text-muted-foreground">
+                        {cat.category ?? "Uncategorized"}
+                      </span>
+                      <span className="tabular-nums font-medium">
+                        {cat.count}
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${widthPct}%`,
+                          backgroundColor: hex.solid,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Wins */}
+      {stats.wins.length > 0 && (
+        <Card>
+          <CardContent className="p-5">
+            <h3 className="mb-3 text-sm font-medium">
+              This week&apos;s wins
+            </h3>
+            <div className="space-y-2">
+              {stats.wins.map((win, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-2.5"
+                >
+                  <span className="text-lg">{win.icon}</span>
+                  <div>
+                    <p className="text-sm font-medium">{win.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {win.subtitle}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
