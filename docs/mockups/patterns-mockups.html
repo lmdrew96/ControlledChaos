@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Patterns Mockups — Circadian Signature & Task Marination</title>
+<style>
+  :root {
+    --bg: #1E1830;
+    --card: #28213d;
+    --ink: #F7F5FA;
+    --muted: #9b94ae;
+    --faint: #3a3150;
+    --warm: 249, 115, 22; /* orange-500, matches existing heatmap */
+    --gentle: 223, 166, 73; /* amber */
+    --ghost: 140, 189, 185; /* sage teal, for ghosted/historical layer */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; margin: 0 0 32px; }
+  h2 { font-size: 18px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+  .card-title {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 4px;
+  }
+  .card-kicker {
+    font-size: 15px;
+    color: var(--ink);
+    margin: 0 0 20px;
+    font-weight: 500;
+  }
+
+  /* ── Circadian Signature (grid form) ─────────────────── */
+  .circ-grid {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 6px;
+  }
+  .circ-hours {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    position: relative;
+    height: 14px;
+  }
+  .circ-hour-label {
+    position: absolute;
+    top: 0;
+  }
+  .circ-day-labels {
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
+    gap: 2px;
+    margin-top: 18px;
+  }
+  .circ-day-labels div {
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+  }
+  .circ-cells {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    grid-template-rows: repeat(7, 22px);
+    gap: 2px;
+    margin-top: 18px;
+  }
+  .circ-cell {
+    border-radius: 3px;
+    transition: transform 0.1s;
+  }
+  .circ-cell:hover {
+    transform: scale(1.3);
+    z-index: 2;
+    position: relative;
+  }
+  .circ-ticks {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    margin-top: 4px;
+    margin-left: 34px;
+    height: 4px;
+  }
+  .circ-tick {
+    border-left: 1px solid var(--faint);
+    height: 4px;
+  }
+  .circ-sentence {
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .circ-sentence strong { color: rgba(var(--warm), 1); font-weight: 600; }
+
+  /* ── Task Marination ─────────────────────────────────── */
+  .marin {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .marin-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    align-items: center;
+    gap: 16px;
+  }
+  .marin-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .marin-track {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.4fr 0.7fr;
+    gap: 3px;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .marin-bucket {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    transition: transform 0.15s;
+    cursor: pointer;
+  }
+  .marin-bucket:hover { transform: translateY(-1px); }
+  .marin-axis {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.4fr 0.7fr;
+    gap: 3px;
+    margin-left: 126px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .marin-axis div { text-align: center; }
+  .marin-sentence {
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--ink);
+  }
+
+  /* ── Design notes ─────────────────────────────────── */
+  .notes {
+    background: transparent;
+    border: 1px dashed var(--faint);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+  .notes h3 { color: var(--ink); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; font-weight: 500; }
+  .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin-bottom: 6px; }
+  .notes code { background: var(--faint); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+  .mockup-tag {
+    display: inline-block;
+    background: rgba(223, 166, 73, 0.15);
+    color: var(--gentle, #DFA649);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Patterns page — mockups <span class="mockup-tag">wireframe</span></h1>
+
+  <!-- ═══════════════ CIRCADIAN SIGNATURE ═══════════════ -->
+  <div class="card">
+    <p class="card-title">Your shape</p>
+    <p class="card-kicker">When your weeks actually happen</p>
+
+    <div class="circ-grid">
+      <div class="circ-day-labels" id="circ-days"></div>
+      <div>
+        <div class="circ-hours" id="circ-hours"></div>
+        <div class="circ-cells" id="circ-cells" aria-label="Heatmap of task completions by hour and weekday"></div>
+      </div>
+    </div>
+
+    <p class="circ-sentence">Most of your weeks happen <strong>Tuesday and Thursday afternoons</strong>, with a late-night Friday streak.</p>
+  </div>
+
+  <div class="notes">
+    <h3>Circadian Signature — design notes</h3>
+    <ul>
+      <li><strong>24 hours × 7 days:</strong> each cell is one hour on one weekday. Bright columns = consistent peak hours; bright rows = peak days; bright clusters = specific day/time habits.</li>
+      <li><strong>Hours on x-axis (12a → 11p), days on y-axis (Mon top):</strong> horizontal orientation makes the card wide and short — fits dashboard flow.</li>
+      <li><strong>Only 4 hour labels:</strong> 12a / 6a / 12p / 6p, with tick marks. Every hour labeled would be noise; hover reveals the exact hour.</li>
+      <li><strong>Empty cells stay faintly visible</strong> (<code>rgba(warm, 0.08)</code>), not blank — the gaps are part of the shape.</li>
+      <li><strong>Cells scale up on hover</strong> for tooltip readability without cramping the grid.</li>
+      <li><strong>One sentence below the grid</strong> names the densest cluster in plain language — no "peak" or "power zone" framing.</li>
+      <li><strong>Upgrade over existing card:</strong> current "When you get stuff done" uses 4 time-blocks × 7 days (28 cells) on last-14-days data. This is 24 hours × 7 days (168 cells) on all-time data.</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════ TASK MARINATION ═══════════════ -->
+  <div class="card">
+    <p class="card-title">Task marination</p>
+    <p class="card-kicker">How long things tend to live here</p>
+
+    <div class="marin">
+      <div class="marin-row">
+        <div class="marin-label">Active now</div>
+        <div class="marin-track" id="marin-active"></div>
+      </div>
+      <div class="marin-row">
+        <div class="marin-label">Usually finish&nbsp;at</div>
+        <div class="marin-track" id="marin-historical"></div>
+      </div>
+    </div>
+
+    <div class="marin-axis">
+      <div>Fresh<br><span style="opacity:0.6">&lt; 1 day</span></div>
+      <div>This week<br><span style="opacity:0.6">1–7 days</span></div>
+      <div>Marinating<br><span style="opacity:0.6">1–4 weeks</span></div>
+      <div>Aging gracefully<br><span style="opacity:0.6">30+ days</span></div>
+    </div>
+
+    <p class="marin-sentence" id="marin-sentence">Most tasks finish within a week. You have <strong>8 marinating</strong> — not overdue, just sitting.</p>
+  </div>
+
+  <div class="notes">
+    <h3>Task Marination — design notes</h3>
+    <ul>
+      <li><strong>Two layers, shared x-axis:</strong> top = where your active tasks currently sit, bottom = where tasks historically live when they get finished. Contrast reveals drift.</li>
+      <li><strong>Bucket widths are fixed proportions</strong>, not data-driven — bucket positions are stable so you can eyeball movement week over week.</li>
+      <li><strong>Cell opacity encodes count within the bucket.</strong> Empty buckets still show faintly so they don't feel like holes.</li>
+      <li><strong>Top layer uses warm (active); bottom uses sage/neutral (ghost)</strong> — makes the two reads distinct at a glance.</li>
+      <li><strong>"Aging gracefully" is deliberate.</strong> "Overdue" would turn this into a shame meter. The bucket still shows the count — it just refuses to moralize.</li>
+      <li><strong>Bucket labels live below the tracks</strong>, not inside them, so the cells stay clean geometric forms.</li>
+      <li><strong>Empty state:</strong> hide the bottom layer until there are ≥5 completed tasks — the "usually finish" claim needs a baseline to be meaningful.</li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  // ═══════════════ CIRCADIAN SIGNATURE ═══════════════
+  // Sample data: 7 days × 24 hours of completion counts.
+  // Fabricated to look like a plausible ADHD rhythm: weak mornings,
+  // strong afternoons, evening bursts, late-night Fri/Sat.
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const sampleData = [
+    // Mon
+    [0,0,0,0,0,0,0,0, 1,1,2,3, 2,1,0,2, 4,3,2,1, 0,0,0,0],
+    // Tue
+    [0,0,0,0,0,0,0,1, 2,3,2,2, 5,6,7,6, 5,4,3,2, 1,0,0,0],
+    // Wed
+    [0,0,0,0,0,0,0,0, 1,2,1,2, 3,4,3,2, 2,1,1,0, 0,0,0,0],
+    // Thu
+    [0,0,0,0,0,0,0,0, 1,2,3,3, 4,5,6,7, 6,4,2,1, 0,0,0,0],
+    // Fri
+    [0,0,0,0,0,0,0,0, 1,2,2,1, 3,2,3,2, 3,2,3,4, 5,4,2,1],
+    // Sat
+    [1,1,0,0,0,0,0,0, 0,1,1,2, 2,3,2,1, 1,2,3,4, 4,3,2,1],
+    // Sun
+    [0,0,0,0,0,0,0,0, 0,1,2,2, 2,1,1,1, 1,0,1,1, 0,0,0,0],
+  ];
+
+  const maxCount = Math.max(...sampleData.flat());
+
+  // opacity ramp 0..1 (min visible so empty cells aren't invisible)
+  function opacityFor(count) {
+    if (count === 0) return 0.08;
+    const t = count / maxCount;
+    return 0.18 + t * 0.75; // 0.18 → 0.93
+  }
+
+  // Day labels on the left
+  const daysEl = document.getElementById('circ-days');
+  ['M','T','W','T','F','S','S'].forEach((letter, i) => {
+    const div = document.createElement('div');
+    div.textContent = letter;
+    daysEl.appendChild(div);
+  });
+
+  // Hour labels across the top (only 4 cardinals)
+  const hoursEl = document.getElementById('circ-hours');
+  [
+    { hour: 0, label: '12a' },
+    { hour: 6, label: '6a' },
+    { hour: 12, label: '12p' },
+    { hour: 18, label: '6p' },
+  ].forEach(({ hour, label }) => {
+    const span = document.createElement('span');
+    span.className = 'circ-hour-label';
+    // center label over its column
+    span.style.left = `calc(${(hour + 0.5) * (100/24)}% - 10px)`;
+    span.textContent = label;
+    hoursEl.appendChild(span);
+  });
+
+  // Cells: 7 rows × 24 cols
+  const cellsEl = document.getElementById('circ-cells');
+  sampleData.forEach((dayRow, dayIdx) => {
+    dayRow.forEach((count, hour) => {
+      const cell = document.createElement('div');
+      cell.className = 'circ-cell';
+      cell.style.background = `rgba(249, 115, 22, ${opacityFor(count)})`;
+      cell.title = `${DAYS[dayIdx]} ${hour === 0 ? '12a' : hour < 12 ? hour + 'a' : hour === 12 ? '12p' : (hour - 12) + 'p'} — ${count} task${count === 1 ? '' : 's'}`;
+      cellsEl.appendChild(cell);
+    });
+  });
+
+
+  // ═══════════════ TASK MARINATION ═══════════════
+  // Active tasks currently in each bucket
+  const activeBuckets = [
+    { key: 'fresh',  count: 3 },
+    { key: 'week',   count: 5 },
+    { key: 'marin',  count: 8 },
+    { key: 'aged',   count: 2 },
+  ];
+  // Historical: at what age did tasks get completed?
+  const historicalBuckets = [
+    { key: 'fresh',  count: 45 },
+    { key: 'week',   count: 32 },
+    { key: 'marin',  count: 8  },
+    { key: 'aged',   count: 3  },
+  ];
+
+  function renderMarin(elId, buckets, color) {
+    const host = document.getElementById(elId);
+    const max = Math.max(...buckets.map(b => b.count));
+    buckets.forEach((b) => {
+      const opacity = b.count === 0 ? 0.05 : 0.15 + (b.count / max) * 0.65;
+      const div = document.createElement('div');
+      div.className = 'marin-bucket';
+      div.style.background = `rgba(${color}, ${opacity})`;
+      div.style.color = b.count / max > 0.5 ? '#fff' : 'var(--muted)';
+      div.textContent = b.count;
+      div.title = `${b.count} tasks in this bucket`;
+      host.appendChild(div);
+    });
+  }
+  renderMarin('marin-active', activeBuckets, '249, 115, 22');
+  renderMarin('marin-historical', historicalBuckets, '140, 189, 185');
+</script>
+</body>
+</html>
