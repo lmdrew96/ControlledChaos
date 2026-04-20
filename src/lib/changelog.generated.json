@@ -1,7 +1,92 @@
 [
   {
+    "weekOf": "2026-04-20",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Prune stale push subscriptions to stop duplicate deliveries"
+      },
+      {
+        "type": "fixed",
+        "text": "Read chunks from progress_steps, not parent_task_id"
+      },
+      {
+        "type": "fixed",
+        "text": "Stop double-log when selecting a moment chip"
+      },
+      {
+        "type": "added",
+        "text": "Add chunk outcomes + full-width circadian layout"
+      },
+      {
+        "type": "added",
+        "text": "Add circadian signature + task marination"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-04-13",
     "items": [
+      {
+        "type": "added",
+        "text": "Accordion-expand chunked task cards inline"
+      },
+      {
+        "type": "added",
+        "text": "Replace 'break it down' with 'chunk it' on task cards"
+      },
+      {
+        "type": "fixed",
+        "text": "Cleaner titles and descriptions for auto prep tasks"
+      },
+      {
+        "type": "added",
+        "text": "Add medication log tools"
+      },
+      {
+        "type": "added",
+        "text": "Add cc_create_journal and cc_list_journals tools"
+      },
+      {
+        "type": "added",
+        "text": "Inject 72hr urgent horizon at top of AI context"
+      },
+      {
+        "type": "added",
+        "text": "Auto-generate prep tasks from Canvas assessments"
+      },
+      {
+        "type": "added",
+        "text": "Include next 7 days of Canvas events in AI context"
+      },
+      {
+        "type": "added",
+        "text": "Multi-media capture — text + multiple images per entry"
+      },
+      {
+        "type": "added",
+        "text": "Filter toggle on /dump + dedicated /journal reading room"
+      },
+      {
+        "type": "fixed",
+        "text": "Category-aware copy, routing, and empty state"
+      },
+      {
+        "type": "added",
+        "text": "Add sleep_logged type for lightweight sleep tracking"
+      },
+      {
+        "type": "added",
+        "text": "Chronological day timeline across all activity types"
+      },
+      {
+        "type": "fixed",
+        "text": "Universalize copy; skip task/event extraction"
+      },
+      {
+        "type": "fixed",
+        "text": "Accept scoped conventional commits in generator regex"
+      },
       {
         "type": "fixed",
         "text": "Force SW update checks and auto-reload when a new SW takes control"

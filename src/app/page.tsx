@@ -93,9 +93,9 @@ function BrainDumpDemo() {
   return (
     <div className="relative w-full max-w-lg mx-auto">
       {/* Window chrome */}
-      <div className="rounded-2xl border border-white/8 bg-[oklch(0.18_0_0)] shadow-2xl overflow-hidden">
+      <div className="rounded-2xl border border-white/8 bg-[color-mix(in_srgb,var(--adhd-dark)_92%,var(--adhd-purple))] shadow-2xl overflow-hidden">
         {/* Title bar */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-[oklch(0.16_0_0)]">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-[color-mix(in_srgb,var(--adhd-dark)_96%,var(--adhd-purple))]">
           <div className="w-2.5 h-2.5 rounded-full bg-rose-500/70" />
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500/70" />
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
@@ -138,7 +138,7 @@ function BrainDumpDemo() {
                     className="absolute inset-0 rounded-full border-2 border-amber-400/30"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    style={{ borderTopColor: "oklch(0.75 0.15 75)" }}
+                    style={{ borderTopColor: "var(--adhd-amber)" }}
                   />
                   <Logo className="absolute inset-0 m-auto w-4 h-4" />
                 </div>
@@ -248,16 +248,16 @@ const FEATURES = [
 
 export default function LandingPage() {
   return (
-    <div className="dark min-h-screen bg-[oklch(0.145_0_0)] text-[oklch(0.985_0_0)] overflow-x-hidden">
+    <div className="dark min-h-screen bg-[var(--adhd-dark)] text-[var(--adhd-bg)] overflow-x-hidden">
       {/* Ambient blobs */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
-        <div className="absolute top-0 left-[10%] w-[600px] h-[500px] rounded-full bg-[oklch(0.78_0.12_85/15%)] blur-[120px]" />
-        <div className="absolute bottom-[20%] right-[5%] w-[400px] h-[400px] rounded-full bg-[oklch(0.65_0.08_185/12%)] blur-[100px]" />
-        <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full bg-[oklch(0.75_0.10_75/8%)] blur-[80px]" />
+        <div className="absolute top-0 left-[10%] w-[600px] h-[500px] rounded-full bg-[color-mix(in_srgb,var(--adhd-amber)_15%,transparent)] blur-[120px]" />
+        <div className="absolute bottom-[20%] right-[5%] w-[400px] h-[400px] rounded-full bg-[color-mix(in_srgb,var(--adhd-purple)_12%,transparent)] blur-[100px]" />
+        <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full bg-[color-mix(in_srgb,var(--adhd-sage)_8%,transparent)] blur-[80px]" />
       </div>
 
       {/* ── Nav ── */}
-      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/6 bg-[oklch(0.145_0_0/80%)] backdrop-blur-xl">
+      <header className="fixed top-0 inset-x-0 z-50 border-b border-white/6 bg-[color-mix(in_srgb,var(--adhd-dark)_80%,transparent)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 text-xs font-semibold tracking-tight sm:text-sm">
             <Logo className="h-5 w-5" />
@@ -272,7 +272,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/sign-up"
-              className="flex items-center gap-1.5 rounded-lg bg-[oklch(0.75_0.15_75)] px-3 py-1.5 text-xs font-medium text-[oklch(0.12_0_0)] transition-colors hover:bg-[oklch(0.72_0.16_75)] sm:px-4 sm:text-sm"
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--adhd-amber)] px-3 py-1.5 text-xs font-medium text-[var(--adhd-dark)] transition-colors hover:bg-[color-mix(in_srgb,var(--adhd-amber)_88%,black)] sm:px-4 sm:text-sm"
             >
               Get started
               <ChevronRight className="w-3.5 h-3.5" />
@@ -302,8 +302,8 @@ export default function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <span className="inline-flex items-center gap-2 text-xs font-mono text-[oklch(0.75_0.15_75)] border border-[oklch(0.75_0.15_75/30%)] bg-[oklch(0.75_0.15_75/8%)] px-3 py-1.5 rounded-full mb-8">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[oklch(0.75_0.15_75)] animate-pulse" />
+                  <span className="inline-flex items-center gap-2 text-xs font-mono text-[var(--adhd-amber)] border border-[color-mix(in_srgb,var(--adhd-amber)_30%,transparent)] bg-[color-mix(in_srgb,var(--adhd-amber)_8%,transparent)] px-3 py-1.5 rounded-full mb-8">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--adhd-amber)] animate-pulse" />
                     Now in beta
                   </span>
                 </motion.div>
@@ -318,7 +318,7 @@ export default function LandingPage() {
                   <br />
                   the ideas.
                   <br />
-                  <span className="text-[oklch(0.75_0.15_75)]">I&apos;ll handle the rest.</span>
+                  <span className="text-[var(--adhd-amber)]">I&apos;ll handle the rest.</span>
                 </motion.h1>
 
                 <motion.p
@@ -339,7 +339,7 @@ export default function LandingPage() {
                 >
                   <Link
                     href="/sign-up"
-                    className="inline-flex items-center gap-2 bg-[oklch(0.75_0.15_75)] hover:bg-[oklch(0.72_0.16_75)] text-[oklch(0.12_0_0)] font-semibold px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="inline-flex items-center gap-2 bg-[var(--adhd-amber)] hover:bg-[color-mix(in_srgb,var(--adhd-amber)_88%,black)] text-[var(--adhd-dark)] font-semibold px-6 py-3 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Start for free
                     <ArrowRight className="w-4 h-4" />
@@ -439,7 +439,7 @@ export default function LandingPage() {
               <p className="text-white/70 text-lg leading-relaxed">
                 ControlledChaos doesn&apos;t give you another list to manage.
                 It takes the chaos out of your head and figures out{" "}
-                <span className="text-[oklch(0.75_0.15_75)]">what to do right now</span>, with the
+                <span className="text-[var(--adhd-amber)]">what to do right now</span>, with the
                 energy you actually have, in the time you actually have.
               </p>
             </FadeIn>
@@ -463,7 +463,7 @@ export default function LandingPage() {
                 <FadeIn key={feature.title} delay={i * 0.08}>
                   <div className="group relative rounded-2xl border border-white/8 bg-white/3 hover:bg-white/5 p-6 transition-all duration-300 h-full">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[oklch(0.75_0.15_75/12%)] border border-[oklch(0.75_0.15_75/20%)] flex items-center justify-center text-[oklch(0.75_0.15_75)] shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--adhd-amber)_12%,transparent)] border border-[color-mix(in_srgb,var(--adhd-amber)_20%,transparent)] flex items-center justify-center text-[var(--adhd-amber)] shrink-0">
                         {feature.icon}
                       </div>
                       <div className="flex-1">
@@ -484,7 +484,7 @@ export default function LandingPage() {
                       </div>
                     </div>
                     {/* Subtle hover glow */}
-                    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,oklch(0.75_0.15_75/6%),transparent)]" />
+                    <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,color-mix(in_srgb,var(--adhd-amber)_6%,transparent),transparent)]" />
                   </div>
                 </FadeIn>
               ))}
@@ -497,12 +497,12 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto">
             <div className="rounded-3xl border border-white/8 bg-white/3 p-10 sm:p-16 relative overflow-hidden">
               {/* Background accent */}
-              <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[oklch(0.75_0.15_75/6%)] blur-[80px] pointer-events-none" />
+              <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[color-mix(in_srgb,var(--adhd-amber)_6%,transparent)] blur-[80px] pointer-events-none" />
 
               <div className="relative flex flex-col lg:flex-row gap-12 lg:gap-16 items-center">
                 <div className="flex-1 max-w-md">
                   <FadeIn>
-                    <p className="text-xs font-mono text-[oklch(0.75_0.15_75)] uppercase tracking-widest mb-4">
+                    <p className="text-xs font-mono text-[var(--adhd-amber)] uppercase tracking-widest mb-4">
                       AI Recommendation
                     </p>
                     <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-5">
@@ -520,14 +520,14 @@ export default function LandingPage() {
 
                 {/* Recommendation card mockup */}
                 <FadeIn delay={0.15} className="flex-1 w-full max-w-sm mx-auto">
-                  <div className="rounded-2xl border border-white/10 bg-[oklch(0.18_0_0)] p-5">
+                  <div className="rounded-2xl border border-white/10 bg-[color-mix(in_srgb,var(--adhd-dark)_92%,var(--adhd-purple))] p-5">
                     <p className="text-xs font-mono text-white/25 uppercase tracking-widest mb-4">
                       Do This Next
                     </p>
-                    <div className="rounded-xl bg-[oklch(0.75_0.15_75/10%)] border border-[oklch(0.75_0.15_75/20%)] p-4 mb-4">
+                    <div className="rounded-xl bg-[color-mix(in_srgb,var(--adhd-amber)_10%,transparent)] border border-[color-mix(in_srgb,var(--adhd-amber)_20%,transparent)] p-4 mb-4">
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <h4 className="font-semibold text-base">Study for Bio Lab</h4>
-                        <span className="text-[10px] font-mono text-[oklch(0.75_0.15_75)] bg-[oklch(0.75_0.15_75/12%)] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                        <span className="text-[10px] font-mono text-[var(--adhd-amber)] bg-[color-mix(in_srgb,var(--adhd-amber)_12%,transparent)] px-2 py-0.5 rounded-full whitespace-nowrap shrink-0">
                           High priority
                         </span>
                       </div>
@@ -573,8 +573,8 @@ export default function LandingPage() {
                 { label: "No lectures.", sub: "\"You missed yesterday\" isn't here." },
               ].map((item, i) => (
                 <FadeIn key={item.label} delay={i * 0.1}>
-                  <div className="bg-[oklch(0.145_0_0)] px-8 py-10">
-                    <p className="text-xl font-bold mb-2 line-through decoration-[oklch(0.75_0.15_75)] decoration-2">
+                  <div className="bg-[var(--adhd-dark)] px-8 py-10">
+                    <p className="text-xl font-bold mb-2 line-through decoration-[var(--adhd-amber)] decoration-2">
                       {item.label}
                     </p>
                     <p className="text-sm text-white/40 leading-relaxed">{item.sub}</p>
@@ -598,7 +598,7 @@ export default function LandingPage() {
           <FadeIn>
             <div className="max-w-2xl mx-auto text-center rounded-3xl border border-white/8 bg-white/3 p-14 relative overflow-hidden">
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,oklch(0.75_0.15_75/10%),transparent)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,color-mix(in_srgb,var(--adhd-amber)_10%,transparent),transparent)]" />
               </div>
               <div className="relative">
                 <p className="text-4xl sm:text-5xl font-bold tracking-tight mb-5 leading-tight">
@@ -611,7 +611,7 @@ export default function LandingPage() {
                 </p>
                 <Link
                   href="/sign-up"
-                  className="inline-flex items-center gap-2.5 bg-[oklch(0.75_0.15_75)] hover:bg-[oklch(0.72_0.16_75)] text-[oklch(0.12_0_0)] font-semibold text-base px-8 py-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center gap-2.5 bg-[var(--adhd-amber)] hover:bg-[color-mix(in_srgb,var(--adhd-amber)_88%,black)] text-[var(--adhd-dark)] font-semibold text-base px-8 py-4 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Get started — it&apos;s free
                   <ArrowRight className="w-4 h-4" />
