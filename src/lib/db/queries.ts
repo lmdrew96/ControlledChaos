@@ -1685,6 +1685,22 @@ export async function createPushSubscription(
       set: { keysP256dh, keysAuth },
     })
     .returning();
+
+  // Prune stale endpoints for the same user. iOS PWAs rotate push endpoints
+  // without invalidating the old one, which silently produces duplicate
+  // deliveries. Any sibling row older than 14 days is safe to drop — a real
+  // active device re-subscribes far more often than that.
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  await db
+    .delete(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.userId, userId),
+        ne(pushSubscriptions.endpoint, endpoint),
+        lt(pushSubscriptions.createdAt, cutoff)
+      )
+    );
+
   return sub;
 }
 
