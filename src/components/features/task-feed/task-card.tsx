@@ -8,7 +8,7 @@ import {
   MapPin,
   Calendar,
   CalendarClock,
-  Scissors,
+  Layers,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ export function TaskCard({
   const timezone = useTimezone();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
-  const [isBreakingDown, setIsBreakingDown] = useState(false);
+  const [isChunking, setIsChunking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showSwipeDeleteDialog, setShowSwipeDeleteDialog] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -116,6 +116,7 @@ export function TaskCard({
     swipeDirection.current = null;
   }
   const isCompleted = task.status === "completed";
+  const hasSteps = !!task.progressSteps && task.progressSteps.length > 0;
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
     priorityConfig.normal;
@@ -182,24 +183,24 @@ export function TaskCard({
     }
   }
 
-  async function handleBreakdownAction() {
-    setIsBreakingDown(true);
+  async function handleChunkAction() {
+    setIsChunking(true);
     try {
-      const res = await fetch(`/api/tasks/${task.id}/breakdown`, { method: "POST" });
-      if (!res.ok) throw new Error("Breakdown failed");
+      const res = await fetch(`/api/tasks/${task.id}/chunk`, { method: "POST" });
       const data = await res.json();
-      toast.success(`Broken into ${data.subtasks.length} subtasks`);
+      if (!res.ok) throw new Error(data.error || "Chunk failed");
+      toast.success(`Chunked into ${data.steps.length} steps`);
       onUpdate();
-    } catch {
-      toast.error("Couldn't break this down. Try again.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't chunk this. Try again.");
     } finally {
-      setIsBreakingDown(false);
+      setIsChunking(false);
     }
   }
 
-  function handleBreakdown(e: React.MouseEvent<HTMLButtonElement>) {
+  function handleChunk(e: React.MouseEvent<HTMLButtonElement>) {
     e.stopPropagation();
-    void handleBreakdownAction();
+    void handleChunkAction();
   }
 
   function handleFindTime(e: React.MouseEvent<HTMLButtonElement>) {
@@ -295,47 +296,47 @@ export function TaskCard({
             </h3>
 
             <div className="flex items-center gap-1">
+              {!isCompleted && !hasSteps && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                      onClick={handleChunk}
+                      disabled={isChunking || isUpdating}
+                      aria-label={`Chunk "${task.title}"`}
+                    >
+                      {isChunking ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Chunk it</TooltipContent>
+                </Tooltip>
+              )}
               {!isCompleted && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                        onClick={handleBreakdown}
-                        disabled={isBreakingDown || isUpdating}
-                        aria-label={`Break down "${task.title}"`}
-                      >
-                        {isBreakingDown ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                        ) : (
-                          <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Break it down</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                        onClick={handleFindTime}
-                        disabled={isScheduling || isUpdating}
-                        aria-label={`Find a time for "${task.title}"`}
-                      >
-                        {isScheduling ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                        ) : (
-                          <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Find a time</TooltipContent>
-                  </Tooltip>
-                </>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                      onClick={handleFindTime}
+                      disabled={isScheduling || isUpdating}
+                      aria-label={`Find a time for "${task.title}"`}
+                    >
+                      {isScheduling ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Find a time</TooltipContent>
+                </Tooltip>
               )}
               <Button
                 variant={confirmDelete ? "destructive" : "ghost"}
@@ -360,37 +361,37 @@ export function TaskCard({
           </div>
 
           <div className="flex items-center gap-2 sm:hidden">
+            {!isCompleted && !hasSteps && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={handleChunk}
+                disabled={isChunking || isUpdating}
+              >
+                {isChunking ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <Layers className="mr-1 h-3 w-3" />
+                )}
+                Chunk
+              </Button>
+            )}
             {!isCompleted && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={handleBreakdown}
-                  disabled={isBreakingDown || isUpdating}
-                >
-                  {isBreakingDown ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : (
-                    <Scissors className="mr-1 h-3 w-3" />
-                  )}
-                  Split
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={handleFindTime}
-                  disabled={isScheduling || isUpdating}
-                >
-                  {isScheduling ? (
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  ) : (
-                    <CalendarClock className="mr-1 h-3 w-3" />
-                  )}
-                  Find Time
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={handleFindTime}
+                disabled={isScheduling || isUpdating}
+              >
+                {isScheduling ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <CalendarClock className="mr-1 h-3 w-3" />
+                )}
+                Find Time
+              </Button>
             )}
             <Button
               variant={confirmDelete ? "destructive" : "outline"}

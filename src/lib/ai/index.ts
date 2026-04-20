@@ -75,7 +75,7 @@ export interface AICallResult {
   durationMs: number;
 }
 
-// --- Haiku (fast, cheap — parsing, scheduling, breakdowns) ---
+// --- Haiku (fast, cheap — parsing, scheduling, chunking) ---
 
 export async function callHaiku(
   params: AICallParams

@@ -41,18 +41,6 @@ export async function POST(_req: Request, context: RouteContext) {
       );
     }
 
-    // Validate eligibility
-    const isEligible =
-      (task.estimatedMinutes && task.estimatedMinutes >= 30) ||
-      task.energyLevel === "high";
-
-    if (!isEligible) {
-      return NextResponse.json(
-        { error: "Task must be 30+ minutes or high energy to chunk" },
-        { status: 400 }
-      );
-    }
-
     // Build context
     const aiCtx = await buildAIContext(userId);
 
