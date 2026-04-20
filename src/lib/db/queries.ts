@@ -816,8 +816,7 @@ export async function getMomentumStats(
     hourlyHeatmapRows,
     marinationActiveRows,
     marinationHistoricalRows,
-    chunkParentsRows,
-    chunkChildrenRows,
+    chunkOutcomesRows,
     categoryRows,
     energyRows,
     biggestDayRows,
@@ -887,30 +886,31 @@ export async function getMomentumStats(
         AND parent_task_id IS NULL
       GROUP BY bucket`
     ),
-    // 2c. Chunk outcomes — parent tasks that have been chunked
-    db.execute<{ total: number; completed: number }>(
+    // 2c. Chunk outcomes — chunks are stored in tasks.progress_steps JSONB,
+    // NOT as child rows. One task = one "chunked parent"; its chunks live
+    // inline. current_step_index is the count of completed chunks (0-based
+    // becomes a count since users increment past the last step on complete).
+    db.execute<{
+      parents_total: number;
+      parents_completed: number;
+      chunks_total: number;
+      chunks_completed: number;
+    }>(
       sql`SELECT
-        COUNT(DISTINCT p.id)::int AS total,
-        COUNT(DISTINCT p.id) FILTER (WHERE p.status = 'completed')::int AS completed
-      FROM tasks p
-      WHERE p.user_id = ${userId}
-        AND p.deleted_at IS NULL
-        AND EXISTS (
-          SELECT 1 FROM tasks c
-          WHERE c.parent_task_id = p.id
-            AND c.deleted_at IS NULL
-        )`
-    ),
-    // 2d. Chunk outcomes — individual chunks (children)
-    db.execute<{ total: number; completed: number }>(
-      sql`SELECT
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE c.status = 'completed')::int AS completed
-      FROM tasks c
-      INNER JOIN tasks p ON p.id = c.parent_task_id AND p.deleted_at IS NULL
-      WHERE c.user_id = ${userId}
-        AND c.parent_task_id IS NOT NULL
-        AND c.deleted_at IS NULL`
+        COUNT(*)::int AS parents_total,
+        COUNT(*) FILTER (WHERE status = 'completed')::int AS parents_completed,
+        COALESCE(SUM(jsonb_array_length(progress_steps)), 0)::int AS chunks_total,
+        COALESCE(SUM(
+          CASE
+            WHEN status = 'completed' THEN jsonb_array_length(progress_steps)
+            ELSE LEAST(current_step_index, jsonb_array_length(progress_steps))
+          END
+        ), 0)::int AS chunks_completed
+      FROM tasks
+      WHERE user_id = ${userId}
+        AND deleted_at IS NULL
+        AND progress_steps IS NOT NULL
+        AND jsonb_array_length(progress_steps) > 0`
     ),
     // 3. By category (current week)
     db.execute<{ category: string | null; count: number }>(
@@ -1048,13 +1048,12 @@ export async function getMomentumStats(
   };
 
   // Chunk outcomes
-  const chunkParentsRow = chunkParentsRows.rows[0];
-  const chunkChildrenRow = chunkChildrenRows.rows[0];
+  const chunkRow = chunkOutcomesRows.rows[0];
   const chunkOutcomes = {
-    parentsChunked: Number(chunkParentsRow?.total ?? 0),
-    parentsCompleted: Number(chunkParentsRow?.completed ?? 0),
-    chunksTotal: Number(chunkChildrenRow?.total ?? 0),
-    chunksCompleted: Number(chunkChildrenRow?.completed ?? 0),
+    parentsChunked: Number(chunkRow?.parents_total ?? 0),
+    parentsCompleted: Number(chunkRow?.parents_completed ?? 0),
+    chunksTotal: Number(chunkRow?.chunks_total ?? 0),
+    chunksCompleted: Number(chunkRow?.chunks_completed ?? 0),
   };
 
   // By category
