@@ -40,16 +40,31 @@ const CHILD_TABLES = [
   "user_settings",
   "goals",
   "brain_dumps",
+  "moments",
   "tasks",
   "calendar_events",
   "locations",
+  "commute_times",
   "user_locations",
   "location_notification_log",
   "task_activity",
   "notifications",
   "crisis_plans",
+  "crisis_messages",
+  "crisis_detections",
   "push_subscriptions",
   "snoozed_pushes",
+  "medications",
+  "medication_logs",
+];
+
+// Tables that reference users.id via columns OTHER than user_id
+// Each entry: [table, column]
+const SPECIAL_USER_COLUMNS: Array<[string, string]> = [
+  ["friendships", "requester_id"],
+  ["friendships", "addressee_id"],
+  ["nudges", "sender_id"],
+  ["nudges", "recipient_id"],
 ];
 
 async function remapUser(oldId: string, newId: string, email: string) {
@@ -75,11 +90,16 @@ async function remapUser(oldId: string, newId: string, email: string) {
               VALUES (${newId}, ${user.email}, ${user.display_name}, ${user.timezone}, ${user.created_at}, ${user.updated_at})`;
   }
 
-  // Step 2: Update all child tables
+  // Step 2: Update all child tables (user_id column)
   for (const table of CHILD_TABLES) {
-    const result = await sql.query(`UPDATE "${table}" SET user_id = $1 WHERE user_id = $2`, [newId, oldId]);
-    const count = (result as any)?.length ?? "?";
+    await sql.query(`UPDATE "${table}" SET user_id = $1 WHERE user_id = $2`, [newId, oldId]);
     console.log(`  ✓ ${table}`);
+  }
+
+  // Step 2b: Update tables with non-standard user-reference columns
+  for (const [table, column] of SPECIAL_USER_COLUMNS) {
+    await sql.query(`UPDATE "${table}" SET "${column}" = $1 WHERE "${column}" = $2`, [newId, oldId]);
+    console.log(`  ✓ ${table}.${column}`);
   }
 
   // Step 3: Delete the old user row (children now point to new ID)
