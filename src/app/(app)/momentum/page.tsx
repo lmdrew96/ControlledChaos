@@ -9,6 +9,7 @@ import type { EventCategory } from "@/types";
 import type { MomentumStats } from "@/lib/db/queries";
 import { CircadianSignature } from "./_components/circadian-signature";
 import { TaskMarination } from "./_components/task-marination";
+import { ChunkOutcomes } from "./_components/chunk-outcomes";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -181,12 +182,15 @@ export default function MomentumPage() {
         </CardContent>
       </Card>
 
+      {/* Circadian Signature — full width, all-time hour × day heatmap */}
+      <CircadianSignature hourlyHeatmap={stats.hourlyHeatmap} />
+
       {/* Two-column section */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Left column */}
         <div className="space-y-4">
-          {/* Circadian Signature (all-time hour × day heatmap) */}
-          <CircadianSignature hourlyHeatmap={stats.hourlyHeatmap} />
+          {/* Chunk outcomes */}
+          <ChunkOutcomes chunkOutcomes={stats.chunkOutcomes} />
 
           {/* Energy chips */}
           <Card>

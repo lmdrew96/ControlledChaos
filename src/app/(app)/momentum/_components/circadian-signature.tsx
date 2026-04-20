@@ -207,14 +207,14 @@ export function CircadianSignature({
                 <div
                   key={i}
                   className="flex items-center justify-end pr-1 text-[10px] text-muted-foreground"
-                  style={{ height: 22 }}
+                  style={{ height: 30 }}
                 >
                   {letter}
                 </div>
               ))}
             </div>
             <div
-              className="grid grid-cols-24 gap-[2px]"
+              className="grid gap-[2px]"
               style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
               role="img"
               aria-label={`All-time task completion heatmap, ${totalCompletions} tasks across 7 days and 24 hours`}
@@ -225,7 +225,7 @@ export function CircadianSignature({
                     key={`${dayIdx}-${hour}`}
                     className="rounded-sm transition-transform hover:scale-[1.25]"
                     style={{
-                      height: 22,
+                      height: 30,
                       backgroundColor: `rgba(249, 115, 22, ${opacityFor(count, max24)})`,
                     }}
                     title={`${DAY_NAMES[dayIdx]} ${hourLabel(hour)} — ${count} task${count === 1 ? "" : "s"}`}

@@ -777,6 +777,12 @@ export interface MomentumStats {
     active: MarinationBuckets;
     historical: MarinationBuckets;
   };
+  chunkOutcomes: {
+    parentsChunked: number; // parent tasks that have at least one chunk
+    parentsCompleted: number; // of those, how many are completed
+    chunksTotal: number; // total chunks (children)
+    chunksCompleted: number; // of those, how many are completed
+  };
   byCategory: Array<{ category: string | null; count: number }>;
   byEnergy: { low: number; medium: number; high: number };
   wins: Array<{ icon: string; title: string; subtitle: string }>;
@@ -810,6 +816,8 @@ export async function getMomentumStats(
     hourlyHeatmapRows,
     marinationActiveRows,
     marinationHistoricalRows,
+    chunkParentsRows,
+    chunkChildrenRows,
     categoryRows,
     energyRows,
     biggestDayRows,
@@ -878,6 +886,31 @@ export async function getMomentumStats(
         AND deleted_at IS NULL
         AND parent_task_id IS NULL
       GROUP BY bucket`
+    ),
+    // 2c. Chunk outcomes — parent tasks that have been chunked
+    db.execute<{ total: number; completed: number }>(
+      sql`SELECT
+        COUNT(DISTINCT p.id)::int AS total,
+        COUNT(DISTINCT p.id) FILTER (WHERE p.status = 'completed')::int AS completed
+      FROM tasks p
+      WHERE p.user_id = ${userId}
+        AND p.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM tasks c
+          WHERE c.parent_task_id = p.id
+            AND c.deleted_at IS NULL
+        )`
+    ),
+    // 2d. Chunk outcomes — individual chunks (children)
+    db.execute<{ total: number; completed: number }>(
+      sql`SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE c.status = 'completed')::int AS completed
+      FROM tasks c
+      INNER JOIN tasks p ON p.id = c.parent_task_id AND p.deleted_at IS NULL
+      WHERE c.user_id = ${userId}
+        AND c.parent_task_id IS NOT NULL
+        AND c.deleted_at IS NULL`
     ),
     // 3. By category (current week)
     db.execute<{ category: string | null; count: number }>(
@@ -1014,6 +1047,16 @@ export async function getMomentumStats(
     historical: readBuckets(marinationHistoricalRows.rows),
   };
 
+  // Chunk outcomes
+  const chunkParentsRow = chunkParentsRows.rows[0];
+  const chunkChildrenRow = chunkChildrenRows.rows[0];
+  const chunkOutcomes = {
+    parentsChunked: Number(chunkParentsRow?.total ?? 0),
+    parentsCompleted: Number(chunkParentsRow?.completed ?? 0),
+    chunksTotal: Number(chunkChildrenRow?.total ?? 0),
+    chunksCompleted: Number(chunkChildrenRow?.completed ?? 0),
+  };
+
   // By category
   const byCategory = categoryRows.rows.map((r) => ({
     category: r.category,
@@ -1105,6 +1148,7 @@ export async function getMomentumStats(
     daily,
     hourlyHeatmap,
     marination,
+    chunkOutcomes,
     byCategory,
     byEnergy,
     wins,
