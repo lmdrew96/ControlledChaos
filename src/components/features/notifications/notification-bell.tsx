@@ -101,7 +101,11 @@ export function NotificationBell() {
           )}
         </div>
 
-        <div className="max-h-80 overflow-y-auto">
+        <div
+          className="max-h-[min(20rem,70svh)] overflow-y-auto overscroll-contain [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           {recent.length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No notifications yet
