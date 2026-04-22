@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
@@ -85,6 +86,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Crisis detection badge state
   const { isActive: crisisActive } = useCrisisDetection();
+
+  // Silent location prefetch on app open — only fires if permission already granted.
+  // Populates the localStorage cache so downstream components (recommendations, etc.)
+  // have coords available instantly instead of waiting on a user gesture.
+  useGeolocation({ autoFetchIfGranted: true });
 
   // Geofence tracker — fetch setting once, then track passively
   const [locationEnabled, setLocationEnabled] = useState(false);
