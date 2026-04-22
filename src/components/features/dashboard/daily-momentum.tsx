@@ -57,7 +57,26 @@ export function DailyMomentum() {
     if (stored) setMomentumStyle(stored);
   }, []);
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <Card className="h-full border-border/40 bg-card/80">
+        <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-muted" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-2/3 rounded bg-muted" />
+              <div className="h-3 w-1/2 rounded bg-muted/70" />
+            </div>
+          </div>
+          <div className="flex items-end gap-1" style={{ height: 36 }}>
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-3 w-3 rounded-sm bg-muted" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const display = momentumStyle === "motivational"
     ? getMotivationalTier(stats.completedToday)
@@ -83,51 +102,48 @@ export function DailyMomentum() {
   return (
     <Link href="/momentum" className="block h-full">
       <Card className="group h-full border-border/40 bg-card/80 transition-colors hover:border-border/60">
-        <CardContent className="flex h-full items-center gap-4 p-5">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${display.bg} ${display.ring} ${display.accent} transition-all`}>
-            <Icon className="h-5 w-5" />
+        <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
+          <div className="flex items-start gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${display.bg} ${display.ring} ${display.accent} transition-all`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-semibold leading-snug">{display.message}</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">
+                {stats.completedToday} today &middot; {stats.completedThisWeek} this week
+              </p>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm font-semibold">{display.message}</span>
-            </div>
-
-            {/* Mini 7-day bar chart */}
-            <div className="mt-2 flex items-center gap-3">
-              <div className="flex items-end gap-1" style={{ height: 36 }}>
-                {currentWeek.map((d, i) => {
-                  const isToday = d.date === todayDate;
-                  const barHeight =
-                    d.count > 0
-                      ? Math.max((d.count / maxCount) * 36, 3)
-                      : 3;
-                  return (
-                    <div key={d.date} className="flex flex-col items-center gap-0.5">
-                      <div
-                        className={`w-3 rounded-sm transition-all duration-300 ${
-                          d.count > 0 ? "bg-orange-400/80" : "bg-muted-foreground/15"
-                        }`}
-                        style={{
-                          height: barHeight,
-                          transitionDelay: `${i * 40}ms`,
-                        }}
-                      />
-                      <span
-                        className={`text-[10px] leading-tight text-muted-foreground ${
-                          isToday ? "font-medium" : ""
-                        }`}
-                      >
-                        {DAY_LABELS[i]}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {stats.completedToday} today &middot; {stats.completedThisWeek} this week
-              </span>
-            </div>
+          {/* Mini 7-day bar chart */}
+          <div className="flex items-end justify-between gap-1">
+            {currentWeek.map((d, i) => {
+              const isToday = d.date === todayDate;
+              const barHeight =
+                d.count > 0
+                  ? Math.max((d.count / maxCount) * 36, 3)
+                  : 3;
+              return (
+                <div key={d.date} className="flex flex-1 flex-col items-center gap-0.5">
+                  <div
+                    className={`w-full max-w-4 rounded-sm transition-all duration-300 ${
+                      d.count > 0 ? "bg-orange-400/80" : "bg-muted-foreground/15"
+                    }`}
+                    style={{
+                      height: barHeight,
+                      transitionDelay: `${i * 40}ms`,
+                    }}
+                  />
+                  <span
+                    className={`text-[10px] leading-tight text-muted-foreground ${
+                      isToday ? "font-medium" : ""
+                    }`}
+                  >
+                    {DAY_LABELS[i]}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
