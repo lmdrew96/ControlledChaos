@@ -14,16 +14,45 @@ import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
 import { FriendsSettings } from "./friends-settings";
 import { MedicationSettings } from "./medication-settings";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useCallback } from "react";
+
+const VALID_TABS = new Set([
+  "profile",
+  "ai-energy",
+  "calendar",
+  "locations",
+  "notifications",
+  "crisis-detection",
+  "friends",
+  "medications",
+]);
 
 export function SettingsTabs() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const validTabs = new Set(["profile", "ai-energy", "calendar", "locations", "notifications", "crisis-detection", "friends", "medications"]);
-  const defaultTab = tabParam && validTabs.has(tabParam) ? tabParam : "profile";
+  const activeTab = tabParam && VALID_TABS.has(tabParam) ? tabParam : "profile";
+
+  // Controlled: tab selection lives in the URL so reloads preserve it.
+  // (This matters in the desktop PWA where a stray controllerchange can
+  // reload the page mid-session.)
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value === "profile") {
+        params.delete("tab");
+      } else {
+        params.set("tab", value);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
+    },
+    [searchParams, router]
+  );
 
   return (
-    <Tabs defaultValue={defaultTab} className="space-y-6">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
       <TabsList className="w-full flex overflow-x-auto overflow-y-hidden flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
         <TabsTrigger
           value="profile"
