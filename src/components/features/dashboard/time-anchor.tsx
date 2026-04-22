@@ -138,47 +138,57 @@ export function TimeAnchor() {
     );
   }
 
+  const showNextEvent =
+    minutesUntilNext != null && minutesUntilNext > 0 && minutesUntilNext <= 180;
+
   return (
-    <div className="time-anchor-bar flex items-center gap-4 px-4 py-2.5">
-      {/* Current time */}
-      <div className="flex items-center gap-2 text-sm font-semibold tabular-nums">
-        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-        {timeStr}
-      </div>
-
-      {/* Day progress bar */}
-      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <div
-          className="h-2 flex-1 overflow-hidden rounded-full bg-muted/60"
-          title={`${Math.round(progress)}% of your day`}
-        >
-          <div
-            className="day-progress-fill h-full rounded-full transition-all duration-1000"
-            style={{ width: `${Math.min(100, progress)}%` }}
-          />
+    <div className="time-anchor-bar flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-4">
+      {/* Row 1 on mobile: time + day progress + collapse. Everything on sm+ */}
+      <div className="flex items-center gap-3 sm:flex-1 sm:gap-4">
+        {/* Current time */}
+        <div className="flex shrink-0 items-center gap-2 text-sm font-semibold tabular-nums">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+          {timeStr}
         </div>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-          {formatMinutes(minutesLeft)} left
-        </span>
+
+        {/* Day progress bar */}
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <div
+            className="h-2 flex-1 overflow-hidden rounded-full bg-muted/60"
+            title={`${Math.round(progress)}% of your day`}
+          >
+            <div
+              className="day-progress-fill h-full rounded-full transition-all duration-1000"
+              style={{ width: `${Math.min(100, progress)}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+            {formatMinutes(minutesLeft)} left
+          </span>
+        </div>
+
+        {/* Collapse button — kept on the primary row on every breakpoint */}
+        <button
+          onClick={toggleCollapsed}
+          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Collapse time anchor"
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* Next event */}
-      {minutesUntilNext != null && minutesUntilNext > 0 && minutesUntilNext <= 180 && (
-        <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <CalendarClock className="h-3 w-3" />
-          <span className="max-w-[140px] truncate">{nextEvent!.title}</span>
-          <span className="font-medium text-primary/70">in {formatMinutes(minutesUntilNext)}</span>
+      {/* Next event — second row on mobile, inline on sm+ */}
+      {showNextEvent && (
+        <div className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:max-w-[220px]">
+          <CalendarClock className="h-3 w-3 shrink-0" />
+          <span className="min-w-0 flex-1 truncate sm:flex-none sm:max-w-[140px]">
+            {nextEvent!.title}
+          </span>
+          <span className="shrink-0 font-medium text-primary/70">
+            in {formatMinutes(minutesUntilNext)}
+          </span>
         </div>
       )}
-
-      {/* Collapse button */}
-      <button
-        onClick={toggleCollapsed}
-        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-        aria-label="Collapse time anchor"
-      >
-        <ChevronUp className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }
