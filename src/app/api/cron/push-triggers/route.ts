@@ -19,6 +19,7 @@ import {
   shouldSendIdleCheckin,
   shouldSendAfternoonCheckin,
   getEveningCheckinStatus,
+  resolveDailyCheckInConfig,
   hasBeenNotifiedToday,
   hasEverBeenNotified,
   getInactivityNudgeTier,
@@ -58,7 +59,7 @@ const EVENT_ACTIONS = [
  * GET /api/cron/push-triggers
  * Runs every 15 minutes via Vercel cron.
  * Checks all push-enabled users for deadline reminders, event reminders, scheduled task alerts,
- * idle check-ins (11am + 3pm + 6:00pm), inactivity nudges, and pending snoozed pushes.
+ * a single daily idle check-in (at the user's chosen window), inactivity nudges, and pending snoozed pushes.
  */
 export async function GET(request: Request) {
   // Verify cron secret
@@ -303,77 +304,35 @@ export async function GET(request: Request) {
         if (sent) markSent();
       }
 
-      // --- Morning Idle Check-in (11am+) ---
-      const morningDedupKey = `idle-checkin-${todayInTimezone(timezone)}`;
-      if (canSend("normal") && !(await hasBeenNotifiedToday(userId, morningDedupKey, timezone))) {
-        const morningStatus = await shouldSendIdleCheckin(userId, timezone);
-        if (morningStatus.shouldSend) {
-          const locName = await getLocationName();
-          const topTask = await getTopPendingTaskTitle(userId, locName);
-          const message = await generatePushMessage(
-            { type: "idle_checkin", topTaskTitle: topTask, activityLevel: morningStatus.activityLevel },
-            personalityPrefs,
-            timezone,
-            mode,
-            locName,
-            await getSnapshot()
-          );
-          const sent = await sendPushToUser(userId, {
-            title: "ControlledChaos",
-            body: message,
-            url: "/dump",
-            tag: morningDedupKey,
-            userId,
-            actions: IDLE_ACTIONS,
-          });
-          if (sent) markSent();
-        }
-      }
-
-      // --- Afternoon Idle Check-in (3pm+) ---
-      const afternoonDedupKey = `idle-checkin-afternoon-${todayInTimezone(timezone)}`;
-      if (mode !== "gentle" && canSend("normal") && !(await hasBeenNotifiedToday(userId, afternoonDedupKey, timezone))) {
-        const afternoonStatus = await shouldSendAfternoonCheckin(userId, timezone);
-        if (afternoonStatus.shouldSend) {
-          const locName = await getLocationName();
-          const topTask = await getTopPendingTaskTitle(userId, locName);
-          const message = await generatePushMessage(
-            { type: "idle_checkin_afternoon", topTaskTitle: topTask, activityLevel: afternoonStatus.activityLevel },
-            personalityPrefs,
-            timezone,
-            mode,
-            locName,
-            await getSnapshot()
-          );
-          const sent = await sendPushToUser(userId, {
-            title: "ControlledChaos",
-            body: message,
-            url: topTask ? "/tasks" : "/dump",
-            tag: afternoonDedupKey,
-            userId,
-            actions: IDLE_ACTIONS,
-          });
-          if (sent) markSent();
-        }
-      }
-
-      // --- Evening Idle Check-in (7:00pm+) ---
-      const eveningDedupKey = `idle-checkin-evening-${todayInTimezone(timezone)}`;
-      if (mode === "gentle") {
-        console.log(`[Push][Evening] skip user=${userId} reason=gentle_mode`);
+      // --- Daily Idle Check-in (at most one per day, in user's chosen window) ---
+      const checkInConfig = resolveDailyCheckInConfig(notificationPrefs);
+      const checkInDedupKey = `idle-checkin-${todayInTimezone(timezone)}`;
+      if (!checkInConfig.enabled) {
+        console.log(`[Push][CheckIn] skip user=${userId} reason=disabled`);
       } else if (!canSend("normal")) {
-        console.log(`[Push][Evening] skip user=${userId} reason=daily_cap_reached cap=${dailyCap} sentToday=${sentToday}`);
-      } else if (await hasBeenNotifiedToday(userId, eveningDedupKey, timezone)) {
-        console.log(`[Push][Evening] skip user=${userId} reason=already_notified_today`);
+        console.log(`[Push][CheckIn] skip user=${userId} reason=daily_cap_reached cap=${dailyCap} sentToday=${sentToday}`);
+      } else if (await hasBeenNotifiedToday(userId, checkInDedupKey, timezone)) {
+        console.log(`[Push][CheckIn] skip user=${userId} reason=already_notified_today`);
       } else {
-        const eveningStatus = await getEveningCheckinStatus(userId, timezone);
-        if (!eveningStatus.shouldSend) {
-          console.log(`[Push][Evening] skip user=${userId} reason=${eveningStatus.reason}`);
+        const status =
+          checkInConfig.window === "morning"
+            ? await shouldSendIdleCheckin(userId, timezone)
+            : checkInConfig.window === "afternoon"
+              ? await shouldSendAfternoonCheckin(userId, timezone)
+              : await getEveningCheckinStatus(userId, timezone);
+        if (!status.shouldSend) {
+          console.log(`[Push][CheckIn] skip user=${userId} reason=outside_window_or_not_due window=${checkInConfig.window}`);
         } else {
           const locName = await getLocationName();
           const topTask = await getTopPendingTaskTitle(userId, locName);
+          const messageType =
+            checkInConfig.window === "morning"
+              ? "idle_checkin"
+              : checkInConfig.window === "afternoon"
+                ? "idle_checkin_afternoon"
+                : "idle_checkin_evening";
           const message = await generatePushMessage(
-            { type: "idle_checkin_evening", topTaskTitle: topTask, activityLevel: eveningStatus.activityLevel },
+            { type: messageType, topTaskTitle: topTask, activityLevel: status.activityLevel },
             personalityPrefs,
             timezone,
             mode,
@@ -384,16 +343,13 @@ export async function GET(request: Request) {
             title: "ControlledChaos",
             body: message,
             url: topTask ? "/tasks" : "/dump",
-            tag: eveningDedupKey,
+            tag: checkInDedupKey,
             userId,
             actions: IDLE_ACTIONS,
           });
-
           if (sent) {
             markSent();
-            console.log(`[Push][Evening] sent user=${userId}`);
-          } else {
-            console.log(`[Push][Evening] not_sent user=${userId} reason=no_active_subscriptions_or_push_blocked`);
+            console.log(`[Push][CheckIn] sent user=${userId} window=${checkInConfig.window}`);
           }
         }
       }

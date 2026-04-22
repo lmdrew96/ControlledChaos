@@ -249,6 +249,8 @@ export type NotificationAssertiveness = "gentle" | "balanced" | "assertive";
 
 export type CelebrationLevel = "none" | "subtle" | "full";
 
+export type DailyCheckInTime = "morning" | "afternoon" | "evening";
+
 export interface NotificationPrefs {
   pushEnabled: boolean;
   locationNotificationsEnabled: boolean;
@@ -265,6 +267,10 @@ export interface NotificationPrefs {
   momentumStyle: "motivational" | "neutral";
   /** Minutes before a deadline/event to fire a reminder. Defaults to [1440, 60, 10] (1 day, 1 hour, 10 min). */
   reminderIntervals?: number[];
+  /** Whether to send a once-daily idle check-in. If undefined, derived from assertivenessMode. */
+  dailyCheckInEnabled?: boolean;
+  /** Which time window the daily check-in fires in. If undefined, defaults to "morning". */
+  dailyCheckInTime?: DailyCheckInTime;
 }
 
 export const DEFAULT_REMINDER_INTERVALS: number[] = [1440, 60, 10];

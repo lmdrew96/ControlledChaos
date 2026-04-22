@@ -15,6 +15,7 @@ import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/a
 import { enforceWordLimit } from "@/lib/ai/validate";
 import {
   DEFAULT_REMINDER_INTERVALS,
+  type DailyCheckInTime,
   type NotificationAssertiveness,
   type NotificationPrefs,
   type PersonalityPrefs,
@@ -88,6 +89,31 @@ export function getAssertivenessMode(prefs: NotificationPrefs | null | undefined
   const mode = prefs?.assertivenessMode;
   if (mode === "gentle" || mode === "balanced" || mode === "assertive") return mode;
   return "balanced";
+}
+
+/**
+ * Resolve the effective daily check-in config for a user. At most one idle check-in
+ * per day (collapsed from the old morning/afternoon/evening triple, which could
+ * fire up to 3 times in a single day).
+ *
+ * Defaults when prefs are unset:
+ *   - enabled: true (preserves pre-existing morning check-in behavior for all modes)
+ *   - window:  "morning" (matches the default window of the old triple)
+ * Users can disable entirely or switch to afternoon/evening via settings.
+ * Assertiveness mode affects message tone and the daily cap, not whether this fires.
+ */
+export function resolveDailyCheckInConfig(
+  prefs: NotificationPrefs | null | undefined
+): { enabled: boolean; window: DailyCheckInTime } {
+  const enabled =
+    typeof prefs?.dailyCheckInEnabled === "boolean" ? prefs.dailyCheckInEnabled : true;
+  const window: DailyCheckInTime =
+    prefs?.dailyCheckInTime === "morning" ||
+    prefs?.dailyCheckInTime === "afternoon" ||
+    prefs?.dailyCheckInTime === "evening"
+      ? prefs.dailyCheckInTime
+      : "morning";
+  return { enabled, window };
 }
 
 export function getDailyPushCap(mode: NotificationAssertiveness): number {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Moon, MapPin, Loader2, Clock, Plus, X } from "lucide-react";
+import { Bell, Mail, Moon, MapPin, Loader2, Clock, Plus, X, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
 import {
   DEFAULT_REMINDER_INTERVALS,
+  type DailyCheckInTime,
   type NotificationAssertiveness,
   type NotificationPrefs,
 } from "@/types";
@@ -27,7 +28,19 @@ const DEFAULT_PREFS: NotificationPrefs = {
   celebrationLevel: "full",
   momentumStyle: "neutral",
   reminderIntervals: DEFAULT_REMINDER_INTERVALS,
+  dailyCheckInEnabled: true,
+  dailyCheckInTime: "morning",
 };
+
+const CHECK_IN_TIME_OPTIONS: Array<{
+  value: DailyCheckInTime;
+  label: string;
+  hint: string;
+}> = [
+  { value: "morning", label: "Morning", hint: "11am – 3pm" },
+  { value: "afternoon", label: "Afternoon", hint: "3pm – 7pm" },
+  { value: "evening", label: "Evening", hint: "After 7pm" },
+];
 
 type ReminderUnit = "minutes" | "hours" | "days";
 
@@ -63,17 +76,20 @@ const ASSERTIVENESS_OPTIONS: Array<{
   {
     value: "gentle",
     label: "Gentle",
-    description: "Fewer nudges and softer follow-ups.",
+    description:
+      "Up to 4 pushes/day. Skips departure nudges and missed-task follow-ups. Softer language.",
   },
   {
     value: "balanced",
     label: "Balanced",
-    description: "Default: steady reminders without overdoing it.",
+    description:
+      "Up to 6 pushes/day. Departure nudges included. Neutral language.",
   },
   {
     value: "assertive",
     label: "Assertive",
-    description: "More follow-ups when tasks are time-sensitive.",
+    description:
+      "Up to 8 pushes/day. Follow-ups when scheduled tasks slip past their start time. More direct language.",
   },
 ];
 
@@ -83,6 +99,12 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
   const intervals = Array.isArray(rawIntervals)
     ? sortIntervalsDesc(rawIntervals)
     : DEFAULT_REMINDER_INTERVALS;
+  const checkInTime: DailyCheckInTime =
+    raw?.dailyCheckInTime === "morning" ||
+    raw?.dailyCheckInTime === "afternoon" ||
+    raw?.dailyCheckInTime === "evening"
+      ? raw.dailyCheckInTime
+      : "morning";
   return {
     ...DEFAULT_PREFS,
     ...raw,
@@ -95,6 +117,9 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
     friendNudgesEnabled: raw?.friendNudgesEnabled ?? true,
     mutedFriendIds: raw?.mutedFriendIds ?? [],
     reminderIntervals: intervals,
+    dailyCheckInEnabled:
+      typeof raw?.dailyCheckInEnabled === "boolean" ? raw.dailyCheckInEnabled : true,
+    dailyCheckInTime: checkInTime,
   };
 }
 
@@ -421,6 +446,46 @@ export function NotificationSettings() {
               >
                 <p className="text-sm font-medium">{option.label}</p>
                 <p className="text-xs text-muted-foreground">{option.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Daily Check-in */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Sun className="h-4 w-4 text-muted-foreground" />
+            Daily Check-in
+          </div>
+          <Switch
+            checked={prefs.dailyCheckInEnabled ?? true}
+            onCheckedChange={(checked) => update({ dailyCheckInEnabled: checked })}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground sm:pl-6">
+          At most one nudge per day. Morning and afternoon only fire if you&apos;ve been idle;
+          evening fires as a gentle wrap-up regardless.
+        </p>
+        <div className="grid grid-cols-3 gap-2 sm:pl-6">
+          {CHECK_IN_TIME_OPTIONS.map((option) => {
+            const selected = (prefs.dailyCheckInTime ?? "morning") === option.value;
+            const disabled = !(prefs.dailyCheckInEnabled ?? true);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={disabled}
+                onClick={() => update({ dailyCheckInTime: option.value })}
+                className={`rounded-md border p-2 text-center transition-colors ${
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-accent"
+                } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                <p className="text-sm font-medium">{option.label}</p>
+                <p className="text-[10px] text-muted-foreground">{option.hint}</p>
               </button>
             );
           })}
