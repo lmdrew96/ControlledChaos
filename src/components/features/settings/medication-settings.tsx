@@ -7,25 +7,31 @@ import {
   Pencil,
   Trash2,
   Loader2,
-  Clock,
   Check,
   Minus,
   Pause,
   Play,
   X,
+  MoreVertical,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,11 +41,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Medication, MedicationSchedule } from "@/types";
 
-const DEFAULT_SCHEDULE: MedicationSchedule = { type: "daily" };
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface MedForm {
@@ -82,6 +86,7 @@ export function MedicationSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [adherenceData, setAdherenceData] = useState<Record<string, AdherenceData[]>>({});
   const [expandedMedId, setExpandedMedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchMedications = useCallback(async () => {
     try {
@@ -279,142 +284,170 @@ export function MedicationSettings() {
               <p>No medications yet. Add one to get reminders!</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {medications.map((med) => {
                 const isExpanded = expandedMedId === med.id;
+                const scheduleLine = [
+                  formatSchedule(med.schedule),
+                  ...(med.reminderTimes as string[]),
+                ].join(" · ");
                 return (
-                  <div key={med.id} className="rounded-lg border p-4 space-y-3">
-                    {/* Header row */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <p className={`text-sm font-medium ${!med.isActive ? "text-muted-foreground line-through" : ""}`}>
+                  <div
+                    key={med.id}
+                    className={`rounded-lg border transition-colors ${
+                      !med.isActive ? "bg-muted/20" : ""
+                    }`}
+                  >
+                    {/* Primary row — always visible */}
+                    <div className="flex items-center gap-2 px-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isExpanded) {
+                            setExpandedMedId(null);
+                          } else {
+                            setExpandedMedId(med.id);
+                            if (!adherenceData[med.id]) fetchAdherence(med.id);
+                          }
+                        }}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? "Hide" : "Show"} ${med.name} adherence`}
+                      >
+                        <Pill
+                          className={`h-4 w-4 shrink-0 ${
+                            med.isActive ? "text-primary/70" : "text-muted-foreground/50"
+                          }`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={`truncate text-sm font-medium ${
+                              !med.isActive ? "text-muted-foreground line-through" : ""
+                            }`}
+                          >
                             {med.name}
+                            <span className="ml-2 font-normal text-muted-foreground">
+                              {med.dosage}
+                            </span>
                           </p>
-                          <p className="text-xs text-muted-foreground">{med.dosage}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {scheduleLine}
+                          </p>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleToggleActive(med)}
-                          title={med.isActive ? "Pause reminders" : "Resume reminders"}
-                        >
-                          {med.isActive ? (
-                            <Pause className="h-3.5 w-3.5 text-muted-foreground" />
-                          ) : (
-                            <Play className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(med)}>
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="ghost">
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete {med.name}?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove all reminders and adherence history for this medication.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(med.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 shrink-0"
+                            aria-label={`${med.name} actions`}
+                          >
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => handleToggleActive(med)}>
+                            {med.isActive ? (
+                              <>
+                                <Pause className="mr-2 h-3.5 w-3.5" />
+                                Pause reminders
+                              </>
+                            ) : (
+                              <>
+                                <Play className="mr-2 h-3.5 w-3.5" />
+                                Resume reminders
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openEdit(med)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => setDeletingId(med.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    {/* Schedule + times */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {formatSchedule(med.schedule)}
-                      </Badge>
-                      {(med.reminderTimes as string[]).map((t) => (
-                        <Badge key={t} variant="secondary" className="text-xs gap-1">
-                          <Clock className="h-3 w-3" />
-                          {t}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    {med.notes && (
-                      <p className="text-xs text-muted-foreground">{med.notes}</p>
-                    )}
-
-                    {/* Adherence toggle */}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-xs"
-                      onClick={() => {
-                        if (isExpanded) {
-                          setExpandedMedId(null);
-                        } else {
-                          setExpandedMedId(med.id);
-                          if (!adherenceData[med.id]) fetchAdherence(med.id);
-                        }
-                      }}
-                    >
-                      {isExpanded ? "Hide" : "Show"} adherence (7 days)
-                    </Button>
-
-                    {/* Adherence grid */}
-                    {isExpanded && adherenceData[med.id] && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="py-1 pr-2 text-left font-medium text-muted-foreground">Date</th>
-                              {(med.reminderTimes as string[]).map((t) => (
-                                <th key={t} className="py-1 px-2 text-center font-medium text-muted-foreground">
-                                  {t}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {adherenceData[med.id].map((day) => {
-                              const dateLabel = new Date(day.date + "T12:00:00").toLocaleDateString("en-US", {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                              });
-                              const isToday = day.date === new Date().toISOString().slice(0, 10);
-                              return (
-                                <tr key={day.date} className={`border-b ${isToday ? "bg-primary/5" : ""}`}>
-                                  <td className="py-1.5 pr-2 text-muted-foreground">{dateLabel}</td>
-                                  {day.slots.map((slot) => (
-                                    <td key={slot.time} className="py-1.5 px-2 text-center">
-                                      {slot.taken ? (
-                                        <Check className="mx-auto h-4 w-4 text-green-500" />
-                                      ) : isToday ? (
-                                        <button
-                                          onClick={() => handleLogTaken(med.id, slot.time, day.date)}
-                                          className="mx-auto flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/10 transition-colors"
-                                          title="Mark as taken"
-                                        >
-                                          <Plus className="h-3 w-3 text-muted-foreground" />
-                                        </button>
-                                      ) : (
-                                        <Minus className="mx-auto h-4 w-4 text-muted-foreground/30" />
-                                      )}
-                                    </td>
+                    {/* Expanded detail — notes + 7-day adherence */}
+                    {isExpanded && (
+                      <div className="space-y-3 border-t px-3 pb-3 pt-2.5">
+                        {med.notes && (
+                          <p className="text-xs italic text-muted-foreground">{med.notes}</p>
+                        )}
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Last 7 days
+                        </p>
+                        {adherenceData[med.id] ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b text-muted-foreground">
+                                  <th className="py-1 pr-2 text-left font-medium">Date</th>
+                                  {(med.reminderTimes as string[]).map((t) => (
+                                    <th key={t} className="px-2 py-1 text-center font-medium">
+                                      {t}
+                                    </th>
                                   ))}
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                              </thead>
+                              <tbody>
+                                {adherenceData[med.id].map((day) => {
+                                  const dateLabel = new Date(day.date + "T12:00:00").toLocaleDateString("en-US", {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                  });
+                                  const isToday = day.date === new Date().toISOString().slice(0, 10);
+                                  return (
+                                    <tr
+                                      key={day.date}
+                                      className={`border-b last:border-b-0 ${
+                                        isToday ? "bg-primary/5" : ""
+                                      }`}
+                                    >
+                                      <td className="py-1.5 pr-2 text-muted-foreground">{dateLabel}</td>
+                                      {day.slots.map((slot) => (
+                                        <td key={slot.time} className="px-2 py-1.5 text-center">
+                                          {slot.taken ? (
+                                            <Check className="mx-auto h-4 w-4 text-green-500" />
+                                          ) : isToday ? (
+                                            <button
+                                              onClick={() => handleLogTaken(med.id, slot.time, day.date)}
+                                              className="mx-auto flex h-5 w-5 items-center justify-center rounded border border-dashed border-muted-foreground/30 transition-colors hover:border-primary hover:bg-primary/10"
+                                              title="Mark as taken"
+                                            >
+                                              <Plus className="h-3 w-3 text-muted-foreground" />
+                                            </button>
+                                          ) : (
+                                            <Minus className="mx-auto h-4 w-4 text-muted-foreground/30" />
+                                          )}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Loading adherence...
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -424,6 +457,34 @@ export function MedicationSettings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete confirmation — controlled by row dropdown */}
+      <AlertDialog
+        open={deletingId !== null}
+        onOpenChange={(open) => { if (!open) setDeletingId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {medications.find((m) => m.id === deletingId)?.name ?? "medication"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all reminders and adherence history for this medication.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingId) handleDelete(deletingId);
+                setDeletingId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
