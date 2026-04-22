@@ -24,6 +24,7 @@ export function DoThisNext() {
     message,
     fetchRecommendation,
     sendFeedback,
+    clearRecommendation,
   } = useRecommendation();
 
   const [energyOverride, setEnergyOverride] = useState<
@@ -89,7 +90,6 @@ export function DoThisNext() {
 
   const handleAccept = useCallback(
     async (taskId: string) => {
-      setIsRefreshing(true);
       // Mark task as completed
       try {
         await fetch(`/api/tasks/${taskId}`, {
@@ -104,9 +104,13 @@ export function DoThisNext() {
       const taskTitle = recommendation?.task?.title;
       toast.success(taskTitle ? `'${taskTitle}' marked complete` : "Task completed!");
       fireTaskConfetti();
-      await refresh();
+      // Reset card to idle state — user gets the completion beat,
+      // then explicitly asks for the next recommendation.
+      clearRecommendation();
+      setHasRequested(false);
+      hasFetched.current = false;
     },
-    [sendFeedback, refresh]
+    [sendFeedback, clearRecommendation, recommendation?.task?.title]
   );
 
   const handleSnooze = useCallback(
