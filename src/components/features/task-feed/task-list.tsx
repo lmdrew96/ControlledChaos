@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical } from "lucide-react";
+import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -124,13 +125,14 @@ export function TaskList() {
   const filterPriority = searchParams.get("priority") || "all";
   const filterEnergy = searchParams.get("energy") || "all";
   const filterCategory = searchParams.get("category") || "all";
+  const searchQuery = searchParams.get("q") || "";
 
   // Helper to update URL search params without full navigation
   const updateParams = useCallback((updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       // Remove param if it's the default value
-      const defaults: Record<string, string> = { filter: "active", sort: "none", priority: "all", energy: "all", category: "all" };
+      const defaults: Record<string, string> = { filter: "active", sort: "none", priority: "all", energy: "all", category: "all", q: "" };
       if (value === defaults[key]) {
         params.delete(key);
       } else {
@@ -146,6 +148,18 @@ export function TaskList() {
   const setFilterPriority = useCallback((v: string) => updateParams({ priority: v }), [updateParams]);
   const setFilterEnergy = useCallback((v: string) => updateParams({ energy: v }), [updateParams]);
   const setFilterCategory = useCallback((v: string) => updateParams({ category: v }), [updateParams]);
+  const setSearchQuery = useCallback((v: string) => updateParams({ q: v }), [updateParams]);
+
+  // Local search input state — debounced into the URL so typing stays responsive
+  const [searchInput, setSearchInput] = useState(searchQuery);
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+  useEffect(() => {
+    if (searchInput === searchQuery) return;
+    const handle = setTimeout(() => setSearchQuery(searchInput.trim()), 200);
+    return () => clearTimeout(handle);
+  }, [searchInput, searchQuery, setSearchQuery]);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -183,6 +197,7 @@ export function TaskList() {
       .catch(() => {});
   }, []);
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredTasks = applySort(
     tasks.filter((task) => {
       if (filter === "active" && task.status === "completed") return false;
@@ -190,6 +205,17 @@ export function TaskList() {
       if (filterPriority !== "all" && task.priority !== filterPriority) return false;
       if (filterEnergy !== "all" && task.energyLevel !== filterEnergy) return false;
       if (filterCategory !== "all" && task.category !== filterCategory) return false;
+      if (normalizedSearch) {
+        const haystack = [
+          task.title,
+          task.description ?? "",
+          task.category ?? "",
+          ...(task.locationTags ?? []),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(normalizedSearch)) return false;
+      }
       return true;
     }),
     sortBy
@@ -201,16 +227,19 @@ export function TaskList() {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
   const isDragMode = sortBy === "manual" && filter === "active" &&
-    filterPriority === "all" && filterEnergy === "all" && filterCategory === "all";
+    filterPriority === "all" && filterEnergy === "all" && filterCategory === "all" &&
+    normalizedSearch === "";
 
   const hasActiveFilters =
     sortBy !== "none" ||
     filterPriority !== "all" ||
     filterEnergy !== "all" ||
-    filterCategory !== "all";
+    filterCategory !== "all" ||
+    normalizedSearch !== "";
 
   function clearFilters() {
-    updateParams({ sort: "none", priority: "all", energy: "all", category: "all" });
+    setSearchInput("");
+    updateParams({ sort: "none", priority: "all", energy: "all", category: "all", q: "" });
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -301,6 +330,29 @@ export function TaskList() {
 
       {/* Toolbar */}
       <div className="space-y-2">
+        {/* Search */}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search tasks"
+            aria-label="Search tasks"
+            className="h-9 pl-9 pr-9"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
         {/* Status tabs */}
         <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
           {(
@@ -453,11 +505,13 @@ export function TaskList() {
 
           {filteredTasks.length === 0 && (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {filter === "completed"
-                ? "No completed tasks yet. You got this!"
-                : hasActiveFilters
-                  ? "No tasks match your current filters."
-                  : "All caught up!"}
+              {normalizedSearch
+                ? `No tasks match "${searchQuery}".`
+                : filter === "completed"
+                  ? "No completed tasks yet. You got this!"
+                  : hasActiveFilters
+                    ? "No tasks match your current filters."
+                    : "All caught up!"}
             </p>
           )}
         </div>
