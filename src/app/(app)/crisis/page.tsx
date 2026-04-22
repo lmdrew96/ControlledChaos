@@ -14,6 +14,7 @@ import { CrisisStrategyPicker } from "@/components/features/crisis/crisis-strate
 import { CrisisDone } from "@/components/features/crisis/crisis-done";
 import { cn } from "@/lib/utils";
 import { CrisisDetectionExplainer } from "@/components/features/crisis/crisis-detection-explainer";
+import { CrisisHorizonAlert } from "@/components/features/crisis/crisis-horizon-alert";
 import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, CrisisDetectionStatus, PanicLevel } from "@/types";
 
 // -------------------------------------------------------
@@ -91,6 +92,7 @@ export default function CrisisPage() {
   const [detectionStatus, setDetectionStatus] = useState<CrisisDetectionStatus | null>(null);
   const [history, setHistory] = useState<ActivePlanData[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [intakePrefill, setIntakePrefill] = useState<{ taskName?: string; deadline?: string }>({});
 
   // -------------------------------------------------------
   // Load all active plans
@@ -460,13 +462,39 @@ export default function CrisisPage() {
             {intakeError}
           </div>
         )}
-        <CrisisIntakeForm onSubmit={handleNewCrisis} />
+        <CrisisIntakeForm
+          onSubmit={handleNewCrisis}
+          initialTaskName={intakePrefill.taskName}
+          initialDeadline={intakePrefill.deadline}
+        />
       </div>
     );
   }
 
   // Check if detection has an auto-generated plan (proposal banner)
   const hasAutoProposal = detectionStatus?.active && detectionStatus.crisisPlanId;
+
+  // Horizon: detection is active but no plan covers the conflict yet.
+  // Suppress if any active plan's taskName already matches one of the involved tasks.
+  const detectionTaskNames = detectionStatus?.involvedTaskNames ?? [];
+  const conflictAlreadyPlanned = detectionTaskNames.some((name) =>
+    plans.some((p) => p.taskName.toLowerCase() === name.toLowerCase())
+  );
+  const showHorizonAlert =
+    detectionStatus?.active && !hasAutoProposal && !conflictAlreadyPlanned;
+
+  function handleBuildPlanFromHorizon(suggestedTaskName: string, suggestedDeadline?: string) {
+    setIntakePrefill({
+      taskName: suggestedTaskName || undefined,
+      deadline: suggestedDeadline,
+    });
+    setPhase("intake");
+  }
+
+  function handleOpenIntakeFresh() {
+    setIntakePrefill({});
+    setPhase("intake");
+  }
 
   // -------------------------------------------------------
   // Dashboard — all active plans
@@ -480,7 +508,7 @@ export default function CrisisPage() {
             {plans.length} active session{plans.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button size="sm" onClick={() => setPhase("intake")}>
+        <Button size="sm" onClick={handleOpenIntakeFresh}>
           <Plus className="mr-1.5 h-4 w-4" />
           New session
         </Button>
@@ -489,6 +517,19 @@ export default function CrisisPage() {
       {/* First-time crisis detection explainer */}
       {detectionStatus?.active && (
         <CrisisDetectionExplainer taskNames={detectionStatus.involvedTaskNames} />
+      )}
+
+      {/* Horizon: detected conflict with no plan yet */}
+      {showHorizonAlert && detectionStatus && (
+        <CrisisHorizonAlert
+          detectionId={detectionStatus.detectionId}
+          involvedTaskNames={detectionStatus.involvedTaskNames}
+          firstDeadline={detectionStatus.firstDeadline}
+          availableMinutes={detectionStatus.availableMinutes}
+          requiredMinutes={detectionStatus.requiredMinutes}
+          timezone={timezone}
+          onBuildPlan={handleBuildPlanFromHorizon}
+        />
       )}
 
       {/* Auto-triage proposal banner */}
@@ -604,15 +645,19 @@ export default function CrisisPage() {
           })}
         </div>
       ) : (
-        /* Empty state */
+        /* Empty state — soften wording when a horizon alert is already visible above */
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-10 text-center">
             <Siren className="h-8 w-8 text-muted-foreground/40 mb-3" />
-            <p className="font-medium">No active crisis sessions</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Behind on something? Start a session and I&apos;ll help you figure out a plan.
+            <p className="font-medium">
+              {showHorizonAlert ? "Nothing in the war room yet" : "No active crisis sessions"}
             </p>
-            <Button size="sm" className="mt-4" onClick={() => setPhase("intake")}>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {showHorizonAlert
+                ? "The heads-up above is just a notice — no plan is locked in until you start one."
+                : "Behind on something? Start a session and I'll help you figure out a plan."}
+            </p>
+            <Button size="sm" className="mt-4" onClick={handleOpenIntakeFresh}>
               <Plus className="mr-1.5 h-4 w-4" />
               New session
             </Button>

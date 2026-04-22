@@ -32,6 +32,8 @@ interface CrisisIntakeData {
 
 interface Props {
   onSubmit: (data: CrisisIntakeData) => void;
+  initialTaskName?: string;
+  initialDeadline?: string;
 }
 
 function readAsBase64(file: File): Promise<string> {
@@ -44,9 +46,18 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-export function CrisisIntakeForm({ onSubmit }: Props) {
-  const [taskName, setTaskName] = useState("");
-  const [deadline, setDeadline] = useState("");
+function isoToDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function CrisisIntakeForm({ onSubmit, initialTaskName, initialDeadline }: Props) {
+  const [taskName, setTaskName] = useState(initialTaskName ?? "");
+  const [deadline, setDeadline] = useState(
+    initialDeadline ? isoToDatetimeLocal(initialDeadline) : ""
+  );
   const [completionPct, setCompletionPct] = useState(0);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
