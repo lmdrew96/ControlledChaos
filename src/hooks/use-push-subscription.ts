@@ -19,7 +19,13 @@ export function usePushSubscription() {
   const [isLoading, setIsLoading] = useState(true);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
-  // Check support and existing subscription on mount
+  // Check support and existing subscription on mount.
+  // NOTE: do NOT call navigator.serviceWorker.register here — the root layout
+  // already registers /sw.js once at window.load (with updateViaCache:"none").
+  // Re-registering on every NotificationSettings mount triggered an update
+  // check that, in the desktop PWA, could flip the controlling worker and
+  // cascade through the layout's controllerchange -> window.location.reload()
+  // listener, bouncing the user back to the default tab.
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setIsSupported(false);
@@ -29,8 +35,7 @@ export function usePushSubscription() {
 
     setIsSupported(true);
 
-    navigator.serviceWorker
-      .register("/sw.js")
+    navigator.serviceWorker.ready
       .then((reg) => {
         setRegistration(reg);
         return reg.pushManager.getSubscription();
@@ -39,7 +44,7 @@ export function usePushSubscription() {
         setIsSubscribed(!!sub);
       })
       .catch((err) => {
-        console.error("[Push] SW registration failed:", err);
+        console.error("[Push] SW registration lookup failed:", err);
       })
       .finally(() => setIsLoading(false));
   }, []);
