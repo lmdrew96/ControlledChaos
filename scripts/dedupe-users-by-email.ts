@@ -138,7 +138,43 @@ async function mergeInto(canonicalId: string, duplicateId: string) {
   //    the canonical user has its own settings already.
   await sql`DELETE FROM user_settings WHERE user_id = ${duplicateId}`;
 
-  // 2. Re-point every other FK from duplicate → canonical so the user's
+  // 2. Resolve unique-index collisions BEFORE re-pointing. Several tables
+  //    have a unique index that includes user_id plus an external natural
+  //    key (Canvas event id, push endpoint, etc.). Both the canonical and
+  //    the duplicate represent the same person, so they tend to have rows
+  //    for the same external thing — re-pointing user_id without first
+  //    clearing those collisions blows up with a unique constraint error.
+  //
+  //    For each such index we delete the *duplicate's* row when a matching
+  //    canonical row already exists. The canonical's row wins because the
+  //    user explicitly chose that clerkId.
+  await sql`
+    DELETE FROM tasks
+    WHERE user_id = ${duplicateId}
+      AND source_event_id IS NOT NULL
+      AND source_event_id IN (
+        SELECT source_event_id FROM tasks
+        WHERE user_id = ${canonicalId} AND source_event_id IS NOT NULL
+      )
+  `;
+  await sql`
+    DELETE FROM calendar_events
+    WHERE user_id = ${duplicateId}
+      AND (source, external_id) IN (
+        SELECT source, external_id FROM calendar_events
+        WHERE user_id = ${canonicalId}
+      )
+  `;
+  await sql`
+    DELETE FROM push_subscriptions
+    WHERE user_id = ${duplicateId}
+      AND endpoint IN (
+        SELECT endpoint FROM push_subscriptions
+        WHERE user_id = ${canonicalId}
+      )
+  `;
+
+  // 3. Re-point every other FK from duplicate → canonical so the user's
   //    tasks, goals, moments, etc. follow the canonical id. Neon's HTTP
   //    driver has no transactions, so we run statements sequentially; if a
   //    step fails the script can be re-run safely — every operation is
@@ -156,7 +192,7 @@ async function mergeInto(canonicalId: string, duplicateId: string) {
     );
   }
 
-  // 3. Drop the duplicate user row. All children have been moved above so
+  // 4. Drop the duplicate user row. All children have been moved above so
   //    the FK constraint is satisfied.
   await sql`DELETE FROM users WHERE id = ${duplicateId}`;
 }
