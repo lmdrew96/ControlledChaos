@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "user_settings_user_id_unique" ON "user_settings" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_lower_unique" ON "users" USING btree (LOWER("email"));

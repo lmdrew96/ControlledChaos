@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
+  EmailConflictError,
   ensureUser,
   getUserSettings,
   createUserSettings,
@@ -131,6 +132,16 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof EmailConflictError) {
+      console.error("[API] POST /api/onboarding email conflict:", error.message);
+      return NextResponse.json(
+        {
+          error:
+            "This email is already linked to another account in ControlledChaos. Sign out, sign back in with your original account, or contact support to merge them.",
+        },
+        { status: 409 },
+      );
+    }
     console.error("[API] POST /api/onboarding error:", error);
     return NextResponse.json(
       { error: "Failed to save onboarding data" },

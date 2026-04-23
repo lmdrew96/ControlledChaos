@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -14,38 +15,55 @@ import {
 // ============================================================
 // Users (synced from Clerk)
 // ============================================================
-export const users = pgTable("users", {
-  id: text("id").primaryKey(), // Clerk user ID
-  email: text("email").notNull(),
-  displayName: text("display_name"),
-  timezone: text("timezone").default("America/New_York"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(), // Clerk user ID
+    email: text("email").notNull(),
+    displayName: text("display_name"),
+    timezone: text("timezone").default("America/New_York"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    // One Clerk identity per email. Case-insensitive: gmail treats Foo@x.com
+    // and foo@x.com as the same mailbox, and so should we.
+    emailUnique: uniqueIndex("users_email_lower_unique").on(sql`LOWER(${table.email})`),
+  }),
+);
 
 // ============================================================
 // User Settings & Preferences
 // ============================================================
-export const userSettings = pgTable("user_settings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .references(() => users.id)
-    .notNull(),
-  energyProfile: jsonb("energy_profile"), // Typical energy patterns by time of day
-  savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius} — legacy, kept for safety
-  notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
-  personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
-  canvasIcalUrl: text("canvas_ical_url"),
-  onboardingComplete: boolean("onboarding_complete").default(false),
-  wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)
-  sleepTime: integer("sleep_time").default(22), // Hour 0-23 — AI scheduling window end (default 10pm)
-  calendarStartHour: integer("calendar_start_hour").default(7), // Hour 0-23 — calendar display start (default 7am)
-  calendarEndHour: integer("calendar_end_hour").default(22), // Hour 0-23 — calendar display end (default 10pm)
-  weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
-  calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
-  calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
-  crisisDetectionTier: text("crisis_detection_tier").default("nudge"), // "off" | "watch" | "nudge" | "auto_triage"
-});
+export const userSettings = pgTable(
+  "user_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    energyProfile: jsonb("energy_profile"), // Typical energy patterns by time of day
+    savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius} — legacy, kept for safety
+    notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
+    personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
+    canvasIcalUrl: text("canvas_ical_url"),
+    onboardingComplete: boolean("onboarding_complete").default(false),
+    wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)
+    sleepTime: integer("sleep_time").default(22), // Hour 0-23 — AI scheduling window end (default 10pm)
+    calendarStartHour: integer("calendar_start_hour").default(7), // Hour 0-23 — calendar display start (default 7am)
+    calendarEndHour: integer("calendar_end_hour").default(22), // Hour 0-23 — calendar display end (default 10pm)
+    weekStartDay: integer("week_start_day").default(1), // 0=Sunday, 1=Monday
+    calendarExportToken: text("calendar_export_token"), // UUID for personal iCal subscribe URL
+    calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
+    crisisDetectionTier: text("crisis_detection_tier").default("nudge"), // "off" | "watch" | "nudge" | "auto_triage"
+  },
+  (table) => ({
+    // One settings row per user. Closes the onboarding double-submit race
+    // that produced duplicate notification_prefs and made the digest cron
+    // fan out to multiple addresses.
+    userIdUnique: uniqueIndex("user_settings_user_id_unique").on(table.userId),
+  }),
+);
 
 // ============================================================
 // Goals

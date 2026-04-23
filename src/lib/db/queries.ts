@@ -46,6 +46,20 @@ import { startOfDayInTimezone, todayInTimezone, startOfWeekInTimezone } from "@/
 // ============================================================
 // Users
 // ============================================================
+
+export class EmailConflictError extends Error {
+  constructor(
+    public readonly email: string,
+    public readonly existingClerkId: string,
+    public readonly newClerkId: string,
+  ) {
+    super(
+      `Email ${email} is already linked to Clerk user ${existingClerkId}; refusing to attach new Clerk user ${newClerkId}. Run scripts/dedupe-users-by-email.ts or remap-clerk-ids.ts to consolidate.`,
+    );
+    this.name = "EmailConflictError";
+  }
+}
+
 export async function ensureUser(
   clerkId: string,
   email: string,
@@ -59,6 +73,24 @@ export async function ensureUser(
 
   if (existing.length > 0) {
     return existing[0];
+  }
+
+  // No row for this clerkId — but the email may already belong to another
+  // Clerk identity (e.g., Clerk rotated the user_id between dev/prod, or the
+  // user signed up twice). Refuse to silently create a duplicate; that would
+  // produce orphaned rows whose notification prefs keep firing the cron, and
+  // worse, in production it could let one Clerk identity inherit another
+  // user's data.
+  if (email) {
+    const sameEmail = await db
+      .select()
+      .from(users)
+      .where(sql`LOWER(${users.email}) = LOWER(${email})`)
+      .limit(1);
+
+    if (sameEmail.length > 0) {
+      throw new EmailConflictError(email, sameEmail[0].id, clerkId);
+    }
   }
 
   const [user] = await db
@@ -101,6 +133,13 @@ export async function createUserSettings(params: {
   canvasIcalUrl?: string | null;
   onboardingComplete: boolean;
 }) {
+  // Idempotent: re-running onboarding (back-button, retry, double-submit)
+  // must not create a second user_settings row. Once the unique index on
+  // user_settings.user_id ships, the INSERT path is also race-safe; until
+  // then this SELECT-then-INSERT closes the common case.
+  const existing = await getUserSettings(params.userId);
+  if (existing) return existing;
+
   const [settings] = await db
     .insert(userSettings)
     .values({
