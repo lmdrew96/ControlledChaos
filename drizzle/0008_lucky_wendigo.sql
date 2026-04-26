@@ -1,1 +1,0 @@
-ALTER TABLE "brain_dumps" ADD COLUMN "media_urls" jsonb DEFAULT '[]'::jsonb NOT NULL;
