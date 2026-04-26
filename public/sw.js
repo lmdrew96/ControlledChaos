@@ -65,6 +65,7 @@ self.addEventListener("push", (event) => {
       userId: payload.userId,
       recipientUserId: payload.recipientUserId,
       medicationId: payload.medicationId,
+      medicationIds: payload.medicationIds,
       scheduledTime: payload.scheduledTime,
       taskId: payload.taskId,
       tag: payload.tag,
@@ -87,7 +88,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const { url, userId, recipientUserId, medicationId, scheduledTime, taskId, tag, title, body, locationName } = event.notification.data || {};
+  const { url, userId, recipientUserId, medicationId, medicationIds, scheduledTime, taskId, tag, title, body, locationName } = event.notification.data || {};
   const action = event.action;
 
   // Snooze: call the API to queue a re-send in 30 min, no navigation
@@ -102,19 +103,31 @@ self.addEventListener("notificationclick", (event) => {
     return;
   }
 
-  // Medication taken: log the dose, no navigation
-  if (action === "med_taken" && userId && medicationId) {
+  // Medication taken: log the dose(s), no navigation.
+  // Supports both single (medicationId) and bundled (medicationIds[]) payloads.
+  if (action === "med_taken" && userId) {
+    const ids = Array.isArray(medicationIds) && medicationIds.length > 0
+      ? medicationIds
+      : (medicationId ? [medicationId] : []);
+    if (ids.length === 0) return;
+
+    const scheduledDate = new Date().toISOString().slice(0, 10);
+    const time = scheduledTime || "00:00";
     event.waitUntil(
-      fetch("/api/medications/taken", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          medicationId,
-          scheduledDate: new Date().toISOString().slice(0, 10),
-          scheduledTime: scheduledTime || "00:00",
-        }),
-      }).catch(console.error)
+      Promise.all(
+        ids.map((id) =>
+          fetch("/api/medications/taken", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId,
+              medicationId: id,
+              scheduledDate,
+              scheduledTime: time,
+            }),
+          }).catch(console.error)
+        )
+      )
     );
     return;
   }
