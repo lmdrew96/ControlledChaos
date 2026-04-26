@@ -48,9 +48,11 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             // updateViaCache:"none" bypasses HTTP cache for sw.js checks so new deploys
-            // register promptly. controllerchange reload fixes a macOS Safari PWA quirk
-            // where the new SW can't claim the standalone window without a page-level nav.
-            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"});var r=!1;navigator.serviceWorker.addEventListener("controllerchange",function(){if(r)return;r=!0;window.location.reload()})})}`,
+            // register promptly. The controllerchange reload auto-applies a new SW
+            // mid-session — gated on hadController so it does NOT fire on cold launch
+            // (null→SW transition). On iOS standalone PWAs, reloading during the
+            // initial controller claim demotes the window into Safari.
+            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){var h=!!navigator.serviceWorker.controller;navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"});var r=!1;navigator.serviceWorker.addEventListener("controllerchange",function(){if(r||!h)return;r=!0;window.location.reload()})})}`,
           }}
         />
       </body>

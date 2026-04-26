@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, ArrowLeft, ArrowRight, Bot } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Bot, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { PersonalityPrefs } from "@/types";
@@ -107,6 +107,7 @@ function detectTimezone(): string {
 export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useUser();
+  const { signOut } = useClerk();
 
   // Step state
   const [step, setStep] = useState(1);
@@ -197,7 +198,16 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 gap-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center p-4 gap-6">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => signOut({ redirectUrl: "/sign-in" })}
+        className="absolute right-4 top-4 text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="mr-1.5 h-3.5 w-3.5" />
+        Sign out
+      </Button>
       <div className="w-full max-w-lg space-y-6">
         {/* Header */}
         <div className="space-y-2 text-center">
