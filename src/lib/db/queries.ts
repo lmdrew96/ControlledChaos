@@ -72,7 +72,43 @@ export async function ensureUser(
     .limit(1);
 
   if (existing.length > 0) {
-    return existing[0];
+    const current = existing[0];
+    const emailChanged = !!email && current.email !== email;
+    const nameChanged =
+      displayName !== undefined && current.displayName !== displayName;
+
+    if (!emailChanged && !nameChanged) return current;
+
+    // If the email is changing, make sure the new one isn't already attached
+    // to a different Clerk identity — same protection as the insert path.
+    if (emailChanged) {
+      const sameEmail = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            sql`LOWER(${users.email}) = LOWER(${email})`,
+            sql`${users.id} <> ${clerkId}`
+          )
+        )
+        .limit(1);
+      if (sameEmail.length > 0) {
+        throw new EmailConflictError(email, sameEmail[0].id, clerkId);
+      }
+    }
+
+    const updates: { email?: string; displayName?: string; updatedAt: Date } = {
+      updatedAt: new Date(),
+    };
+    if (emailChanged) updates.email = email;
+    if (nameChanged) updates.displayName = displayName;
+
+    const [updated] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, clerkId))
+      .returning();
+    return updated;
   }
 
   // No row for this clerkId — but the email may already belong to another
