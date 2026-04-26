@@ -21,14 +21,15 @@
  *   3. Reassigns every FK reference from the duplicate ids to the canonical id
  *   4. Removes the now-empty duplicate user_settings + users rows
  *
- * The cascade tables mirror scripts/remap-clerk-ids.ts. Keep them in sync
- * when adding new tables that reference users.id.
+ * The cascade table list lives in src/lib/db/user-cascade.ts and is shared
+ * with scripts/remap-clerk-ids.ts.
  */
 
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 import { neon } from "@neondatabase/serverless";
 import * as readline from "readline";
+import { repointUserId } from "@/lib/db/user-cascade";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -46,42 +47,6 @@ const rl = readline.createInterface({
 function ask(question: string): Promise<string> {
   return new Promise((resolve) => rl.question(question, resolve));
 }
-
-// Tables with a `user_id` column referencing users.id, whose rows we want
-// to re-point from duplicate → canonical (preserving the user's data).
-//
-// `user_settings` is intentionally NOT in this list: the canonical row
-// already has its own settings (the one the user explicitly chose to keep,
-// usually because it has the correct notification toggles), and we want to
-// discard the duplicate's settings outright rather than fan them out.
-const CHILD_TABLES = [
-  "goals",
-  "brain_dumps",
-  "moments",
-  "tasks",
-  "calendar_events",
-  "locations",
-  "commute_times",
-  "user_locations",
-  "location_notification_log",
-  "task_activity",
-  "notifications",
-  "crisis_plans",
-  "crisis_messages",
-  "crisis_detections",
-  "push_subscriptions",
-  "snoozed_pushes",
-  "medications",
-  "medication_logs",
-];
-
-// Tables with non-standard user-reference columns
-const SPECIAL_USER_COLUMNS: Array<[string, string]> = [
-  ["friendships", "requester_id"],
-  ["friendships", "addressee_id"],
-  ["nudges", "sender_id"],
-  ["nudges", "recipient_id"],
-];
 
 type UserRow = {
   id: string;
@@ -175,22 +140,12 @@ async function mergeInto(canonicalId: string, duplicateId: string) {
   `;
 
   // 3. Re-point every other FK from duplicate → canonical so the user's
-  //    tasks, goals, moments, etc. follow the canonical id. Neon's HTTP
-  //    driver has no transactions, so we run statements sequentially; if a
-  //    step fails the script can be re-run safely — every operation is
-  //    idempotent (already-pointed rows just match zero rows next time).
-  for (const table of CHILD_TABLES) {
-    await sql.query(
-      `UPDATE "${table}" SET user_id = $1 WHERE user_id = $2`,
-      [canonicalId, duplicateId],
-    );
-  }
-  for (const [table, column] of SPECIAL_USER_COLUMNS) {
-    await sql.query(
-      `UPDATE "${table}" SET "${column}" = $1 WHERE "${column}" = $2`,
-      [canonicalId, duplicateId],
-    );
-  }
+  //    tasks, goals, moments, etc. follow the canonical id. Skip
+  //    user_settings — its duplicate rows were already deleted in step 1
+  //    and the canonical has its own.
+  await repointUserId(sql, duplicateId, canonicalId, {
+    skipTables: ["user_settings"],
+  });
 
   // 4. Drop the duplicate user row. All children have been moved above so
   //    the FK constraint is satisfied.
