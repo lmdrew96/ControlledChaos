@@ -1869,10 +1869,13 @@ export async function getAllUsersWithPushEnabled() {
 }
 
 /**
- * Get all users whose notification prefs include morning or evening digest enabled.
- * Returns userId, timezone, email, and their prefs for time matching.
+ * Get all users with any non-null notification prefs.
+ * Returns userId, timezone, email, and their prefs.
+ * Callers must gate on the specific flag they care about (e.g.
+ * emailMorningDigest, emailEveningDigest) — this function does NOT
+ * filter on any digest flag.
  */
-export async function getAllUsersWithDigestEnabled() {
+export async function getAllUsersWithNotificationPrefs() {
   const rows = await db
     .select({
       userId: userSettings.userId,

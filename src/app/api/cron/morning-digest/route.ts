@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllUsersWithDigestEnabled } from "@/lib/db/queries";
+import { getAllUsersWithNotificationPrefs } from "@/lib/db/queries";
 import { sendMorningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone } from "@/lib/timezone";
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const force = new URL(request.url).searchParams.get("force") === "true";
 
   try {
-    const users = await getAllUsersWithDigestEnabled();
+    const users = await getAllUsersWithNotificationPrefs();
     let sent = 0;
 
     for (const { userId, timezone, prefs } of users) {
