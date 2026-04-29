@@ -67,17 +67,19 @@
   --adhd-green:    #97D181;
 
   /* ── shadcn semantic mapping — paper mode ── */
-  --background:             var(--adhd-lavender);
+  /* Page = off-white. Card = warm paper that lifts off the page.
+     Cards visibly separate without needing heavy borders. */
+  --background:             var(--adhd-bg);
   --foreground:             var(--adhd-dark);
-  --card:                   var(--adhd-bg);
+  --card:                   color-mix(in srgb, white 94%, var(--adhd-amber));
   --card-foreground:        var(--adhd-dark);
-  --popover:                var(--adhd-bg);
+  --popover:                color-mix(in srgb, white 94%, var(--adhd-amber));
   --popover-foreground:     var(--adhd-dark);
   --primary:                var(--adhd-purple);
   --primary-foreground:     var(--adhd-bg);
-  --secondary:              var(--adhd-bg);
+  --secondary:              color-mix(in srgb, var(--adhd-bg) 88%, var(--adhd-lavender));
   --secondary-foreground:   var(--adhd-dark);
-  --muted:                  color-mix(in srgb, var(--adhd-lavender) 60%, white);
+  --muted:                  color-mix(in srgb, var(--adhd-lavender) 50%, white);
   --muted-foreground:       var(--adhd-purple);
   --accent:                 var(--adhd-purple);
   --accent-foreground:      var(--adhd-bg);
