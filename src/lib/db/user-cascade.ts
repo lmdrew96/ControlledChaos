@@ -36,6 +36,7 @@ export const USER_CHILD_TABLES = [
   "snoozed_pushes",
   "medications",
   "medication_logs",
+  "room_members",
 ] as const;
 
 /**
@@ -47,6 +48,7 @@ export const USER_SPECIAL_COLUMNS: ReadonlyArray<readonly [string, string]> = [
   ["friendships", "addressee_id"],
   ["nudges", "sender_id"],
   ["nudges", "recipient_id"],
+  ["rooms", "owner_id"],
 ];
 
 export interface RepointOptions {

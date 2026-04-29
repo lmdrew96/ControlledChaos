@@ -158,6 +158,7 @@ export const tasks = pgTable(
     progressSteps: jsonb("progress_steps"), // ProgressStep[] — inline step-through for long tasks
     currentStepIndex: integer("current_step_index").default(0),
     snoozedUntil: timestamp("snoozed_until"), // set by Haiku snooze — task hidden until this time
+    roomVisibility: text("room_visibility").default("category").notNull(), // none | category | title — what parallel-play rooms see when this task is active
     deletedAt: timestamp("deleted_at"), // soft delete — null = active, set = deleted
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -577,6 +578,40 @@ export const microtasks = pgTable(
   },
   (table) => [
     index("idx_microtasks_user_active").on(table.userId, table.active),
+  ]
+);
+
+// ============================================================
+// Parallel Play — Rooms (persistent membership; presence lives in Convex)
+// ============================================================
+export const rooms = pgTable("rooms", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id")
+    .references(() => users.id)
+    .notNull(),
+  name: text("name"), // null = personal room (unnamed)
+  inviteCode: text("invite_code").notNull().unique(),
+  type: text("type").default("personal").notNull(), // "personal" | "adhoc"
+  maxCapacity: integer("max_capacity").default(8).notNull(),
+  expiresAt: timestamp("expires_at"), // null = permanent
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const roomMembers = pgTable(
+  "room_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roomId: uuid("room_id")
+      .references(() => rooms.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_room_members_unique").on(table.roomId, table.userId),
+    index("idx_room_members_user").on(table.userId),
   ]
 );
 
