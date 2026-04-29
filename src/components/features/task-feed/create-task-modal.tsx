@@ -22,6 +22,10 @@ import {
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
+import {
+  RoomVisibilitySelect,
+  type RoomVisibility,
+} from "@/components/parallel-play/RoomVisibilitySelect";
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -39,6 +43,7 @@ interface FormState {
   estimatedMinutes: string;
   deadline: string;
   goalId: string;
+  roomVisibility: RoomVisibility;
 }
 
 interface FormErrors {
@@ -56,6 +61,7 @@ const DEFAULT_FORM: FormState = {
   estimatedMinutes: "",
   deadline: "",
   goalId: "",
+  roomVisibility: "category",
 };
 
 export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalProps) {
@@ -120,6 +126,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           locationTags: form.locationTags.length ? form.locationTags : null,
           deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
           goalId: form.goalId || null,
+          roomVisibility: form.roomVisibility,
         }),
       });
 
@@ -319,6 +326,15 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
               type="datetime-local"
               value={form.deadline}
               onChange={(e) => updateField("deadline", e.target.value)}
+            />
+          </div>
+
+          {/* Room visibility (parallel play) */}
+          <div className="space-y-2">
+            <Label>Room visibility</Label>
+            <RoomVisibilitySelect
+              value={form.roomVisibility}
+              onChange={(v) => updateField("roomVisibility", v)}
             />
           </div>
         </div>

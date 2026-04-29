@@ -33,7 +33,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, priority, energyLevel, estimatedMinutes, category, locationTags, deadline, goalId } = body;
+    const {
+      title,
+      description,
+      priority,
+      energyLevel,
+      estimatedMinutes,
+      category,
+      locationTags,
+      deadline,
+      goalId,
+      roomVisibility,
+    } = body;
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -49,6 +60,12 @@ export async function POST(request: NextRequest) {
       locationTags: locationTags?.length ? locationTags : null,
       deadline: deadline ? new Date(deadline) : null,
       goalId: goalId || null,
+      roomVisibility:
+        roomVisibility === "none" ||
+        roomVisibility === "category" ||
+        roomVisibility === "title"
+          ? roomVisibility
+          : undefined,
     });
 
     // Generate AI note if no description was provided

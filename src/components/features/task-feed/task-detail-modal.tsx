@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { RoomVisibilitySelect } from "@/components/parallel-play/RoomVisibilitySelect";
 import {
   priorityOptions,
   energyOptions,
@@ -53,6 +54,7 @@ interface FormState {
   deadline: string;
   status: string;
   goalId: string;
+  roomVisibility: "none" | "category" | "title";
 }
 
 function toDatetimeLocal(isoString: string, timezone: string): string {
@@ -73,6 +75,7 @@ function formFromTask(task: Task, timezone: string): FormState {
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
     status: task.status,
     goalId: task.goalId ?? "",
+    roomVisibility: task.roomVisibility ?? "category",
   };
 }
 
@@ -93,6 +96,7 @@ export function TaskDetailModal({
     deadline: "",
     status: "pending",
     goalId: "",
+    roomVisibility: "category",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -207,6 +211,8 @@ export function TaskDetailModal({
       if (form.status !== original.status) payload.status = form.status;
       if (form.goalId !== original.goalId)
         payload.goalId = form.goalId || null;
+      if (form.roomVisibility !== original.roomVisibility)
+        payload.roomVisibility = form.roomVisibility;
 
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
@@ -506,6 +512,15 @@ export function TaskDetailModal({
               </Select>
             </div>
           )}
+
+          {/* Room visibility (parallel play) */}
+          <div className="space-y-2">
+            <Label>Room visibility</Label>
+            <RoomVisibilitySelect
+              value={form.roomVisibility}
+              onChange={(v) => updateField("roomVisibility", v)}
+            />
+          </div>
 
           {/* Progress Steps — step-through UI */}
           {hasSteps && !allStepsDone && currentStep && (
