@@ -4,6 +4,25 @@ import { extractJSON, extractScratchpad } from "./validate";
 import { getCalendarParts, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 import type { UserContext, TaskRecommendation, Task, PersonalityPrefs } from "@/types";
 
+/**
+ * Snapshot of the parallel-play room the user is currently in. Used to nudge
+ * Haiku toward task choices that match the social vibe (others studying →
+ * suggest school work; everyone in low energy → gentler tasks). Only the
+ * other members are summarized — never the user themselves.
+ */
+export interface RoomContext {
+  /** People in the room *other than* the user. Empty list = solo presence. */
+  otherCount: number;
+  /** First names / display names of others present (max ~5, room is small). */
+  otherNames?: string[];
+  /** Aggregate energy of others. "mixed" if no clear majority. */
+  energyAggregate?: "low" | "medium" | "high" | "mixed";
+  /** Unique task categories others are visibly working on. */
+  categoriesPresent?: string[];
+  /** True if at least one other member has status="flare". */
+  anyFlaring?: boolean;
+}
+
 interface RecommendationInput {
   context: UserContext;
   pendingTasks: Task[];
@@ -11,6 +30,37 @@ interface RecommendationInput {
   personalityPrefs?: PersonalityPrefs | null;
   /** Supplementary context (crises, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
+  /**
+   * Optional parallel-play room snapshot. When present, Haiku is told who
+   * else is around and what they're up to so its picks can vibe with the
+   * room. Omit for solo recommendations — defaults preserve current behavior.
+   */
+  roomContext?: RoomContext | null;
+}
+
+function buildRoomContextBlock(room: RoomContext | null | undefined): string {
+  if (!room || room.otherCount === 0) return "";
+
+  const lines: string[] = ["\n\n## Parallel Play Room"];
+
+  const namePreview = room.otherNames?.slice(0, 5).join(", ");
+  lines.push(
+    `- ${room.otherCount} other ${room.otherCount === 1 ? "person" : "people"} active${namePreview ? `: ${namePreview}` : ""}`,
+  );
+  if (room.energyAggregate) {
+    lines.push(`- Room energy: ${room.energyAggregate}`);
+  }
+  if (room.categoriesPresent && room.categoriesPresent.length > 0) {
+    lines.push(`- Working on: ${room.categoriesPresent.join(", ")}`);
+  }
+  if (room.anyFlaring) {
+    lines.push(`- Someone in the room is signaling they need support`);
+  }
+  lines.push(
+    "- Use room context as a *light* signal toward matching categories or energy, not a hard constraint.",
+  );
+
+  return lines.join("\n");
 }
 
 /**
@@ -172,7 +222,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}
 
-NOTE: All deadline/timing info is pre-computed in the "deadlineIn" and "plannedIn" fields. Do NOT attempt to derive dates or days from any other context.${calendarSection}
+NOTE: All deadline/timing info is pre-computed in the "deadlineIn" and "plannedIn" fields. Do NOT attempt to derive dates or days from any other context.${calendarSection}${buildRoomContextBlock(input.roomContext)}
 
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}${descriptionNote}
