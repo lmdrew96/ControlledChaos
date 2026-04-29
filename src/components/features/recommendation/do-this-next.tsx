@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useRecommendation } from "@/hooks/use-recommendation";
+import { useParallelPlaySync } from "@/hooks/use-parallel-play-sync";
 import { EnergyCheck } from "./energy-check";
 import { RecommendationCard } from "./recommendation-card";
 import { RecommendationSkeleton } from "./recommendation-skeleton";
@@ -35,6 +36,20 @@ export function DoThisNext() {
   // If a recommendation was persisted from a previous session, treat as already requested
   const [hasRequested, setHasRequested] = useState(!!recommendation);
   const hasFetched = useRef(!!recommendation);
+
+  const { syncTaskStart, syncTaskComplete } = useParallelPlaySync();
+  const lastSyncedTaskIdRef = useRef<string | null>(null);
+
+  // When a fresh recommendation lands, broadcast it to the room as the
+  // user's active task. Treats the moment of seeing the recommendation as
+  // the implicit "start" — CC has no separate Start Now button.
+  useEffect(() => {
+    const task = recommendation?.task;
+    if (!task) return;
+    if (lastSyncedTaskIdRef.current === task.id) return;
+    lastSyncedTaskIdRef.current = task.id;
+    void syncTaskStart(task);
+  }, [recommendation?.task, syncTaskStart]);
 
   // Fetch recommendation only when user has explicitly requested it
   const triggerRecommendation = useCallback(() => {
@@ -101,6 +116,8 @@ export function DoThisNext() {
         // feedback still fires below
       }
       await sendFeedback(taskId, "completed");
+      void syncTaskComplete();
+      lastSyncedTaskIdRef.current = null;
       const taskTitle = recommendation?.task?.title;
       toast.success(taskTitle ? `'${taskTitle}' marked complete` : "Task completed!");
       fireTaskConfetti();
@@ -110,7 +127,7 @@ export function DoThisNext() {
       setHasRequested(false);
       hasFetched.current = false;
     },
-    [sendFeedback, clearRecommendation, recommendation?.task?.title]
+    [sendFeedback, syncTaskComplete, clearRecommendation, recommendation?.task?.title]
   );
 
   const handleSnooze = useCallback(

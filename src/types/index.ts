@@ -21,6 +21,8 @@ export interface Task {
   currentStepIndex: number;
   goalId: string | null;
   sortOrder?: number | null;
+  /** Parallel-play visibility tier — controls what room presence broadcasts when this task is active. */
+  roomVisibility?: "none" | "category" | "title";
   createdAt: string;
   updatedAt: string;
 }
