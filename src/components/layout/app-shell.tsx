@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/sheet";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { LegalFooter } from "@/components/layout/legal-footer";
+import { ParallelPlayToggle } from "@/components/parallel-play/ParallelPlayToggle";
+import { ParallelPlayOverlay } from "@/components/parallel-play/ParallelPlayOverlay";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -212,6 +214,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <UserNav />
             <div className="flex items-center gap-1">
+              <ParallelPlayToggle />
               <WhatsNewDialog />
               <NotificationBell />
               <ThemeToggle />
@@ -305,6 +308,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ThemeToggle />
                 <span className="text-xs text-muted-foreground">Theme</span>
               </div>
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
+                <ParallelPlayToggle />
+                <span className="text-xs text-muted-foreground">Room</span>
+              </div>
             </div>
             <div className="px-4 pt-4 pb-1 border-t border-border mt-2">
               <LegalFooter />
@@ -318,6 +325,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
+
+      {/* Parallel Play overlay — fixed-position, only renders when in a room AND visible */}
+      <ParallelPlayOverlay />
 
       {/* Moments chip-bar — mobile only (desktop variant lives inside the sidebar) */}
       <MomentsBar />
