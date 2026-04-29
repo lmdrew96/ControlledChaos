@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Brain, Calendar, MapPin, Bell, Users, Pill, Siren } from "lucide-react";
+import { User, Brain, Calendar, MapPin, Bell, Users, Pill, Siren, Flame } from "lucide-react";
 import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
@@ -14,6 +14,7 @@ import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
 import { FriendsSettings } from "./friends-settings";
 import { MedicationSettings } from "./medication-settings";
+import { RoomManager } from "@/components/parallel-play/RoomManager";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCallback } from "react";
 
@@ -26,6 +27,7 @@ const VALID_TABS = new Set([
   "crisis-detection",
   "friends",
   "medications",
+  "rooms",
 ]);
 
 export function SettingsTabs() {
@@ -109,6 +111,13 @@ export function SettingsTabs() {
         >
           <Pill className="h-4 w-4" />
           <span className="hidden sm:inline">Medications</span>
+        </TabsTrigger>
+        <TabsTrigger
+          value="rooms"
+          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+        >
+          <Flame className="h-4 w-4" />
+          <span className="hidden sm:inline">Rooms</span>
         </TabsTrigger>
       </TabsList>
 
@@ -209,6 +218,11 @@ export function SettingsTabs() {
       {/* Medications */}
       <TabsContent value="medications" className="space-y-6">
         <MedicationSettings />
+      </TabsContent>
+
+      {/* Parallel Play rooms */}
+      <TabsContent value="rooms" className="space-y-6">
+        <RoomManager />
       </TabsContent>
     </Tabs>
   );
