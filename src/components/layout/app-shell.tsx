@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1">
       {/* Sidebar — hidden on mobile, shown on md+ */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card backdrop-blur-xl sticky top-0 h-screen">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card sticky top-0 h-screen">
         <div className="flex h-14 items-center gap-2 border-b border-border px-6">
           <Logo className="h-5 w-5" />
           <span className="font-serif text-base font-semibold tracking-tight">ControlledChaos</span>
@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:hidden">
         {mobileNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const showCrisisBadge = item.href === "/crisis" && crisisActive;

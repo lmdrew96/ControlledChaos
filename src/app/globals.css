@@ -176,19 +176,6 @@
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
-
-  /* Ambient gradient blobs for glassmorphism */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background:
-      radial-gradient(ellipse 80% 50% at 15% 15%, color-mix(in srgb, var(--adhd-amber) 25%, transparent) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 60% at 85% 75%, color-mix(in srgb, var(--adhd-purple) 22%, transparent) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 65% 5%, color-mix(in srgb, var(--adhd-sage) 18%, transparent) 0%, transparent 50%);
-  }
 }
 
 /* ---- Dashboard: greeting gradient ---- */
@@ -220,13 +207,12 @@
 .time-anchor-bar {
   border-radius: 0.75rem;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--card) 70%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--card);
 }
 
 .dark .time-anchor-bar {
   border-color: var(--border);
-  background: color-mix(in srgb, var(--card) 50%, transparent);
+  background: var(--card);
 }
 
 /* ---- Dashboard: day progress fill ---- */
@@ -294,10 +280,3 @@
   }
 }
 
-/* Dark mode — blobs glow brighter on dark background */
-.dark body::before {
-  background:
-    radial-gradient(ellipse 80% 50% at 15% 15%, color-mix(in srgb, var(--adhd-amber) 20%, transparent) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 60% at 85% 75%, color-mix(in srgb, var(--adhd-purple) 25%, transparent) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 65% 5%, color-mix(in srgb, var(--adhd-sage) 15%, transparent) 0%, transparent 50%);
-}
