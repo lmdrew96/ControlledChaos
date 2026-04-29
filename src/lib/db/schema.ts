@@ -552,3 +552,54 @@ export const nudges = pgTable(
     index("idx_nudges_recipient").on(table.recipientId, table.sentAt),
   ]
 );
+
+// ============================================================
+// Microtasks (small repeatable prompts — non-accumulating, daily reset)
+// ============================================================
+export const microtasks = pgTable(
+  "microtasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    title: text("title").notNull(),
+    emoji: text("emoji"), // optional, for chip display (e.g. "🔍")
+    timeOfDay: text("time_of_day").default("anytime").notNull(), // morning | afternoon | evening | anytime
+    daysOfWeek: jsonb("days_of_week")
+      .$type<number[]>()
+      .default(sql`'[0,1,2,3,4,5,6]'::jsonb`)
+      .notNull(), // 0=Sun, 6=Sat
+    active: boolean("active").default(true).notNull(), // soft pause/archive
+    sortOrder: integer("sort_order").default(0).notNull(), // manual reorder within time slot
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_microtasks_user_active").on(table.userId, table.active),
+  ]
+);
+
+export const microtaskCompletions = pgTable(
+  "microtask_completions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    microtaskId: uuid("microtask_id")
+      .references(() => microtasks.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    completedDate: text("completed_date").notNull(), // YYYY-MM-DD calendar date for "done today?" queries
+    completedAt: timestamp("completed_at").defaultNow().notNull(),
+    note: text("note"), // optional quick note
+  },
+  (table) => [
+    index("idx_mc_user_date").on(table.userId, table.completedDate),
+    // Unique index doubles as the (microtask_id, completed_date) lookup index — one completion per microtask per day
+    uniqueIndex("idx_mc_microtask_date_unique").on(
+      table.microtaskId,
+      table.completedDate
+    ),
+  ]
+);

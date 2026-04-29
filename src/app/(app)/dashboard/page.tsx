@@ -8,6 +8,7 @@ import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
 import { ScheduleMyDay } from "@/components/features/dashboard/schedule-my-day";
 import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
+import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
 
 export default function DashboardPage() {
   return (
@@ -52,6 +53,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Microtasks chip zone — small daily prompts, hidden in Crisis Mode */}
+      <MicrotasksZone />
 
       {/* Task feed */}
       <div className="space-y-4">

@@ -4,6 +4,62 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Resolve unique-index collisions before re-pointing users"
+      },
+      {
+        "type": "fixed",
+        "text": "Block duplicate user rows by email + add unique indexes"
+      },
+      {
+        "type": "added",
+        "text": "Persist active tab in URL"
+      },
+      {
+        "type": "fixed",
+        "text": "Stop re-registering the service worker in push hook"
+      },
+      {
+        "type": "added",
+        "text": "Streamline medication row UI"
+      },
+      {
+        "type": "fixed",
+        "text": "Scroll the notification popover on mobile"
+      },
+      {
+        "type": "fixed",
+        "text": "Time anchor wraps cleanly on mobile"
+      },
+      {
+        "type": "fixed",
+        "text": "Momentum card matches sibling card heights"
+      },
+      {
+        "type": "added",
+        "text": "Add search bar to task list"
+      },
+      {
+        "type": "added",
+        "text": "Surface horizon alert for detected conflicts without a plan"
+      },
+      {
+        "type": "added",
+        "text": "Collapse triple idle check-in into one user-chosen window"
+      },
+      {
+        "type": "added",
+        "text": "Cache coords and auto-refresh on app open"
+      },
+      {
+        "type": "fixed",
+        "text": "Reset card to idle state after marking task done"
+      },
+      {
+        "type": "added",
+        "text": "Adopt Lab Notebook as primary theme (Chaos Suite)"
+      },
+      {
+        "type": "fixed",
         "text": "Prune stale push subscriptions to stop duplicate deliveries"
       },
       {

@@ -1,7 +1,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
-import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, fmtTimeLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal } from "./helpers.js";
+
+// Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
+function todayInTz(tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const d = parts.find((p) => p.type === "day")!.value;
+  return `${y}-${m}-${d}`;
+}
 
 // ============================================================
 // Register all ControlledChaos tools on the given server
@@ -1782,6 +1796,441 @@ Returns: Markdown-formatted list of entries with IDs, content previews, and time
       const text = `## Journal Entries (${rows.length} found)\n\n` +
         rows.map((r, i) => `### ${i + 1}. ${formatBrainDump(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ============================================================
+  // Microtasks
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // cc_list_microtasks
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_list_microtasks",
+    {
+      title: "List Microtasks",
+      description: `List the user's active microtasks with today's completion status and a rolling 7-day count.
+
+Microtasks are small repeatable prompts (e.g. "5 min Upwork scan", "drink water") that reset every day. They do NOT accumulate when missed.
+
+Returns: Markdown list of active microtasks with their IDs, time-of-day, schedule, whether completed today, and 7-day completion ratio.`,
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const today = todayInTz(tz);
+      const todayDate = new Date(today + "T12:00:00Z");
+      const dayOfWeek = todayDate.getUTCDay();
+      const weekStart = new Date(todayDate.getTime() - 6 * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+
+      const rows = await sql(
+        `SELECT * FROM microtasks
+         WHERE user_id = $1 AND active = true
+         ORDER BY sort_order ASC, created_at ASC`,
+        [userId]
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [
+            { type: "text" as const, text: "No active microtasks. Create one with `cc_create_microtask`." },
+          ],
+        };
+      }
+
+      const ids = rows.map((r) => r.id as string);
+      const completions = await sql(
+        `SELECT microtask_id, completed_date, note FROM microtask_completions
+         WHERE user_id = $1
+           AND microtask_id = ANY($2::uuid[])
+           AND completed_date >= $3
+           AND completed_date <= $4`,
+        [userId, ids, weekStart, today]
+      );
+
+      const byId = new Map<string, { count: number; todayNote: string | null; completedToday: boolean }>();
+      for (const id of ids) byId.set(id, { count: 0, todayNote: null, completedToday: false });
+      for (const c of completions) {
+        const e = byId.get(c.microtask_id as string);
+        if (!e) continue;
+        e.count += 1;
+        if (c.completed_date === today) {
+          e.completedToday = true;
+          e.todayNote = (c.note as string | null) ?? null;
+        }
+      }
+
+      const text =
+        `## Microtasks (${rows.length} active)\n\n_Today: ${today}_\n\n` +
+        rows
+          .map((r, i) => {
+            const enrich = byId.get(r.id as string) ?? {
+              count: 0,
+              todayNote: null,
+              completedToday: false,
+            };
+            const days = Array.isArray(r.days_of_week)
+              ? (r.days_of_week as number[])
+              : (() => {
+                  try {
+                    return JSON.parse(r.days_of_week as string) as number[];
+                  } catch {
+                    return [] as number[];
+                  }
+                })();
+            return `### ${i + 1}. ${formatMicrotask(r, {
+              completedToday: enrich.completedToday,
+              todayNote: enrich.todayNote,
+              completionCount7d: enrich.count,
+              scheduledToday: days.includes(dayOfWeek),
+            })}`;
+          })
+          .join("\n\n---\n\n");
+
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_create_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_create_microtask",
+    {
+      title: "Create Microtask",
+      description: `Create a small repeatable microtask (a prompt, not a real task).
+
+Args:
+  - title (required): Short label, e.g. "5 min Upwork scan".
+  - emoji: Optional emoji for the chip (e.g. "🔍").
+  - time_of_day: morning | afternoon | evening | anytime (default: anytime).
+  - days_of_week: Array of 0-6 integers where 0=Sunday, 6=Saturday. Default: every day.
+
+Returns: The created microtask with its ID.`,
+      inputSchema: {
+        title: z.string().min(1).max(200).describe("Microtask title"),
+        emoji: z.string().max(8).optional().describe("Optional chip emoji"),
+        time_of_day: z
+          .enum(["morning", "afternoon", "evening", "anytime"])
+          .default("anytime"),
+        days_of_week: z
+          .array(z.number().int().min(0).max(6))
+          .min(1)
+          .max(7)
+          .optional()
+          .describe("Days 0=Sun..6=Sat (default every day)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const days = params.days_of_week
+        ? Array.from(new Set(params.days_of_week)).sort()
+        : [0, 1, 2, 3, 4, 5, 6];
+
+      const rows = await sql(
+        `INSERT INTO microtasks (user_id, title, emoji, time_of_day, days_of_week)
+         VALUES ($1, $2, $3, $4, $5::jsonb)
+         RETURNING *`,
+        [
+          userId,
+          params.title,
+          params.emoji ?? null,
+          params.time_of_day,
+          JSON.stringify(days),
+        ]
+      );
+
+      return {
+        content: [
+          { type: "text" as const, text: `✅ Microtask created!\n\n${formatMicrotask(rows[0])}` },
+        ],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_complete_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_complete_microtask",
+    {
+      title: "Complete Microtask",
+      description: `Mark a microtask done for today. Idempotent — calling twice in one day is safe.
+
+Args:
+  - microtask_id (required): UUID of the microtask.
+  - note: Optional quick note about the completion.
+
+Returns: The completion record (with date and note).`,
+      inputSchema: {
+        microtask_id: z.string().uuid().describe("Microtask UUID"),
+        note: z.string().max(1000).optional().describe("Optional quick note"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const today = todayInTz(tz);
+
+      const owned = await sql(
+        `SELECT id FROM microtasks WHERE id = $1 AND user_id = $2 LIMIT 1`,
+        [params.microtask_id, userId]
+      );
+      if (owned.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "❌ Microtask not found." }],
+          isError: true,
+        };
+      }
+
+      // If a note is given, write it on conflict so re-tapping with a new note
+      // updates the existing completion. If no note, leave any existing one alone.
+      const onConflictClause = params.note
+        ? `ON CONFLICT (microtask_id, completed_date) DO UPDATE SET note = EXCLUDED.note`
+        : `ON CONFLICT (microtask_id, completed_date) DO NOTHING`;
+
+      const inserted = await sql(
+        `INSERT INTO microtask_completions (microtask_id, user_id, completed_date, note)
+         VALUES ($1, $2, $3, $4)
+         ${onConflictClause}
+         RETURNING *`,
+        [params.microtask_id, userId, today, params.note ?? null]
+      );
+
+      let row = inserted[0];
+      if (!row) {
+        const existing = await sql(
+          `SELECT * FROM microtask_completions
+           WHERE microtask_id = $1 AND completed_date = $2 LIMIT 1`,
+          [params.microtask_id, today]
+        );
+        row = existing[0];
+      }
+
+      const note = row?.note ? ` — _${row.note as string}_` : "";
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `✓ Marked done for ${today}${note}`,
+          },
+        ],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_uncomplete_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_uncomplete_microtask",
+    {
+      title: "Uncomplete Microtask",
+      description: `Undo today's completion of a microtask.
+
+Args:
+  - microtask_id (required): UUID of the microtask.
+
+Returns: success/failure message.`,
+      inputSchema: {
+        microtask_id: z.string().uuid().describe("Microtask UUID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const today = todayInTz(tz);
+
+      const removed = await sql(
+        `DELETE FROM microtask_completions
+         WHERE microtask_id = $1 AND user_id = $2 AND completed_date = $3
+         RETURNING id`,
+        [params.microtask_id, userId, today]
+      );
+
+      if (removed.length === 0) {
+        return {
+          content: [
+            { type: "text" as const, text: `No completion to undo for today (${today}).` },
+          ],
+        };
+      }
+      return {
+        content: [{ type: "text" as const, text: `↩️ Undid today's completion (${today}).` }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_update_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_microtask",
+    {
+      title: "Update Microtask",
+      description: `Update fields on an existing microtask. Pass only what changes.
+
+Args:
+  - microtask_id (required): UUID of the microtask.
+  - title: New title.
+  - emoji: New emoji (pass empty string "" to clear).
+  - time_of_day: morning | afternoon | evening | anytime.
+  - days_of_week: Array of 0..6.
+  - active: true/false.
+  - sort_order: Integer for manual ordering.
+
+Returns: The updated microtask.`,
+      inputSchema: {
+        microtask_id: z.string().uuid().describe("Microtask UUID"),
+        title: z.string().min(1).max(200).optional(),
+        emoji: z.string().max(8).optional(),
+        time_of_day: z.enum(["morning", "afternoon", "evening", "anytime"]).optional(),
+        days_of_week: z
+          .array(z.number().int().min(0).max(6))
+          .min(1)
+          .max(7)
+          .optional(),
+        active: z.boolean().optional(),
+        sort_order: z.number().int().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+
+      if (params.title !== undefined) {
+        sets.push(`title = $${idx++}`);
+        values.push(params.title);
+      }
+      if (params.emoji !== undefined) {
+        sets.push(`emoji = $${idx++}`);
+        values.push(params.emoji === "" ? null : params.emoji);
+      }
+      if (params.time_of_day !== undefined) {
+        sets.push(`time_of_day = $${idx++}`);
+        values.push(params.time_of_day);
+      }
+      if (params.days_of_week !== undefined) {
+        sets.push(`days_of_week = $${idx++}::jsonb`);
+        values.push(JSON.stringify(Array.from(new Set(params.days_of_week)).sort()));
+      }
+      if (params.active !== undefined) {
+        sets.push(`active = $${idx++}`);
+        values.push(params.active);
+      }
+      if (params.sort_order !== undefined) {
+        sets.push(`sort_order = $${idx++}`);
+        values.push(params.sort_order);
+      }
+
+      if (sets.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "No fields to update." }],
+          isError: true,
+        };
+      }
+
+      sets.push(`updated_at = now()`);
+      values.push(params.microtask_id, userId);
+      const rows = await sql(
+        `UPDATE microtasks SET ${sets.join(", ")}
+         WHERE id = $${idx++} AND user_id = $${idx}
+         RETURNING *`,
+        values
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "❌ Microtask not found." }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: `✅ Updated.\n\n${formatMicrotask(rows[0])}` },
+        ],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_deactivate_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_deactivate_microtask",
+    {
+      title: "Deactivate Microtask",
+      description: `Soft-pause a microtask (sets active=false). Completion history is preserved. Reactivate by calling cc_update_microtask with active=true.
+
+Args:
+  - microtask_id (required): UUID of the microtask.
+
+Returns: The updated (now inactive) microtask.`,
+      inputSchema: {
+        microtask_id: z.string().uuid().describe("Microtask UUID"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `UPDATE microtasks SET active = false, updated_at = now()
+         WHERE id = $1 AND user_id = $2
+         RETURNING *`,
+        [params.microtask_id, userId]
+      );
+      if (rows.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "❌ Microtask not found." }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: `⏸ Paused.\n\n${formatMicrotask(rows[0])}` },
+        ],
+      };
     }
   );
 }

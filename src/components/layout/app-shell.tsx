@@ -20,6 +20,7 @@ import {
   X,
   Menu,
   Siren,
+  Repeat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -47,6 +48,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dump", label: "Brain Dump", mobileLabel: "Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/mirror", label: "Mirror", icon: Clock },
@@ -63,6 +65,7 @@ const mobileNavItems = [
 const mobileMoreItems = [
   { href: "/dump", label: "Brain Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/mirror", label: "Mirror", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },

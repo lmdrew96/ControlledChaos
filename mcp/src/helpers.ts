@@ -191,3 +191,62 @@ export function formatGoal(goal: Record<string, unknown>, tz?: string): string {
   if (goal.target_date) parts.push(`Target: ${fmtLocal(goal.target_date, tz)}`);
   return parts.join("\n");
 }
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * Format a microtask row into a markdown chunk. Optionally enriched with
+ * completedToday / completionCount7d / scheduledToday flags from the
+ * dashboard query.
+ */
+export function formatMicrotask(
+  row: Record<string, unknown>,
+  enrichment?: {
+    completedToday?: boolean;
+    todayNote?: string | null;
+    completionCount7d?: number;
+    scheduledToday?: boolean;
+  }
+): string {
+  const emoji = (row.emoji as string | null) ?? "";
+  const title = row.title as string;
+  const head = emoji ? `**${emoji} ${title}**` : `**${title}**`;
+  const parts: string[] = [head, `ID: \`${row.id}\``];
+
+  parts.push(`Time: ${row.time_of_day}`);
+
+  const days = Array.isArray(row.days_of_week)
+    ? (row.days_of_week as number[])
+    : (() => {
+        try {
+          return JSON.parse(row.days_of_week as string) as number[];
+        } catch {
+          return [] as number[];
+        }
+      })();
+  if (days.length === 7) {
+    parts.push("Days: every day");
+  } else if (days.length > 0) {
+    parts.push(`Days: ${days.map((d) => DAY_LABELS[d] ?? `?${d}`).join(", ")}`);
+  }
+
+  if (row.active === false) parts.push("_(inactive)_");
+
+  if (enrichment) {
+    if (enrichment.completedToday) {
+      parts.push(
+        enrichment.todayNote
+          ? `✓ Done today — ${enrichment.todayNote}`
+          : "✓ Done today"
+      );
+    }
+    if (typeof enrichment.completionCount7d === "number" && enrichment.completionCount7d > 0) {
+      parts.push(`Last 7 days: ${enrichment.completionCount7d}/7`);
+    }
+    if (enrichment.scheduledToday === false) {
+      parts.push("_not scheduled today_");
+    }
+  }
+
+  return parts.join("\n");
+}
