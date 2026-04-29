@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useMutation } from "convex/react";
 import { useAuth, useUser } from "@clerk/nextjs";
-import { api } from "@convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 
 const LAST_ROOM_KEY = "cc-pp-last-room";
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { Heart, Sparkles, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

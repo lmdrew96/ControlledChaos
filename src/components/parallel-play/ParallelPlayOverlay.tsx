@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hand, Flame, X, Loader2 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useParallelPlay } from "@/lib/parallel-play/context";
