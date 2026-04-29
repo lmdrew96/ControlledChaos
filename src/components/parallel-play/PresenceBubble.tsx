@@ -46,14 +46,21 @@ export function PresenceBubble({
   const [encouraging, setEncouraging] = useState(false);
   const [encouraged, setEncouraged] = useState(false);
 
+  const isFlare = presence.status === "flare";
+
+  // Reset the "already encouraged" gate whenever the target stops flaring,
+  // so a re-flare gets a fresh acknowledgement window. Spec: "one encourage
+  // per sender per flare session".
+  useEffect(() => {
+    if (!isFlare && encouraged) setEncouraged(false);
+  }, [isFlare, encouraged]);
+
   // Live duration ticker
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, []);
-
-  const isFlare = presence.status === "flare";
   const isIdle = presence.status === "idle";
   const energyRing =
     (presence.displayEnergy && ENERGY_RING[presence.displayEnergy]) ??
