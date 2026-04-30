@@ -159,10 +159,11 @@ export function CrisisChatPanel({ planId, questions }: Props) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-10 w-10"
             onClick={() => setIsOpen(false)}
+            aria-label="Close crisis chat"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
 

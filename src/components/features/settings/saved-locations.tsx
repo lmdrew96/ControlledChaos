@@ -261,28 +261,28 @@ export function SavedLocations() {
                       : " · no coordinates"}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-9 w-9"
                     onClick={() => openEdit(loc)}
                     aria-label={`Edit ${loc.name}`}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    className="h-9 w-9 text-destructive hover:text-destructive"
                     onClick={() => handleDelete(loc.id)}
                     disabled={deletingId === loc.id}
                     aria-label={`Delete ${loc.name}`}
                   >
                     {deletingId === loc.id ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
