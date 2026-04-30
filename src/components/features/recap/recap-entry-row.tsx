@@ -37,7 +37,7 @@ export function RecapEntryRow({ entry, timezone }: RecapEntryRowProps) {
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-tight">{label}</p>
+        <p className="truncate text-sm font-medium leading-tight">{label}</p>
         {snippet && (
           <p className="mt-0.5 truncate text-xs opacity-80">{snippet}</p>
         )}

@@ -95,7 +95,7 @@ export function RecommendationCard({
           <h3 className="text-lg font-semibold leading-snug">{task.title}</h3>
 
           {/* AI reasoning */}
-          <p className="text-sm text-muted-foreground">{reasoning}</p>
+          <p className="text-sm text-muted-foreground break-words">{reasoning}</p>
 
           {/* Metadata badges */}
           <div className="flex flex-wrap items-center gap-2">
@@ -124,9 +124,9 @@ export function RecommendationCard({
             )}
 
             {task.locationTags && task.locationTags.length > 0 && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {task.locationTags.join(", ")}
+              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground break-words">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="break-words">{task.locationTags.join(", ")}</span>
               </span>
             )}
 

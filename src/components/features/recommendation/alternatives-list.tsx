@@ -40,8 +40,8 @@ export function AlternativesList({
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{alt.task.title}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="truncate text-sm font-medium">{alt.task.title}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                   {alt.reasoning}
                 </p>
               </div>
