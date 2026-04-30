@@ -48,7 +48,7 @@ import { ParallelPlayOverlay } from "@/components/parallel-play/ParallelPlayOver
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dump", label: "Brain Dump", mobileLabel: "Dump", icon: Brain },
+  { href: "/dump", label: "Brain Dump", icon: Brain },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
@@ -59,7 +59,7 @@ const navItems = [
 ];
 
 const mobileNavItems = [
-  { href: "/dashboard", label: "Dash", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/crisis", label: "Crisis", icon: Siren },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
@@ -204,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
               )}
             </span>
-            Crisis Mode
+            Crisis
           </Link>
         </nav>
 
