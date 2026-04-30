@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical, Search, X } from "lucide-react";
+import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical, Search, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -110,9 +110,10 @@ function SortableTaskCard({
 const VALID_FILTERS: Set<string> = new Set(["active", "completed", "all"]);
 const VALID_SORTS: Set<string> = new Set(["none", "priority", "deadline", "manual"]);
 
-export function TaskList() {
+export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [expanded, setExpanded] = useState(!collapsible);
 
   // Read filter state from URL, with safe defaults
   const filterParam = searchParams.get("filter");
@@ -274,6 +275,26 @@ export function TaskList() {
     );
   }
 
+  if (collapsible && !expanded && tasks.length > 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        aria-expanded={false}
+        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40"
+      >
+        <span className="flex items-center gap-2 text-sm">
+          <ListTodo className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">Tasks</span>
+          <span className="text-muted-foreground">
+            ({tasks.length}) · {activeTasks.length} active
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </button>
+    );
+  }
+
   if (tasks.length === 0) {
     return (
       <>
@@ -316,6 +337,24 @@ export function TaskList() {
       <p aria-live="polite" aria-atomic="true" className="sr-only">
         {activeTasks.length} active task{activeTasks.length !== 1 ? "s" : ""}
       </p>
+
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-expanded={true}
+          className="flex w-full items-center justify-between text-sm transition-colors hover:text-foreground"
+        >
+          <span className="flex items-center gap-2">
+            <ListTodo className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">Tasks</span>
+            <span className="text-muted-foreground">
+              ({tasks.length}) · {activeTasks.length} active
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 rotate-180 text-muted-foreground" />
+        </button>
+      )}
 
       {/* Toolbar */}
       <div className="space-y-2">
