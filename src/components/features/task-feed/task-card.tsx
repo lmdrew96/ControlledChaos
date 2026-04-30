@@ -13,7 +13,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { formatForDisplay, DISPLAY_DATETIME, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
@@ -229,17 +228,10 @@ export function TaskCard({
     const nextIndex = localStepIndex + 1;
     const isLast = nextIndex >= steps.length;
 
+    // Confetti only on the final step — fireTaskConfetti already respects
+    // the user's celebration-level setting (none / subtle / full).
     if (isLast) {
       fireTaskConfetti();
-    } else {
-      confetti({
-        particleCount: 60,
-        spread: 80,
-        startVelocity: 45,
-        origin: { x: 0.5, y: 0.6 },
-        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
-        zIndex: 9999,
-      });
     }
 
     setLocalStepIndex(nextIndex);
