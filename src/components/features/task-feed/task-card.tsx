@@ -5,12 +5,12 @@ import {
   Check,
   Trash2,
   Clock,
-  MapPin,
   Calendar,
   CalendarClock,
   Layers,
   Loader2,
   ChevronDown,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
@@ -19,6 +19,13 @@ import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,20 +37,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { taskBadgeColor } from "@/lib/calendar/colors";
 import { useParallelPlaySync } from "@/hooks/use-parallel-play-sync";
-import type { Task, CalendarColors, EventCategory, ProgressStep } from "@/types";
-import { priorityConfig, energyConfig } from "./task-config";
+import type { Task, ProgressStep } from "@/types";
+import { priorityConfig } from "./task-config";
 
 export function TaskCard({
   task,
-  calendarColors,
   onUpdate,
   onClick,
 }: {
   task: Task;
-  calendarColors?: CalendarColors | null;
   onUpdate: () => void;
   onClick?: () => void;
 }) {
@@ -96,21 +99,18 @@ export function TaskCard({
     }
 
     isSwiping.current = true;
-    // Cap offset so it doesn't fly too far
     const capped = Math.max(-120, Math.min(120, dx));
     setSwipeOffset(capped);
   }
 
   function handleTouchEnd() {
     if (swipeDirection.current === "x" && swipeOffset <= -SWIPE_THRESHOLD) {
-      // Swiped left → show delete confirmation
       setShowSwipeDeleteDialog(true);
     } else if (
       swipeDirection.current === "x" &&
       swipeOffset >= SWIPE_THRESHOLD &&
       !isCompleted
     ) {
-      // Swiped right → schedule
       void handleFindTimeAction();
     }
     setSwipeOffset(0);
@@ -132,9 +132,6 @@ export function TaskCard({
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
     priorityConfig.normal;
-  const energy =
-    energyConfig[task.energyLevel as keyof typeof energyConfig] ??
-    energyConfig.medium;
 
   async function handleAction(action: "complete" | "undo" | "delete") {
     setIsUpdating(true);
@@ -211,16 +208,6 @@ export function TaskCard({
     }
   }
 
-  function handleChunk(e: React.MouseEvent<HTMLButtonElement>) {
-    e.stopPropagation();
-    void handleChunkAction();
-  }
-
-  function handleFindTime(e: React.MouseEvent<HTMLButtonElement>) {
-    e.stopPropagation();
-    void handleFindTimeAction();
-  }
-
   const steps = (task.progressSteps as ProgressStep[] | null) ?? null;
 
   const handleStepDone = useCallback(async () => {
@@ -228,8 +215,6 @@ export function TaskCard({
     const nextIndex = localStepIndex + 1;
     const isLast = nextIndex >= steps.length;
 
-    // Confetti only on the final step — fireTaskConfetti already respects
-    // the user's celebration-level setting (none / subtle / full).
     if (isLast) {
       fireTaskConfetti();
     }
@@ -255,18 +240,16 @@ export function TaskCard({
     }
   }, [steps, localStepIndex, task.id, onUpdate, syncTaskComplete]);
 
-  function handleDeleteClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (confirmDelete) {
-      handleAction("delete");
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
-  }
-
   const isSwipingLeft = swipeOffset < -20;
   const isSwipingRight = swipeOffset > 20;
+
+  // Pick ONE temporal hint: scheduled-for > deadline > none.
+  // Steps progress is its own affordance (expand/collapse), shown separately.
+  const temporalHint: "scheduled" | "deadline" | null = task.scheduledFor
+    ? "scheduled"
+    : task.deadline
+      ? "deadline"
+      : null;
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -294,7 +277,7 @@ export function TaskCard({
 
       <Card
         className={cn(
-          "group relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
+          "relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
           isCompleted && "opacity-60"
         )}
         style={{
@@ -307,314 +290,257 @@ export function TaskCard({
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchCancel}
       >
-      <div className="flex items-start gap-3">
-        {/* Complete/undo button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleAction(isCompleted ? "undo" : "complete");
-          }}
-          disabled={isUpdating}
-          aria-label={isCompleted ? `Mark "${task.title}" incomplete` : `Complete "${task.title}"`}
-          className={cn(
-            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-            isCompleted
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-muted-foreground/30 hover:border-primary"
-          )}
-        >
-          {isUpdating ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : isCompleted ? (
-            <Check className="h-3 w-3" />
-          ) : null}
-        </button>
+        <div className="flex items-start gap-3">
+          {/* Complete/undo button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAction(isCompleted ? "undo" : "complete");
+            }}
+            disabled={isUpdating}
+            aria-label={isCompleted ? `Mark "${task.title}" incomplete` : `Complete "${task.title}"`}
+            className={cn(
+              "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+              isCompleted
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-muted-foreground/30 hover:border-primary"
+            )}
+          >
+            {isUpdating ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : isCompleted ? (
+              <Check className="h-3 w-3" />
+            ) : null}
+          </button>
 
-        {/* Task content */}
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                "font-medium leading-snug",
-                isCompleted && "line-through"
-              )}
-            >
-              {task.title}
-            </h3>
+          {/* Task content */}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <h3
+                className={cn(
+                  "font-medium leading-snug",
+                  isCompleted && "line-through"
+                )}
+              >
+                {task.title}
+              </h3>
 
-            <div className="flex items-center gap-1">
-              {!isCompleted && !hasSteps && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                      onClick={handleChunk}
-                      disabled={isChunking || isUpdating}
-                      aria-label={`Chunk "${task.title}"`}
-                    >
-                      {isChunking ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Chunk it</TooltipContent>
-                </Tooltip>
-              )}
               {!isCompleted && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
-                      onClick={handleFindTime}
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Actions for "${task.title}"`}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {!hasSteps && (
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          void handleChunkAction();
+                        }}
+                        disabled={isChunking || isUpdating}
+                      >
+                        {isChunking ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Layers className="h-4 w-4" />
+                        )}
+                        Chunk it
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        void handleFindTimeAction();
+                      }}
                       disabled={isScheduling || isUpdating}
-                      aria-label={`Find a time for "${task.title}"`}
                     >
                       {isScheduling ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                        <CalendarClock className="h-4 w-4" />
                       )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Find a time</TooltipContent>
-                </Tooltip>
+                      Find a time
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setConfirmDelete(true);
+                      }}
+                      disabled={isUpdating}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-              <Button
-                variant={confirmDelete ? "destructive" : "ghost"}
-                size={confirmDelete ? "sm" : "icon"}
-                className={cn(
-                  "shrink-0 transition-all hidden sm:flex",
-                  confirmDelete
-                    ? "h-7 px-2 text-xs opacity-100"
-                    : "h-7 w-7 opacity-0 group-hover:opacity-100"
-                )}
-                onClick={handleDeleteClick}
-                disabled={isUpdating}
-                aria-label={confirmDelete ? "Confirm delete" : `Delete "${task.title}"`}
-              >
-                {confirmDelete ? (
-                  "Delete?"
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </Button>
+            </div>
+
+            {task.description && (
+              <p className="text-sm text-muted-foreground">{task.description}</p>
+            )}
+
+            {/* Metadata row — capped at 3 visible: priority + time + one temporal hint.
+                Steps button shows separately when steps exist (it's an expand affordance). */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={priority.className}>
+                {priority.label}
+              </Badge>
+
+              {task.estimatedMinutes && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {task.estimatedMinutes}m
+                </span>
+              )}
+
+              {temporalHint === "scheduled" && task.scheduledFor && (
+                <span className="flex items-center gap-1 text-xs text-primary/80 font-medium">
+                  <CalendarClock className="h-3 w-3" />
+                  {formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME)}
+                </span>
+              )}
+
+              {temporalHint === "deadline" && task.deadline && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}
+                </span>
+              )}
+
+              {steps && steps.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded((v) => !v);
+                  }}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
+                  className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-adhd-teal hover:bg-adhd-teal/10 transition-colors dark:text-adhd-sage dark:hover:bg-adhd-sage/10"
+                >
+                  <span className="inline-flex gap-0.5">
+                    {steps.map((_, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          i < localStepIndex
+                            ? "bg-adhd-teal dark:bg-adhd-sage"
+                            : "bg-adhd-teal/25 dark:bg-adhd-sage/30"
+                        )}
+                      />
+                    ))}
+                  </span>
+                  {localStepIndex}/{steps.length}
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 transition-transform",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                </button>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 sm:hidden">
-            {!isCompleted && !hasSteps && (
+        {steps && steps.length > 0 && isExpanded && (
+          <div
+            className="mt-3 space-y-2 rounded-md border border-adhd-teal/20 bg-adhd-teal/5 p-3 dark:border-adhd-sage/30 dark:bg-adhd-sage/5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ul className="space-y-1.5">
+              {steps.map((step, i) => {
+                const isDone = i < localStepIndex;
+                const isCurrent = i === localStepIndex;
+                return (
+                  <li
+                    key={i}
+                    className={cn(
+                      "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
+                      isCurrent && "bg-background border-l-4 border-l-adhd-teal shadow-sm dark:border-l-adhd-sage"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                        isDone
+                          ? "border-adhd-teal bg-adhd-teal text-white dark:border-adhd-sage dark:bg-adhd-sage dark:text-adhd-dark"
+                          : isCurrent
+                            ? "border-adhd-teal bg-adhd-teal/20 dark:border-adhd-sage dark:bg-adhd-sage/30"
+                            : "border-muted-foreground/30"
+                      )}
+                    >
+                      {isDone ? <Check className="h-2.5 w-2.5" /> : null}
+                    </span>
+                    <span
+                      className={cn(
+                        "flex-1",
+                        isDone && "text-muted-foreground line-through",
+                        isCurrent && "font-medium"
+                      )}
+                    >
+                      {step.title}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {step.estimatedMinutes}m
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {!isCompleted && localStepIndex < steps.length && (
               <Button
-                variant="outline"
                 size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={handleChunk}
-                disabled={isChunking || isUpdating}
-              >
-                {isChunking ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                ) : (
-                  <Layers className="mr-1 h-3 w-3" />
-                )}
-                Chunk
-              </Button>
-            )}
-            {!isCompleted && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={handleFindTime}
-                disabled={isScheduling || isUpdating}
-              >
-                {isScheduling ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                ) : (
-                  <CalendarClock className="mr-1 h-3 w-3" />
-                )}
-                Find Time
-              </Button>
-            )}
-            <Button
-              variant={confirmDelete ? "destructive" : "outline"}
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={handleDeleteClick}
-              disabled={isUpdating}
-            >
-              {confirmDelete ? "Confirm Delete" : "Delete"}
-            </Button>
-          </div>
-
-          {task.description && (
-            <p className="text-sm text-muted-foreground">{task.description}</p>
-          )}
-
-          {/* Metadata row */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={priority.className}>
-              {priority.label}
-            </Badge>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="text-xs text-muted-foreground cursor-default">
-                  {energy.icon}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{energy.label} energy</TooltipContent>
-            </Tooltip>
-
-            {task.estimatedMinutes && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                {task.estimatedMinutes}m
-              </span>
-            )}
-
-            {task.category && (
-              <Badge className={cn("text-xs border-0", taskBadgeColor(task.category as EventCategory, calendarColors))}>
-                {task.category}
-              </Badge>
-            )}
-
-            {task.locationTags && task.locationTags.length > 0 && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {task.locationTags.join(", ")}
-              </span>
-            )}
-
-            {task.deadline && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}
-              </span>
-            )}
-
-            {task.scheduledFor && (
-              <span className="flex items-center gap-1 text-xs text-primary/80 font-medium">
-                <CalendarClock className="h-3 w-3" />
-                {formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME)}
-              </span>
-            )}
-
-            {steps && steps.length > 0 && (
-              <button
-                type="button"
+                className="w-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsExpanded((v) => !v);
+                  void handleStepDone();
                 }}
-                aria-expanded={isExpanded}
-                aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
-                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-adhd-teal hover:bg-adhd-teal/10 transition-colors dark:text-adhd-sage dark:hover:bg-adhd-sage/10"
+                disabled={isAdvancingStep}
               >
-                <span className="inline-flex gap-0.5">
-                  {steps.map((_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full",
-                        i < localStepIndex
-                          ? "bg-adhd-teal dark:bg-adhd-sage"
-                          : "bg-adhd-teal/25 dark:bg-adhd-sage/30"
-                      )}
-                    />
-                  ))}
-                </span>
-                {localStepIndex}/{steps.length}
-                <ChevronDown
-                  className={cn(
-                    "h-3 w-3 transition-transform",
-                    isExpanded && "rotate-180"
-                  )}
-                />
-              </button>
+                {isAdvancingStep ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {localStepIndex === steps.length - 1
+                  ? "Done — finish task!"
+                  : "Done, next step"}
+              </Button>
+            )}
+            {localStepIndex >= steps.length && (
+              <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2 text-sm text-success">
+                <Check className="h-4 w-4" />
+                All {steps.length} steps completed
+              </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {steps && steps.length > 0 && isExpanded && (
-        <div
-          className="mt-3 space-y-2 rounded-md border border-adhd-teal/20 bg-adhd-teal/5 p-3 dark:border-adhd-sage/30 dark:bg-adhd-sage/5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ul className="space-y-1.5">
-            {steps.map((step, i) => {
-              const isDone = i < localStepIndex;
-              const isCurrent = i === localStepIndex;
-              return (
-                <li
-                  key={i}
-                  className={cn(
-                    "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
-                    isCurrent && "bg-background border-l-4 border-l-adhd-teal shadow-sm dark:border-l-adhd-sage"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                      isDone
-                        ? "border-adhd-teal bg-adhd-teal text-white dark:border-adhd-sage dark:bg-adhd-sage dark:text-adhd-dark"
-                        : isCurrent
-                          ? "border-adhd-teal bg-adhd-teal/20 dark:border-adhd-sage dark:bg-adhd-sage/30"
-                          : "border-muted-foreground/30"
-                    )}
-                  >
-                    {isDone ? <Check className="h-2.5 w-2.5" /> : null}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex-1",
-                      isDone && "text-muted-foreground line-through",
-                      isCurrent && "font-medium"
-                    )}
-                  >
-                    {step.title}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {step.estimatedMinutes}m
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {!isCompleted && localStepIndex < steps.length && (
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleStepDone();
-              }}
-              disabled={isAdvancingStep}
-            >
-              {isAdvancingStep ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              {localStepIndex === steps.length - 1
-                ? "Done — finish task!"
-                : "Done, next step"}
-            </Button>
-          )}
-          {localStepIndex >= steps.length && (
-            <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2 text-sm text-success">
-              <Check className="h-4 w-4" />
-              All {steps.length} steps completed
-            </div>
-          )}
-        </div>
-      )}
+        )}
       </Card>
 
-      <AlertDialog open={showSwipeDeleteDialog} onOpenChange={setShowSwipeDeleteDialog}>
+      {/* Delete confirmation — used by both menu Delete and swipe-left. */}
+      <AlertDialog
+        open={confirmDelete || showSwipeDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDelete(false);
+            setShowSwipeDeleteDialog(false);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete task?</AlertDialogTitle>

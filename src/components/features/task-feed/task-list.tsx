@@ -16,7 +16,7 @@ import { TaskCard } from "./task-card";
 import { TaskDetailModal } from "./task-detail-modal";
 import { CreateTaskModal } from "./create-task-modal";
 import Link from "next/link";
-import type { Task, CalendarColors } from "@/types";
+import type { Task } from "@/types";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
 import {
   DndContext,
@@ -60,13 +60,11 @@ function applySort(tasks: Task[], sortBy: SortBy): Task[] {
 
 function SortableTaskCard({
   task,
-  calendarColors,
   onUpdate,
   onClick,
   isDragMode,
 }: {
   task: Task;
-  calendarColors?: CalendarColors | null;
   onUpdate: () => void;
   onClick: () => void;
   isDragMode: boolean;
@@ -101,7 +99,6 @@ function SortableTaskCard({
       <div className="flex-1 min-w-0">
         <TaskCard
           task={task}
-          calendarColors={calendarColors}
           onUpdate={onUpdate}
           onClick={onClick}
         />
@@ -165,7 +162,6 @@ export function TaskList() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -189,13 +185,6 @@ export function TaskList() {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.calendarColors) setCalendarColors(data.calendarColors as CalendarColors); })
-      .catch(() => {});
-  }, []);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredTasks = applySort(
@@ -482,7 +471,6 @@ export function TaskList() {
                 <SortableTaskCard
                   key={task.id}
                   task={task}
-                  calendarColors={calendarColors}
                   onUpdate={fetchTasks}
                   onClick={() => setSelectedTaskId(task.id)}
                   isDragMode={true}
@@ -497,7 +485,6 @@ export function TaskList() {
             <TaskCard
               key={task.id}
               task={task}
-              calendarColors={calendarColors}
               onUpdate={fetchTasks}
               onClick={() => setSelectedTaskId(task.id)}
             />
