@@ -22,6 +22,7 @@ import {
   Siren,
   Repeat,
   Search,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -69,6 +70,7 @@ const mobileMoreItems = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
+  { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
