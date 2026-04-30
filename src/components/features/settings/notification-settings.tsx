@@ -468,7 +468,7 @@ export function NotificationSettings() {
           At most one nudge per day. Morning and afternoon only fire if you&apos;ve been idle;
           evening fires as a gentle wrap-up regardless.
         </p>
-        <div className="grid grid-cols-3 gap-2 sm:pl-6">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:pl-6">
           {CHECK_IN_TIME_OPTIONS.map((option) => {
             const selected = (prefs.dailyCheckInTime ?? "morning") === option.value;
             const disabled = !(prefs.dailyCheckInEnabled ?? true);
