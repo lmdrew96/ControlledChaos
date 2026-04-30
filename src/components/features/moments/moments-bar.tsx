@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "./use-long-press";
 import { MomentDetailSheet } from "./moment-detail-sheet";
 import { MOMENT_COPY, MOMENT_TYPES } from "./moment-constants";
 import type { MomentType } from "@/types";
+
+const SIDEBAR_OPEN_KEY = "cc-moments-sidebar-open";
 
 interface LogMomentPayload {
   type: MomentType;
@@ -172,28 +175,55 @@ export function MomentsBar() {
 
 export function MomentsSidebarGroup() {
   const logging = useMomentLogging();
+  const [open, setOpen] = useState(false);
+
+  // Hydrate persisted state on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setOpen(localStorage.getItem(SIDEBAR_OPEN_KEY) === "1");
+  }, []);
+
+  const toggle = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_OPEN_KEY, next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  }, []);
 
   return (
     <>
-      <div
-        className="border-t border-border px-3 py-3"
-        role="toolbar"
-        aria-label="Log a moment"
-      >
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Log a moment
-        </p>
-        <div className="grid grid-cols-2 gap-1.5">
-          {MOMENT_TYPES.map((type) => (
-            <MomentChip
-              key={type}
-              type={type}
-              onTap={() => logging.logQuick(type)}
-              onLongPress={() => logging.openDetail(type)}
-              layout="grid"
-            />
-          ))}
-        </div>
+      <div className="border-t border-border" role="toolbar" aria-label="Log a moment">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          className="flex w-full items-center justify-between px-3 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+        >
+          <span>Log a moment</span>
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-transform",
+              open && "rotate-180"
+            )}
+          />
+        </button>
+
+        {open && (
+          <div className="grid grid-cols-2 gap-1.5 px-3 pb-3">
+            {MOMENT_TYPES.map((type) => (
+              <MomentChip
+                key={type}
+                type={type}
+                onTap={() => logging.logQuick(type)}
+                onLongPress={() => logging.openDetail(type)}
+                layout="grid"
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <MomentDetailSheet
