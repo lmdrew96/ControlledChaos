@@ -27,10 +27,22 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  /* Brand palette — direct utility access (e.g. bg-adhd-teal/15) */
+  --color-adhd-bg: var(--adhd-bg);
+  --color-adhd-dark: var(--adhd-dark);
+  --color-adhd-lavender: var(--adhd-lavender);
+  --color-adhd-purple: var(--adhd-purple);
+  --color-adhd-amber: var(--adhd-amber);
+  --color-adhd-olive: var(--adhd-olive);
+  --color-adhd-sage: var(--adhd-sage);
+  --color-adhd-teal: var(--adhd-teal);
+  --color-adhd-green: var(--adhd-green);
+  --color-adhd-clay: var(--adhd-clay);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -65,6 +77,7 @@
   --adhd-sage:     #8CBDB9;
   --adhd-teal:     #244952;
   --adhd-green:    #97D181;
+  --adhd-clay:     #C04A3D;
 
   /* ── shadcn semantic mapping — paper mode ── */
   /* Page = off-white. Card = warm paper that lifts off the page.
@@ -83,8 +96,8 @@
   --muted-foreground:       var(--adhd-purple);
   --accent:                 var(--adhd-purple);
   --accent-foreground:      var(--adhd-bg);
-  --destructive:            var(--adhd-amber);
-  --destructive-foreground: var(--adhd-dark);
+  --destructive:            var(--adhd-clay);
+  --destructive-foreground: var(--adhd-bg);
   --border:                 color-mix(in srgb, var(--adhd-dark) 10%, transparent);
   --input:                  color-mix(in srgb, var(--adhd-dark) 8%, transparent);
   --ring:                   var(--adhd-purple);
@@ -125,8 +138,8 @@
   --muted-foreground:       var(--adhd-lavender);
   --accent:                 var(--adhd-amber);
   --accent-foreground:      var(--adhd-dark);
-  --destructive:            var(--adhd-amber);
-  --destructive-foreground: var(--adhd-dark);
+  --destructive:            var(--adhd-clay);
+  --destructive-foreground: var(--adhd-bg);
   --border:                 color-mix(in srgb, var(--adhd-bg) 12%, transparent);
   --input:                  color-mix(in srgb, var(--adhd-bg) 15%, transparent);
   --ring:                   var(--adhd-amber);

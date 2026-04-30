@@ -8,19 +8,19 @@ import type {
 export const priorityConfig = {
   urgent: {
     label: "Urgent",
-    className: "bg-red-500/15 text-red-400 border-red-500/30",
+    className: "bg-adhd-clay/15 text-adhd-clay border-adhd-clay/30",
   },
   important: {
     label: "Important",
-    className: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    className: "bg-adhd-amber/20 text-adhd-amber border-adhd-amber/40",
   },
   normal: {
     label: "Normal",
-    className: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    className: "bg-adhd-teal/15 text-adhd-teal border-adhd-teal/30 dark:text-adhd-sage dark:border-adhd-sage/40",
   },
   someday: {
     label: "Someday",
-    className: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+    className: "bg-muted text-muted-foreground border-border",
   },
 } as const;
 

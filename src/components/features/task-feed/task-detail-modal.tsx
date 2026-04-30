@@ -524,7 +524,7 @@ export function TaskDetailModal({
 
           {/* Progress Steps — step-through UI */}
           {hasSteps && !allStepsDone && currentStep && (
-            <div className="space-y-3 rounded-lg border border-blue-500/20 bg-blue-500/5 p-4">
+            <div className="space-y-3 rounded-lg border border-adhd-teal/20 bg-adhd-teal/5 p-4 dark:border-adhd-sage/30 dark:bg-adhd-sage/5">
               {/* Breadcrumb dots */}
               <div className="flex items-center gap-1.5">
                 {steps.map((_, i) => (
@@ -533,9 +533,9 @@ export function TaskDetailModal({
                     className={cn(
                       "h-2.5 w-2.5 rounded-full transition-colors",
                       i < localStepIndex
-                        ? "bg-blue-500"
+                        ? "bg-adhd-teal dark:bg-adhd-sage"
                         : i === localStepIndex
-                          ? "bg-blue-500/60 ring-2 ring-blue-500 ring-offset-1 ring-offset-background"
+                          ? "bg-adhd-teal/60 ring-2 ring-adhd-teal ring-offset-1 ring-offset-background dark:bg-adhd-sage/60 dark:ring-adhd-sage"
                           : "border border-border bg-transparent"
                     )}
                   />
@@ -546,8 +546,8 @@ export function TaskDetailModal({
               </div>
 
               {/* Current step card */}
-              <div className="rounded-lg border-l-4 border-l-blue-500 bg-card p-3 shadow-sm">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-blue-500">
+              <div className="rounded-lg border-l-4 border-l-adhd-teal bg-card p-3 shadow-sm dark:border-l-adhd-sage">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-adhd-teal dark:text-adhd-sage">
                   Do this now
                 </p>
                 <p className="mb-2 text-base font-semibold">{currentStep.title}</p>
@@ -573,9 +573,9 @@ export function TaskDetailModal({
 
           {/* All steps done indicator */}
           {hasSteps && allStepsDone && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
-              <Check className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium text-green-600">All {steps.length} steps completed!</span>
+            <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 p-3">
+              <Check className="h-4 w-4 text-success" />
+              <span className="text-sm font-medium text-success">All {steps.length} steps completed!</span>
             </div>
           )}
 

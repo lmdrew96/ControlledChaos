@@ -521,7 +521,7 @@ export function TaskCard({
                 }}
                 aria-expanded={isExpanded}
                 aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
-                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-blue-500 hover:bg-blue-500/10 transition-colors"
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-adhd-teal hover:bg-adhd-teal/10 transition-colors dark:text-adhd-sage dark:hover:bg-adhd-sage/10"
               >
                 <span className="inline-flex gap-0.5">
                   {steps.map((_, i) => (
@@ -530,8 +530,8 @@ export function TaskCard({
                       className={cn(
                         "h-1.5 w-1.5 rounded-full",
                         i < localStepIndex
-                          ? "bg-blue-500"
-                          : "bg-blue-500/25"
+                          ? "bg-adhd-teal dark:bg-adhd-sage"
+                          : "bg-adhd-teal/25 dark:bg-adhd-sage/30"
                       )}
                     />
                   ))}
@@ -551,7 +551,7 @@ export function TaskCard({
 
       {steps && steps.length > 0 && isExpanded && (
         <div
-          className="mt-3 space-y-2 rounded-md border border-blue-500/20 bg-blue-500/5 p-3"
+          className="mt-3 space-y-2 rounded-md border border-adhd-teal/20 bg-adhd-teal/5 p-3 dark:border-adhd-sage/30 dark:bg-adhd-sage/5"
           onClick={(e) => e.stopPropagation()}
         >
           <ul className="space-y-1.5">
@@ -563,16 +563,16 @@ export function TaskCard({
                   key={i}
                   className={cn(
                     "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
-                    isCurrent && "bg-background border-l-4 border-l-blue-500 shadow-sm"
+                    isCurrent && "bg-background border-l-4 border-l-adhd-teal shadow-sm dark:border-l-adhd-sage"
                   )}
                 >
                   <span
                     className={cn(
                       "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
                       isDone
-                        ? "border-blue-500 bg-blue-500 text-white"
+                        ? "border-adhd-teal bg-adhd-teal text-white dark:border-adhd-sage dark:bg-adhd-sage dark:text-adhd-dark"
                         : isCurrent
-                          ? "border-blue-500 bg-blue-500/20"
+                          ? "border-adhd-teal bg-adhd-teal/20 dark:border-adhd-sage dark:bg-adhd-sage/30"
                           : "border-muted-foreground/30"
                     )}
                   >
@@ -613,7 +613,7 @@ export function TaskCard({
             </Button>
           )}
           {localStepIndex >= steps.length && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-600">
+            <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2 text-sm text-success">
               <Check className="h-4 w-4" />
               All {steps.length} steps completed
             </div>

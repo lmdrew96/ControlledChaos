@@ -54,13 +54,13 @@ export function ScheduleMyDay() {
 
   return (
     <Card className="group relative overflow-hidden border-border/40 bg-card/80 transition-colors hover:border-primary/30">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.04] to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       <CardContent className="relative flex h-full flex-col justify-between gap-4 p-5">
         {phase === "idle" && (
           <>
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-                <Sparkles className="h-5 w-5 text-blue-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h2 className="font-semibold leading-snug">Schedule My Day</h2>
@@ -82,7 +82,7 @@ export function ScheduleMyDay() {
 
         {phase === "scheduling" && (
           <div className="flex flex-col items-center justify-center gap-3 py-4">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">
               Finding the best times for your tasks...
             </p>
@@ -92,8 +92,8 @@ export function ScheduleMyDay() {
         {phase === "done" && result && (
           <>
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-500/10">
-                <Check className="h-5 w-5 text-green-500" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/10">
+                <Check className="h-5 w-5 text-success" />
               </div>
               <div>
                 <h2 className="font-semibold leading-snug">

@@ -140,8 +140,8 @@ export function RecommendationCard({
 
           {/* Current step display — when task has progress steps */}
           {hasSteps && currentStep && (
-            <div className="rounded-lg border-l-4 border-l-blue-500 bg-background/50 p-3">
-              <p className="text-xs font-medium text-blue-500 mb-1">
+            <div className="rounded-lg border-l-4 border-l-adhd-teal bg-background/50 p-3 dark:border-l-adhd-sage">
+              <p className="text-xs font-medium text-adhd-teal mb-1 dark:text-adhd-sage">
                 Step {(task.currentStepIndex ?? 0) + 1} of {steps.length}
               </p>
               <p className="text-sm font-medium">{currentStep.title}</p>
