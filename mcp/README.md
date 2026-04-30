@@ -4,6 +4,9 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 ## Tools Available
 
+34 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
+
+### Tasks (6)
 | Tool | What it does |
 |---|---|
 | `cc_list_tasks` | List/filter tasks by status, priority, category, energy |
@@ -11,18 +14,77 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_update_task` | Update any field on an existing task |
 | `cc_complete_task` | Quick-complete a task |
 | `cc_delete_task` | Permanently delete a task |
-| `cc_brain_dump` | Save a raw brain dump for later AI parsing |
+| `cc_search_tasks` | Search tasks by text across titles/descriptions |
+
+### Calendar (4)
+| Tool | What it does |
+|---|---|
 | `cc_list_calendar` | List calendar events in a date range |
 | `cc_create_event` | Create a new calendar event |
+| `cc_update_event` | Update a ControlledChaos-created calendar event |
+| `cc_delete_event` | Permanently delete a ControlledChaos-created event |
+
+### Goals (4)
+| Tool | What it does |
+|---|---|
 | `cc_list_goals` | List active goals |
-| `cc_get_daily_stats` | Today's productivity snapshot |
 | `cc_create_goal` | Create a new goal with title, description, target date |
 | `cc_update_goal` | Update any field on an existing goal |
 | `cc_delete_goal` | Permanently delete a goal (unlinks tasks) |
-| `cc_update_event` | Update a ControlledChaos-created calendar event |
-| `cc_delete_event` | Permanently delete a ControlledChaos-created event |
+
+### Brain Dumps (2)
+| Tool | What it does |
+|---|---|
+| `cc_brain_dump` | Save a raw brain dump for later AI parsing |
 | `cc_list_brain_dumps` | List past brain dumps with filters |
-| `cc_search_tasks` | Search tasks by text across titles/descriptions |
+
+### Microtasks (6)
+Daily repeating prompts — small actions you want to track, separate from tasks.
+
+| Tool | What it does |
+|---|---|
+| `cc_list_microtasks` | List active microtasks with today's status + 7-day completion count |
+| `cc_create_microtask` | Create a new daily microtask prompt |
+| `cc_update_microtask` | Update fields on an existing microtask |
+| `cc_complete_microtask` | Mark a microtask done for today |
+| `cc_uncomplete_microtask` | Undo today's completion of a microtask |
+| `cc_deactivate_microtask` | Soft-deactivate a microtask (preserves history) |
+
+### Medications (4)
+Medications themselves are created in the app UI — these tools log doses against existing definitions.
+
+| Tool | What it does |
+|---|---|
+| `cc_list_medications` | List your medication definitions (read-only) |
+| `cc_list_meds` | List recent medication dose logs |
+| `cc_log_med` | Log a dose taken (tied to a scheduled slot via medication + date + time) |
+| `cc_delete_med` | Delete a logged dose |
+
+### Moments (4)
+Lightweight one-tap behavioral state logs — energy, focus, sleep, tough moments.
+
+| Tool | What it does |
+|---|---|
+| `cc_log_moment` | Log a one-tap behavioral state (energy_high, focus_start, tough_moment, etc.) |
+| `cc_list_moments` | List recent moments with optional filters |
+| `cc_update_moment` | Update intensity, note, or time on an existing moment |
+| `cc_delete_moment` | Soft-delete a moment |
+
+### Journal (2)
+Junk-journal entries — longer-form reflective writing, separate from task brain dumps.
+
+| Tool | What it does |
+|---|---|
+| `cc_create_journal` | Save a new junk-journal entry |
+| `cc_list_journals` | List recent junk-journal entries |
+
+### Daily Recap & Stats (2)
+| Tool | What it does |
+|---|---|
+| `cc_get_mirror_day` | Read a single day's chronological timeline (tasks, events, dumps, journals, moments, meds) in the user's timezone |
+| `cc_get_daily_stats` | Today's productivity snapshot |
+
+> **Note:** `cc_get_mirror_day` keeps the legacy "mirror" name even though the user-facing surface was renamed to "Daily Recap" in v2.4.15 — preserves backward-compat with existing Claude Desktop / claude.ai connections.
 
 ## Setup
 
@@ -131,7 +193,7 @@ mcp/
 │   ├── index.ts      # Entry point — stdio + HTTP transport
 │   ├── db.ts         # Neon Postgres connection
 │   ├── helpers.ts    # Markdown formatters for responses
-│   └── tools.ts      # All 17 tool registrations
+│   └── tools.ts      # All 34 tool registrations
 ├── package.json
 └── tsconfig.json
 ```
