@@ -1,8 +1,10 @@
 "use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Brain, Calendar, MapPin, Bell, Users, Pill, Siren, Flame } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Search, X } from "lucide-react";
 import { DisplayNameSettings } from "./display-name-settings";
 import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
@@ -15,215 +17,256 @@ import { CrisisDetectionSettings } from "./crisis-detection-settings";
 import { FriendsSettings } from "./friends-settings";
 import { MedicationSettings } from "./medication-settings";
 import { RoomManager } from "@/components/parallel-play/RoomManager";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useCallback } from "react";
 
-const VALID_TABS = new Set([
-  "profile",
-  "ai-energy",
-  "calendar",
-  "locations",
-  "notifications",
-  "crisis-detection",
-  "friends",
-  "medications",
-  "rooms",
-]);
+interface SettingEntry {
+  id: string;
+  title: string;
+  keywords: string;
+  render: () => React.ReactNode;
+  /** When true, the setting renders its own Card chrome and we should not wrap it. */
+  bare?: boolean;
+}
+
+interface SettingGroup {
+  id: string;
+  title: string;
+  settings: SettingEntry[];
+}
+
+const GROUPS: SettingGroup[] = [
+  {
+    id: "you",
+    title: "You",
+    settings: [
+      {
+        id: "display-name",
+        title: "Display Name",
+        keywords: "name profile identity",
+        render: () => <DisplayNameSettings />,
+      },
+      {
+        id: "timezone",
+        title: "Timezone",
+        keywords: "tz time clock region",
+        render: () => <TimezoneSettings />,
+      },
+      {
+        id: "appearance",
+        title: "Appearance",
+        keywords: "theme dark light celebration density spacing colors",
+        render: () => <AppearanceSettings />,
+      },
+      {
+        id: "friends",
+        title: "Friends",
+        keywords: "social connect contacts parallel play",
+        render: () => <FriendsSettings />,
+        bare: true,
+      },
+      {
+        id: "rooms",
+        title: "Parallel Play Rooms",
+        keywords: "body double focus room session shared",
+        render: () => <RoomManager />,
+        bare: true,
+      },
+    ],
+  },
+  {
+    id: "how-cc-works",
+    title: "How CC works",
+    settings: [
+      {
+        id: "ai-personality",
+        title: "AI Personality",
+        keywords: "claude assistant tone voice energy personality",
+        render: () => <PersonalitySettings />,
+      },
+      {
+        id: "notifications",
+        title: "Notifications",
+        keywords: "push email digest reminders quiet hours alerts",
+        render: () => <NotificationSettings />,
+      },
+      {
+        id: "calendar",
+        title: "Calendar Integration",
+        keywords: "ical canvas sources colors week start",
+        render: () => <CalendarSettings />,
+      },
+      {
+        id: "locations",
+        title: "Saved Locations",
+        keywords: "places geofence map address",
+        render: () => <SavedLocations />,
+      },
+      {
+        id: "commute",
+        title: "Commute Times",
+        keywords: "travel commute drive transit time estimate",
+        render: () => <CommuteTimes />,
+        bare: true,
+      },
+    ],
+  },
+  {
+    id: "crisis-care",
+    title: "Crisis & care",
+    settings: [
+      {
+        id: "crisis-detection",
+        title: "Crisis Detection",
+        keywords: "panic emergency safety triggers detect support",
+        render: () => <CrisisDetectionSettings />,
+      },
+      {
+        id: "medications",
+        title: "Medications",
+        keywords: "meds pills schedule reminder dose",
+        render: () => <MedicationSettings />,
+        bare: true,
+      },
+    ],
+  },
+];
+
+const ALL_ENTRIES: Array<SettingEntry & { groupId: string; groupTitle: string }> =
+  GROUPS.flatMap((g) =>
+    g.settings.map((s) => ({ ...s, groupId: g.id, groupTitle: g.title }))
+  );
+
+function entryMatchesQuery(
+  entry: { title: string; keywords: string },
+  terms: string[]
+): boolean {
+  if (terms.length === 0) return true;
+  const haystack = `${entry.title} ${entry.keywords}`.toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
 
 export function SettingsTabs() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tabParam = searchParams.get("tab");
-  const activeTab = tabParam && VALID_TABS.has(tabParam) ? tabParam : "profile";
+  const [query, setQuery] = useState("");
 
-  // Controlled: tab selection lives in the URL so reloads preserve it.
-  // (This matters in the desktop PWA where a stray controllerchange can
-  // reload the page mid-session.)
-  const handleTabChange = useCallback(
-    (value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value === "profile") {
-        params.delete("tab");
-      } else {
-        params.set("tab", value);
-      }
-      const qs = params.toString();
-      router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
-    },
-    [searchParams, router]
+  // Migration: legacy ?tab= links from cmd+K, push notifications, or
+  // bookmarks should redirect to the matching anchor.
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (!tab) return;
+    const TAB_TO_ANCHOR: Record<string, string> = {
+      profile: "display-name",
+      "ai-energy": "ai-personality",
+      calendar: "calendar",
+      locations: "locations",
+      notifications: "notifications",
+      "crisis-detection": "crisis-detection",
+      friends: "friends",
+      medications: "medications",
+      rooms: "rooms",
+    };
+    const anchor = TAB_TO_ANCHOR[tab];
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    const qs = params.toString();
+    const url = `/settings${qs ? `?${qs}` : ""}${anchor ? `#${anchor}` : ""}`;
+    router.replace(url, { scroll: false });
+    if (anchor) {
+      // Defer to next paint so the section is rendered before scrollIntoView.
+      requestAnimationFrame(() => {
+        document.getElementById(anchor)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [searchParams, router]);
+
+  const terms = useMemo(
+    () =>
+      query
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length > 0),
+    [query]
   );
+
+  const visibleGroups = useMemo(() => {
+    if (terms.length === 0) return GROUPS;
+    return GROUPS.map((g) => ({
+      ...g,
+      settings: g.settings.filter((s) => entryMatchesQuery(s, terms)),
+    })).filter((g) => g.settings.length > 0);
+  }, [terms]);
+
+  const totalMatches = visibleGroups.reduce((sum, g) => sum + g.settings.length, 0);
+  const hasQuery = terms.length > 0;
+
+  const clearQuery = useCallback(() => setQuery(""), []);
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="w-full flex overflow-x-auto overflow-y-hidden flex-nowrap justify-start gap-1 bg-transparent p-0 border-b rounded-none h-auto pb-0">
-        <TabsTrigger
-          value="profile"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <User className="h-4 w-4" />
-          <span className="hidden sm:inline">Profile</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="ai-energy"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Brain className="h-4 w-4" />
-          <span className="hidden sm:inline">AI & Energy</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="calendar"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Calendar className="h-4 w-4" />
-          <span className="hidden sm:inline">Calendar</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="locations"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <MapPin className="h-4 w-4" />
-          <span className="hidden sm:inline">Locations</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="notifications"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="hidden sm:inline">Notifications</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="crisis-detection"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Siren className="h-4 w-4" />
-          <span className="hidden sm:inline">Crisis</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="friends"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">Friends</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="medications"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Pill className="h-4 w-4" />
-          <span className="hidden sm:inline">Medications</span>
-        </TabsTrigger>
-        <TabsTrigger
-          value="rooms"
-          className="gap-1.5 rounded-none border-b-2 border-transparent px-3 pb-3 pt-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-        >
-          <Flame className="h-4 w-4" />
-          <span className="hidden sm:inline">Rooms</span>
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-6">
+      <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 pb-3 pt-1 backdrop-blur-sm sm:-mx-6 sm:px-6">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search settings — e.g. 'celebration', 'timezone', 'medication'"
+            aria-label="Search settings"
+            className="h-10 pl-9 pr-9"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={clearQuery}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        {hasQuery && (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {totalMatches} match{totalMatches === 1 ? "" : "es"}
+          </p>
+        )}
+      </div>
 
-      {/* Profile */}
-      <TabsContent value="profile" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Display Name</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DisplayNameSettings />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Timezone</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TimezoneSettings />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Appearance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AppearanceSettings />
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      {/* AI & Energy */}
-      <TabsContent value="ai-energy" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">AI Personality</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PersonalitySettings />
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      {/* Calendar */}
-      <TabsContent value="calendar">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Calendar Integration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CalendarSettings />
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      {/* Locations */}
-      <TabsContent value="locations" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Saved Locations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SavedLocations />
-          </CardContent>
-        </Card>
-        <CommuteTimes />
-      </TabsContent>
-
-      {/* Notifications */}
-      <TabsContent value="notifications">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Notifications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <NotificationSettings />
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      {/* Crisis Detection */}
-      <TabsContent value="crisis-detection">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Crisis Detection</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CrisisDetectionSettings />
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      {/* Friends */}
-      <TabsContent value="friends" className="space-y-6">
-        <FriendsSettings />
-      </TabsContent>
-
-      {/* Medications */}
-      <TabsContent value="medications" className="space-y-6">
-        <MedicationSettings />
-      </TabsContent>
-
-      {/* Parallel Play rooms */}
-      <TabsContent value="rooms" className="space-y-6">
-        <RoomManager />
-      </TabsContent>
-    </Tabs>
+      {visibleGroups.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+          No settings match &ldquo;{query}&rdquo;.
+        </p>
+      ) : (
+        visibleGroups.map((group) => (
+          <section key={group.id} className="space-y-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.title}
+            </h2>
+            <div className="space-y-4">
+              {group.settings.map((s) =>
+                s.bare ? (
+                  <div key={s.id} id={s.id} className="scroll-mt-24">
+                    {s.render()}
+                  </div>
+                ) : (
+                  <Card key={s.id} id={s.id} className="scroll-mt-24">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{s.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>{s.render()}</CardContent>
+                  </Card>
+                )
+              )}
+            </div>
+          </section>
+        ))
+      )}
+    </div>
   );
 }
+
+export const SETTINGS_ENTRIES = ALL_ENTRIES;
