@@ -1,13 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { MirrorKind } from "@/types";
-import { MIRROR_KINDS, MIRROR_KIND_META } from "./mirror-constants";
+import type { RecapKind } from "@/types";
+import { RECAP_KINDS, RECAP_KIND_META } from "./recap-constants";
 
-interface MirrorFilterPillsProps {
+interface RecapFilterPillsProps {
   /** Currently visible kinds. Undefined = all. */
-  activeKinds: MirrorKind[];
-  onChange: (kinds: MirrorKind[]) => void;
+  activeKinds: RecapKind[];
+  onChange: (kinds: RecapKind[]) => void;
 }
 
 /**
@@ -15,16 +15,16 @@ interface MirrorFilterPillsProps {
  * scrolls horizontally — `touch-action: pan-x` prevents chip taps from
  * being fired by a scroll gesture (same fix we applied to MomentsBar).
  */
-export function MirrorFilterPills({
+export function RecapFilterPills({
   activeKinds,
   onChange,
-}: MirrorFilterPillsProps) {
-  const toggle = (kind: MirrorKind) => {
+}: RecapFilterPillsProps) {
+  const toggle = (kind: RecapKind) => {
     if (activeKinds.includes(kind)) {
       // Don't allow turning the last pill off — empty filter is confusing.
       // Restore "all" instead.
       const next = activeKinds.filter((k) => k !== kind);
-      onChange(next.length === 0 ? [...MIRROR_KINDS] : next);
+      onChange(next.length === 0 ? [...RECAP_KINDS] : next);
     } else {
       onChange([...activeKinds, kind]);
     }
@@ -34,10 +34,10 @@ export function MirrorFilterPills({
     <div
       className="flex items-center gap-2 overflow-x-auto [touch-action:pan-x]"
       role="toolbar"
-      aria-label="Filter Mirror by entry type"
+      aria-label="Filter recap by entry type"
     >
-      {MIRROR_KINDS.map((kind) => {
-        const meta = MIRROR_KIND_META[kind];
+      {RECAP_KINDS.map((kind) => {
+        const meta = RECAP_KIND_META[kind];
         const Icon = meta.icon;
         const active = activeKinds.includes(kind);
         return (

@@ -1,11 +1,11 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import type { MirrorEntry } from "@/types";
-import { MirrorEntryRow } from "./mirror-entry-row";
+import type { RecapEntry } from "@/types";
+import { RecapEntryRow } from "./recap-entry-row";
 
-interface MirrorTimelineProps {
-  entries: MirrorEntry[];
+interface RecapTimelineProps {
+  entries: RecapEntry[];
   timezone: string;
   isLoading: boolean;
   loadError: boolean;
@@ -13,14 +13,14 @@ interface MirrorTimelineProps {
   today: string;
 }
 
-export function MirrorTimeline({
+export function RecapTimeline({
   entries,
   timezone,
   isLoading,
   loadError,
   date,
   today,
-}: MirrorTimelineProps) {
+}: RecapTimelineProps) {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -46,7 +46,7 @@ export function MirrorTimeline({
   return (
     <div className="space-y-2">
       {entries.map((entry) => (
-        <MirrorEntryRow
+        <RecapEntryRow
           key={`${entry.kind}:${entry.id}`}
           entry={entry}
           timezone={timezone}
@@ -72,7 +72,7 @@ function EmptyState({ date, today }: { date: string; today: string }) {
         <p className="mt-1 text-xs text-muted-foreground">
           {isToday
             ? "Log a moment, complete a task, or capture a thought to see it here."
-            : "Quiet days are fine. The mirror reflects whatever did happen."}
+            : "Quiet days are fine. The recap shows whatever did happen."}
         </p>
       )}
     </div>

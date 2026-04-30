@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { MirrorEntry, MirrorKind } from "@/types";
-import { MIRROR_KINDS } from "@/components/features/mirror/mirror-constants";
-import { MirrorDayNav } from "@/components/features/mirror/mirror-day-nav";
-import { MirrorFilterPills } from "@/components/features/mirror/mirror-filter-pills";
-import { MirrorTimeline } from "@/components/features/mirror/mirror-timeline";
+import type { RecapEntry, RecapKind } from "@/types";
+import { RECAP_KINDS } from "@/components/features/recap/recap-constants";
+import { RecapDayNav } from "@/components/features/recap/recap-day-nav";
+import { RecapFilterPills } from "@/components/features/recap/recap-filter-pills";
+import { RecapTimeline } from "@/components/features/recap/recap-timeline";
 import { useTimezone } from "@/hooks/use-timezone";
 
 function todayInTz(timezone: string): string {
@@ -14,16 +14,16 @@ function todayInTz(timezone: string): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: timezone });
 }
 
-function parseKindsParam(raw: string | null): MirrorKind[] {
-  if (!raw) return [...MIRROR_KINDS];
+function parseKindsParam(raw: string | null): RecapKind[] {
+  if (!raw) return [...RECAP_KINDS];
   const parts = raw.split(",").map((s) => s.trim());
-  const out = parts.filter((p): p is MirrorKind =>
-    (MIRROR_KINDS as string[]).includes(p)
+  const out = parts.filter((p): p is RecapKind =>
+    (RECAP_KINDS as string[]).includes(p)
   );
-  return out.length > 0 ? out : [...MIRROR_KINDS];
+  return out.length > 0 ? out : [...RECAP_KINDS];
 }
 
-export default function MirrorPage() {
+export default function RecapPage() {
   const timezone = useTimezone();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,12 +42,12 @@ export default function MirrorPage() {
   // derived at render time by comparing against the most-recent resolved
   // key, so we never call setState synchronously inside useEffect.
   const filterKey =
-    activeKinds.length < MIRROR_KINDS.length ? activeKinds.join(",") : "*";
+    activeKinds.length < RECAP_KINDS.length ? activeKinds.join(",") : "*";
   const fetchKey = `${date}|${filterKey}`;
 
   const [resolved, setResolved] = useState<{
     key: string;
-    entries: MirrorEntry[];
+    entries: RecapEntry[];
     error: boolean;
   } | null>(null);
 
@@ -60,18 +60,18 @@ export default function MirrorPage() {
 
     const params = new URLSearchParams({ date });
     // Only send `types` when filtering to a strict subset.
-    if (activeKinds.length < MIRROR_KINDS.length) {
+    if (activeKinds.length < RECAP_KINDS.length) {
       params.set("types", activeKinds.join(","));
     }
 
-    fetch(`/api/mirror?${params.toString()}`)
+    fetch(`/api/recap?${params.toString()}`)
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
       .then((data) => {
         if (cancelled) return;
-        const list: MirrorEntry[] = Array.isArray(data?.entries)
+        const list: RecapEntry[] = Array.isArray(data?.entries)
           ? data.entries
           : [];
         setResolved({ key: fetchKey, entries: list, error: false });
@@ -87,18 +87,18 @@ export default function MirrorPage() {
   }, [date, activeKinds, fetchKey]);
 
   const updateParams = useCallback(
-    (next: { date?: string; kinds?: MirrorKind[] }) => {
+    (next: { date?: string; kinds?: RecapKind[] }) => {
       const p = new URLSearchParams(searchParams.toString());
       if (next.date !== undefined) {
         if (next.date === today) p.delete("date");
         else p.set("date", next.date);
       }
       if (next.kinds !== undefined) {
-        if (next.kinds.length === MIRROR_KINDS.length) p.delete("types");
+        if (next.kinds.length === RECAP_KINDS.length) p.delete("types");
         else p.set("types", next.kinds.join(","));
       }
       const qs = p.toString();
-      router.replace(qs ? `/mirror?${qs}` : "/mirror", { scroll: false });
+      router.replace(qs ? `/recap?${qs}` : "/recap", { scroll: false });
     },
     [router, searchParams, today]
   );
@@ -106,25 +106,25 @@ export default function MirrorPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Mirror</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Daily Recap</h1>
         <p className="text-muted-foreground">
           What actually happened. Scroll a day, not a feed.
         </p>
       </div>
 
-      <MirrorDayNav
+      <RecapDayNav
         date={date}
         today={today}
         timezone={timezone}
         onChange={(d) => updateParams({ date: d })}
       />
 
-      <MirrorFilterPills
+      <RecapFilterPills
         activeKinds={activeKinds}
         onChange={(kinds) => updateParams({ kinds })}
       />
 
-      <MirrorTimeline
+      <RecapTimeline
         entries={entries}
         timezone={timezone}
         isLoading={isLoading}

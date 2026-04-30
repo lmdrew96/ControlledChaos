@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
-  assembleMirrorEntries,
+  assembleRecapEntries,
   type AssembleInput,
-} from "../mirror/assemble";
+} from "../recap/assemble";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -30,9 +30,9 @@ function emptyInput(): AssembleInput {
 // Ordering
 // ---------------------------------------------------------------------------
 
-describe("assembleMirrorEntries — ordering", () => {
+describe("assembleRecapEntries — ordering", () => {
   it("returns an empty array for empty input", () => {
-    expect(assembleMirrorEntries(emptyInput())).toEqual([]);
+    expect(assembleRecapEntries(emptyInput())).toEqual([]);
   });
 
   it("sorts all kinds together reverse-chronologically", () => {
@@ -75,7 +75,7 @@ describe("assembleMirrorEntries — ordering", () => {
       ],
     };
 
-    const entries = assembleMirrorEntries(input);
+    const entries = assembleRecapEntries(input);
 
     // Expect reverse-chronological by `at` timestamp
     const order = entries.map((e) => e.id);
@@ -91,7 +91,7 @@ describe("assembleMirrorEntries — ordering", () => {
         { id: "b", type: "focus_start", intensity: null, note: null, occurredAt: sameInstant },
       ],
     };
-    const entries = assembleMirrorEntries(input);
+    const entries = assembleRecapEntries(input);
     expect(entries).toHaveLength(2);
     expect(entries[0].at).toBe(entries[1].at);
   });
@@ -101,7 +101,7 @@ describe("assembleMirrorEntries — ordering", () => {
 // Filters
 // ---------------------------------------------------------------------------
 
-describe("assembleMirrorEntries — typeFilters", () => {
+describe("assembleRecapEntries — typeFilters", () => {
   const input: AssembleInput = {
     ...emptyInput(),
     tasks: [{ id: "t1", title: "T", category: null, completedAt: T0 }],
@@ -127,18 +127,18 @@ describe("assembleMirrorEntries — typeFilters", () => {
   };
 
   it("omitted filter includes all kinds", () => {
-    const out = assembleMirrorEntries(input);
+    const out = assembleRecapEntries(input);
     expect(out.map((e) => e.kind).sort()).toEqual(["event", "moment", "task"]);
   });
 
   it("filter to a single kind excludes all others", () => {
-    const out = assembleMirrorEntries({ ...input, typeFilters: ["moment"] });
+    const out = assembleRecapEntries({ ...input, typeFilters: ["moment"] });
     expect(out).toHaveLength(1);
     expect(out[0].kind).toBe("moment");
   });
 
   it("filter to a subset includes only those kinds", () => {
-    const out = assembleMirrorEntries({
+    const out = assembleRecapEntries({
       ...input,
       typeFilters: ["task", "event"],
     });
@@ -146,10 +146,10 @@ describe("assembleMirrorEntries — typeFilters", () => {
   });
 
   it("empty-array filter returns no entries (defensive)", () => {
-    const out = assembleMirrorEntries({ ...input, typeFilters: [] });
+    const out = assembleRecapEntries({ ...input, typeFilters: [] });
     // `typeFilters: []` is a valid explicit "show nothing" state —
     // callers should typically omit the field to mean "all kinds"
-    // (see `want()` in getMirrorDay). Keep behavior predictable.
+    // (see `want()` in getRecapDay). Keep behavior predictable.
     expect(out).toEqual([]);
   });
 });
@@ -158,9 +158,9 @@ describe("assembleMirrorEntries — typeFilters", () => {
 // Edge shapes
 // ---------------------------------------------------------------------------
 
-describe("assembleMirrorEntries — edge cases", () => {
+describe("assembleRecapEntries — edge cases", () => {
   it("skips tasks without a completedAt (shouldn't happen, defensive)", () => {
-    const out = assembleMirrorEntries({
+    const out = assembleRecapEntries({
       ...emptyInput(),
       tasks: [{ id: "t1", title: "Stray", category: null, completedAt: null }],
     });
@@ -168,7 +168,7 @@ describe("assembleMirrorEntries — edge cases", () => {
   });
 
   it("skips medication logs whose medication isn't in the lookup", () => {
-    const out = assembleMirrorEntries({
+    const out = assembleRecapEntries({
       ...emptyInput(),
       medLogs: [{ id: "log1", medicationId: "mystery", takenAt: T2 }],
       medLookup: new Map(), // mystery not found
@@ -177,7 +177,7 @@ describe("assembleMirrorEntries — edge cases", () => {
   });
 
   it("extracts summary from aiResponse; null when missing or invalid", () => {
-    const out = assembleMirrorEntries({
+    const out = assembleRecapEntries({
       ...emptyInput(),
       dumps: [
         { id: "d1", inputType: "text", aiResponse: { summary: "A" }, createdAt: T1 },

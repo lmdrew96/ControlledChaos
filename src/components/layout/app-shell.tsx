@@ -53,7 +53,7 @@ const navItems = [
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/mirror", label: "Mirror", icon: Clock },
+  { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -69,7 +69,7 @@ const mobileMoreItems = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
-  { href: "/mirror", label: "Mirror", icon: Clock },
+  { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

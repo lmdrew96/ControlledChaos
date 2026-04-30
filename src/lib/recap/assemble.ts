@@ -1,7 +1,7 @@
 import type {
   DumpInputType,
-  MirrorEntry,
-  MirrorKind,
+  RecapEntry,
+  RecapKind,
   MomentType,
 } from "@/types";
 
@@ -59,19 +59,19 @@ export interface AssembleInput {
   /** medication_id → { name, dosage } */
   medLookup: Map<string, { name: string; dosage: string }>;
   /** Optional kind filter. When omitted, all kinds are included. */
-  typeFilters?: MirrorKind[];
+  typeFilters?: RecapKind[];
 }
 
 /**
- * Merge pre-fetched rows into MirrorEntries and sort reverse-chronologically.
+ * Merge pre-fetched rows into RecapEntries and sort reverse-chronologically.
  * Pure — no DB, no timezone math, no side effects. Filter is applied here
  * as a safety net even if the caller already skipped the corresponding query.
  */
-export function assembleMirrorEntries(input: AssembleInput): MirrorEntry[] {
-  const want = (k: MirrorKind) =>
+export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
+  const want = (k: RecapKind) =>
     !input.typeFilters || input.typeFilters.includes(k);
 
-  const entries: MirrorEntry[] = [];
+  const entries: RecapEntry[] = [];
 
   if (want("task")) {
     for (const t of input.tasks) {

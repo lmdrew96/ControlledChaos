@@ -3,22 +3,22 @@
 import Link from "next/link";
 import { formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
-import type { MirrorEntry } from "@/types";
-import { MIRROR_KIND_META } from "./mirror-constants";
+import type { RecapEntry } from "@/types";
+import { RECAP_KIND_META } from "./recap-constants";
 import { MOMENT_COPY } from "@/components/features/moments/moment-constants";
 
-interface MirrorEntryRowProps {
-  entry: MirrorEntry;
+interface RecapEntryRowProps {
+  entry: RecapEntry;
   timezone: string;
 }
 
 /**
- * Single row of the Mirror timeline. Dispatches on `kind` for the label
+ * Single row of the Daily Recap timeline. Dispatches on `kind` for the label
  * and snippet copy, then wraps in a Link if the kind has a source page
  * (moments have no source in v1 and render as non-interactive rows).
  */
-export function MirrorEntryRow({ entry, timezone }: MirrorEntryRowProps) {
-  const meta = MIRROR_KIND_META[entry.kind];
+export function RecapEntryRow({ entry, timezone }: RecapEntryRowProps) {
+  const meta = RECAP_KIND_META[entry.kind];
   const Icon = meta.icon;
   const time = formatForDisplay(new Date(entry.at), timezone, DISPLAY_TIME);
   const href = meta.href?.(entry) ?? null;
@@ -74,7 +74,7 @@ export function MirrorEntryRow({ entry, timezone }: MirrorEntryRowProps) {
 }
 
 function describe(
-  entry: MirrorEntry,
+  entry: RecapEntry,
   timezone: string
 ): { label: string; snippet: string | null } {
   switch (entry.kind) {

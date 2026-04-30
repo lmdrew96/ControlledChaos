@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatForDisplay } from "@/lib/timezone";
 
-interface MirrorDayNavProps {
+interface RecapDayNavProps {
   /** YYYY-MM-DD */
   date: string;
   /** YYYY-MM-DD representing "today" in the user's timezone (for the Today button). */
@@ -18,12 +18,12 @@ interface MirrorDayNavProps {
  * Prev-day / Next-day / Today / date picker. No infinite scroll — each
  * jump is an explicit action. Matches ND anti-pattern #2 (predictability).
  */
-export function MirrorDayNav({
+export function RecapDayNav({
   date,
   today,
   onChange,
   timezone,
-}: MirrorDayNavProps) {
+}: RecapDayNavProps) {
   const addDays = (baseYmd: string, delta: number): string => {
     // Anchor at UTC midday so DST at the user's timezone doesn't skew the
     // arithmetic on ±1 day jumps.

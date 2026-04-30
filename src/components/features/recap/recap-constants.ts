@@ -7,18 +7,18 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import type { MirrorKind, MirrorEntry } from "@/types";
+import type { RecapKind, RecapEntry } from "@/types";
 
-export interface MirrorKindMeta {
+export interface RecapKindMeta {
   label: string;
   icon: LucideIcon;
   /** Tailwind class applied to the entry row's icon gutter + pill. */
   tintClassName: string;
   /** Where tapping this row navigates. null = non-interactive. */
-  href: ((entry: MirrorEntry) => string | null) | null;
+  href: ((entry: RecapEntry) => string | null) | null;
 }
 
-export const MIRROR_KINDS: MirrorKind[] = [
+export const RECAP_KINDS: RecapKind[] = [
   "task",
   "event",
   "dump",
@@ -27,7 +27,7 @@ export const MIRROR_KINDS: MirrorKind[] = [
   "med",
 ];
 
-export const MIRROR_KIND_META: Record<MirrorKind, MirrorKindMeta> = {
+export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
   task: {
     label: "Tasks",
     icon: ListTodo,

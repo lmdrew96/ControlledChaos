@@ -1,10 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getMirrorDay, getUser } from "@/lib/db/queries";
+import { getRecapDay, getUser } from "@/lib/db/queries";
 import { startOfDayInTimezone } from "@/lib/timezone";
-import type { MirrorKind } from "@/types";
+import type { RecapKind } from "@/types";
 
-const VALID_KINDS: MirrorKind[] = [
+const VALID_KINDS: RecapKind[] = [
   "task",
   "event",
   "dump",
@@ -13,15 +13,15 @@ const VALID_KINDS: MirrorKind[] = [
   "med",
 ];
 
-function parseKinds(raw: string | null): MirrorKind[] | undefined {
+function parseKinds(raw: string | null): RecapKind[] | undefined {
   if (!raw) return undefined;
   const parts = raw
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const out: MirrorKind[] = [];
+  const out: RecapKind[] = [];
   for (const p of parts) {
-    if ((VALID_KINDS as string[]).includes(p)) out.push(p as MirrorKind);
+    if ((VALID_KINDS as string[]).includes(p)) out.push(p as RecapKind);
   }
   return out.length > 0 ? out : undefined;
 }
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     const { start, end } = dayWindow(dateRaw, timezone);
     const kinds = parseKinds(typesRaw);
 
-    const entries = await getMirrorDay(userId, start, end, dateRaw, kinds);
+    const entries = await getRecapDay(userId, start, end, dateRaw, kinds);
 
     return NextResponse.json({
       date: dateRaw,
@@ -71,9 +71,9 @@ export async function GET(request: Request) {
       entries,
     });
   } catch (error) {
-    console.error("[API] GET /api/mirror error:", error);
+    console.error("[API] GET /api/recap error:", error);
     return NextResponse.json(
-      { error: "Failed to load mirror day" },
+      { error: "Failed to load recap day" },
       { status: 500 }
     );
   }

@@ -36,14 +36,14 @@ import type {
   CalendarColors,
   CrisisDetectionTier,
   EnergyProfile,
-  MirrorEntry,
-  MirrorKind,
+  RecapEntry,
+  RecapKind,
   MomentType,
   NotificationPrefs,
   PersonalityPrefs,
   CrisisTask,
 } from "@/types";
-import { assembleMirrorEntries } from "@/lib/mirror/assemble";
+import { assembleRecapEntries } from "@/lib/recap/assemble";
 import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
 import { startOfDayInTimezone, todayInTimezone, startOfWeekInTimezone } from "@/lib/timezone";
 
@@ -429,7 +429,7 @@ export async function getRecentMoments(
 }
 
 // ============================================================
-// Mirror (chronological day timeline — merges 6 source tables)
+// Daily Recap (chronological day timeline — merges 6 source tables)
 // ============================================================
 
 /**
@@ -442,14 +442,14 @@ export async function getRecentMoments(
  * Accepts a date-string (YYYY-MM-DD) for the medication-logs path which
  * stores date as text, and a Date window for timestamp-based queries.
  */
-export async function getMirrorDay(
+export async function getRecapDay(
   userId: string,
   dayStart: Date,
   dayEnd: Date,
   dateString: string, // YYYY-MM-DD for medication_logs.scheduledDate
-  typeFilters?: MirrorKind[]
-): Promise<MirrorEntry[]> {
-  const want = (k: MirrorKind) => !typeFilters || typeFilters.includes(k);
+  typeFilters?: RecapKind[]
+): Promise<RecapEntry[]> {
+  const want = (k: RecapKind) => !typeFilters || typeFilters.includes(k);
 
   const [
     completedTasks,
@@ -509,7 +509,7 @@ export async function getMirrorDay(
     }
   }
 
-  return assembleMirrorEntries({
+  return assembleRecapEntries({
     tasks: completedTasks,
     events: dayEvents,
     dumps: dayDumps,
