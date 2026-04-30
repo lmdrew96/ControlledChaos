@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { WeekView } from "@/components/features/calendar/week-view";
+import { AgendaView } from "@/components/features/calendar/agenda-view";
 import { MonthView } from "@/components/features/calendar/month-view";
 import type { CalendarColors } from "@/types";
 
@@ -59,7 +60,14 @@ export default function CalendarPage() {
       </div>
 
       {view === "week" ? (
-        <WeekView initialDate={selectedDate} />
+        <>
+          <div className="md:hidden">
+            <AgendaView initialDate={selectedDate} />
+          </div>
+          <div className="hidden md:block">
+            <WeekView initialDate={selectedDate} />
+          </div>
+        </>
       ) : (
         <MonthView
           initialDate={selectedDate}
