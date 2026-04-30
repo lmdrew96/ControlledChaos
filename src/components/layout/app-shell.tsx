@@ -21,6 +21,7 @@ import {
   Menu,
   Siren,
   Repeat,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +29,7 @@ import { UserNav } from "@/components/layout/user-nav";
 import { Logo } from "@/components/ui/logo";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
+import { CommandPalette } from "@/components/features/command-palette/command-palette";
 import { CreateTaskModal } from "@/components/features/task-feed/create-task-modal";
 import { MomentsBar, MomentsSidebarGroup } from "@/components/features/moments/moments-bar";
 import {
@@ -83,9 +85,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Keyboard shortcut dialogs
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
   const toggleShortcuts = useCallback(() => setShowShortcuts((v) => !v), []);
+  const togglePalette = useCallback(() => setShowPalette((v) => !v), []);
   const openCreateTask = useCallback(() => setShowCreateTask(true), []);
-  useKeyboardShortcuts({ onNewTask: openCreateTask, onToggleShortcuts: toggleShortcuts });
+  useKeyboardShortcuts({
+    onNewTask: openCreateTask,
+    onToggleShortcuts: toggleShortcuts,
+    onTogglePalette: togglePalette,
+  });
 
   // Crisis detection badge state
   const { isActive: crisisActive } = useCrisisDetection();
@@ -167,6 +175,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className="font-serif text-base font-semibold tracking-tight">ControlledChaos</span>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setShowPalette(true)}
+          className="mx-3 mt-3 flex items-center gap-2 rounded-lg border border-border bg-background/50 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+          aria-label="Open command palette"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="flex-1">Search…</span>
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+            ⌘K
+          </kbd>
+        </button>
+
         <nav className="flex-1 space-y-1 p-3">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
@@ -246,6 +267,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setShowPalette(true)}
+          className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Open command palette"
+        >
+          <Search className="h-5 w-5" />
+          <span className="block text-center leading-tight">Search</span>
+        </button>
         <Sheet>
           <SheetTrigger asChild>
             <button
@@ -321,6 +351,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <MomentsBar />
 
       {/* Global dialogs triggered by keyboard shortcuts */}
+      <CommandPalette
+        open={showPalette}
+        onOpenChange={setShowPalette}
+        onNewTask={openCreateTask}
+      />
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
       <CreateTaskModal
         open={showCreateTask}

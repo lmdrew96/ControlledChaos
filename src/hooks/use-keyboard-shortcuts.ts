@@ -6,24 +6,42 @@ import { useRouter } from "next/navigation";
 interface ShortcutCallbacks {
   onNewTask?: () => void;
   onToggleShortcuts?: () => void;
+  onTogglePalette?: () => void;
 }
 
 /**
  * Global keyboard shortcuts for ControlledChaos.
  *
+ * Cmd/Ctrl + K → Command palette (jump-to-anything)
  * Cmd/Ctrl + D → Brain Dump
  * Cmd/Ctrl + N → New Task (calls onNewTask callback)
  * Cmd/Ctrl + / → Toggle shortcut cheat sheet
  *
- * All shortcuts are suppressed when focus is inside an input, textarea,
- * or contenteditable element to avoid conflicts with typing.
+ * Cmd+K fires even inside text inputs (it's the universal "search" gesture);
+ * other shortcuts are suppressed when typing.
  */
-export function useKeyboardShortcuts({ onNewTask, onToggleShortcuts }: ShortcutCallbacks = {}) {
+export function useKeyboardShortcuts({
+  onNewTask,
+  onToggleShortcuts,
+  onTogglePalette,
+}: ShortcutCallbacks = {}) {
   const router = useRouter();
 
   const handler = useCallback(
     (e: KeyboardEvent) => {
-      // Don't fire in text inputs
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      const key = e.key.toLowerCase();
+
+      // Cmd+K works even inside inputs
+      if (key === "k") {
+        e.preventDefault();
+        onTogglePalette?.();
+        return;
+      }
+
+      // Other shortcuts: suppress in text inputs
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
@@ -33,10 +51,7 @@ export function useKeyboardShortcuts({ onNewTask, onToggleShortcuts }: ShortcutC
         return;
       }
 
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-
-      switch (e.key.toLowerCase()) {
+      switch (key) {
         case "d":
           e.preventDefault();
           router.push("/dump");
@@ -51,7 +66,7 @@ export function useKeyboardShortcuts({ onNewTask, onToggleShortcuts }: ShortcutC
           break;
       }
     },
-    [router, onNewTask, onToggleShortcuts]
+    [router, onNewTask, onToggleShortcuts, onTogglePalette]
   );
 
   useEffect(() => {
@@ -62,6 +77,7 @@ export function useKeyboardShortcuts({ onNewTask, onToggleShortcuts }: ShortcutC
 
 /** Shortcut definitions for the cheat sheet UI */
 export const SHORTCUTS = [
+  { keys: ["⌘", "K"], description: "Command palette" },
   { keys: ["⌘", "D"], description: "Brain Dump" },
   { keys: ["⌘", "N"], description: "New Task" },
   { keys: ["⌘", "/"], description: "Keyboard shortcuts" },
