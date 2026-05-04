@@ -60,7 +60,6 @@ export async function POST(request: Request) {
       deadline: task.deadline ? task.deadline.toISOString() : null,
       scheduledFor: task.scheduledFor ? task.scheduledFor.toISOString() : null,
       completedAt: task.completedAt ? task.completedAt.toISOString() : null,
-      parentTaskId: task.parentTaskId ?? null,
       sourceDumpId: task.sourceDumpId ?? null,
       sourceEventId: task.sourceEventId ?? null,
       goalId: task.goalId ?? null,

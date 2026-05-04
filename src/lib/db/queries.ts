@@ -271,7 +271,6 @@ export async function createBrainDump(params: {
       userId: params.userId,
       inputType: params.inputType,
       rawContent: params.rawContent,
-      parsed: true,
       aiResponse: params.aiResponse,
       mediaUrl: params.mediaUrl ?? null,
       mediaUrls: params.mediaUrls ?? [],
@@ -2483,7 +2482,6 @@ export async function createCrisisDetection(params: {
   firstDeadline: Date;
   availableMinutes: number;
   requiredMinutes: number;
-  tierActionTaken: CrisisDetectionTier;
 }) {
   const rows = await db
     .insert(crisisDetections)
@@ -2495,7 +2493,6 @@ export async function createCrisisDetection(params: {
       firstDeadline: params.firstDeadline,
       availableMinutes: params.availableMinutes,
       requiredMinutes: params.requiredMinutes,
-      tierActionTaken: params.tierActionTaken,
     })
     .returning();
   return rows[0];

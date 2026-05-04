@@ -43,7 +43,6 @@ export const userSettings = pgTable(
       .references(() => users.id)
       .notNull(),
     energyProfile: jsonb("energy_profile"), // Typical energy patterns by time of day
-    savedLocations: jsonb("saved_locations"), // Array of {name, lat, lng, radius} — legacy, kept for safety
     notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
     personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
     canvasIcalUrl: text("canvas_ical_url"),
@@ -96,7 +95,6 @@ export const brainDumps = pgTable(
     mediaUrl: text("media_url"), // R2 URL for primary audio/photo (back-compat; prefer mediaUrls)
     mediaUrls: jsonb("media_urls").$type<string[]>().default([]).notNull(), // multi-attachment: ordered R2 URLs
     category: text("category").default("braindump").notNull(), // braindump | junk_journal
-    parsed: boolean("parsed").default(false),
     aiResponse: jsonb("ai_response"), // Full AI parsing response
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -150,7 +148,6 @@ export const tasks = pgTable(
     deadline: timestamp("deadline"),
     scheduledFor: timestamp("scheduled_for"),
     completedAt: timestamp("completed_at"),
-    parentTaskId: uuid("parent_task_id"),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
     sourceEventId: text("source_event_id"), // Canvas externalId for auto-generated prep tasks (null = manual task)
     goalId: uuid("goal_id").references(() => goals.id),
@@ -397,7 +394,6 @@ export const crisisDetections = pgTable(
     firstDeadline: timestamp("first_deadline").notNull(),
     availableMinutes: integer("available_minutes").notNull(),
     requiredMinutes: integer("required_minutes").notNull(),
-    tierActionTaken: text("tier_action_taken"), // "watch" | "nudge" | "auto_triage"
     crisisPlanId: uuid("crisis_plan_id").references(() => crisisPlans.id),
     reNudgeSent: boolean("re_nudge_sent").default(false),
     resolvedAt: timestamp("resolved_at"), // null = active

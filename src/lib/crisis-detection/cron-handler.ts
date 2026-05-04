@@ -130,7 +130,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       firstDeadline: result.firstDeadline,
       availableMinutes: result.availableMinutes,
       requiredMinutes: result.requiredMinutes,
-      tierActionTaken: tier,
     });
 
     console.log(
