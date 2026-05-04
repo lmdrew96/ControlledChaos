@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Copy, Check, LogIn, LogOut, Plus, Flame } from "lucide-react";
+import { Loader2, Copy, Check, LogIn, LogOut, Plus, Flame, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +35,17 @@ interface RoomListItem {
   expiresAt: string | null;
 }
 
+interface FriendRoomListItem {
+  id: string;
+  name: string | null;
+  type: "personal" | "adhoc";
+  inviteCode: string;
+  maxCapacity: number;
+  hostId: string;
+  hostName: string | null;
+  expiresAt: string | null;
+}
+
 function inviteUrl(code: string) {
   if (typeof window === "undefined") return `/join/${code}`;
   return `${window.location.origin}/join/${code}`;
@@ -41,6 +54,7 @@ function inviteUrl(code: string) {
 export function RoomManager() {
   const { enterRoom, isReady } = useParallelPlay();
   const [rooms, setRooms] = useState<RoomListItem[]>([]);
+  const [friendsRooms, setFriendsRooms] = useState<FriendRoomListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -52,9 +66,14 @@ export function RoomManager() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/rooms");
-      const data = await res.json();
-      setRooms(data.rooms ?? []);
+      const [roomsRes, friendsRes] = await Promise.all([
+        fetch("/api/rooms"),
+        fetch("/api/rooms/friends"),
+      ]);
+      const roomsData = await roomsRes.json().catch(() => ({}));
+      const friendsData = await friendsRes.json().catch(() => ({}));
+      setRooms(roomsData.rooms ?? []);
+      setFriendsRooms(friendsData.rooms ?? []);
     } catch {
       // Silent — empty state will show.
     } finally {
@@ -123,6 +142,26 @@ export function RoomManager() {
       );
       setJoinCodeInput("");
       await refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not join");
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function handleJoinFriendRoom(room: FriendRoomListItem) {
+    setJoining(true);
+    try {
+      const res = await fetch("/api/rooms/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteCode: room.inviteCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not join");
+      toast.success(`Joined '${data.room.name ?? room.hostName ?? "the room"}'`);
+      await refresh();
+      await enterRoom(room.id);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not join");
     } finally {
@@ -214,6 +253,13 @@ export function RoomManager() {
           )}
         </CardContent>
       </Card>
+
+      <FriendsRoomsCard
+        rooms={friendsRooms}
+        loading={loading}
+        joining={joining}
+        onJoin={handleJoinFriendRoom}
+      />
 
       <Card>
         <CardHeader>
@@ -400,6 +446,87 @@ function PersonalRoomCard({
             <LogIn className="mr-1.5 h-3.5 w-3.5" /> Enter room
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FriendsRoomsCard({
+  rooms,
+  loading,
+  joining,
+  onJoin,
+}: {
+  rooms: FriendRoomListItem[];
+  loading: boolean;
+  joining: boolean;
+  onJoin: (room: FriendRoomListItem) => Promise<void>;
+}) {
+  // Convex's useQuery requires a stable args shape; passing an empty array is
+  // cheap (the server returns {}) so we always subscribe — saves a conditional
+  // render boundary and keeps the hook order stable.
+  const occupancy = useQuery(api.presence.getRoomOccupancy, {
+    roomIds: rooms.map((r) => r.id),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Friends&apos; rooms</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center py-4 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        ) : rooms.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No active rooms from your friends right now. When a friend creates a
+            room, it&apos;ll show up here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {rooms.map((r) => {
+              const here = occupancy?.[r.id] ?? 0;
+              const cap = r.maxCapacity;
+              const roomLabel =
+                r.name ?? (r.type === "personal" ? "Personal room" : "Room");
+              return (
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {roomLabel}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        · {r.hostName ?? "a friend"}
+                      </span>
+                    </p>
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      {here > 0 ? (
+                        <span>
+                          {here} of {cap} here right now
+                        </span>
+                      ) : (
+                        <span>Empty · {cap} max</span>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onJoin(r)}
+                    disabled={joining}
+                  >
+                    <LogIn className="mr-1.5 h-3.5 w-3.5" /> Join
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );

@@ -2930,6 +2930,66 @@ export async function listRoomsForUser(userId: string): Promise<
   }));
 }
 
+/**
+ * Rooms hosted by users in this user's friends list, that the user has not
+ * already joined, where the room hasn't expired. Powers the "Friends' rooms"
+ * browse view in RoomManager — live occupancy is layered on the client via
+ * Convex's reactive presence query.
+ */
+export async function getRoomsHostedByFriends(userId: string): Promise<
+  Array<{
+    id: string;
+    name: string | null;
+    type: "personal" | "adhoc";
+    inviteCode: string;
+    maxCapacity: number;
+    expiresAt: Date | null;
+    hostId: string;
+    hostName: string | null;
+  }>
+> {
+  const friends = await getAcceptedFriends(userId);
+  if (friends.length === 0) return [];
+  const friendIds = friends.map((f) => f.friendId);
+
+  // Rooms the user is already a member of — surface in "Joined rooms" instead
+  // of duplicating them here.
+  const myMemberships = await db
+    .select({ roomId: roomMembers.roomId })
+    .from(roomMembers)
+    .where(eq(roomMembers.userId, userId));
+  const memberRoomIds = new Set(myMemberships.map((m) => m.roomId));
+
+  const now = new Date();
+  const rows = await db
+    .select({
+      id: rooms.id,
+      name: rooms.name,
+      type: rooms.type,
+      inviteCode: rooms.inviteCode,
+      maxCapacity: rooms.maxCapacity,
+      expiresAt: rooms.expiresAt,
+      hostId: rooms.ownerId,
+      hostName: users.displayName,
+    })
+    .from(rooms)
+    .innerJoin(users, eq(users.id, rooms.ownerId))
+    .where(
+      and(
+        inArray(rooms.ownerId, friendIds),
+        or(isNull(rooms.expiresAt), gt(rooms.expiresAt, now))
+      )
+    )
+    .orderBy(asc(users.displayName), asc(rooms.createdAt));
+
+  return rows
+    .filter((r) => !memberRoomIds.has(r.id))
+    .map((r) => ({
+      ...r,
+      type: r.type as "personal" | "adhoc",
+    }));
+}
+
 export async function isRoomMember(
   roomId: string,
   userId: string
