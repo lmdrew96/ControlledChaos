@@ -122,13 +122,13 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-base font-semibold w-44 text-center">
             {MONTH_NAMES[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </h2>
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate(1)}>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => navigate(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

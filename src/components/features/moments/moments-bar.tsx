@@ -138,9 +138,13 @@ function useMomentLogging(): MomentLogging {
 export function MomentsBar() {
   const logging = useMomentLogging();
 
+  // Positioned by the parent mobile-bottom-dock wrapper in app-shell so this
+  // strip stacks flush against the bottom nav without a gap. Keeping this
+  // component layout-only (no fixed positioning, no md:hidden) means the
+  // dock owns the height math instead of guessing at it via magic numbers.
   return (
     <>
-      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-xl md:hidden">
+      <div className="border-t border-border bg-card/95 backdrop-blur-xl">
         <div
           className="flex items-center gap-2 overflow-x-auto px-3 py-2 [touch-action:pan-x]"
           role="toolbar"

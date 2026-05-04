@@ -243,8 +243,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 md:hidden">
+      {/* Mobile bottom dock — moments strip stacked above the nav. Wrapping
+          both in a single fixed-bottom container keeps them flush; the
+          previous moments-bar magic offset (5rem) drifted out of sync with
+          the actual nav height and left a visible gap. */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+      <MomentsBar />
+      <nav className="flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
         {mobileNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const showCrisisBadge = item.href === "/crisis" && crisisActive;
@@ -339,6 +344,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SheetContent>
         </Sheet>
       </nav>
+      </div>
 
       {/* Main content — padded on mobile to clear both the bottom nav and the Moments strip above it */}
       <main className="flex-1 overflow-auto pb-[calc(8.5rem+env(safe-area-inset-bottom))] md:pb-0">
@@ -348,9 +354,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Parallel Play overlay — fixed-position, only renders when in a room AND visible */}
       <ParallelPlayOverlay />
-
-      {/* Moments chip-bar — mobile only (desktop variant lives inside the sidebar) */}
-      <MomentsBar />
 
       {/* Global dialogs triggered by keyboard shortcuts */}
       <CommandPalette

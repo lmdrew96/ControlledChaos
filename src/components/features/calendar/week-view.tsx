@@ -606,18 +606,18 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         {/* Navigation */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <div className="flex items-center rounded-lg border border-border/50 bg-card/50 p-0.5">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek(-1)} aria-label="Previous week">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateWeek(-1)} aria-label="Previous week">
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant={isCurrentWeek ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2.5 text-xs font-medium"
+              className="h-9 px-3 text-xs font-medium"
               onClick={goToToday}
             >
               Today
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek(1)} aria-label="Next week">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigateWeek(1)} aria-label="Next week">
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
