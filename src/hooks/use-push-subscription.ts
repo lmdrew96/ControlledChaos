@@ -22,10 +22,10 @@ export function usePushSubscription() {
   // Check support and existing subscription on mount.
   // NOTE: do NOT call navigator.serviceWorker.register here — the root layout
   // already registers /sw.js once at window.load (with updateViaCache:"none").
-  // Re-registering on every NotificationSettings mount triggered an update
-  // check that, in the desktop PWA, could flip the controlling worker and
-  // cascade through the layout's controllerchange -> window.location.reload()
-  // listener, bouncing the user back to the default tab.
+  // Re-registering on every NotificationSettings mount triggered redundant
+  // update checks that previously cascaded into a window reload and demoted
+  // the iOS PWA to Safari. The reload is gone now, but spurious update checks
+  // are still wasted work — keep registration in one place.
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setIsSupported(false);

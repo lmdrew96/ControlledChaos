@@ -57,12 +57,13 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         <script
           dangerouslySetInnerHTML={{
-            // updateViaCache:"none" bypasses HTTP cache for sw.js checks so new deploys
-            // register promptly. The controllerchange reload auto-applies a new SW
-            // mid-session — gated on hadController so it does NOT fire on cold launch
-            // (null→SW transition). On iOS standalone PWAs, reloading during the
-            // initial controller claim demotes the window into Safari.
-            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){var h=!!navigator.serviceWorker.controller;navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"});var r=!1;navigator.serviceWorker.addEventListener("controllerchange",function(){if(r||!h)return;r=!0;window.location.reload()})})}`,
+            // Register the SW with updateViaCache:"none" so the browser always
+            // checks for a new sw.js on each load. We do NOT auto-reload on
+            // controllerchange: on iOS standalone PWAs, any reload that happens
+            // during a SW swap demotes the window to Safari. Pairs with the
+            // matching no-skipWaiting / no-clients.claim policy in /sw.js so the
+            // new SW activates only on the next cold launch.
+            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"})})}`,
           }}
         />
       </body>

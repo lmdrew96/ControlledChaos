@@ -3,17 +3,20 @@
 const CACHE_NAME = "cc-shell-v2";
 const SHELL_ASSETS = ["/dashboard", "/dump", "/tasks", "/calendar", "/settings"];
 
-// Cache app shell on install — non-critical, don't block SW activation
+// Cache app shell on install. We deliberately do NOT call skipWaiting():
+// on iOS standalone PWAs, an in-session SW swap fires controllerchange
+// during page init and the OS demotes the window to Safari. Letting the
+// new SW stay in `waiting` until all PWA windows close means the upgrade
+// happens cleanly before the next cold launch, with no mid-life swap.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.allSettled(SHELL_ASSETS.map((url) => cache.add(url)))
     )
   );
-  self.skipWaiting();
 });
 
-// Clean old caches on activate
+// Clean old caches once we activate. No clients.claim() — see install note.
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -24,7 +27,6 @@ self.addEventListener("activate", (event) => {
         )
       )
   );
-  self.clients.claim();
 });
 
 // Network-first with cache fallback for navigation requests
