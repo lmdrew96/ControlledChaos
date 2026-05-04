@@ -213,6 +213,7 @@ function MicrotaskChip({ microtask, onTap, onLongPress }: MicrotaskChipProps) {
   });
 
   const { completedToday, completionCount7d, emoji, title } = microtask;
+  const hasIcon = completedToday || !!emoji;
 
   return (
     <button
@@ -220,25 +221,33 @@ function MicrotaskChip({ microtask, onTap, onLongPress }: MicrotaskChipProps) {
       {...handlers}
       aria-pressed={completedToday}
       aria-label={`${title}${completedToday ? " — done today" : ""}`}
+      title={title}
       className={cn(
-        "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+        "shrink-0 rounded-full border text-sm font-medium transition-colors",
         "select-none active:scale-[0.98]",
+        // Mobile: when we have a glyph (emoji or done-check), render a compact
+        // ≥36px icon-only button. Without a glyph, fall back to a label-only
+        // chip so the microtask remains identifiable at a glance.
+        hasIcon
+          ? "h-9 min-w-9 px-2 sm:h-auto sm:min-w-0 sm:px-3 sm:py-1.5"
+          : "h-9 px-3 sm:h-auto sm:py-1.5",
         completedToday
           ? "border-primary/30 bg-primary/15 text-primary"
           : "border-border bg-muted/50 text-foreground hover:bg-muted"
       )}
     >
-      <span className="flex items-center gap-1.5">
+      <span className="flex items-center justify-center gap-1.5">
         {completedToday ? (
-          <Check className="h-3.5 w-3.5" />
+          <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
         ) : emoji ? (
           <span className="text-base leading-none">{emoji}</span>
         ) : null}
-        <span>{title}</span>
+        <span className={cn(hasIcon && "sr-only sm:not-sr-only")}>{title}</span>
         {completionCount7d > 0 && (
           <span
             className={cn(
               "ml-1 text-xs tabular-nums",
+              "hidden sm:inline",
               completedToday ? "text-primary/70" : "text-muted-foreground"
             )}
           >
