@@ -17,6 +17,8 @@ export interface Task {
   scheduledFor: string | null;
   completedAt: string | null;
   parentTaskId: string | null;
+  sourceDumpId: string | null;
+  sourceEventId: string | null;
   progressSteps: ProgressStep[] | null;
   currentStepIndex: number;
   goalId: string | null;

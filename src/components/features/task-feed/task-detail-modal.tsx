@@ -30,6 +30,7 @@ import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { RoomVisibilitySelect } from "@/components/parallel-play/RoomVisibilitySelect";
+import { SourceBackBadge } from "@/components/shared/source-back-badge";
 import {
   priorityOptions,
   energyOptions,
@@ -311,6 +312,13 @@ export function TaskDetailModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
+          {(task.sourceDumpId || task.sourceEventId) && (
+            <SourceBackBadge
+              sourceDumpId={task.sourceDumpId}
+              sourceEventId={task.sourceEventId}
+            />
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="task-title">Title</Label>

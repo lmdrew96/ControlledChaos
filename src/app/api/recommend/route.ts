@@ -201,6 +201,8 @@ export async function POST(request: Request) {
       scheduledFor: t.scheduledFor?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,
       parentTaskId: t.parentTaskId ?? null,
+      sourceDumpId: t.sourceDumpId ?? null,
+      sourceEventId: t.sourceEventId ?? null,
       goalId: t.goalId ?? null,
       progressSteps: (t.progressSteps as import("@/types").ProgressStep[] | null) ?? null,
       currentStepIndex: t.currentStepIndex ?? 0,

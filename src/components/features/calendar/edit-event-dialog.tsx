@@ -25,6 +25,7 @@ import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import type { CalendarEvent, EventCategory } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { SourceBackBadge } from "@/components/shared/source-back-badge";
 
 interface SavedLocation {
   id: string;
@@ -231,6 +232,10 @@ export function EditEventDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
+          {event?.sourceDumpId && (
+            <SourceBackBadge sourceDumpId={event.sourceDumpId} />
+          )}
+
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="edit-title">Title</Label>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { WeekView } from "@/components/features/calendar/week-view";
 import { AgendaView } from "@/components/features/calendar/agenda-view";
 import { MonthView } from "@/components/features/calendar/month-view";
@@ -8,9 +9,19 @@ import type { CalendarColors } from "@/types";
 
 type CalendarView = "week" | "month";
 
+function parseDateParam(raw: string | null): Date | undefined {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
+  // Anchor at midday local to avoid DST/off-by-one when views derive a date.
+  const d = new Date(`${raw}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 export default function CalendarPage() {
+  const searchParams = useSearchParams();
+  const initialFromUrl = parseDateParam(searchParams.get("date"));
+
   const [view, setView] = useState<CalendarView>("week");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialFromUrl);
   const [weekStartDay, setWeekStartDay] = useState(1);
   const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
 
