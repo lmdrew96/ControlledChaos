@@ -662,7 +662,8 @@ export async function reorderTasks(
   userId: string,
   orderedIds: string[]
 ) {
-  // Update sortOrder for each task in a single transaction
+  // Canonical batched-transaction pattern for the neon-http driver: sequential
+  // tx.update() calls with no external awaits in between. See CLAUDE.md.
   await db.transaction(async (tx) => {
     for (let i = 0; i < orderedIds.length; i++) {
       await tx

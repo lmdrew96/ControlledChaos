@@ -36,7 +36,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 ## Runtime Constraints
 
 - **Vercel serverless functions** — cold starts, 10s default timeout (can extend to 60s on Pro)
-- **Neon serverless driver** — does NOT support transactions. Use sequential plain inserts, not `db.transaction()`.
+- **Neon serverless driver (`neon-http`)** — supports **batched** transactions only via `db.transaction(async (tx) => {...})`. The callback may only contain sequential `tx.update()` / `tx.insert()` / `tx.select()` calls — no external `fetch`/AI calls/timers/conditional awaits between queries. Use this when you need atomic multi-row updates (see `reorderTasks` in `src/lib/db/queries.ts` for the canonical pattern). For interactive transactions (any await on something other than a `tx.*` query), neon-http does NOT support them — fall back to sequential plain queries with manual rollback logic.
 - **No Node.js-specific APIs in edge routes** — if a route uses `export const runtime = 'edge'`, stick to Web APIs only
 
 ---
