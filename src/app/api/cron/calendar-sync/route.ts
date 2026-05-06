@@ -5,6 +5,9 @@ import { sendPushToUser } from "@/lib/notifications/send-push";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone } from "@/lib/timezone";
 
+// Vercel Pro: 60s max. Default (10s) silently truncates the per-user sync loop.
+export const maxDuration = 60;
+
 /**
  * GET /api/cron/calendar-sync
  * Runs every 15 minutes via Vercel cron.

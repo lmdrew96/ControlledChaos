@@ -4,6 +4,9 @@ import { sendEveningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone } from "@/lib/timezone";
 
+// Vercel Pro: 60s max. Default (10s) silently truncates the per-user digest loop.
+export const maxDuration = 60;
+
 /**
  * GET /api/cron/evening-digest
  * Runs every 15 minutes (22:00–04:00 UTC covers most US timezones).
