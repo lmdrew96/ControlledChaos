@@ -122,8 +122,9 @@ async function main() {
   for (const remap of remaps) {
     try {
       await remapUser(remap.oldId, remap.newId, remap.email);
-    } catch (err: any) {
-      console.error(`\n  ✗ Failed for ${remap.email}:`, err.message || err);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`\n  ✗ Failed for ${remap.email}:`, message);
       console.error(`    Stopping to prevent partial state. Fix the issue and re-run.`);
       process.exit(1);
     }

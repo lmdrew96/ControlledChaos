@@ -49,11 +49,7 @@ export function useTimezone(): string {
   );
 
   useEffect(() => {
-    if (cachedTimezone) {
-      setTimezone(cachedTimezone);
-      return;
-    }
-
+    if (cachedTimezone) return;
     fetchStoredTimezone().then(setTimezone);
   }, []);
 

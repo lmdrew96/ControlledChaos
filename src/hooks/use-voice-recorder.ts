@@ -14,14 +14,21 @@ interface VoiceRecorderState {
 
 const MAX_DURATION_SECONDS = 300; // 5 minutes
 
+function detectVoiceSupport(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    !!navigator.mediaDevices?.getUserMedia && !!window.MediaRecorder
+  );
+}
+
 export function useVoiceRecorder() {
-  const [state, setState] = useState<VoiceRecorderState>({
+  const [state, setState] = useState<VoiceRecorderState>(() => ({
     status: "idle",
     durationSeconds: 0,
     error: null,
     audioBlob: null,
-    isSupported: false,
-  });
+    isSupported: detectVoiceSupport(),
+  }));
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -29,16 +36,6 @@ export function useVoiceRecorder() {
   const streamRef = useRef<MediaStream | null>(null);
   const elapsedBeforePauseRef = useRef(0);
   const recordingStartRef = useRef<number>(0);
-
-  // Check browser support on mount
-  useEffect(() => {
-    const supported =
-      typeof window !== "undefined" &&
-      !!navigator.mediaDevices?.getUserMedia &&
-      !!window.MediaRecorder;
-
-    setState((prev) => ({ ...prev, isSupported: supported }));
-  }, []);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {

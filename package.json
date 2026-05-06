@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npx tsx scripts/generate-changelog.ts",
+    "prebuild": "npx tsx scripts/generate-changelog.ts && pnpm lint",
     "changelog": "npx tsx scripts/generate-changelog.ts",
     "build": "next build",
     "start": "next start",

@@ -12,59 +12,61 @@ import {
 import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case "push":
+      return <Zap className="h-3.5 w-3.5 text-yellow-500 shrink-0" />;
+    case "email":
+      return <Mail className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+    default:
+      return <Bell className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  }
+}
+
+function getNotificationTitle(n: {
+  type: string;
+  content: Record<string, unknown> | null;
+}): string {
+  const content = n.content;
+  if (content?.title && typeof content.title === "string") return content.title;
+  if (content?.type === "morning_digest") return "Morning Digest";
+  if (content?.type === "evening_digest") return "Evening Digest";
+  return "Notification";
+}
+
+function getNotificationBody(n: {
+  content: Record<string, unknown> | null;
+}): string {
+  const content = n.content;
+  if (content?.body && typeof content.body === "string") return content.body;
+  return "";
+}
+
+function getNotificationUrl(n: {
+  content: Record<string, unknown> | null;
+}): string | null {
+  const content = n.content;
+  if (content?.url && typeof content.url === "string") return content.url;
+  return null;
+}
+
+function timeAgo(dateStr: string, now: number): string {
+  const diff = now - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  function getNotificationIcon(type: string) {
-    switch (type) {
-      case "push":
-        return <Zap className="h-3.5 w-3.5 text-yellow-500 shrink-0" />;
-      case "email":
-        return <Mail className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
-      default:
-        return <Bell className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
-    }
-  }
-
-  function getNotificationTitle(n: {
-    type: string;
-    content: Record<string, unknown> | null;
-  }): string {
-    const content = n.content;
-    if (content?.title && typeof content.title === "string") return content.title;
-    if (content?.type === "morning_digest") return "Morning Digest";
-    if (content?.type === "evening_digest") return "Evening Digest";
-    return "Notification";
-  }
-
-  function getNotificationBody(n: {
-    content: Record<string, unknown> | null;
-  }): string {
-    const content = n.content;
-    if (content?.body && typeof content.body === "string") return content.body;
-    return "";
-  }
-
-  function getNotificationUrl(n: {
-    content: Record<string, unknown> | null;
-  }): string | null {
-    const content = n.content;
-    if (content?.url && typeof content.url === "string") return content.url;
-    return null;
-  }
-
-  function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
+  // Capture once per render so timeAgo() stays pure for the React Compiler.
+  const [renderedAt] = useState(() => Date.now());
 
   const recent = notifications.slice(0, 20);
 
@@ -146,7 +148,7 @@ export function NotificationBell() {
                   )}
                   <div className="flex items-center gap-3 mt-1">
                     <p className="text-xs text-muted-foreground">
-                      {timeAgo(n.sentAt ?? n.createdAt)}
+                      {timeAgo(n.sentAt ?? n.createdAt, renderedAt)}
                     </p>
                     {isExpanded && url && (
                       <span

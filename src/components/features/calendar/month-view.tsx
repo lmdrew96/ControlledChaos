@@ -37,13 +37,13 @@ function buildMonthGrid(month: Date, weekStartDay: number): Date[][] {
   const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
 
   // Find the start of the first week displayed
-  let gridStart = new Date(first);
+  const gridStart = new Date(first);
   const firstDow = first.getDay(); // 0=Sun, 1=Mon, ...
   const offset = (firstDow - weekStartDay + 7) % 7;
   gridStart.setDate(gridStart.getDate() - offset);
 
   const weeks: Date[][] = [];
-  let cursor = new Date(gridStart);
+  const cursor = new Date(gridStart);
 
   while (cursor <= last || weeks.length < 6) {
     const week: Date[] = [];

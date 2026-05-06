@@ -19,7 +19,8 @@ interface PresenceBubblesProps {
  * don't re-animate events that existed before this client joined.
  */
 export function PresenceBubbles({ roomId, currentUserId }: PresenceBubblesProps) {
-  const mountedAtRef = useRef(Date.now());
+  // useState lazy init keeps the impure Date.now() call out of render proper.
+  const [mountedAt] = useState(() => Date.now());
 
   const presence = useQuery(api.presence.getRoomPresence, { roomId }) as
     | PresenceRow[]
@@ -27,7 +28,7 @@ export function PresenceBubbles({ roomId, currentUserId }: PresenceBubblesProps)
 
   const events = useQuery(api.presence.getRecentEvents, {
     roomId,
-    since: mountedAtRef.current,
+    since: mountedAt,
   }) as RoomEvent[] | undefined;
 
   // ---- Animation triggers from events ----
