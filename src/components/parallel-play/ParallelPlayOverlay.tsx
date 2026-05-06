@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hand, Flame, X, Loader2 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";

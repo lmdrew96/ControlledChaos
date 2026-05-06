@@ -36,10 +36,6 @@ export function GoalList() {
     fetchGoals();
   }, [fetchGoals]);
 
-  const counts = {
-    active: goals.length,
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">

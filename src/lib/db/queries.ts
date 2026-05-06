@@ -1163,7 +1163,6 @@ export async function getMomentumStats(
 
   // 1. New personal best
   if (biggestDay) {
-    const todayCount = completedToday;
     const thisWeekDays = daily.filter((d) => d.date >= startOfWeekStr);
     const newPB = thisWeekDays.some((d) => d.count >= biggestDay.count && d.count > 0);
     if (newPB && wins.length < 3) {

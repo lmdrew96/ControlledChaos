@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
+import { formatForDisplay } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
   Target,

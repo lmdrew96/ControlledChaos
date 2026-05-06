@@ -13,7 +13,6 @@ import {
   getRecentTaskActivity,
   getActiveCrisisPlans,
   getUserLocation,
-  getSavedLocations,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";

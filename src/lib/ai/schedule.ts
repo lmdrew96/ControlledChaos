@@ -278,9 +278,6 @@ export async function scheduleOneTask(
     return null;
   }
 
-  const fmtHour = (h: number) =>
-    h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
-
   const fmtLocalRange = (startISO: string, endISO: string) => {
     const startLabel = formatForDisplay(new Date(startISO), input.timezone, DISPLAY_DATETIME);
     const endLabel = formatForDisplay(new Date(endISO), input.timezone, DISPLAY_TIME);
@@ -293,16 +290,6 @@ export async function scheduleOneTask(
     durationMinutes: b.durationMinutes,
     localTime: fmtLocalRange(b.start, b.end),
   }));
-
-  const calendarSummary = input.calendarEvents
-    .filter((e) => !e.isAllDay)
-    .map((e) => ({
-      title: e.title,
-      start: e.startTime,
-      end: e.endTime,
-      localTime: fmtLocalRange(e.startTime, e.endTime),
-      location: e.location,
-    }));
 
   const userPrompt = `## Current Date and Time
 ${formatCurrentDateTime(input.timezone)}

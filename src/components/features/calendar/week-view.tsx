@@ -37,7 +37,7 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import type { CalendarColors, CalendarEvent, CalendarSource, EventCategory } from "@/types";
-import { toUserLocal, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE, getCalendarParts } from "@/lib/timezone";
+import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 
 // ============================================================

@@ -116,7 +116,6 @@ export async function POST(request: Request, context: RouteContext) {
     const tasks = plan.tasks as CrisisTask[];
     const currentTask = tasks[plan.currentTaskIndex] ?? null;
     const completedCount = plan.currentTaskIndex;
-    const remainingCount = tasks.length - plan.currentTaskIndex;
 
     const minutesUntilDeadline = Math.max(
       0,

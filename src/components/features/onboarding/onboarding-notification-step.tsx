@@ -2,7 +2,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Bell, Mail, Sunrise, Moon } from "lucide-react";
+import { Bell, Sunrise, Moon } from "lucide-react";
 
 interface Props {
   pushEnabled: boolean;

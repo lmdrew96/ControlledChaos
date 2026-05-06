@@ -686,7 +686,7 @@ export function matchEventLocationToSavedLocation(
  */
 export async function getDepartureAlerts(
   userId: string,
-  timezone: string
+  _timezone: string
 ): Promise<DepartureAlert[]> {
   const now = new Date();
   const lookAheadEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 hours ahead
@@ -793,7 +793,6 @@ export async function getMedicationRemindersForWindow(
   if (meds.length === 0) return [];
 
   const now = new Date();
-  const currentHour = getHourInTimezone(now, timezone);
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",

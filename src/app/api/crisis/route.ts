@@ -29,7 +29,6 @@ import {
   DISPLAY_FULL_DATETIME,
   getHourInTimezone,
   startOfDayInTimezone,
-  getCalendarParts,
 } from "@/lib/timezone";
 
 function formatEventsForAI(

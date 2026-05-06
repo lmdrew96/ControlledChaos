@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS, EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import { cn } from "@/lib/utils";
-import type { CalendarColorKey, CalendarColors, EventCategory } from "@/types";
+import type { CalendarColors } from "@/types";
 
 export function CalendarSettings() {
   const timezone = useTimezone();
