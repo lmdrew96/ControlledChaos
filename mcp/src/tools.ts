@@ -2233,4 +2233,217 @@ Returns: The updated (now inactive) microtask.`,
       };
     }
   );
+
+  // ----------------------------------------------------------
+  // cc_recommend_next_task
+  // Returns a ranked list of candidate next tasks plus the context
+  // needed for the calling AI client to pick one. Does NOT call the
+  // server-side recommendation engine — the client model does the
+  // ranking from this data, which is more flexible and avoids burning
+  // Haiku tokens on a request the client can answer itself.
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_recommend_next_task",
+    {
+      title: "Recommend Next Task",
+      description: `Return up to 5 candidate next tasks plus current context (energy, calendar, today's progress) so the calling AI can recommend "what to do right now."
+
+Tasks are ranked by:
+  1. Has a deadline (deadlined tasks first)
+  2. Deadline ascending
+  3. Priority (urgent > important > normal > someday)
+
+Optional filters narrow the candidate pool before ranking.
+
+Args:
+  - energy_level: Only suggest tasks matching this energy level (low, medium, high).
+  - time_available_minutes: Only suggest tasks whose estimated_minutes fits in this window.
+  - location_tag: Only suggest tasks tagged for this location (e.g., "home", "office").
+
+Returns: Markdown with a Recommendations section (top tasks) and a Context section (now-time, current/next calendar event, tasks completed today).`,
+      inputSchema: {
+        energy_level: z.enum(["low", "medium", "high"]).optional().describe("Match this energy level"),
+        time_available_minutes: z.number().int().positive().optional().describe("Only tasks fitting in this many minutes"),
+        location_tag: z.string().optional().describe("Only tasks tagged for this location"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+
+      const conditions: string[] = [
+        "user_id = $1",
+        "deleted_at IS NULL",
+        "status IN ('pending', 'in_progress')",
+      ];
+      const values: unknown[] = [userId];
+      let paramIdx = 2;
+
+      if (params.energy_level) {
+        conditions.push(`energy_level = $${paramIdx}`);
+        values.push(params.energy_level);
+        paramIdx++;
+      }
+      if (params.time_available_minutes != null) {
+        conditions.push(`(estimated_minutes IS NULL OR estimated_minutes <= $${paramIdx})`);
+        values.push(params.time_available_minutes);
+        paramIdx++;
+      }
+      if (params.location_tag) {
+        conditions.push(`location_tags::jsonb @> $${paramIdx}::jsonb`);
+        values.push(JSON.stringify([params.location_tag]));
+        paramIdx++;
+      }
+
+      const taskQuery = `
+        SELECT *
+        FROM tasks
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY
+          CASE WHEN deadline IS NULL THEN 1 ELSE 0 END,
+          deadline ASC,
+          CASE priority
+            WHEN 'urgent' THEN 0
+            WHEN 'important' THEN 1
+            WHEN 'normal' THEN 2
+            WHEN 'someday' THEN 3
+            ELSE 4
+          END,
+          created_at ASC
+        LIMIT 5
+      `;
+      const tasks = await sql(taskQuery, values);
+
+      // Context: current event, next event, completed today
+      const nowIso = new Date().toISOString();
+      const todayStr = todayInTz(tz);
+
+      const [currentEventRows, nextEventRows, completedTodayRows] = await Promise.all([
+        sql(
+          `SELECT * FROM calendar_events
+           WHERE user_id = $1 AND start_time <= $2 AND end_time > $2
+           ORDER BY start_time DESC LIMIT 1`,
+          [userId, nowIso]
+        ),
+        sql(
+          `SELECT * FROM calendar_events
+           WHERE user_id = $1 AND start_time > $2
+           ORDER BY start_time ASC LIMIT 1`,
+          [userId, nowIso]
+        ),
+        sql(
+          `SELECT count(*)::int AS n FROM tasks
+           WHERE user_id = $1 AND deleted_at IS NULL
+             AND status = 'completed'
+             AND (completed_at AT TIME ZONE $2)::date = $3::date`,
+          [userId, tz, todayStr]
+        ),
+      ]);
+
+      const completedToday = (completedTodayRows[0]?.n as number) ?? 0;
+
+      const sections: string[] = [];
+
+      sections.push(`## Recommendations (${tasks.length})`);
+      if (tasks.length === 0) {
+        sections.push("_No pending tasks match those filters. Try a brain dump?_");
+      } else {
+        tasks.forEach((t, i) => {
+          sections.push(`### ${i + 1}. ${formatTask(t, tz)}`);
+        });
+      }
+
+      const ctxLines: string[] = [`Now: ${fmtTimeLocal(nowIso, tz)}`];
+      if (currentEventRows[0]) {
+        ctxLines.push(`Currently in: ${currentEventRows[0].title} (until ${fmtTimeLocal(currentEventRows[0].end_time, tz)})`);
+      }
+      if (nextEventRows[0]) {
+        ctxLines.push(`Next event: ${nextEventRows[0].title} at ${fmtTimeLocal(nextEventRows[0].start_time, tz)}`);
+      }
+      ctxLines.push(`Completed today: ${completedToday}`);
+
+      sections.push(`## Context\n${ctxLines.join("\n")}`);
+
+      return { content: [{ type: "text" as const, text: sections.join("\n\n") }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_get_active_crisis
+  // Surfaces an in-progress crisis plan (if one exists) so the
+  // calling AI knows the user is in a high-stakes deadline state.
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_get_active_crisis",
+    {
+      title: "Get Active Crisis",
+      description: `Return the user's active crisis plan if one is in progress, or report none.
+
+A crisis plan is "active" when its completed_at is null. Use this to detect when the user is in damage-control mode on a tight deadline so you can adjust tone, scope, and recommendations accordingly.
+
+Returns: Markdown with task name, deadline, panic level, summary, and progress (current step / total). Empty-state when no active crisis.`,
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const rows = await sql(
+        `SELECT id, task_name, deadline, panic_level, panic_label, summary,
+                tasks, current_task_index, completion_pct, source, created_at
+         FROM crisis_plans
+         WHERE user_id = $1 AND completed_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "No active crisis plan." }],
+        };
+      }
+
+      const c = rows[0];
+      const taskList = Array.isArray(c.tasks) ? c.tasks : [];
+      const totalSteps = taskList.length;
+      const currentIdx = (c.current_task_index as number) ?? 0;
+      const currentTask =
+        totalSteps > 0 && currentIdx < totalSteps
+          ? (taskList[currentIdx] as Record<string, unknown>)
+          : null;
+
+      const lines: string[] = [
+        `## Active Crisis: ${c.task_name}`,
+        `ID: \`${c.id}\``,
+        `Deadline: ${fmtTimeLocal(c.deadline, tz)}`,
+        `Panic level: **${c.panic_level}** (${c.panic_label})`,
+        `Progress: ${currentIdx}/${totalSteps} steps · ${c.completion_pct ?? 0}% task complete`,
+        `Source: ${c.source ?? "manual"}`,
+        `Started: ${fmtTimeLocal(c.created_at, tz)}`,
+        ``,
+        `### Summary`,
+        String(c.summary ?? ""),
+      ];
+
+      if (currentTask) {
+        lines.push(``, `### Current step (#${currentIdx + 1})`);
+        if (currentTask.title) lines.push(`**${currentTask.title}**`);
+        if (currentTask.instruction) lines.push(String(currentTask.instruction));
+      }
+
+      return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+    }
+  );
 }
