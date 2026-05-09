@@ -141,7 +141,7 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
   return (
     <div
       ref={containerRef}
-      className="h-64 w-full rounded-lg overflow-hidden border border-border"
+      className="isolate h-64 w-full rounded-lg overflow-hidden border border-border"
       aria-label="Saved locations map"
     />
   );
