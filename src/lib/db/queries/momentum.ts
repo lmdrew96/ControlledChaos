@@ -114,7 +114,6 @@ export async function getMomentumStats(
         AND status IN ('pending', 'in_progress')
         AND completed_at IS NULL
         AND deleted_at IS NULL
-        AND parent_task_id IS NULL
       GROUP BY bucket`
     ),
     // 2b. Marination — historical distribution: age at completion (top-level only)
@@ -132,7 +131,6 @@ export async function getMomentumStats(
         AND status = 'completed'
         AND completed_at IS NOT NULL
         AND deleted_at IS NULL
-        AND parent_task_id IS NULL
       GROUP BY bucket`
     ),
     // 2c. Chunk outcomes — chunks are stored in tasks.progress_steps JSONB,
