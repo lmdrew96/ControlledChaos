@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Settings2, Check } from "lucide-react";
+import { Settings2, Check, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -37,21 +37,48 @@ export function MicrotasksZone() {
   const { isActive: crisisActive } = useCrisisDetection();
   const [microtasks, setMicrotasks] = useState<Microtask[] | null>(null);
   const [sheetTask, setSheetTask] = useState<Microtask | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
-  const refresh = useCallback(async () => {
+  // Fetch + state update. Returns true on success.
+  // Used for both initial load (with retry-then-error) and post-mutation
+  // refreshes (silent — caller handles its own error toast).
+  const fetchMicrotasks = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch("/api/microtasks");
-      if (!res.ok) return;
+      if (!res.ok) return false;
       const data = (await res.json()) as { microtasks: Microtask[] };
       setMicrotasks(data.microtasks);
+      setLoadError(false);
+      return true;
     } catch {
-      /* swallow — non-critical */
+      return false;
     }
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void (async () => {
+      if (await fetchMicrotasks()) return;
+      // One retry after 1s — covers Vercel cold-start / Neon connection blips
+      await new Promise((r) => setTimeout(r, 1000));
+      if (cancelled) return;
+      if (await fetchMicrotasks()) return;
+      if (!cancelled) setLoadError(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchMicrotasks]);
+
+  const handleManualRetry = useCallback(async () => {
+    setRetrying(true);
+    const ok = await fetchMicrotasks();
+    setRetrying(false);
+    if (!ok) toast.error("Still can't load microtasks");
+  }, [fetchMicrotasks]);
+
+  const refresh = fetchMicrotasks;
 
   const toggleComplete = useCallback(
     async (mt: Microtask) => {
@@ -110,6 +137,25 @@ export function MicrotasksZone() {
 
   // Hide entire zone in Crisis Mode (per spec)
   if (crisisActive) return null;
+
+  // Load failed (after one auto-retry) — surface a quiet retry strip so the
+  // zone doesn't silently vanish on cold-start / transient 5xx.
+  if (microtasks === null && loadError) {
+    return (
+      <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/50 px-4 py-3 text-sm">
+        <span className="text-muted-foreground">Couldn&apos;t load microtasks.</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => void handleManualRetry()}
+          disabled={retrying}
+        >
+          <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", retrying && "animate-spin")} />
+          {retrying ? "Retrying…" : "Retry"}
+        </Button>
+      </div>
+    );
+  }
 
   // Initial load — show nothing rather than a skeleton (microtasks are quiet)
   if (microtasks === null) return null;
