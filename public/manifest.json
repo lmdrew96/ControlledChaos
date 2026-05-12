@@ -5,6 +5,9 @@
   "id": "/dashboard",
   "scope": "/",
   "start_url": "/dashboard",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
