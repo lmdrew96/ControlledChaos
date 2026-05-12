@@ -166,15 +166,12 @@ self.addEventListener("notificationclick", (event) => {
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
         for (const client of clients) {
-          if (client.url.startsWith(self.location.origin) && "focus" in client) {
-            if ("postMessage" in client) {
-              client.postMessage({ type: "cc:navigate", url: navigateTo });
-            }
+          if (client.url.includes(self.location.origin) && "focus" in client) {
+            client.navigate(navigateTo);
             return client.focus();
           }
         }
-        const launchUrl = `/dashboard?launch=${encodeURIComponent(navigateTo)}`;
-        return self.clients.openWindow(launchUrl);
+        return self.clients.openWindow(navigateTo);
       })
   );
 });
