@@ -38,8 +38,9 @@ interface PushPayload {
 
 /**
  * Check if the current time falls within quiet hours for a user.
+ * Exported so the cron layer can gate AI generation before calling sendPushToUser.
  */
-function isQuietHours(prefs: NotificationPrefs, timezone: string): boolean {
+export function isQuietHours(prefs: NotificationPrefs, timezone: string): boolean {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,

@@ -5,7 +5,7 @@ import {
   markSnoozedPushSent,
   getUserLocation,
 } from "@/lib/db/queries";
-import { sendPushToUser } from "@/lib/notifications/send-push";
+import { sendPushToUser, isQuietHours } from "@/lib/notifications/send-push";
 import { todayInTimezone } from "@/lib/timezone";
 import {
   getDeadlineReminders,
@@ -91,6 +91,10 @@ async function processUser(user: PushUser): Promise<number> {
   let sentToday = await getPushNotificationsSentToday(userId, timezone);
   let userSent = 0;
 
+  // Compute quiet hours once — gates AI generation so we don't pay for messages
+  // that sendPushToUser would silently suppress anyway.
+  const quietHoursActive = notificationPrefs ? isQuietHours(notificationPrefs, timezone) : false;
+
   // Lazy location fetch — only hits DB on first call, cached for this user
   let _locationName: string | undefined;
   let _locationFetched = false;
@@ -119,8 +123,10 @@ async function processUser(user: PushUser): Promise<number> {
     return _snapshot;
   };
 
-  const canSend = (priority: "high" | "normal") =>
-    priority === "high" || sentToday < dailyCap;
+  const canSend = (priority: "high" | "normal", bypassesQuietHours = false) => {
+    if (quietHoursActive && !bypassesQuietHours) return false;
+    return priority === "high" || sentToday < dailyCap;
+  };
 
   const markSent = () => {
     sentToday += 1;
@@ -131,7 +137,8 @@ async function processUser(user: PushUser): Promise<number> {
   const deadlineReminders = await getDeadlineReminders(userId, notificationPrefs);
   for (const reminder of deadlineReminders) {
     const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
-    if (!canSend(priority)) continue;
+    const bypassQH = reminder.intervalMinutes <= 30;
+    if (!canSend(priority, bypassQH)) continue;
 
     const dedupKey = `deadline-${reminder.taskId}-${reminder.intervalMinutes}-${reminder.deadline.toISOString()}`;
     if (await hasEverBeenNotified(userId, dedupKey)) continue;
@@ -161,7 +168,8 @@ async function processUser(user: PushUser): Promise<number> {
   const eventReminders = await getEventReminders(userId, notificationPrefs);
   for (const reminder of eventReminders) {
     const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
-    if (!canSend(priority)) continue;
+    const bypassQH = reminder.intervalMinutes <= 30;
+    if (!canSend(priority, bypassQH)) continue;
 
     const dedupKey = `event-${reminder.eventId}-${reminder.intervalMinutes}-${reminder.startTime.toISOString()}`;
     if (await hasEverBeenNotified(userId, dedupKey)) continue;
@@ -247,7 +255,7 @@ async function processUser(user: PushUser): Promise<number> {
   // --- Time to Leave Alerts ---
   const departureAlerts = await getDepartureAlerts(userId, timezone);
   for (const alert of departureAlerts) {
-    if (!canSend("high")) continue;
+    if (!canSend("high", alert.level === "now")) continue;
 
     const dedupKey = `time-to-leave-${alert.eventId}-${alert.level}`;
     if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
