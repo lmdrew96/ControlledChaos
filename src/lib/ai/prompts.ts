@@ -505,48 +505,19 @@ If "User's Current Context" is provided, USE IT. This tells you what the user's 
 - Vary tone — don't repeat structures.
 - Respond with ONLY the notification text. No quotes, no labels, no explanation.
 
-## Examples (shown at Friendly/Casual personality — adjust voice to match the actual personality block)
+## Examples (adjust voice to match the personality block above — these show structure only)
 
-Type: deadline_reminder, Task: "Bio lab report", Time until deadline: 1 day
-BAD: "Hey! Don't forget your Bio lab report is due tomorrow! 🔥"
-GOOD: "That Bio lab report is due tomorrow. Tonight might be a good time to wrap it up."
-BFF+Unfiltered: "bio lab report's due tomorrow lol. tonight's the move."
+deadline_reminder, Task: "Bio lab report", Time until deadline: 1 day
+"That Bio lab report is due tomorrow. Tonight might be a good time to wrap it up."
 
-Type: deadline_reminder, Task: "Submit essay", Time until deadline: 10 minutes
-GOOD (Friendly): "Essay's due in 10. Send it."
-BFF+Unfiltered: "10 mins. hit submit and be done with it."
+deadline_reminder, Task: "Submit essay", Time until deadline: 10 minutes
+"Essay's due in 10. Send it."
 
-Type: event_reminder, Event: "Therapy appointment", Time until event: 1 hour
-GOOD (Friendly): "Therapy in an hour. Start wrapping up whatever you're on."
-BFF+Unfiltered: "therapy in an hour. start closing tabs."
+idle_checkin, Activity: idle, Top pending task: "Bio lab report"
+"Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"
 
-Type: scheduled, Task: "Review lecture notes"
-GOOD (Friendly): "You blocked off time for lecture notes. Past-you had a plan."
-BFF+Unfiltered: "past-you scheduled this for a reason. lecture notes, let's go."
-
-Type: idle_checkin, Activity: idle, Top pending task: "Bio lab report"
-GOOD (Friendly): "Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"
-BFF+Unfiltered: "nothing yet today. bio lab report's just sitting there — you gonna let it win?"
-
-Type: idle_checkin, Activity: active, Top pending task: "Bio lab report"
-GOOD (Friendly): "You're moving today. Bio lab report is still up — keep the energy going."
-BFF+Unfiltered: "ok you're actually doing stuff today. bio lab report's next, don't stop now."
-
-Type: idle_checkin_evening, Activity: idle, Top pending task: "Linguistics essay"
-GOOD (Friendly): "It's 7:00 and Linguistics essay is still open. Give it one focused 20-minute pass tonight."
-BFF+Unfiltered: "it's 7pm and linguistics essay is just vibing undone. one pass, you got this."
-
-Type: idle_checkin_evening, Activity: active, Top pending task: "Linguistics essay"
-GOOD (Friendly): "Good work today. Linguistics essay is still there if you want to close it out tonight."
-BFF+Unfiltered: "solid day fr. linguistics essay's still there if you wanna kill it before bed."
-
-Type: location_arrival, Location: "CVS", Task: "Pick up prescription", Total matching tasks: 1
-GOOD (Friendly): "You're at CVS. That prescription isn't going to pick itself up — knock it out while you're here."
-BFF+Unfiltered: "you're literally at cvs right now. grab that prescription and be done with it."
-
-Type: location_departure_nearby, Left: "Home", Nearby: "CVS", Task: "Pick up prescription"
-GOOD (Friendly): "While you're out — CVS is nearby and that prescription is still waiting."
-BFF+Unfiltered: "since you're already out, cvs is right there. prescription run, let's go."`;
+location_arrival, Location: "CVS", Task: "Pick up prescription"
+"You're at CVS. That prescription isn't going to pick itself up — knock it out while you're here."`;
 }
 
 // ============================================================

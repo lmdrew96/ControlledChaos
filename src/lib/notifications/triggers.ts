@@ -10,7 +10,7 @@ import {
   getActiveMedications,
 } from "@/lib/db/queries";
 import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
-import { callSonnet } from "@/lib/ai";
+import { callHaiku } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
 import {
@@ -434,7 +434,7 @@ export async function generatePushMessage(
   }
 
   try {
-    const { text } = await callSonnet({
+    const { text } = await callHaiku({
       system: buildPushNotificationPrompt(prefs, timezone, mode),
       user: userMsg,
       maxTokens: 60,
@@ -484,7 +484,7 @@ export async function generateNudgeMessage(
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
     if (userLocation) userMsg += `\nUser's current location: "${userLocation}"`;
     if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
-    const { text } = await callSonnet({
+    const { text } = await callHaiku({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: userMsg,
       maxTokens: 80,
