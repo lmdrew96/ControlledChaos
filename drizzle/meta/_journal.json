@@ -29,6 +29,13 @@
       "when": 1777897899558,
       "tag": "0003_bored_kate_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778962459556,
+      "tag": "0004_giant_serpent_society",
+      "breakpoints": true
     }
   ]
 }

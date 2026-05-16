@@ -1,0 +1,2 @@
+DROP INDEX "idx_friendships_pair";--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_friendships_pair" ON "friendships" USING btree (LEAST("requester_id", "addressee_id"),GREATEST("requester_id", "addressee_id"));

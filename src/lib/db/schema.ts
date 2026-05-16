@@ -521,9 +521,10 @@ export const friendships = pgTable(
   (table) => [
     index("idx_friendships_requester").on(table.requesterId),
     index("idx_friendships_addressee").on(table.addresseeId),
+    // Bidirectional uniqueness: (A→B) and (B→A) are treated as the same pair
     uniqueIndex("idx_friendships_pair").on(
-      table.requesterId,
-      table.addresseeId
+      sql`LEAST(${table.requesterId}, ${table.addresseeId})`,
+      sql`GREATEST(${table.requesterId}, ${table.addresseeId})`
     ),
   ]
 );

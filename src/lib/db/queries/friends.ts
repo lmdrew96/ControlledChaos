@@ -76,7 +76,14 @@ export async function getAcceptedFriends(userId: string) {
     .innerJoin(users, eq(users.id, friendships.requesterId))
     .where(and(eq(friendships.addresseeId, userId), eq(friendships.status, "accepted")));
 
-  return [...asRequester, ...asAddressee];
+  // Deduplicate by friendId — guards against the case where both (A→B) and (B→A)
+  // rows exist in the DB (possible before the bidirectional uniqueness check was enforced)
+  const seen = new Set<string>();
+  return [...asRequester, ...asAddressee].filter((f) => {
+    if (seen.has(f.friendId)) return false;
+    seen.add(f.friendId);
+    return true;
+  });
 }
 
 export async function getPendingFriendRequests(userId: string) {
