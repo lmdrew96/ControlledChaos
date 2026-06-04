@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await sendPushToUser(updated.requesterId, {
         title: "Friend request accepted!",
         body: `${name} accepted your friend request`,
-        url: "/settings?tab=friends",
+        url: "/friends",
         tag: `friend-accepted-${userId}`,
         userId,
       });

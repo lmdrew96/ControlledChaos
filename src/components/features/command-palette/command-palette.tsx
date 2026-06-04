@@ -25,7 +25,6 @@ import {
   MapPin,
   Pill,
   Users,
-  Flame,
   Search,
   ArrowRight,
 } from "lucide-react";
@@ -73,6 +72,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nav-calendar", label: "Calendar", href: "/calendar", icon: Calendar, keywords: "schedule events" },
   { id: "nav-recap", label: "Daily Recap", href: "/recap", icon: Clock, keywords: "mirror journal day review" },
   { id: "nav-journal", label: "Journal", href: "/journal", icon: BookOpen, keywords: "writing notes" },
+  { id: "nav-friends", label: "Friends", href: "/friends", icon: Users, keywords: "social parallel play rooms body double nudge" },
   { id: "nav-settings", label: "Settings", href: "/settings", icon: Settings, keywords: "preferences config" },
   { id: "nav-crisis", label: "Crisis Mode", href: "/crisis", icon: Siren, keywords: "panic emergency support" },
 ];
@@ -81,8 +81,6 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "set-display-name", label: "Display Name", anchor: "display-name", icon: User, keywords: "name profile" },
   { id: "set-timezone", label: "Timezone", anchor: "timezone", icon: Clock, keywords: "tz region" },
   { id: "set-appearance", label: "Appearance", anchor: "appearance", icon: Sun, keywords: "theme dark light celebration density" },
-  { id: "set-friends", label: "Friends", anchor: "friends", icon: Users, keywords: "social parallel play" },
-  { id: "set-rooms", label: "Parallel Play rooms", anchor: "rooms", icon: Flame, keywords: "body double focus session" },
   { id: "set-ai", label: "AI Personality", anchor: "ai-personality", icon: Brain, keywords: "energy assistant claude" },
   { id: "set-notifications", label: "Notifications", anchor: "notifications", icon: Bell, keywords: "push email digest reminders quiet hours" },
   { id: "set-calendar", label: "Calendar Integration", anchor: "calendar", icon: Calendar, keywords: "ical canvas sources colors week start" },

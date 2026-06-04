@@ -107,7 +107,7 @@ export function RoomPicker({ open, onClose }: RoomPickerProps) {
 
         <div className="flex justify-between gap-2">
           <Button variant="outline" size="sm" asChild className="flex-1">
-            <Link href="/settings?tab=rooms" onClick={onClose}>
+            <Link href="/friends" onClick={onClose}>
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Manage rooms
             </Link>
           </Button>

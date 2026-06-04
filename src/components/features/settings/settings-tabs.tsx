@@ -14,9 +14,7 @@ import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
-import { FriendsSettings } from "./friends-settings";
 import { MedicationSettings } from "./medication-settings";
-import { RoomManager } from "@/components/parallel-play/RoomManager";
 
 interface SettingEntry {
   id: string;
@@ -55,20 +53,6 @@ const GROUPS: SettingGroup[] = [
         title: "Appearance",
         keywords: "theme dark light celebration density spacing colors",
         render: () => <AppearanceSettings />,
-      },
-      {
-        id: "friends",
-        title: "Friends",
-        keywords: "social connect contacts parallel play",
-        render: () => <FriendsSettings />,
-        bare: true,
-      },
-      {
-        id: "rooms",
-        title: "Parallel Play Rooms",
-        keywords: "body double focus room session shared",
-        render: () => <RoomManager />,
-        bare: true,
       },
     ],
   },
@@ -154,6 +138,12 @@ export function SettingsTabs() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (!tab) return;
+    // Friends + Parallel Play moved to the top-level /friends route. Redirect
+    // any legacy deep-links (older notifications, room join errors) there.
+    if (tab === "friends" || tab === "rooms") {
+      router.replace("/friends", { scroll: false });
+      return;
+    }
     const TAB_TO_ANCHOR: Record<string, string> = {
       profile: "display-name",
       "ai-energy": "ai-personality",
@@ -161,9 +151,7 @@ export function SettingsTabs() {
       locations: "locations",
       notifications: "notifications",
       "crisis-detection": "crisis-detection",
-      friends: "friends",
       medications: "medications",
-      rooms: "rooms",
     };
     const anchor = TAB_TO_ANCHOR[tab];
     const params = new URLSearchParams(searchParams.toString());

@@ -45,7 +45,7 @@ const CATEGORY_ICONS: Record<TaskCategory, typeof GraduationCap> = {
 
 const CATEGORIES: TaskCategory[] = ["school", "work", "personal", "errands", "health"];
 
-export function FriendsSettings() {
+export function FriendsPanel() {
   const [friends, setFriends] = useState<FriendWithProfile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);

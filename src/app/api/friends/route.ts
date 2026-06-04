@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     await sendPushToUser(targetUser.id, {
       title: "Friend request!",
       body: `${senderName} wants to connect with you on ControlledChaos`,
-      url: "/settings?tab=friends",
+      url: "/friends",
       tag: `friend-request-${userId}`,
       userId,
     });

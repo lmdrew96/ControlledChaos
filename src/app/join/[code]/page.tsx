@@ -14,8 +14,8 @@ interface PageProps {
  * /join/[code] — auto-join an invite link.
  *
  * - Signed out → bounce to sign-in with this URL as the redirect target.
- * - Code invalid → /settings?tab=rooms&join_error=invalid
- * - Code expired → /settings?tab=rooms&join_error=expired
+ * - Code invalid → /friends?join_error=invalid
+ * - Code expired → /friends?join_error=expired
  * - Already a member → /tasks (silent, just enter the app)
  * - Newly added → /tasks?room_joined=<id> (the client can pick this up to
  *   surface a small toast and pre-select the room).
@@ -35,11 +35,11 @@ export default async function JoinRoomPage({ params }: PageProps) {
 
   const room = await getRoomByInviteCode(normalized);
   if (!room) {
-    redirect("/settings?tab=rooms&join_error=invalid");
+    redirect("/friends?join_error=invalid");
   }
 
   if (room.expiresAt && room.expiresAt.getTime() < Date.now()) {
-    redirect("/settings?tab=rooms&join_error=expired");
+    redirect("/friends?join_error=expired");
   }
 
   const already = await isRoomMember(room.id, userId);
@@ -52,7 +52,7 @@ export default async function JoinRoomPage({ params }: PageProps) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "join_failed";
     const reason = /capacity/i.test(msg) ? "capacity" : "failed";
-    redirect(`/settings?tab=rooms&join_error=${reason}`);
+    redirect(`/friends?join_error=${reason}`);
   }
 
   redirect(`/tasks?room_joined=${room.id}`);

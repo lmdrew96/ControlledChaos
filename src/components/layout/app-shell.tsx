@@ -23,6 +23,7 @@ import {
   Repeat,
   Search,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -56,6 +57,7 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -73,6 +75,7 @@ const mobileMoreItems = [
   { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
