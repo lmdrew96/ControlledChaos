@@ -12,6 +12,7 @@ import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { callHaiku } from "@/lib/ai";
 import { AUTO_NOTE_EVENT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
+import { formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 
 const SYNC_STALENESS_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -174,11 +175,14 @@ export async function POST(request: Request) {
     if (!description && createdEvents.length > 0) {
       const aiCtx = await buildAIContext(userId);
       const firstEvent = createdEvents[0];
-      const eventTime = new Date(firstEvent.startTime).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
+      // Format in the user's timezone — the server runs in UTC, so a bare
+      // toLocaleTimeString would render the UTC hour (e.g. 11 PM for a 7 PM EDT
+      // event) and the AI would write the wrong time into the note.
+      const eventTime = formatForDisplay(
+        new Date(firstEvent.startTime),
+        aiCtx.timezone,
+        DISPLAY_TIME
+      );
       const userPrompt = [
         `Event: "${firstEvent.title}"`,
         `Time: ${eventTime}`,
