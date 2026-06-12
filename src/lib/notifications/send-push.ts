@@ -125,9 +125,15 @@ export async function sendPushToUser(
     } catch (err: unknown) {
       const e = err as { statusCode?: number; body?: string; message?: string };
       if (e.statusCode === 410 || e.statusCode === 404) {
-        // Subscription expired — clean up
+        // Subscription rotated/expired — prune the dead endpoint so the cron
+        // stops spraying a corpse. The client (pushsubscriptionchange + the
+        // PushAutoHeal app-load reconcile) re-subscribes a fresh one. Logged
+        // with a stable "[Push] prune" prefix so rotation frequency is greppable
+        // in Vercel logs (feeds the "notifications table fate" patch).
         await deletePushSubscription(userId, sub.endpoint);
-        console.log(`[Push] Removed expired subscription for ${userId}`);
+        console.warn(
+          `[Push] prune: removed dead subscription status=${e.statusCode} userId=${userId} endpoint=${sub.endpoint}`
+        );
       } else {
         console.error(`[Push] Failed to send to ${userId}: status=${e.statusCode} body=${e.body} msg=${e.message}`);
       }

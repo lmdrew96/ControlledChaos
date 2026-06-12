@@ -175,3 +175,58 @@ self.addEventListener("notificationclick", (event) => {
       })
   );
 });
+
+// VAPID public key is build-time env the app inlines, but this static SW file
+// can't read process.env — so we decode it the same way the client does.
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// The browser fires pushsubscriptionchange at the exact moment it rotates or
+// invalidates the push subscription — the precise moment delivery would
+// otherwise silently break. Re-subscribe and sync the fresh subscription to the
+// server so notifications resume with no manual toggle. The app-load reconcile
+// (PushAutoHeal) is the safety net for browsers that never fire this event.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        // Some browsers hand us the replacement subscription directly.
+        let sub = event.newSubscription;
+        if (!sub) {
+          const res = await fetch("/api/notifications/vapid-key");
+          if (!res.ok) throw new Error(`vapid-key fetch failed: ${res.status}`);
+          const { key } = await res.json();
+          if (!key) throw new Error("vapid-key response missing key");
+          sub = await self.registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(key),
+          });
+        }
+
+        const json = sub.toJSON();
+        // Same-origin fetch carries the Clerk session cookie, so this is
+        // authenticated as the logged-in user. Reuses the idempotent subscribe
+        // endpoint (upserts on userId+endpoint).
+        await fetch("/api/notifications/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: json.endpoint,
+            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+          }),
+        });
+      } catch (err) {
+        // Best-effort — PushAutoHeal recovers on the next authenticated load.
+        console.error("[SW] pushsubscriptionchange resync failed:", err);
+      }
+    })()
+  );
+});
