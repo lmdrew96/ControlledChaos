@@ -67,17 +67,35 @@
 :root {
   --radius: 0.625rem;
 
-  /* ── ADHDesigns brand tokens ── */
-  --adhd-lavender: #DBD5E2;
-  --adhd-bg:       #F7F5FA;
-  --adhd-dark:     #1E1830;
-  --adhd-purple:   #88739E;
-  --adhd-amber:    #DFA649;
-  --adhd-olive:    #849440;
-  --adhd-sage:     #8CBDB9;
-  --adhd-teal:     #244952;
-  --adhd-green:    #97D181;
-  --adhd-clay:     #C04A3D;
+  /* ── ADHDesigns brand tokens — ControlledChaos-only sunset palette ── */
+  /* Values swapped from the shared ADHDesigns brand palette (see global
+     CLAUDE.md) to the sunset-palette.png set below. Token NAMES are kept
+     as-is (~15 components reference the adhd-prefixed utility classes
+     directly) — only the underlying hex values changed, so this is scoped
+     to ControlledChaos and doesn't touch any other ADHDesigns app.
+
+       plum #5F4D75 · lavender #9378A1 · coral #FF5675 · peach #FBA09B
+       deep-purple #433358 · indigo #16131A · salmon #FF9295
+       light-peach #FFC7AC · dark-plum #45294F · rose #DE4A6C
+
+     No true light-neutral or green exists in this set (verified via WCAG
+     contrast check). --adhd-bg is synthesized (white + a peach tint)
+     since nothing in the palette is light enough alone to serve as a
+     comfortable reading background. --adhd-clay/amber (destructive/
+     accent) use rose/coral, which fail AA-normal as light text on white
+     (down to ~2.1:1) — they're paired with --adhd-dark text everywhere,
+     never light text, which is why --destructive-foreground below points
+     at --adhd-dark instead of --adhd-bg like the old brand palette did. */
+  --adhd-lavender: #9378A1;
+  --adhd-bg:       color-mix(in srgb, white 96%, #FBA09B);
+  --adhd-dark:     #16131A;
+  --adhd-purple:   #5F4D75;
+  --adhd-amber:    #FF5675;
+  --adhd-olive:    #45294F;
+  --adhd-sage:     #FF9295;
+  --adhd-teal:     #433358;
+  --adhd-green:    #FFC7AC;
+  --adhd-clay:     #DE4A6C;
 
   /* ── shadcn semantic mapping — paper mode ── */
   /* Page = off-white. Card = warm paper that lifts off the page.
@@ -97,7 +115,7 @@
   --accent:                 var(--adhd-purple);
   --accent-foreground:      var(--adhd-bg);
   --destructive:            var(--adhd-clay);
-  --destructive-foreground: var(--adhd-bg);
+  --destructive-foreground: var(--adhd-dark);
   --border:                 color-mix(in srgb, var(--adhd-dark) 10%, transparent);
   --input:                  color-mix(in srgb, var(--adhd-dark) 8%, transparent);
   --ring:                   var(--adhd-purple);
@@ -139,7 +157,7 @@
   --accent:                 var(--adhd-amber);
   --accent-foreground:      var(--adhd-dark);
   --destructive:            var(--adhd-clay);
-  --destructive-foreground: var(--adhd-bg);
+  --destructive-foreground: var(--adhd-dark);
   --border:                 color-mix(in srgb, var(--adhd-bg) 12%, transparent);
   --input:                  color-mix(in srgb, var(--adhd-bg) 15%, transparent);
   --ring:                   var(--adhd-amber);
@@ -149,7 +167,7 @@
   --warning:                var(--adhd-amber);
   --warning-foreground:     var(--adhd-dark);
 
-  --sidebar:                      #0F0B1C;
+  --sidebar:                      var(--adhd-dark);
   --sidebar-foreground:           var(--adhd-bg);
   --sidebar-primary:              var(--adhd-amber);
   --sidebar-primary-foreground:   var(--adhd-dark);
