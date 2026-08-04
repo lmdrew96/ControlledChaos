@@ -121,11 +121,6 @@ function describe(
         snippet: entry.note,
       };
     }
-    case "med":
-      return {
-        label: entry.medicationName,
-        snippet: entry.dosage,
-      };
   }
 }
 

@@ -154,8 +154,6 @@ export function formatMirrorEntry(
       const note = entry.note ? ` — ${entry.note}` : "";
       return `✨ ${when} — **Moment**: ${entry.type}${intensity}${note}`;
     }
-    case "med":
-      return `💊 ${when} — **Medication**: ${entry.medicationName} (${entry.dosage})`;
     default:
       return `${when} — ${JSON.stringify(entry)}`;
   }

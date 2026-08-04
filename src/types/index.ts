@@ -135,8 +135,7 @@ export type RecapKind =
   | "event"
   | "dump"
   | "journal"
-  | "moment"
-  | "med";
+  | "moment";
 
 interface RecapEntryBase {
   id: string;
@@ -173,11 +172,6 @@ export type RecapEntry =
       type: MomentType;
       intensity: number | null;
       note: string | null;
-    })
-  | (RecapEntryBase & {
-      kind: "med";
-      medicationName: string;
-      dosage: string;
     });
 
 // ============================================================
@@ -443,32 +437,4 @@ export interface CrisisDetectionStatus {
   requiredMinutes?: number;
   crisisPlanId?: string | null;
   stale?: boolean;
-}
-
-// ============================================================
-// Medication Types
-// ============================================================
-export type MedicationSchedule =
-  | { type: "daily" }
-  | { type: "interval"; everyDays: number; startDate: string }
-  | { type: "weekly"; daysOfWeek: number[] };
-
-export interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  notes: string | null;
-  reminderTimes: string[]; // ["09:00", "21:00"]
-  schedule: MedicationSchedule;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MedicationLog {
-  id: string;
-  medicationId: string;
-  scheduledDate: string; // "2026-04-14"
-  scheduledTime: string; // "09:00"
-  takenAt: string;
 }

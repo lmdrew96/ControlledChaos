@@ -66,9 +66,6 @@ self.addEventListener("push", (event) => {
       url: payload.url || "/dashboard",
       userId: payload.userId,
       recipientUserId: payload.recipientUserId,
-      medicationId: payload.medicationId,
-      medicationIds: payload.medicationIds,
-      scheduledTime: payload.scheduledTime,
       taskId: payload.taskId,
       tag: payload.tag,
       title: payload.title,
@@ -90,7 +87,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const { url, userId, recipientUserId, medicationId, medicationIds, scheduledTime, taskId, tag, title, body, locationName } = event.notification.data || {};
+  const { url, userId, recipientUserId, taskId, tag, title, body, locationName } = event.notification.data || {};
   const action = event.action;
 
   // Snooze: call the API to queue a re-send in 30 min, no navigation
@@ -101,35 +98,6 @@ self.addEventListener("notificationclick", (event) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, title, body, url, tag, minutes: 30 }),
       }).catch(console.error)
-    );
-    return;
-  }
-
-  // Medication taken: log the dose(s), no navigation.
-  // Supports both single (medicationId) and bundled (medicationIds[]) payloads.
-  if (action === "med_taken" && userId) {
-    const ids = Array.isArray(medicationIds) && medicationIds.length > 0
-      ? medicationIds
-      : (medicationId ? [medicationId] : []);
-    if (ids.length === 0) return;
-
-    const scheduledDate = new Date().toISOString().slice(0, 10);
-    const time = scheduledTime || "00:00";
-    event.waitUntil(
-      Promise.all(
-        ids.map((id) =>
-          fetch("/api/medications/taken", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId,
-              medicationId: id,
-              scheduledDate,
-              scheduledTime: time,
-            }),
-          }).catch(console.error)
-        )
-      )
     );
     return;
   }

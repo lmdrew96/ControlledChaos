@@ -14,7 +14,6 @@ import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
-import { MedicationSettings } from "./medication-settings";
 
 interface SettingEntry {
   id: string;
@@ -103,13 +102,6 @@ const GROUPS: SettingGroup[] = [
         keywords: "panic emergency safety triggers detect support",
         render: () => <CrisisDetectionSettings />,
       },
-      {
-        id: "medications",
-        title: "Medications",
-        keywords: "meds pills schedule reminder dose",
-        render: () => <MedicationSettings />,
-        bare: true,
-      },
     ],
   },
 ];
@@ -145,7 +137,6 @@ export function SettingsTabs() {
       locations: "locations",
       notifications: "notifications",
       "crisis-detection": "crisis-detection",
-      medications: "medications",
     };
     const anchor = TAB_TO_ANCHOR[tab];
     const params = new URLSearchParams(searchParams.toString());
@@ -196,7 +187,7 @@ export function SettingsTabs() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search settings — e.g. 'celebration', 'timezone', 'medication'"
+            placeholder="Search settings — e.g. 'celebration', 'timezone', 'notifications'"
             aria-label="Search settings"
             className="h-10 pl-9 pr-9"
           />

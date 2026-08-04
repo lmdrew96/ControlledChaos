@@ -43,21 +43,12 @@ export interface MomentRow {
   occurredAt: Date;
 }
 
-export interface MedLogRow {
-  id: string;
-  medicationId: string;
-  takenAt: Date;
-}
-
 export interface AssembleInput {
   tasks: TaskRow[];
   events: EventRow[];
   dumps: DumpRow[];
   journal: DumpRow[];
   moments: MomentRow[];
-  medLogs: MedLogRow[];
-  /** medication_id → { name, dosage } */
-  medLookup: Map<string, { name: string; dosage: string }>;
   /** Optional kind filter. When omitted, all kinds are included. */
   typeFilters?: RecapKind[];
 }
@@ -134,20 +125,6 @@ export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
         type: m.type as MomentType,
         intensity: m.intensity,
         note: m.note,
-      });
-    }
-  }
-
-  if (want("med")) {
-    for (const log of input.medLogs) {
-      const med = input.medLookup.get(log.medicationId);
-      if (!med) continue; // skip orphaned logs (shouldn't happen, but safe)
-      entries.push({
-        kind: "med",
-        id: log.id,
-        at: log.takenAt.toISOString(),
-        medicationName: med.name,
-        dosage: med.dosage,
       });
     }
   }

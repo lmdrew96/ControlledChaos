@@ -10,7 +10,6 @@ const VALID_KINDS: RecapKind[] = [
   "dump",
   "journal",
   "moment",
-  "med",
 ];
 
 function parseKinds(raw: string | null): RecapKind[] | undefined {
@@ -63,7 +62,7 @@ export async function GET(request: Request) {
     const { start, end } = dayWindow(dateRaw, timezone);
     const kinds = parseKinds(typesRaw);
 
-    const entries = await getRecapDay(userId, start, end, dateRaw, kinds);
+    const entries = await getRecapDay(userId, start, end, kinds);
 
     return NextResponse.json({
       date: dateRaw,

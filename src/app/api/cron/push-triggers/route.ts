@@ -26,7 +26,6 @@ import {
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTaskTitle,
-  getMedicationRemindersForWindow,
 } from "@/lib/notifications/triggers";
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
@@ -54,25 +53,6 @@ const MISSED_TASK_ACTIONS = [
   { action: "start_task", title: "▶ Start now" },
   { action: "snooze", title: "⏰ Snooze 30 min" },
 ];
-
-const MED_ACTIONS = [
-  { action: "med_taken", title: "✓ Taken" },
-  { action: "snooze", title: "⏰ Snooze 30 min" },
-];
-
-const BUNDLED_MED_ACTIONS = [
-  { action: "med_taken", title: "✓ All Taken" },
-  { action: "snooze", title: "⏰ Snooze 30 min" },
-];
-
-function formatMedBundleBody(
-  meds: { medicationName: string; dosage: string }[]
-): string {
-  const items = meds.map((m) => `${m.medicationName} (${m.dosage})`);
-  if (items.length === 2) return `Time for ${items[0]} and ${items[1]}`;
-  const allButLast = items.slice(0, -1).join(", ");
-  return `Time for ${allButLast}, and ${items[items.length - 1]}`;
-}
 
 const EVENT_ACTIONS = [
   { action: "see_calendar", title: "📅 View" },
@@ -281,61 +261,6 @@ async function processUser(user: PushUser): Promise<number> {
       bypassQuietHours: alert.level === "now",
     });
     if (sent) markSent();
-  }
-
-  // --- Medication Reminders (bundle meds scheduled at the same time slot) ---
-  const medReminders = await getMedicationRemindersForWindow(userId, timezone);
-  const todayStr = todayInTimezone(timezone);
-
-  // Filter out reminders already covered today by either a per-med send or
-  // a bundle covering this slot.
-  const dueMeds: typeof medReminders = [];
-  for (const med of medReminders) {
-    const perMedKey = `med-${med.medicationId}-${med.timeSlot}`;
-    const bundleKey = `med-bundle-${med.timeSlot}-${todayStr}`;
-    if (await hasBeenNotifiedToday(userId, perMedKey, timezone)) continue;
-    if (await hasBeenNotifiedToday(userId, bundleKey, timezone)) continue;
-    dueMeds.push(med);
-  }
-
-  const bySlot = new Map<string, typeof medReminders>();
-  for (const med of dueMeds) {
-    const arr = bySlot.get(med.timeSlot) ?? [];
-    arr.push(med);
-    bySlot.set(med.timeSlot, arr);
-  }
-
-  for (const [timeSlot, meds] of bySlot) {
-    if (!canSend("normal")) continue;
-
-    if (meds.length === 1) {
-      const med = meds[0];
-      const sent = await sendPushToUser(userId, {
-        title: "Medication Reminder",
-        body: `Time for ${med.medicationName} (${med.dosage})`,
-        url: "/settings?tab=medications",
-        tag: `med-${med.medicationId}-${timeSlot}`,
-        userId,
-        medicationId: med.medicationId,
-        scheduledTime: timeSlot,
-        actions: MED_ACTIONS,
-        bypassQuietHours: true,
-      });
-      if (sent) markSent();
-    } else {
-      const sent = await sendPushToUser(userId, {
-        title: "Medication Reminder",
-        body: formatMedBundleBody(meds),
-        url: "/settings?tab=medications",
-        tag: `med-bundle-${timeSlot}-${todayStr}`,
-        userId,
-        medicationIds: meds.map((m) => m.medicationId),
-        scheduledTime: timeSlot,
-        actions: BUNDLED_MED_ACTIONS,
-        bypassQuietHours: true,
-      });
-      if (sent) markSent();
-    }
   }
 
   // --- Daily Idle Check-in (at most one per day, in user's chosen window) ---

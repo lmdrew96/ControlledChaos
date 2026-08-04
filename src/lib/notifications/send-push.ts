@@ -25,13 +25,6 @@ interface PushPayload {
   userId?: string;
   /** The recipient's userId — used by nudge_back so the SW knows who is sending the return nudge. */
   recipientUserId?: string;
-  /** Medication ID — used by the SW med_taken action to log the dose. */
-  medicationId?: string;
-  /** Multiple medication IDs — used by the SW med_taken action when bundling
-   *  several meds scheduled at the same time slot into one notification. */
-  medicationIds?: string[];
-  /** Scheduled time slot (HH:MM) — used alongside medicationId for logging. */
-  scheduledTime?: string;
   /** Action buttons shown on the notification (Android Chrome / desktop Chrome). */
   actions?: PushAction[];
 }
@@ -101,9 +94,6 @@ export async function sendPushToUser(
     taskId: payload.taskId,
     userId: payload.userId,
     recipientUserId: payload.recipientUserId,
-    medicationId: payload.medicationId,
-    medicationIds: payload.medicationIds,
-    scheduledTime: payload.scheduledTime,
     actions: payload.actions ?? [],
   });
 

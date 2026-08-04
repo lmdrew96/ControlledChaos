@@ -43,6 +43,13 @@
       "when": 1785858050207,
       "tag": "0005_glossy_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785858747621,
+      "tag": "0006_silky_carmella_unuscione",
+      "breakpoints": true
     }
   ]
 }

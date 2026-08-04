@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 ## Tools Available
 
-34 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
+32 tools across 8 feature areas. All scope automatically to your `CC_USER_ID`.
 
 ### Tasks (6)
 | Tool | What it does |
@@ -50,16 +50,6 @@ Daily repeating prompts — small actions you want to track, separate from tasks
 | `cc_uncomplete_microtask` | Undo today's completion of a microtask |
 | `cc_deactivate_microtask` | Soft-deactivate a microtask (preserves history) |
 
-### Medications (4)
-Medications themselves are created in the app UI — these tools log doses against existing definitions.
-
-| Tool | What it does |
-|---|---|
-| `cc_list_medications` | List your medication definitions (read-only) |
-| `cc_list_meds` | List recent medication dose logs |
-| `cc_log_med` | Log a dose taken (tied to a scheduled slot via medication + date + time) |
-| `cc_delete_med` | Delete a logged dose |
-
 ### Moments (4)
 Lightweight one-tap behavioral state logs — energy, focus, sleep, tough moments.
 
@@ -81,7 +71,7 @@ Junk-journal entries — longer-form reflective writing, separate from task brai
 ### Daily Recap & Stats (2)
 | Tool | What it does |
 |---|---|
-| `cc_get_mirror_day` | Read a single day's chronological timeline (tasks, events, dumps, journals, moments, meds) in the user's timezone |
+| `cc_get_mirror_day` | Read a single day's chronological timeline (tasks, events, dumps, journals, moments) in the user's timezone |
 | `cc_get_daily_stats` | Today's productivity snapshot |
 
 > **Note:** `cc_get_mirror_day` keeps the legacy "mirror" name even though the user-facing surface was renamed to "Daily Recap" in v2.4.15 — preserves backward-compat with existing Claude Desktop / claude.ai connections.

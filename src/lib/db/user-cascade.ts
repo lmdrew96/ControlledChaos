@@ -34,8 +34,6 @@ export const USER_CHILD_TABLES = [
   "crisis_detections",
   "push_subscriptions",
   "snoozed_pushes",
-  "medications",
-  "medication_logs",
 ] as const;
 
 /**

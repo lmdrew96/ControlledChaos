@@ -21,8 +21,6 @@ function emptyInput(): AssembleInput {
     dumps: [],
     journal: [],
     moments: [],
-    medLogs: [],
-    medLookup: new Map(),
   };
 }
 
@@ -163,15 +161,6 @@ describe("assembleRecapEntries — edge cases", () => {
     const out = assembleRecapEntries({
       ...emptyInput(),
       tasks: [{ id: "t1", title: "Stray", category: null, completedAt: null }],
-    });
-    expect(out).toEqual([]);
-  });
-
-  it("skips medication logs whose medication isn't in the lookup", () => {
-    const out = assembleRecapEntries({
-      ...emptyInput(),
-      medLogs: [{ id: "log1", medicationId: "mystery", takenAt: T2 }],
-      medLookup: new Map(), // mystery not found
     });
     expect(out).toEqual([]);
   });

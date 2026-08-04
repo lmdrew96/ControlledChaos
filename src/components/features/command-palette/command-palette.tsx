@@ -23,7 +23,6 @@ import {
   User,
   Bell,
   MapPin,
-  Pill,
   Search,
   ArrowRight,
 } from "lucide-react";
@@ -85,7 +84,6 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "set-locations", label: "Saved Locations", anchor: "locations", icon: MapPin, keywords: "places geofence map" },
   { id: "set-commute", label: "Commute Times", anchor: "commute", icon: Clock, keywords: "travel commute drive transit" },
   { id: "set-crisis", label: "Crisis Detection", anchor: "crisis-detection", icon: Siren, keywords: "safety panic emergency" },
-  { id: "set-medications", label: "Medications", anchor: "medications", icon: Pill, keywords: "meds schedule reminders" },
 ];
 
 const RECENT_KEY = "cc-palette-recent";
