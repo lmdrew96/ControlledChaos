@@ -15,6 +15,11 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug raw response
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          curl -sS -i -X GET "https://controlledchaos.adhdesigns.dev/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
       - name: Calendar sync
         if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
