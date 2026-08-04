@@ -97,7 +97,7 @@ pnpm dev
 | `EMAIL_FROM` | From address (e.g. `ControlledChaos <digest@example.com>`) | Yes |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | VAPID public key — generate with `npx web-push generate-vapid-keys` | Yes |
 | `VAPID_PRIVATE_KEY` | VAPID private key | Yes |
-| `CRON_SECRET` | Shared secret for authenticating Vercel cron requests | Yes |
+| `CRON_SECRET` | Shared secret for authenticating cron requests (also set as a `CRON_SECRET` secret in the GitHub repo) | Yes |
 | `NEXT_PUBLIC_APP_URL` | App origin (e.g. `http://localhost:3000`) | Yes |
 
 ## Scripts
@@ -118,7 +118,8 @@ pnpm dev
 
 ## Cron Jobs
 
-Configured in `vercel.json`:
+Vercel's Hobby plan only allows daily Cron Jobs, so these run via a GitHub Actions
+scheduled workflow instead: [`.github/workflows/cron-triggers.yml`](.github/workflows/cron-triggers.yml).
 
 | Path | Schedule | Purpose |
 |---|---|---|
@@ -127,7 +128,9 @@ Configured in `vercel.json`:
 | `/api/cron/morning-digest` | Every 15 min, 06:00–16:59 UTC | Send morning digest emails |
 | `/api/cron/evening-digest` | Every 15 min, 22:00–04:59 UTC | Send evening digest emails |
 
-All cron endpoints require the `CRON_SECRET` bearer token.
+All cron endpoints require the `CRON_SECRET` bearer token, which must be set both as a
+Vercel env var and as a `CRON_SECRET` secret in the GitHub repo (Settings → Secrets and
+variables → Actions).
 
 ## Project Structure
 
@@ -163,7 +166,7 @@ docs/               # Vision, architecture, specs
 
 ## Deployment
 
-Deployed on Vercel. Pushes to `main` auto-deploy. Set every env var from the table above in the Vercel project settings. Add `vercel.json`'s cron schedule to the project (Pro plan required for scheduled cron).
+Deployed on Vercel. Pushes to `main` auto-deploy. Set every env var from the table above in the Vercel project settings. Cron scheduling runs via GitHub Actions (see [Cron Jobs](#cron-jobs)) — no Vercel Cron Jobs feature or Pro plan required.
 
 ## Documentation
 

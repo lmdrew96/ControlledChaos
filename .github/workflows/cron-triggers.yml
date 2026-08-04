@@ -1,0 +1,32 @@
+name: Cron Triggers
+
+# Replaces Vercel's Cron Jobs feature (Hobby plan only allows daily crons).
+# Hits the same endpoints on the same schedule via HTTP, authenticated with
+# the same CRON_SECRET the routes already check for.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # calendar-sync + push-triggers
+    - cron: "*/15 6-16 * * *" # morning-digest window (6am-4pm UTC)
+    - cron: "*/15 22-23,0-4 * * *" # evening-digest window (10pm-4am UTC)
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calendar sync
+        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+      - name: Push triggers
+        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+      - name: Morning digest
+        if: github.event.schedule == '*/15 6-16 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+
+      - name: Evening digest
+        if: github.event.schedule == '*/15 22-23,0-4 * * *' || github.event_name == 'workflow_dispatch'
+        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
