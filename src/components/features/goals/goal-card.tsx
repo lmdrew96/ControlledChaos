@@ -106,7 +106,7 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
     <>
       <Card
         className={cn(
-          "p-4 transition-colors",
+          "ticket-row p-4 transition-colors",
           goal.status === "completed" && "opacity-60",
           goal.status === "paused" && "opacity-75"
         )}

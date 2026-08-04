@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 interface Stats {
   completedToday: number;
@@ -82,13 +83,13 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
           );
         })}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm tabular-nums">
-          <span className="font-semibold">{stats.completedToday}</span>
-          <span className="text-muted-foreground"> today · </span>
-          <span className="font-semibold">{stats.completedThisWeek}</span>
-          <span className="text-muted-foreground"> this week</span>
-        </p>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+        <Badge variant="sticky" className="-rotate-2 tabular-nums">
+          {stats.completedToday} today
+        </Badge>
+        <Badge variant="sticky" className="rotate-1 bg-adhd-lavender tabular-nums">
+          {stats.completedThisWeek} this week
+        </Badge>
       </div>
     </button>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getHourInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { Squiggle } from "@/components/ui/squiggle";
 
 function getGreeting(hour: number): { text: string; emoji: string } {
   if (hour < 5) return { text: "Still up?", emoji: "moon" };
@@ -23,10 +24,11 @@ export function Greeting() {
   if (hour === null) {
     return (
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className="relative inline-block text-2xl font-bold tracking-tight sm:text-3xl">
           Dashboard
+          <Squiggle className="absolute -bottom-1 left-0 h-2.5 w-full" />
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           Your brain has the ideas. I&apos;ll handle the rest.
         </p>
       </div>
@@ -37,10 +39,11 @@ export function Greeting() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+      <h1 className="relative inline-block text-2xl font-bold tracking-tight sm:text-3xl">
         <span className="greeting-gradient">{text}</span>
+        <Squiggle className="absolute -bottom-1 left-0 h-2.5 w-full" />
       </h1>
-      <p className="mt-0.5 text-sm text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         Your brain has the ideas. I&apos;ll handle the rest.
       </p>
     </div>

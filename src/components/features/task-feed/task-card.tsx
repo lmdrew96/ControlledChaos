@@ -273,7 +273,7 @@ export function TaskCard({
 
       <Card
         className={cn(
-          "relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
+          "ticket-row relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
           isCompleted && "opacity-60"
         )}
         style={{

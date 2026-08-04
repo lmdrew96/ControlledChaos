@@ -9,6 +9,7 @@ import { VoiceRecorder } from "@/components/features/brain-dump/voice-recorder";
 import { PhotoUploader } from "@/components/features/brain-dump/photo-uploader";
 import { DumpHistory } from "@/components/features/brain-dump/dump-history";
 import { JournalCompose } from "@/components/features/brain-dump/journal-compose";
+import { PageHeader } from "@/components/ui/page-header";
 import type { DumpCategory } from "@/types";
 
 type InputMode = "text" | "voice" | "photo";
@@ -25,12 +26,10 @@ export default function BrainDumpPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {category === "braindump" ? "Brain Dump" : "Junk Journal"}
-        </h1>
-        <p className="text-muted-foreground">
-          {category === "braindump" ? (
+      <PageHeader
+        title={category === "braindump" ? "Brain Dump" : "Junk Journal"}
+        description={
+          category === "braindump" ? (
             <>
               Just start{" "}
               {mode === "text"
@@ -46,9 +45,9 @@ export default function BrainDumpPage() {
               A space for longer writing — drafts, journal entries, raw thoughts.
               Saved and summarized, but not parsed for tasks or events.
             </>
-          )}
-        </p>
-      </div>
+          )
+        }
+      />
 
       {/* Category toggle */}
       <div className="flex items-center gap-2">

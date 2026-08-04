@@ -18,6 +18,7 @@ import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { WashiTape } from "@/components/ui/washi-tape";
 import {
   priorityConfig,
   energyConfig,
@@ -83,16 +84,18 @@ export function RecommendationCard({
 
   return (
     <div className="space-y-3">
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="space-y-4 p-6">
+      <div className="relative">
+        <WashiTape className="left-6 top-[-14px]" />
+        <Card className="torn-card border-primary/15 bg-primary/5 pt-8">
+          <CardContent className="space-y-4 p-6 pt-0">
           {/* Header */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Logo className="h-4 w-4" />
-            <span className="font-medium">Do this next</span>
-          </div>
+          <Badge variant="sticky" className="-rotate-1 gap-1.5 bg-primary text-primary-foreground">
+            <Logo className="h-3.5 w-3.5" />
+            Do this next
+          </Badge>
 
           {/* Task title */}
-          <h3 className="text-lg font-semibold leading-snug">{task.title}</h3>
+          <h3 className="font-serif text-lg font-semibold leading-snug">{task.title}</h3>
 
           {/* AI reasoning */}
           <p className="text-sm text-muted-foreground break-words">{reasoning}</p>
@@ -169,6 +172,7 @@ export function RecommendationCard({
               onClick={() => onAccept(task.id)}
               disabled={isRefreshing}
               size="sm"
+              className="shadow-[2px_2px_0_var(--adhd-teal)] transition-[transform,box-shadow] hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_var(--adhd-teal)]"
             >
               {isRefreshing ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -205,8 +209,9 @@ export function RecommendationCard({
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Alternatives */}
       {showAlternatives && (

@@ -183,6 +183,12 @@
   }
   body {
     @apply bg-background text-foreground leading-relaxed;
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--foreground) 6%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
   }
 
   h1, h2, h3 {
@@ -239,13 +245,50 @@
 /* ---- Dashboard: time anchor bar ---- */
 .time-anchor-bar {
   border-radius: 0.75rem;
-  border: 1px solid var(--border);
+  border: 1px dashed var(--border);
   background: var(--card);
 }
 
 .dark .time-anchor-bar {
   border-color: var(--border);
   background: var(--card);
+}
+
+/* ---- Signature device: torn-paper top edge ----
+   Emphasis surfaces only (hero recommendation, empty states) — not every
+   card, or the texture flattens back into noise. Percentages stay within
+   0–5% of height so short cards never clip content. */
+.torn-card {
+  clip-path: polygon(
+    0% 3%, 6% 0%, 13% 2.4%, 21% 0.3%, 29% 2.6%, 38% 0%, 47% 2.2%,
+    56% 0.4%, 65% 2.5%, 74% 0.2%, 83% 2.3%, 92% 0%, 100% 1.8%,
+    100% 100%, 0% 100%
+  );
+}
+
+/* ---- Signature device: ticket-stub row ----
+   List rows (tasks, microtasks). Dashed perforation reads as "tear off
+   when done" — pairs with a strikethrough on completion, never color alone. */
+.ticket-row {
+  border-left: 3px dashed var(--adhd-clay) !important;
+  border-radius: 0 0.75rem 0.75rem 0 !important;
+}
+
+/* ---- Signature device: highlighter-marker nav state ----
+   Fixed position/skew every time — replaces the flat active pill without
+   introducing per-render randomness. */
+.nav-marker {
+  position: relative;
+  z-index: 0;
+}
+.nav-marker::before {
+  content: "";
+  position: absolute;
+  inset: 6% 2%;
+  background: color-mix(in srgb, var(--adhd-sage) 55%, transparent);
+  transform: rotate(-1.4deg) skewX(-6deg);
+  z-index: -1;
+  border-radius: 3px 9px 3px 9px;
 }
 
 /* ---- Dashboard: day progress fill ---- */

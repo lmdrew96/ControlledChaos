@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { WeekView } from "@/components/features/calendar/week-view";
 import { AgendaView } from "@/components/features/calendar/agenda-view";
 import { MonthView } from "@/components/features/calendar/month-view";
+import { PageHeader } from "@/components/ui/page-header";
 import type { CalendarColors } from "@/types";
 
 type CalendarView = "week" | "month";
@@ -44,31 +45,27 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Calendar</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Your schedule — Canvas, AI blocks, and manual events.
-          </p>
-        </div>
-
-        {/* View toggle */}
-        <div className="flex w-full items-center gap-0.5 rounded-lg border border-border/50 bg-muted/50 p-0.5 sm:w-auto">
-          {(["week", "month"] as CalendarView[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`flex-1 rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-all sm:flex-none ${
-                view === v
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Calendar"
+        description="Your schedule — Canvas, AI blocks, and manual events."
+        action={
+          <div className="flex w-full items-center gap-0.5 rounded-lg border border-border/50 bg-muted/50 p-0.5 sm:w-auto">
+            {(["week", "month"] as CalendarView[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`flex-1 rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-all sm:flex-none ${
+                  view === v
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {view === "week" ? (
         <>

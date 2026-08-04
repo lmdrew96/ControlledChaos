@@ -8,6 +8,8 @@ import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { WashiTape } from "@/components/ui/washi-tape";
 import { CrisisIntakeForm } from "@/components/features/crisis/crisis-intake-form";
 import { CrisisWarRoom } from "@/components/features/crisis/crisis-war-room";
 import { CrisisStrategyPicker } from "@/components/features/crisis/crisis-strategy-picker";
@@ -434,23 +436,21 @@ export default function CrisisPage() {
   if (phase === "intake") {
     return (
       <div className="mx-auto max-w-lg space-y-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Crisis Mode</h1>
-            <p className="mt-1 text-muted-foreground">
-              Behind on something? Let&apos;s figure out a path forward.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={() => setPhase("dashboard")}
-          >
-            <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-            Back
-          </Button>
-        </div>
+        <PageHeader
+          title="Crisis Mode"
+          description="Behind on something? Let's figure out a path forward."
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setPhase("dashboard")}
+            >
+              <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+              Back
+            </Button>
+          }
+        />
 
         {/* Show explainer if detection is active but no plans yet */}
         {detectionStatus?.active && (
@@ -501,18 +501,16 @@ export default function CrisisPage() {
   // -------------------------------------------------------
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Crisis Mode</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {plans.length} active session{plans.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Button size="sm" onClick={handleOpenIntakeFresh}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          New session
-        </Button>
-      </div>
+      <PageHeader
+        title="Crisis Mode"
+        description={`${plans.length} active session${plans.length !== 1 ? "s" : ""}`}
+        action={
+          <Button size="sm" onClick={handleOpenIntakeFresh}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            New session
+          </Button>
+        }
+      />
 
       {/* First-time crisis detection explainer */}
       {detectionStatus?.active && (
@@ -534,8 +532,13 @@ export default function CrisisPage() {
 
       {/* Auto-triage proposal banner */}
       {hasAutoProposal && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4 space-y-2">
+        <div className="relative">
+          <WashiTape className="left-6 top-[-14px]" />
+          <Card className="torn-card border-primary/20 bg-primary/5 pt-8">
+          <CardContent className="p-4 pt-0 space-y-2">
+            <Badge variant="sticky" className="-rotate-1 bg-primary text-primary-foreground">
+              ✦ Collision course
+            </Badge>
             <p className="text-sm font-medium">
               {detectionStatus.involvedTaskNames?.join(" and ")} are on a collision course.
             </p>
@@ -568,7 +571,8 @@ export default function CrisisPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {/* Active plans */}

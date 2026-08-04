@@ -125,7 +125,7 @@ export function DumpHistory() {
             <button
               key={dump.id}
               onClick={() => setExpandedId(isExpanded ? null : dump.id)}
-              className="w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+              className="ticket-row w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0">

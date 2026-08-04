@@ -28,7 +28,7 @@ export function RecapEntryRow({ entry, timezone }: RecapEntryRowProps) {
   const content = (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
+        "ticket-row flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
         meta.tintClassName,
         href && "hover:brightness-110"
       )}

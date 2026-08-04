@@ -9,6 +9,7 @@ import { RecapFilterPills } from "@/components/features/recap/recap-filter-pills
 import { RecapTimeline } from "@/components/features/recap/recap-timeline";
 import { MomentsRecapWidget } from "@/components/features/moments/moments-recap-widget";
 import { useTimezone } from "@/hooks/use-timezone";
+import { PageHeader } from "@/components/ui/page-header";
 
 function todayInTz(timezone: string): string {
   // en-CA gives YYYY-MM-DD directly
@@ -107,12 +108,10 @@ export default function RecapPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Daily Recap</h1>
-        <p className="text-muted-foreground">
-          What actually happened. Scroll a day, not a feed.
-        </p>
-      </div>
+      <PageHeader
+        title="Daily Recap"
+        description="What actually happened. Scroll a day, not a feed."
+      />
 
       <RecapDayNav
         date={date}

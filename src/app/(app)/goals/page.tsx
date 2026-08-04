@@ -1,14 +1,13 @@
 import { GoalList } from "@/components/features/goals/goal-list";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function GoalsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Goals</h1>
-        <p className="text-muted-foreground">
-          The bigger picture behind the daily chaos.
-        </p>
-      </div>
+      <PageHeader
+        title="Goals"
+        description="The bigger picture behind the daily chaos."
+      />
 
       <GoalList />
     </div>

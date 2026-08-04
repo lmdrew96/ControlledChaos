@@ -296,7 +296,7 @@ function MicrotaskRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-border/40 bg-card/50 px-3 py-2.5",
+        "ticket-row flex items-center gap-3 rounded-xl border border-border/40 bg-card/50 px-3 py-2.5",
         muted && "opacity-60"
       )}
     >
