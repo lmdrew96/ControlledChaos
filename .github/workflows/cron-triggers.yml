@@ -17,16 +17,20 @@ jobs:
     steps:
       - name: Calendar sync
         if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
-        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        run: |
+          curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Push triggers
         if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
-        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        run: |
+          curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Morning digest
         if: github.event.schedule == '*/15 6-16 * * *' || github.event_name == 'workflow_dispatch'
-        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        run: |
+          curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Evening digest
         if: github.event.schedule == '*/15 22-23,0-4 * * *' || github.event_name == 'workflow_dispatch'
-        run: curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+        run: |
+          curl -fsS -X GET "https://controlledchaos.adhdesigns.dev/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
