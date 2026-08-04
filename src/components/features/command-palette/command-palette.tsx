@@ -24,7 +24,6 @@ import {
   Bell,
   MapPin,
   Pill,
-  Users,
   Search,
   ArrowRight,
 } from "lucide-react";
@@ -72,7 +71,6 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nav-calendar", label: "Calendar", href: "/calendar", icon: Calendar, keywords: "schedule events" },
   { id: "nav-recap", label: "Daily Recap", href: "/recap", icon: Clock, keywords: "mirror journal day review" },
   { id: "nav-journal", label: "Journal", href: "/journal", icon: BookOpen, keywords: "writing notes" },
-  { id: "nav-friends", label: "Friends", href: "/friends", icon: Users, keywords: "social parallel play rooms body double nudge" },
   { id: "nav-settings", label: "Settings", href: "/settings", icon: Settings, keywords: "preferences config" },
   { id: "nav-crisis", label: "Crisis Mode", href: "/crisis", icon: Siren, keywords: "panic emergency support" },
 ];

@@ -138,12 +138,6 @@ export function SettingsTabs() {
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (!tab) return;
-    // Friends + Parallel Play moved to the top-level /friends route. Redirect
-    // any legacy deep-links (older notifications, room join errors) there.
-    if (tab === "friends" || tab === "rooms") {
-      router.replace("/friends", { scroll: false });
-      return;
-    }
     const TAB_TO_ANCHOR: Record<string, string> = {
       profile: "display-name",
       "ai-energy": "ai-personality",

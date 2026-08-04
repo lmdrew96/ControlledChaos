@@ -36,20 +36,13 @@ export const USER_CHILD_TABLES = [
   "snoozed_pushes",
   "medications",
   "medication_logs",
-  "room_members",
 ] as const;
 
 /**
  * Tables with non-standard user-reference columns (not named user_id).
  * Each entry is [table, column].
  */
-export const USER_SPECIAL_COLUMNS: ReadonlyArray<readonly [string, string]> = [
-  ["friendships", "requester_id"],
-  ["friendships", "addressee_id"],
-  ["nudges", "sender_id"],
-  ["nudges", "recipient_id"],
-  ["rooms", "owner_id"],
-];
+export const USER_SPECIAL_COLUMNS: ReadonlyArray<readonly [string, string]> = [];
 
 export interface RepointOptions {
   /**

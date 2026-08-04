@@ -12,7 +12,5 @@ export * from "./calendar";
 export * from "./locations";
 export * from "./notifications";
 export * from "./crisis";
-export * from "./friends";
 export * from "./medications";
 export * from "./microtasks";
-export * from "./rooms";

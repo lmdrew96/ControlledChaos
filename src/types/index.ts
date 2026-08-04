@@ -22,8 +22,6 @@ export interface Task {
   currentStepIndex: number;
   goalId: string | null;
   sortOrder?: number | null;
-  /** Parallel-play visibility tier — controls what room presence broadcasts when this task is active. */
-  roomVisibility?: "none" | "category" | "title";
   createdAt: string;
   updatedAt: string;
 }
@@ -473,34 +471,4 @@ export interface MedicationLog {
   scheduledDate: string; // "2026-04-14"
   scheduledTime: string; // "09:00"
   takenAt: string;
-}
-
-// ============================================================
-// Friend & Nudge Types
-// ============================================================
-export type FriendshipStatus = "pending" | "accepted" | "declined";
-
-export interface FriendWithProfile {
-  friendshipId: string;
-  friendId: string;
-  displayName: string | null;
-  email: string;
-}
-
-export interface PendingRequest {
-  friendshipId: string;
-  requesterId: string;
-  displayName: string | null;
-  email: string;
-  createdAt: string;
-}
-
-export interface Nudge {
-  id: string;
-  senderId: string;
-  recipientId: string;
-  category: TaskCategory;
-  message: string;
-  sentAt: string;
-  senderDisplayName?: string;
 }

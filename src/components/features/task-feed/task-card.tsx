@@ -37,7 +37,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useParallelPlaySync } from "@/hooks/use-parallel-play-sync";
 import type { Task, ProgressStep } from "@/types";
 import { priorityConfig } from "./task-config";
 
@@ -60,7 +59,6 @@ export function TaskCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [localStepIndex, setLocalStepIndex] = useState(task.currentStepIndex ?? 0);
   const [isAdvancingStep, setIsAdvancingStep] = useState(false);
-  const { syncTaskComplete } = useParallelPlaySync();
 
   useEffect(() => {
     setLocalStepIndex(task.currentStepIndex ?? 0);
@@ -152,7 +150,6 @@ export function TaskCard({
         if (action === "complete") {
           toast.success(`'${task.title}' marked complete`);
           fireTaskConfetti();
-          void syncTaskComplete();
         }
       }
       onUpdate();
@@ -230,7 +227,6 @@ export function TaskCard({
       });
       if (isLast) {
         toast.success("All steps done — task completed!");
-        void syncTaskComplete();
       }
       onUpdate();
     } catch {
@@ -238,7 +234,7 @@ export function TaskCard({
     } finally {
       setIsAdvancingStep(false);
     }
-  }, [steps, localStepIndex, task.id, onUpdate, syncTaskComplete]);
+  }, [steps, localStepIndex, task.id, onUpdate]);
 
   const isSwipingLeft = swipeOffset < -20;
   const isSwipingRight = swipeOffset > 20;

@@ -20,7 +20,6 @@ export async function createTask(
     deadline?: Date | null;
     goalId?: string | null;
     sourceEventId?: string | null;
-    roomVisibility?: "none" | "category" | "title";
   }
 ) {
   const [task] = await db
@@ -37,7 +36,6 @@ export async function createTask(
       deadline: params.deadline ?? null,
       goalId: params.goalId ?? null,
       sourceEventId: params.sourceEventId ?? null,
-      ...(params.roomVisibility ? { roomVisibility: params.roomVisibility } : {}),
     })
     .returning();
   return task;
@@ -130,7 +128,6 @@ export async function updateTask(
     currentStepIndex: number;
     sortOrder: number | null;
     goalId: string | null;
-    roomVisibility: string;
   }>
 ) {
   const [updated] = await db

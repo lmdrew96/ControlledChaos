@@ -23,7 +23,6 @@ import {
   Repeat,
   Search,
   TrendingUp,
-  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -45,8 +44,6 @@ import {
 } from "@/components/ui/sheet";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { LegalFooter } from "@/components/layout/legal-footer";
-import { ParallelPlayToggle } from "@/components/parallel-play/ParallelPlayToggle";
-import { ParallelPlayOverlay } from "@/components/parallel-play/ParallelPlayOverlay";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -57,7 +54,6 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
-  { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -75,7 +71,6 @@ const mobileMoreItems = [
   { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/recap", label: "Daily Recap", icon: Clock },
   { href: "/journal", label: "Journal", icon: BookOpen },
-  { href: "/friends", label: "Friends", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -239,7 +234,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <UserNav />
             <div className="flex items-center gap-1">
               <NotificationBell />
-              <ParallelPlayToggle />
             </div>
           </div>
           <LegalFooter />
@@ -327,7 +321,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
 
-            <div className="grid grid-cols-3 gap-3 px-4 pt-3">
+            <div className="grid grid-cols-2 gap-3 px-4 pt-3">
               <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
                 <UserNav />
                 <span className="text-xs text-muted-foreground">Account</span>
@@ -335,10 +329,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
                 <NotificationBell />
                 <span className="text-xs text-muted-foreground">Alerts</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
-                <ParallelPlayToggle />
-                <span className="text-xs text-muted-foreground">Room</span>
               </div>
             </div>
             <div className="px-4 pt-4 pb-1 border-t border-border mt-2">
@@ -354,9 +344,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
-
-      {/* Parallel Play overlay — fixed-position, only renders when in a room AND visible */}
-      <ParallelPlayOverlay />
 
       {/* Global dialogs triggered by keyboard shortcuts */}
       <CommandPalette

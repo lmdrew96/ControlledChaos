@@ -155,7 +155,6 @@ export const tasks = pgTable(
     progressSteps: jsonb("progress_steps"), // ProgressStep[] — inline step-through for long tasks
     currentStepIndex: integer("current_step_index").default(0),
     snoozedUntil: timestamp("snoozed_until"), // set by Haiku snooze — task hidden until this time
-    roomVisibility: text("room_visibility").default("category").notNull(), // none | category | title — what parallel-play rooms see when this task is active
     deletedAt: timestamp("deleted_at"), // soft delete — null = active, set = deleted
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -502,56 +501,6 @@ export const medicationLogs = pgTable(
 );
 
 // ============================================================
-// Friendships (one row per pair: requester → addressee)
-// ============================================================
-export const friendships = pgTable(
-  "friendships",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    requesterId: text("requester_id")
-      .references(() => users.id)
-      .notNull(),
-    addresseeId: text("addressee_id")
-      .references(() => users.id)
-      .notNull(),
-    status: text("status").default("pending").notNull(), // pending | accepted | declined
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("idx_friendships_requester").on(table.requesterId),
-    index("idx_friendships_addressee").on(table.addresseeId),
-    // Bidirectional uniqueness: (A→B) and (B→A) are treated as the same pair
-    uniqueIndex("idx_friendships_pair").on(
-      sql`LEAST(${table.requesterId}, ${table.addresseeId})`,
-      sql`GREATEST(${table.requesterId}, ${table.addresseeId})`
-    ),
-  ]
-);
-
-// ============================================================
-// Nudges (friend-to-friend motivational messages by category)
-// ============================================================
-export const nudges = pgTable(
-  "nudges",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    senderId: text("sender_id")
-      .references(() => users.id)
-      .notNull(),
-    recipientId: text("recipient_id")
-      .references(() => users.id)
-      .notNull(),
-    category: text("category").notNull(), // school | work | personal | errands | health
-    message: text("message").notNull(),
-    sentAt: timestamp("sent_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("idx_nudges_recipient").on(table.recipientId, table.sentAt),
-  ]
-);
-
-// ============================================================
 // Microtasks (small repeatable prompts — non-accumulating, daily reset)
 // ============================================================
 export const microtasks = pgTable(
@@ -575,40 +524,6 @@ export const microtasks = pgTable(
   },
   (table) => [
     index("idx_microtasks_user_active").on(table.userId, table.active),
-  ]
-);
-
-// ============================================================
-// Parallel Play — Rooms (persistent membership; presence lives in Convex)
-// ============================================================
-export const rooms = pgTable("rooms", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  ownerId: text("owner_id")
-    .references(() => users.id)
-    .notNull(),
-  name: text("name"), // null = personal room (unnamed)
-  inviteCode: text("invite_code").notNull().unique(),
-  type: text("type").default("personal").notNull(), // "personal" | "adhoc"
-  maxCapacity: integer("max_capacity").default(8).notNull(),
-  expiresAt: timestamp("expires_at"), // null = permanent
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const roomMembers = pgTable(
-  "room_members",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    roomId: uuid("room_id")
-      .references(() => rooms.id, { onDelete: "cascade" })
-      .notNull(),
-    userId: text("user_id")
-      .references(() => users.id)
-      .notNull(),
-    joinedAt: timestamp("joined_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("idx_room_members_unique").on(table.roomId, table.userId),
-    index("idx_room_members_user").on(table.userId),
   ]
 );
 

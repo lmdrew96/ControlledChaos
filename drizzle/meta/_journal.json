@@ -36,6 +36,13 @@
       "when": 1778962459556,
       "tag": "0004_giant_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785858050207,
+      "tag": "0005_glossy_gwen_stacy",
+      "breakpoints": true
     }
   ]
 }

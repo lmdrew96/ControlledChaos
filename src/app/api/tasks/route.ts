@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
       locationTags,
       deadline,
       goalId,
-      roomVisibility,
     } = body;
 
     if (!title?.trim()) {
@@ -60,12 +59,6 @@ export async function POST(request: NextRequest) {
       locationTags: locationTags?.length ? locationTags : null,
       deadline: deadline ? new Date(deadline) : null,
       goalId: goalId || null,
-      roomVisibility:
-        roomVisibility === "none" ||
-        roomVisibility === "category" ||
-        roomVisibility === "title"
-          ? roomVisibility
-          : undefined,
     });
 
     // Generate AI note if no description was provided
