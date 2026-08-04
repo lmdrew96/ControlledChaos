@@ -67,9 +67,14 @@ export async function findTaskBySourceEventId(
 export async function createTasksFromDump(
   userId: string,
   dumpId: string,
-  parsedTasks: ParsedTask[]
+  parsedTasks: ParsedTask[],
+  existingGoals?: { id: string; title: string }[]
 ) {
   if (parsedTasks.length === 0) return [];
+
+  const goalIdByTitle = new Map(
+    (existingGoals ?? []).map((g) => [g.title.toLowerCase(), g.id])
+  );
 
   const values = parsedTasks.map((task, index) => ({
     userId,
@@ -81,6 +86,9 @@ export async function createTasksFromDump(
     category: task.category ?? null,
     locationTags: task.locationTags?.length ? task.locationTags : null,
     deadline: task.deadline ? new Date(task.deadline) : null,
+    goalId: task.goalConnection
+      ? (goalIdByTitle.get(task.goalConnection.toLowerCase()) ?? null)
+      : null,
     sourceDumpId: dumpId,
     sortOrder: index,
   }));

@@ -126,7 +126,8 @@ export async function POST(request: Request) {
     const createdTasks = await createTasksFromDump(
       userId,
       dump.id,
-      result.tasks
+      result.tasks,
+      existingGoals
     );
 
     // Create calendar events from parsed output
