@@ -20,9 +20,10 @@ type VoiceStage =
 
 interface VoiceRecorderProps {
   category: DumpCategory;
+  onSaved?: () => void;
 }
 
-export function VoiceRecorder({ category }: VoiceRecorderProps) {
+export function VoiceRecorder({ category, onSaved }: VoiceRecorderProps) {
   const router = useRouter();
   const {
     status: recorderStatus,
@@ -127,8 +128,7 @@ export function VoiceRecorder({ category }: VoiceRecorderProps) {
 
       if (category === "junk_journal") {
         toast.success("Journal entry saved");
-        router.push("/journal");
-        router.refresh();
+        onSaved?.();
         return;
       }
 

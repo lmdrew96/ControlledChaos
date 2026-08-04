@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
@@ -207,16 +206,6 @@ export function DumpHistory() {
       </div>
       )}
 
-      {filter === "junk_journal" && filteredDumps.length > 0 && (
-        <div className="pt-1 text-center">
-          <Link
-            href="/journal"
-            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          >
-            See all journal entries →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

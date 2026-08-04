@@ -11,9 +11,10 @@ import type { DumpCategory } from "@/types";
 
 interface DumpInputProps {
   category: DumpCategory;
+  onSaved?: () => void;
 }
 
-export function DumpInput({ category }: DumpInputProps) {
+export function DumpInput({ category, onSaved }: DumpInputProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +53,7 @@ export function DumpInput({ category }: DumpInputProps) {
       if (category === "junk_journal") {
         toast.success("Journal entry saved");
         setContent("");
-        router.push("/journal");
-        router.refresh();
+        onSaved?.();
         return;
       }
 

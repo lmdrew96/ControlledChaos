@@ -19,9 +19,10 @@ type PhotoStage = "ready" | "uploading" | "parsing" | "reviewing";
 
 interface PhotoUploaderProps {
   category: DumpCategory;
+  onSaved?: () => void;
 }
 
-export function PhotoUploader({ category }: PhotoUploaderProps) {
+export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
   const router = useRouter();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -126,8 +127,7 @@ export function PhotoUploader({ category }: PhotoUploaderProps) {
 
       if (category === "junk_journal") {
         toast.success("Journal entry saved");
-        router.push("/journal");
-        router.refresh();
+        onSaved?.();
         return;
       }
 

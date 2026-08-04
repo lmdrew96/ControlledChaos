@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ImagePlus,
@@ -38,8 +37,11 @@ interface Attachment {
  * attachments, all posted as a single brain_dumps row via /api/dump/journal.
  * Text is optional — image-only entries are valid (no summary call).
  */
-export function JournalCompose() {
-  const router = useRouter();
+interface JournalComposeProps {
+  onSaved?: () => void;
+}
+
+export function JournalCompose({ onSaved }: JournalComposeProps = {}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [content, setContent] = useState("");
@@ -172,8 +174,7 @@ export function JournalCompose() {
       for (const a of attachments) URL.revokeObjectURL(a.previewUrl);
       setContent("");
       setAttachments([]);
-      router.push("/journal");
-      router.refresh();
+      onSaved?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

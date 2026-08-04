@@ -7,6 +7,7 @@ import { RECAP_KINDS } from "@/components/features/recap/recap-constants";
 import { RecapDayNav } from "@/components/features/recap/recap-day-nav";
 import { RecapFilterPills } from "@/components/features/recap/recap-filter-pills";
 import { RecapTimeline } from "@/components/features/recap/recap-timeline";
+import { MomentsRecapWidget } from "@/components/features/moments/moments-recap-widget";
 import { useTimezone } from "@/hooks/use-timezone";
 
 function todayInTz(timezone: string): string {
@@ -50,6 +51,7 @@ export default function RecapPage() {
     entries: RecapEntry[];
     error: boolean;
   } | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const isLoading = !resolved || resolved.key !== fetchKey;
   const entries = resolved?.key === fetchKey ? resolved.entries : [];
@@ -84,7 +86,7 @@ export default function RecapPage() {
     return () => {
       cancelled = true;
     };
-  }, [date, activeKinds, fetchKey]);
+  }, [date, activeKinds, fetchKey, refreshTick]);
 
   const updateParams = useCallback(
     (next: { date?: string; kinds?: RecapKind[] }) => {
@@ -118,6 +120,10 @@ export default function RecapPage() {
         timezone={timezone}
         onChange={(d) => updateParams({ date: d })}
       />
+
+      {date === today && (
+        <MomentsRecapWidget onLogged={() => setRefreshTick((t) => t + 1)} />
+      )}
 
       <RecapFilterPills
         activeKinds={activeKinds}

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { categoryHex } from "@/lib/calendar/colors";
 import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import type { EventCategory } from "@/types";
 import type { MomentumStats } from "@/lib/db/queries";
-import { CircadianSignature } from "./_components/circadian-signature";
-import { TaskMarination } from "./_components/task-marination";
-import { ChunkOutcomes } from "./_components/chunk-outcomes";
+import { CircadianSignature } from "./circadian-signature";
+import { TaskMarination } from "./task-marination";
+import { ChunkOutcomes } from "./chunk-outcomes";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -18,7 +20,7 @@ function formatWeekRange(weekStartDate: string): string {
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
-  return `${fmt.format(start)}\u2013${fmt.format(end)}`;
+  return `${fmt.format(start)}–${fmt.format(end)}`;
 }
 
 function formatBiggestDayDate(dateStr: string, timezone: string): string {
@@ -46,7 +48,12 @@ function todaySubtitle(count: number): string {
   return "On a roll";
 }
 
-export default function MomentumPage() {
+interface MomentumPanelProps {
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+}
+
+export function MomentumPanel({ expanded, onExpandedChange }: MomentumPanelProps) {
   const timezone = useTimezone();
   const [stats, setStats] = useState<MomentumStats | null>(null);
 
@@ -57,16 +64,52 @@ export default function MomentumPage() {
       .catch(() => {});
   }, []);
 
-  if (!stats) return null;
+  return (
+    <div id="momentum-panel" className="scroll-mt-4">
+      <button
+        type="button"
+        onClick={() => onExpandedChange(!expanded)}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40"
+      >
+        <span className="flex items-center gap-2 text-sm">
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium">Momentum details</span>
+          {stats && (
+            <span className="text-muted-foreground">
+              &middot; {formatWeekRange(stats.weekStartDate)}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180"
+          )}
+        />
+      </button>
 
+      {expanded && stats && (
+        <MomentumDetails stats={stats} timezone={timezone} />
+      )}
+    </div>
+  );
+}
+
+function MomentumDetails({
+  stats,
+  timezone,
+}: {
+  stats: MomentumStats;
+  timezone: string;
+}) {
   // Today is always the last entry in the daily array (server computes in user TZ)
   const todayStr = stats.daily[stats.daily.length - 1]?.date ?? "";
 
   // Current week bars: filter daily entries from weekStartDate through end of week
   const weekDays = stats.daily.filter((d) => d.date >= stats.weekStartDate);
-  // Pad to 7 days if the week just started (fill future days with 0)
-  const currentWeek: Array<{ date: string; count: number }> = [];
   const weekStart = new Date(stats.weekStartDate + "T12:00:00");
+  const currentWeek: Array<{ date: string; count: number }> = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
@@ -82,15 +125,7 @@ export default function MomentumPage() {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Your momentum</h1>
-        <span className="text-sm text-muted-foreground">
-          This week &middot; {formatWeekRange(stats.weekStartDate)}
-        </span>
-      </div>
-
+    <div className="mt-3 space-y-4">
       {/* Metric cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card>
@@ -146,7 +181,6 @@ export default function MomentumPage() {
                   ? Math.max((d.count / maxDailyCount) * 120, 4)
                   : 4;
               const dayIndex = new Date(d.date + "T12:00:00").getDay();
-              // Convert JS getDay (0=Sun) to Mon-based index
               const monIndex = dayIndex === 0 ? 6 : dayIndex - 1;
               return (
                 <div

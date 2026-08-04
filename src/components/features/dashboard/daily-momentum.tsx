@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 interface Stats {
   completedToday: number;
@@ -12,7 +11,11 @@ interface Stats {
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
-export function DailyMomentum() {
+interface DailyMomentumProps {
+  onOpenDetails: () => void;
+}
+
+export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -50,8 +53,9 @@ export function DailyMomentum() {
   const todayDate = stats.daily[stats.daily.length - 1]?.date;
 
   return (
-    <Link
-      href="/momentum"
+    <button
+      type="button"
+      onClick={onOpenDetails}
       className="group flex items-center gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5 transition-colors hover:bg-accent/40"
       aria-label="View momentum details"
     >
@@ -86,6 +90,6 @@ export function DailyMomentum() {
           <span className="text-muted-foreground"> this week</span>
         </p>
       </div>
-    </Link>
+    </button>
   );
 }

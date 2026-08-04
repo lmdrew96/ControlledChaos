@@ -14,7 +14,6 @@ import {
   Target,
   Calendar,
   Clock,
-  BookOpen,
   Settings,
   Download,
   X,
@@ -22,7 +21,6 @@ import {
   Siren,
   Repeat,
   Search,
-  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -32,7 +30,7 @@ import { NotificationBell } from "@/components/features/notifications/notificati
 import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
 import { CommandPalette } from "@/components/features/command-palette/command-palette";
 import { CreateTaskModal } from "@/components/features/task-feed/create-task-modal";
-import { MomentsBar, MomentsSidebarGroup } from "@/components/features/moments/moments-bar";
+import { MomentsQuickLogFab } from "@/components/features/moments/moments-quick-log-fab";
 import {
   Sheet,
   SheetClose,
@@ -53,7 +51,6 @@ const navItems = [
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/recap", label: "Daily Recap", icon: Clock },
-  { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -68,9 +65,7 @@ const mobileMoreItems = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
-  { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/recap", label: "Daily Recap", icon: Clock },
-  { href: "/journal", label: "Journal", icon: BookOpen },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -227,8 +222,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </nav>
 
-        <MomentsSidebarGroup />
-
         <div className="flex flex-col border-t border-border p-4 gap-3">
           <div className="flex items-center justify-between">
             <UserNav />
@@ -240,12 +233,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile bottom dock — moments strip stacked above the nav. Wrapping
-          both in a single fixed-bottom container keeps them flush; the
-          previous moments-bar magic offset (5rem) drifted out of sync with
-          the actual nav height and left a visible gap. */}
+      {/* Mobile bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      <MomentsBar />
       <nav className="flex items-center gap-1 border-t border-border bg-card px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2">
         {mobileNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -339,11 +328,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
       </div>
 
-      {/* Main content — padded on mobile to clear both the bottom nav and the Moments strip above it */}
-      <main className="flex-1 overflow-auto pb-[calc(8.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      {/* Main content — padded on mobile to clear the bottom nav */}
+      <main className="flex-1 overflow-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
+
+      <MomentsQuickLogFab />
 
       {/* Global dialogs triggered by keyboard shortcuts */}
       <CommandPalette

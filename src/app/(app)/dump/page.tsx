@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Type, Mic, Camera, BookOpen, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DumpInput } from "@/components/features/brain-dump/dump-input";
@@ -13,8 +14,14 @@ import type { DumpCategory } from "@/types";
 type InputMode = "text" | "voice" | "photo";
 
 export default function BrainDumpPage() {
+  const searchParams = useSearchParams();
+  const initialCategory: DumpCategory =
+    searchParams.get("category") === "junk_journal" ? "junk_journal" : "braindump";
+
   const [mode, setMode] = useState<InputMode>("text");
-  const [category, setCategory] = useState<DumpCategory>("braindump");
+  const [category, setCategory] = useState<DumpCategory>(initialCategory);
+  const [historyKey, setHistoryKey] = useState(0);
+  const refreshHistory = () => setHistoryKey((k) => k + 1);
 
   return (
     <div className="space-y-6">
@@ -119,16 +126,16 @@ export default function BrainDumpPage() {
       )}
 
       {category === "junk_journal" ? (
-        <JournalCompose />
+        <JournalCompose onSaved={refreshHistory} />
       ) : mode === "text" ? (
-        <DumpInput category={category} />
+        <DumpInput category={category} onSaved={refreshHistory} />
       ) : mode === "voice" ? (
-        <VoiceRecorder category={category} />
+        <VoiceRecorder category={category} onSaved={refreshHistory} />
       ) : (
-        <PhotoUploader category={category} />
+        <PhotoUploader category={category} onSaved={refreshHistory} />
       )}
 
-      <DumpHistory />
+      <DumpHistory key={historyKey} />
     </div>
   );
 }

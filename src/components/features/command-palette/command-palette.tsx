@@ -12,10 +12,8 @@ import {
   Target,
   Calendar,
   Clock,
-  BookOpen,
   Settings,
   Siren,
-  TrendingUp,
   Plus,
   Sparkles,
   Sun,
@@ -61,15 +59,13 @@ interface SettingsItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview" },
-  { id: "nav-dump", label: "Brain Dump", href: "/dump", icon: Brain, keywords: "capture thoughts" },
+  { id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview momentum stats progress streak weekly" },
+  { id: "nav-dump", label: "Brain Dump", href: "/dump", icon: Brain, keywords: "capture thoughts journal writing notes" },
   { id: "nav-tasks", label: "Tasks", href: "/tasks", icon: ListTodo, keywords: "todo list" },
   { id: "nav-microtasks", label: "Microtasks", href: "/microtasks", icon: Repeat, keywords: "habits daily prompts" },
   { id: "nav-goals", label: "Goals", href: "/goals", icon: Target, keywords: "long term" },
-  { id: "nav-momentum", label: "Momentum", href: "/momentum", icon: TrendingUp, keywords: "stats progress streak weekly" },
   { id: "nav-calendar", label: "Calendar", href: "/calendar", icon: Calendar, keywords: "schedule events" },
   { id: "nav-recap", label: "Daily Recap", href: "/recap", icon: Clock, keywords: "mirror journal day review" },
-  { id: "nav-journal", label: "Journal", href: "/journal", icon: BookOpen, keywords: "writing notes" },
   { id: "nav-settings", label: "Settings", href: "/settings", icon: Settings, keywords: "preferences config" },
   { id: "nav-crisis", label: "Crisis Mode", href: "/crisis", icon: Siren, keywords: "panic emergency support" },
 ];
