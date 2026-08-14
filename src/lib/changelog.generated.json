@@ -1,5 +1,18 @@
 [
   {
+    "weekOf": "2026-08-03",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Target vercel.app domain instead of custom domain"
+      },
+      {
+        "type": "fixed",
+        "text": "Use block scalars for run: to fix YAML parse error"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-04-20",
     "items": [
       {

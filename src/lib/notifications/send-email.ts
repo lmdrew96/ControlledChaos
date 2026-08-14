@@ -30,7 +30,7 @@ function getResend() {
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://controlledchaos.adhdesigns.dev";
-const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <noreply@adhdesigns.dev>";
+const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <nae@adhdesigns.dev>";
 
 /**
  * Send the morning digest email for a user.
