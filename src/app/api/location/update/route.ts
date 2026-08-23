@@ -2,33 +2,40 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getSavedLocations,
-  getUser,
-  getUserLocation,
   getUserSettings,
-  upsertUserLocation,
+  getUserLocation,
   getPendingTasksForLocation,
   getRecentLocationNotification,
   logLocationNotification,
+  upsertUserLocation,
 } from "@/lib/db/queries";
 import { haversineDistance, matchLocation } from "@/lib/context/location";
 import type { SavedLocation } from "@/lib/context/location";
-import { sendPushToUser } from "@/lib/notifications/send-push";
-import {
-  generatePushMessage,
-  getAssertivenessMode,
-  getDailyPushCap,
-  getPushNotificationsSentToday,
-} from "@/lib/notifications/triggers";
-import type { NotificationPrefs, PersonalityPrefs } from "@/types";
+import { getAssertivenessMode } from "@/lib/notifications/triggers";
+import type { NotificationPrefs } from "@/types";
 
-const TASK_ACTIONS = [
-  { action: "start_task", title: "▶ Start" },
-  { action: "snooze", title: "⏰ Snooze 30 min" },
-];
+interface ArrivalSurface {
+  locationName: string;
+  taskId: string;
+  taskTitle: string;
+  taskCount: number;
+}
+
+interface DepartureSurface {
+  departedLocationName: string;
+  nearbyLocationName: string;
+  taskTitle: string;
+}
 
 /**
  * POST /api/location/update
- * Client reports position. Server detects geofence transitions and fires notifications.
+ *
+ * Client reports position. Server matches it against saved locations and, on an
+ * arrival/departure transition, returns a payload the client can surface as an
+ * in-app toast. This is checked-on-open, not a background push — PWAs don't get
+ * background geolocation, so there's no reliable way to detect a transition while
+ * the app isn't in the foreground. Promising a push here would just fire stale
+ * "arrival" notices the moment the app reopens, which is what this replaces.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -44,20 +51,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
     }
 
-    // Fetch saved locations, previous position, settings, and user in parallel
-    const [savedLocations, previousLocation, settings, user] = await Promise.all([
+    const [savedLocations, previousLocation, settings] = await Promise.all([
       getSavedLocations(userId),
       getUserLocation(userId),
       getUserSettings(userId),
-      getUser(userId),
     ]);
-    const timezone = user?.timezone ?? "America/New_York";
 
     const notifPrefs = settings?.notificationPrefs as NotificationPrefs | null;
 
-    // Bail if location notifications are disabled
+    // Bail if location suggestions are disabled — still save position for commute/"time to leave" context
     if (!notifPrefs?.locationNotificationsEnabled) {
-      // Still save location for cron job context
       await upsertUserLocation(userId, {
         latitude: latitude.toString(),
         longitude: longitude.toString(),
@@ -68,10 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Match current position against saved locations
-    const currentMatch = matchLocation(
-      { latitude, longitude },
-      savedLocations
-    );
+    const currentMatch = matchLocation({ latitude, longitude }, savedLocations);
 
     const previousMatchId = previousLocation?.matchedLocationId ?? null;
     const currentMatchId = currentMatch
@@ -82,21 +82,14 @@ export async function POST(request: NextRequest) {
     // distance > radius * 1.25 to count as "left" (prevents GPS bounce)
     const hasActuallyLeft =
       previousMatchId && !currentMatchId
-        ? checkHysteresisExit(
-            { latitude, longitude },
-            savedLocations,
-            previousMatchId
-          )
+        ? checkHysteresisExit({ latitude, longitude }, savedLocations, previousMatchId)
         : true;
 
-    const effectiveCurrentMatchId =
-      !hasActuallyLeft ? previousMatchId : currentMatchId;
-    const effectiveCurrentMatchName =
-      !hasActuallyLeft
-        ? previousLocation?.matchedLocationName ?? null
-        : currentMatch?.name ?? null;
+    const effectiveCurrentMatchId = !hasActuallyLeft ? previousMatchId : currentMatchId;
+    const effectiveCurrentMatchName = !hasActuallyLeft
+      ? previousLocation?.matchedLocationName ?? null
+      : currentMatch?.name ?? null;
 
-    // Upsert position
     await upsertUserLocation(userId, {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
@@ -104,50 +97,37 @@ export async function POST(request: NextRequest) {
       matchedLocationName: effectiveCurrentMatchName,
     });
 
-    // Detect transitions
     const arrived =
-      previousMatchId !== effectiveCurrentMatchId &&
-      effectiveCurrentMatchId !== null;
+      previousMatchId !== effectiveCurrentMatchId && effectiveCurrentMatchId !== null;
     const departed =
       previousMatchId !== effectiveCurrentMatchId &&
       previousMatchId !== null &&
       hasActuallyLeft;
 
-    // Fire notifications (non-blocking — don't hold up the response)
-    const personalityPrefs = settings?.personalityPrefs as PersonalityPrefs | null;
     const mode = getAssertivenessMode(notifPrefs);
 
+    let arrival: ArrivalSurface | null = null;
     if (arrived && effectiveCurrentMatchId && effectiveCurrentMatchName) {
-      handleArrival(
+      arrival = await buildArrivalSurface(
         userId,
         effectiveCurrentMatchId,
-        effectiveCurrentMatchName,
-        personalityPrefs,
-        notifPrefs,
-        mode,
-        timezone
-      ).catch((err) =>
-        console.error("[Location] Arrival notification error:", err)
+        effectiveCurrentMatchName
       );
     }
 
+    let departure: DepartureSurface | null = null;
     if (departed && previousMatchId && previousLocation?.matchedLocationName) {
-      handleDeparture(
+      departure = await buildDepartureSurface(
         userId,
         previousMatchId,
         previousLocation.matchedLocationName,
         { latitude, longitude },
         savedLocations,
-        personalityPrefs,
-        notifPrefs,
-        mode,
-        timezone
-      ).catch((err) =>
-        console.error("[Location] Departure notification error:", err)
+        mode
       );
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, arrival, departure });
   } catch (error) {
     console.error("[Location] Update error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -160,9 +140,7 @@ function findLocationId(
   savedLocations: Awaited<ReturnType<typeof getSavedLocations>>,
   name: string
 ): string | null {
-  const loc = savedLocations.find(
-    (l) => l.name.toLowerCase() === name.toLowerCase()
-  );
+  const loc = savedLocations.find((l) => l.name.toLowerCase() === name.toLowerCase());
   return loc?.id ?? null;
 }
 
@@ -186,102 +164,45 @@ function checkHysteresisExit(
   return distance > exitRadius;
 }
 
-async function handleArrival(
+async function buildArrivalSurface(
   userId: string,
   locationId: string,
-  locationName: string,
-  personalityPrefs: PersonalityPrefs | null,
-  notifPrefs: NotificationPrefs,
-  mode: ReturnType<typeof getAssertivenessMode>,
-  timezone: string
-) {
-  // Dedup: skip if already notified for this location in last 2 hours
-  const recent = await getRecentLocationNotification(
-    userId,
-    locationId,
-    "arrival"
-  );
-  if (recent) {
-    console.log(
-      `[Location] Skipping arrival notification — already sent ${locationName} (${locationId})`
-    );
-    return;
-  }
+  locationName: string
+): Promise<ArrivalSurface | null> {
+  // Dedup: skip if already surfaced for this location in the last 2 hours
+  const recent = await getRecentLocationNotification(userId, locationId, "arrival");
+  if (recent) return null;
 
-  // Check daily cap
-  const dailyCap = getDailyPushCap(mode);
-  const sentToday = await getPushNotificationsSentToday(userId, timezone);
-  if (sentToday >= dailyCap) return;
-
-  // Find tasks that match this location
   const matchingTasks = await getPendingTasksForLocation(userId, locationName);
-  if (matchingTasks.length === 0) return;
+  if (matchingTasks.length === 0) return null;
 
   const topTask = matchingTasks[0]; // Already sorted by deadline proximity
 
-  const message = await generatePushMessage(
-    {
-      type: "location_arrival",
-      locationName,
-      taskTitle: topTask.title,
-      taskCount: matchingTasks.length,
-    },
-    personalityPrefs,
-    undefined,
-    mode
-  );
+  await logLocationNotification(userId, locationId, topTask.id, "arrival");
 
-  const sent = await sendPushToUser(userId, {
-    title: "ControlledChaos",
-    body: message,
-    url: `/tasks?taskId=${topTask.id}`,
-    tag: `location-arrival-${locationId}`,
+  return {
+    locationName,
     taskId: topTask.id,
-    userId,
-    actions: TASK_ACTIONS,
-  });
-
-  if (sent) {
-    await logLocationNotification(userId, locationId, topTask.id, "arrival");
-    console.log(
-      `[Location] Arrival notification sent: ${locationName} → ${topTask.title}`
-    );
-  }
+    taskTitle: topTask.title,
+    taskCount: matchingTasks.length,
+  };
 }
 
-async function handleDeparture(
+async function buildDepartureSurface(
   userId: string,
   departedLocationId: string,
   departedLocationName: string,
   currentCoords: { latitude: number; longitude: number },
   savedLocations: SavedLocation[],
-  personalityPrefs: PersonalityPrefs | null,
-  notifPrefs: NotificationPrefs,
-  mode: ReturnType<typeof getAssertivenessMode>,
-  timezone: string
-) {
-  // Only send departure notifications in balanced or assertive mode
-  if (mode === "gentle") return;
+  mode: ReturnType<typeof getAssertivenessMode>
+): Promise<DepartureSurface | null> {
+  // Only surface departure suggestions in balanced or assertive mode
+  if (mode === "gentle") return null;
 
-  // Dedup
-  const recent = await getRecentLocationNotification(
-    userId,
-    departedLocationId,
-    "departure"
-  );
-  if (recent) return;
+  const recent = await getRecentLocationNotification(userId, departedLocationId, "departure");
+  if (recent) return null;
 
-  // Check daily cap
-  const dailyCap = getDailyPushCap(mode);
-  const sentToday = await getPushNotificationsSentToday(userId, timezone);
-  if (sentToday >= dailyCap) return;
-
-  // Find nearby locations (within 1km) that have matching tasks
-  const nearbyWithTasks: Array<{
-    location: SavedLocation;
-    taskTitle: string;
-  }> = [];
-
+  // Find the nearest saved location (within 1km) that has matching tasks
   for (const loc of savedLocations) {
     if (loc.id === departedLocationId) continue;
     if (!loc.latitude || !loc.longitude) continue;
@@ -290,49 +211,19 @@ async function handleDeparture(
       latitude: parseFloat(loc.latitude),
       longitude: parseFloat(loc.longitude),
     });
+    if (distance > 1000) continue;
 
-    if (distance <= 1000) {
-      // Within 1km
-      const tasks = await getPendingTasksForLocation(userId, loc.name);
-      if (tasks.length > 0) {
-        nearbyWithTasks.push({ location: loc, taskTitle: tasks[0].title });
-      }
-    }
+    const tasks = await getPendingTasksForLocation(userId, loc.name);
+    if (tasks.length === 0) continue;
+
+    await logLocationNotification(userId, departedLocationId, null, "departure");
+
+    return {
+      departedLocationName,
+      nearbyLocationName: loc.name,
+      taskTitle: tasks[0].title,
+    };
   }
 
-  if (nearbyWithTasks.length === 0) return;
-
-  const nearest = nearbyWithTasks[0];
-
-  const message = await generatePushMessage(
-    {
-      type: "location_departure_nearby",
-      locationName: departedLocationName,
-      nearbyLocationName: nearest.location.name,
-      taskTitle: nearest.taskTitle,
-    },
-    personalityPrefs,
-    undefined,
-    mode
-  );
-
-  const sent = await sendPushToUser(userId, {
-    title: "ControlledChaos",
-    body: message,
-    url: `/tasks`,
-    tag: `location-departure-${departedLocationId}`,
-    userId,
-  });
-
-  if (sent) {
-    await logLocationNotification(
-      userId,
-      departedLocationId,
-      null,
-      "departure"
-    );
-    console.log(
-      `[Location] Departure notification sent: left ${departedLocationName}, nearby ${nearest.location.name}`
-    );
-  }
+  return null;
 }

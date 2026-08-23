@@ -1,12 +1,28 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { toast } from "sonner";
+
+interface ArrivalSurface {
+  locationName: string;
+  taskId: string;
+  taskTitle: string;
+  taskCount: number;
+}
+
+interface DepartureSurface {
+  departedLocationName: string;
+  nearbyLocationName: string;
+  taskTitle: string;
+}
 
 /**
  * Foreground geofence tracker.
  * Uses watchPosition with coarse accuracy to report position changes to the server.
  * Only reports when the user has moved 100m+ from the last report (prevents GPS jitter spam).
- * The server handles all geofence matching and notification logic.
+ * The server handles geofence matching and returns any arrival/departure surface to show
+ * in-app. This is deliberately app-open-only — PWAs get no background geolocation, so an
+ * OS push here would just fire stale "you arrived" notices the moment the app reopens.
  */
 export function useGeofenceTracker(enabled: boolean) {
   const watchIdRef = useRef<number | null>(null);
@@ -54,14 +70,35 @@ export function useGeofenceTracker(enabled: boolean) {
 
           lastReportRef.current = { lat: latitude, lng: longitude };
 
-          // Fire-and-forget POST — don't block on result
           fetch("/api/location/update", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ latitude, longitude }),
-          }).catch(() => {
-            // Silently ignore — network errors are transient
-          });
+          })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data: { arrival?: ArrivalSurface | null; departure?: DepartureSurface | null } | null) => {
+              if (data?.arrival) {
+                const { locationName, taskId, taskTitle, taskCount } = data.arrival;
+                toast.info(`You're at ${locationName} — ${taskTitle}`, {
+                  description:
+                    taskCount > 1 ? `${taskCount} pending tasks tagged here` : undefined,
+                  action: {
+                    label: "View",
+                    onClick: () => {
+                      window.location.href = `/tasks?taskId=${taskId}`;
+                    },
+                  },
+                });
+              } else if (data?.departure) {
+                const { departedLocationName, nearbyLocationName, taskTitle } = data.departure;
+                toast.info(`Leaving ${departedLocationName}?`, {
+                  description: `${nearbyLocationName} is nearby — ${taskTitle}`,
+                });
+              }
+            })
+            .catch(() => {
+              // Silently ignore — network errors are transient
+            });
         },
         () => {
           // Silently ignore position errors (temporary GPS loss, etc.)

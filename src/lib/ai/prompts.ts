@@ -479,8 +479,6 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.
 - idle_checkin_afternoon: 3pm check-in. Same active/idle logic. Idle: nudge toward one specific thing before evening. Active: affirm progress, surface what's next.
 - idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: wrap-up energy — acknowledge what they did, offer one more if there's a task.
-- location_arrival: User just arrived at a saved location that matches task locationTags. Mention the place naturally. Keep it actionable — they're already there. 1-2 sentences.
-- location_departure_nearby: User is leaving a location. Another saved location with pending tasks is nearby. Frame as an easy add-on — "while you're out" energy. Never guilt.
 - time_to_leave_soon: User needs to leave for an event in X minutes. Include the event name and destination naturally. Mention the commute time if it adds context. Tone: practical heads-up, not alarm.
 - time_to_leave_now: User needs to leave RIGHT NOW for an event. Urgent but calm. 1 sentence max. Include destination.
 - crisis_detected: Deadline collision detected — more work than available time. Name the specific conflicting tasks. Frame as "I did the math" — no alarm, no guilt. Mention the available vs required hours naturally. Point to Crisis Mode. 2 sentences max.
@@ -514,10 +512,7 @@ deadline_reminder, Task: "Submit essay", Time until deadline: 10 minutes
 "Essay's due in 10. Send it."
 
 idle_checkin, Activity: idle, Top pending task: "Bio lab report"
-"Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"
-
-location_arrival, Location: "CVS", Task: "Pick up prescription"
-"You're at CVS. That prescription isn't going to pick itself up — knock it out while you're here."`;
+"Nothing ticked off yet today. That Bio lab report isn't going anywhere on its own — want to chip away at it?"`;
 }
 
 // ============================================================

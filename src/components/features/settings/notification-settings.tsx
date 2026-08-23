@@ -306,20 +306,21 @@ export function NotificationSettings() {
         </Button>
       )}
 
-      {/* Location Notifications */}
+      {/* Location Suggestions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <MapPin className="h-4 w-4 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium">Location Notifications</p>
+            <p className="text-sm font-medium">Location Suggestions</p>
             <p className="text-xs text-muted-foreground">
-              Get reminders when you arrive at places where you have tasks
+              Surface tasks in-app when you&apos;re at a saved location. Only checked while the
+              app is open — phones don&apos;t allow background location for installed web apps,
+              so this can&apos;t work as a push notification.
             </p>
           </div>
         </div>
         <Switch
           checked={prefs.locationNotificationsEnabled}
-          disabled={!prefs.pushEnabled || !pushSubscribed}
           onCheckedChange={async (checked) => {
             if (checked) {
               // Probe geolocation permission
@@ -340,7 +341,7 @@ export function NotificationSettings() {
                 if (res.ok) {
                   setPrefs(newPrefs);
                   setSavedPrefs(newPrefs);
-                  toast.success("Location notifications enabled!");
+                  toast.success("Location suggestions enabled!");
                 }
               } catch {
                 toast.error(
@@ -356,7 +357,7 @@ export function NotificationSettings() {
               });
               setPrefs(newPrefs);
               setSavedPrefs(newPrefs);
-              toast.success("Location notifications disabled.");
+              toast.success("Location suggestions disabled.");
             }
           }}
         />

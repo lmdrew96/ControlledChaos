@@ -334,8 +334,6 @@ type PushNotificationContext =
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" }
-  | { type: "location_arrival"; locationName: string; taskTitle: string; taskCount: number }
-  | { type: "location_departure_nearby"; locationName: string; nearbyLocationName: string; taskTitle: string }
   | { type: "time_to_leave_soon"; eventTitle: string; minutesUntilLeave: number; destination: string; commuteMinutes: number }
   | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number }
   | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
@@ -364,8 +362,6 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
-  location_arrival: "You're here — might as well knock this out.",
-  location_departure_nearby: "Before you head home, there's something nearby.",
   time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
   time_to_leave_now: "Time to leave! You need to go now to make it.",
   crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Crisis Mode if you want it.",
@@ -404,10 +400,6 @@ export async function generatePushMessage(
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
       : `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}`;
-  } else if (ctx.type === "location_arrival") {
-    userMsg = `Type: location_arrival\nLocation: "${ctx.locationName}"\nTask: "${ctx.taskTitle}"\nTotal matching tasks: ${ctx.taskCount}`;
-  } else if (ctx.type === "location_departure_nearby") {
-    userMsg = `Type: location_departure_nearby\nLeft: "${ctx.locationName}"\nNearby: "${ctx.nearbyLocationName}"\nTask: "${ctx.taskTitle}"`;
   } else if (ctx.type === "time_to_leave_soon") {
     userMsg = `Type: time_to_leave_soon\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nMinutes until you need to leave: ${ctx.minutesUntilLeave}\nCommute time: ${ctx.commuteMinutes} min`;
   } else if (ctx.type === "time_to_leave_now") {
@@ -423,7 +415,7 @@ export async function generatePushMessage(
   }
 
   // Append the user's current location so the AI can reference it naturally
-  if (userLocation && ctx.type !== "location_arrival" && ctx.type !== "location_departure_nearby") {
+  if (userLocation) {
     userMsg += `\nUser's current location: "${userLocation}"`;
   }
 

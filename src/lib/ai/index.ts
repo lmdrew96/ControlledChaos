@@ -3,7 +3,7 @@ import Anthropic, { APIError } from "@anthropic-ai/sdk";
 // --- Centralized model constants ---
 // Change these once to update every AI call across the codebase.
 export const MODEL_HAIKU = "claude-haiku-4-5-20251001";
-export const MODEL_SONNET = "claude-sonnet-4-6";
+export const MODEL_SONNET = "claude-sonnet-5";
 
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
