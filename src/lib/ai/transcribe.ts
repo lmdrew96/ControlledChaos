@@ -1,8 +1,18 @@
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Lazy singleton: unlike the Anthropic SDK used elsewhere in this codebase,
+// groq-sdk's constructor throws immediately if apiKey is missing. Instantiating
+// at module scope means Next.js's build-time page-data collection (which
+// imports every route module) crashes the whole build if GROQ_API_KEY isn't
+// set in that environment — deferring construction to first use turns that
+// into a normal runtime error on this route only.
+let groq: Groq | null = null;
+function getGroqClient(): Groq {
+  if (!groq) {
+    groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groq;
+}
 
 interface TranscriptionResult {
   text: string;
@@ -20,7 +30,7 @@ export async function transcribeAudio(
     type: getMimeType(fileName),
   });
 
-  const transcription = await groq.audio.transcriptions.create({
+  const transcription = await getGroqClient().audio.transcriptions.create({
     file,
     model: "whisper-large-v3-turbo",
     language: "en",
