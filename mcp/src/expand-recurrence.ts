@@ -1,3 +1,8 @@
+// Mirrors src/lib/calendar/expand-recurrence.ts in the main app.
+// Duplicated (not imported) because the MCP server is a separate TS package
+// with its own rootDir and can't reach outside mcp/src — keep both in sync
+// if the recurrence rules change.
+
 export interface RecurrenceInput {
   title: string;
   description?: string | null;

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
 import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal } from "./helpers.js";
+import { expandRecurrence } from "./expand-recurrence.js";
 
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
 function todayInTz(tz: string): string {
@@ -410,12 +411,12 @@ Returns: Markdown-formatted list of events with times displayed in the user's ti
 
       if (params.source) {
         query = `SELECT * FROM calendar_events
-                 WHERE user_id = $1 AND start_time >= $2 AND start_time <= $3 AND source = $4
+                 WHERE user_id = $1 AND start_time <= $3 AND end_time > $2 AND source = $4
                  ORDER BY start_time`;
         values = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString(), params.source];
       } else {
         query = `SELECT * FROM calendar_events
-                 WHERE user_id = $1 AND start_time >= $2 AND start_time <= $3
+                 WHERE user_id = $1 AND start_time <= $3 AND end_time > $2
                  ORDER BY start_time`;
         values = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString()];
       }
@@ -439,26 +440,46 @@ Returns: Markdown-formatted list of events with times displayed in the user's ti
     "cc_create_event",
     {
       title: "Create Calendar Event",
-      description: `Create a new calendar event in ControlledChaos.
+      description: `Create a new calendar event in ControlledChaos, optionally recurring.
 
 Args:
   - title (required): Event title.
-  - start_time (required): Start datetime (ISO 8601 in UTC).
-  - end_time (required): End datetime (ISO 8601 in UTC).
+  - start_time (required): Start datetime of the first instance (ISO 8601 in UTC).
+  - end_time (required): End datetime of the first instance (ISO 8601 in UTC).
   - description: Optional description.
   - location: Optional location string.
   - is_all_day: Whether it's an all-day event (default false).
+  - recurrence: Optional. Makes this a recurring series instead of a single event:
+      - type (required): "daily" or "weekly".
+      - days_of_week: For weekly recurrence, which days (0=Sun...6=Sat). Defaults to start_time's day.
+      - end_date: Last possible date for the series (ISO 8601). Defaults to 16 weeks out if omitted.
+      - exceptions: Individual dates to skip (ISO 8601 or YYYY-MM-DD), e.g. holidays. List each date separately —
+        a multi-day break (e.g. a week off) must be listed as one date per day, not a range.
+    Instances are capped at 200 per series and stored as individual events sharing a series_id.
+    Use cc_update_event / cc_delete_event with scope: "all" to edit or remove the whole series later.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
-Returns: The created event with its ID.`,
+Returns: The created event (or a summary if recurring).`,
       inputSchema: {
         title: z.string().min(1).max(500).describe("Event title"),
-        start_time: z.string().describe("Start datetime (ISO 8601 UTC)"),
-        end_time: z.string().describe("End datetime (ISO 8601 UTC)"),
+        start_time: z.string().describe("Start datetime of the first instance (ISO 8601 UTC)"),
+        end_time: z.string().describe("End datetime of the first instance (ISO 8601 UTC)"),
         description: z.string().max(2000).optional().describe("Event description"),
         location: z.string().max(500).optional().describe("Event location"),
         is_all_day: z.boolean().default(false).describe("All-day event?"),
+        recurrence: z
+          .object({
+            type: z.enum(["daily", "weekly"]).describe("Recurrence frequency"),
+            days_of_week: z
+              .array(z.number().int().min(0).max(6))
+              .optional()
+              .describe("For weekly recurrence: days of week (0=Sun...6=Sat). Defaults to start_time's day."),
+            end_date: z.string().optional().describe("Last possible date for the series (ISO 8601). Defaults to 16 weeks out."),
+            exceptions: z.array(z.string()).optional().describe("Individual dates to skip (ISO 8601 or YYYY-MM-DD), one per day — not a range."),
+          })
+          .optional()
+          .describe("Make this a recurring event. Omit for a single event."),
       },
       annotations: {
         readOnlyHint: false,
@@ -470,24 +491,61 @@ Returns: The created event with its ID.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      const externalId = `mcp-${crypto.randomUUID()}`;
-      const rows = await sql(
-        `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, synced_at)
-         VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, NOW())
-         RETURNING *`,
-        [
-          userId,
-          externalId,
-          params.title,
-          params.description ?? null,
-          new Date(params.start_time).toISOString(),
-          new Date(params.end_time).toISOString(),
-          params.location ?? null,
-          params.is_all_day,
-        ]
-      );
 
-      return { content: [{ type: "text" as const, text: `📅 Event created!\n\n${formatEvent(rows[0], tz)}` }] };
+      const instances = expandRecurrence({
+        title: params.title,
+        description: params.description ?? null,
+        location: params.location ?? null,
+        startTime: params.start_time,
+        endTime: params.end_time,
+        isAllDay: params.is_all_day,
+        recurrence: params.recurrence
+          ? {
+              type: params.recurrence.type,
+              daysOfWeek: params.recurrence.days_of_week,
+              endDate: params.recurrence.end_date,
+              exceptions: params.recurrence.exceptions,
+              timeZone: tz,
+            }
+          : undefined,
+      });
+
+      const seriesId = instances.length > 1 ? crypto.randomUUID() : null;
+      const created: Record<string, unknown>[] = [];
+
+      for (const inst of instances) {
+        const externalId = `mcp-${crypto.randomUUID()}`;
+        const rows = await sql(
+          `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, series_id, synced_at)
+           VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+           RETURNING *`,
+          [
+            userId,
+            externalId,
+            inst.title,
+            inst.description,
+            inst.startTime.toISOString(),
+            inst.endTime.toISOString(),
+            inst.location,
+            inst.isAllDay,
+            seriesId,
+          ]
+        );
+        created.push(rows[0]);
+      }
+
+      if (created.length === 1) {
+        return { content: [{ type: "text" as const, text: `📅 Event created!\n\n${formatEvent(created[0], tz)}` }] };
+      }
+
+      const first = created[0];
+      const last = created[created.length - 1];
+      return {
+        content: [{
+          type: "text" as const,
+          text: `📅 Recurring event created! ${created.length} instances (series \`${seriesId}\`).\n\nFirst: ${formatEvent(first, tz)}\n\n---\n\nLast: ${formatEvent(last, tz)}`,
+        }],
+      };
     }
   );
 
@@ -783,10 +841,13 @@ Returns: Confirmation of deletion.`,
 Args:
   - event_id (required): UUID of the event to update.
   - title, description, start_time, end_time, location, is_all_day: Fields to update.
+  - scope: "this" (default) updates only this event. "all" updates every event in its series (if it belongs to one) —
+    title/description/location/is_all_day are applied to every instance; start_time/end_time only change the time-of-day,
+    each instance keeps its own date.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
-Returns: The updated event.`,
+Returns: The updated event, or a summary if scope is "all".`,
       inputSchema: {
         event_id: z.string().uuid().describe("Event ID to update"),
         title: z.string().min(1).max(500).optional().describe("New title"),
@@ -795,6 +856,7 @@ Returns: The updated event.`,
         end_time: z.string().optional().describe("New end datetime (ISO 8601 UTC)"),
         location: z.string().max(500).optional().describe("New location"),
         is_all_day: z.boolean().optional().describe("All-day event?"),
+        scope: z.enum(["this", "all"]).default("this").describe("Update just this event, or every instance in its series"),
       },
       annotations: {
         readOnlyHint: false,
@@ -806,40 +868,127 @@ Returns: The updated event.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      const setClauses: string[] = ["synced_at = NOW()"];
-      const values: unknown[] = [];
-      let idx = 1;
 
-      const fields: Array<[string, unknown]> = [
+      const existingRows = await sql(
+        `SELECT * FROM calendar_events WHERE id = $1 AND user_id = $2 AND source = 'controlledchaos' LIMIT 1`,
+        [params.event_id, userId]
+      );
+      if (existingRows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be updated).` }] };
+      }
+      const seriesId = existingRows[0].series_id as string | null;
+
+      if (params.scope !== "all" || !seriesId) {
+        const setClauses: string[] = ["synced_at = NOW()"];
+        const values: unknown[] = [];
+        let idx = 1;
+
+        const fields: Array<[string, unknown]> = [
+          ["title", params.title],
+          ["description", params.description],
+          ["start_time", params.start_time ? new Date(params.start_time).toISOString() : undefined],
+          ["end_time", params.end_time ? new Date(params.end_time).toISOString() : undefined],
+          ["location", params.location],
+          ["is_all_day", params.is_all_day],
+        ];
+
+        for (const [col, val] of fields) {
+          if (val !== undefined) {
+            setClauses.push(`${col} = $${idx}`);
+            values.push(val);
+            idx++;
+          }
+        }
+
+        if (setClauses.length === 1) {
+          return { content: [{ type: "text" as const, text: "No fields to update. Pass at least one field to change." }] };
+        }
+
+        values.push(params.event_id, userId);
+        const query = `UPDATE calendar_events SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} AND source = 'controlledchaos' RETURNING *`;
+        const rows = await sql(query, values);
+
+        return { content: [{ type: "text" as const, text: `✅ Event updated!\n\n${formatEvent(rows[0], tz)}` }] };
+      }
+
+      // scope === "all" and event belongs to a series
+      const metaClauses: string[] = ["synced_at = NOW()"];
+      const metaValues: unknown[] = [];
+      let metaIdx = 1;
+      const metaFields: Array<[string, unknown]> = [
         ["title", params.title],
         ["description", params.description],
-        ["start_time", params.start_time ? new Date(params.start_time).toISOString() : undefined],
-        ["end_time", params.end_time ? new Date(params.end_time).toISOString() : undefined],
         ["location", params.location],
         ["is_all_day", params.is_all_day],
       ];
-
-      for (const [col, val] of fields) {
+      for (const [col, val] of metaFields) {
         if (val !== undefined) {
-          setClauses.push(`${col} = $${idx}`);
-          values.push(val);
-          idx++;
+          metaClauses.push(`${col} = $${metaIdx}`);
+          metaValues.push(val);
+          metaIdx++;
         }
       }
 
-      if (setClauses.length === 1) {
+      let updatedRows: Record<string, unknown>[] = [];
+
+      if (metaClauses.length > 1) {
+        metaValues.push(seriesId, userId);
+        const query = `UPDATE calendar_events SET ${metaClauses.join(", ")} WHERE series_id = $${metaIdx} AND user_id = $${metaIdx + 1} AND source = 'controlledchaos' RETURNING *`;
+        updatedRows = await sql(query, metaValues);
+      }
+
+      if (params.start_time !== undefined || params.end_time !== undefined) {
+        const seriesRows = await sql(
+          `SELECT * FROM calendar_events WHERE series_id = $1 AND user_id = $2 AND source = 'controlledchaos'`,
+          [seriesId, userId]
+        );
+        const newStart = params.start_time ? new Date(params.start_time) : null;
+        const newEnd = params.end_time ? new Date(params.end_time) : null;
+        const durationMs = newStart && newEnd ? newEnd.getTime() - newStart.getTime() : null;
+
+        updatedRows = [];
+        for (const row of seriesRows) {
+          let newRowStart: Date | undefined;
+          let newRowEnd: Date | undefined;
+
+          if (newStart) {
+            const existingStart = new Date(row.start_time as string);
+            const updated = new Date(existingStart);
+            updated.setHours(newStart.getHours(), newStart.getMinutes(), 0, 0);
+            newRowStart = updated;
+            if (durationMs !== null) newRowEnd = new Date(updated.getTime() + durationMs);
+          } else if (newEnd) {
+            const existingEnd = new Date(row.end_time as string);
+            const updated = new Date(existingEnd);
+            updated.setHours(newEnd.getHours(), newEnd.getMinutes(), 0, 0);
+            newRowEnd = updated;
+          }
+
+          const rowClauses: string[] = ["synced_at = NOW()"];
+          const rowValues: unknown[] = [];
+          let rowIdx = 1;
+          if (newRowStart) { rowClauses.push(`start_time = $${rowIdx}`); rowValues.push(newRowStart.toISOString()); rowIdx++; }
+          if (newRowEnd) { rowClauses.push(`end_time = $${rowIdx}`); rowValues.push(newRowEnd.toISOString()); rowIdx++; }
+          rowValues.push(row.id, userId);
+
+          const rowResult = await sql(
+            `UPDATE calendar_events SET ${rowClauses.join(", ")} WHERE id = $${rowIdx} AND user_id = $${rowIdx + 1} RETURNING *`,
+            rowValues
+          );
+          if (rowResult[0]) updatedRows.push(rowResult[0]);
+        }
+      }
+
+      if (updatedRows.length === 0) {
         return { content: [{ type: "text" as const, text: "No fields to update. Pass at least one field to change." }] };
       }
 
-      values.push(params.event_id, userId);
-      const query = `UPDATE calendar_events SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} AND source = 'controlledchaos' RETURNING *`;
-      const rows = await sql(query, values);
-
-      if (rows.length === 0) {
-        return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be updated).` }] };
-      }
-
-      return { content: [{ type: "text" as const, text: `✅ Event updated!\n\n${formatEvent(rows[0], tz)}` }] };
+      return {
+        content: [{
+          type: "text" as const,
+          text: `✅ Updated ${updatedRows.length} events in series \`${seriesId}\`.`,
+        }],
+      };
     }
   );
 
@@ -854,10 +1003,12 @@ Returns: The updated event.`,
 
 Args:
   - event_id (required): UUID of the event to delete.
+  - scope: "this" (default) deletes only this event. "all" deletes every event in its series (if it belongs to one).
 
 Returns: Confirmation of deletion.`,
       inputSchema: {
         event_id: z.string().uuid().describe("Event ID to delete"),
+        scope: z.enum(["this", "all"]).default("this").describe("Delete just this event, or every instance in its series"),
       },
       annotations: {
         readOnlyHint: false,
@@ -868,6 +1019,30 @@ Returns: Confirmation of deletion.`,
     },
     async (params) => {
       const userId = getUserId();
+
+      if (params.scope === "all") {
+        const existingRows = await sql(
+          `SELECT series_id, title FROM calendar_events WHERE id = $1 AND user_id = $2 AND source = 'controlledchaos' LIMIT 1`,
+          [params.event_id, userId]
+        );
+        if (existingRows.length === 0) {
+          return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be deleted).` }] };
+        }
+        const seriesId = existingRows[0].series_id as string | null;
+        if (!seriesId) {
+          const rows = await sql(
+            `DELETE FROM calendar_events WHERE id = $1 AND user_id = $2 AND source = 'controlledchaos' RETURNING title`,
+            [params.event_id, userId]
+          );
+          return { content: [{ type: "text" as const, text: `🗑️ Deleted event: "${rows[0].title}" (it wasn't part of a series).` }] };
+        }
+        const rows = await sql(
+          `DELETE FROM calendar_events WHERE series_id = $1 AND user_id = $2 AND source = 'controlledchaos' RETURNING title`,
+          [seriesId, userId]
+        );
+        return { content: [{ type: "text" as const, text: `🗑️ Deleted ${rows.length} events from series "${rows[0]?.title ?? ""}".` }] };
+      }
+
       const rows = await sql(
         `DELETE FROM calendar_events WHERE id = $1 AND user_id = $2 AND source = 'controlledchaos' RETURNING title`,
         [params.event_id, userId]

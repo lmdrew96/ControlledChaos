@@ -99,6 +99,7 @@ export function formatEvent(event: Record<string, unknown>, tz?: string): string
   if (event.description) parts.push(`Description: ${event.description}`);
   if (event.location) parts.push(`Location: ${event.location}`);
   if (event.is_all_day) parts.push(`All day event`);
+  if (event.series_id) parts.push(`Series: \`${event.series_id}\` (use scope: "all" to update/delete every instance)`);
   return parts.join("\n");
 }
 
