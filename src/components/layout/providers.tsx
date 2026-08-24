@@ -20,6 +20,29 @@ function ClerkProviderWithTheme({
       publishableKey={publishableKey}
       appearance={{
         baseTheme: resolvedTheme === "dark" ? dark : undefined,
+        variables: {
+          // Reference the app's own CSS custom properties (globals.css) so
+          // Clerk's embedded UI (sign-in/sign-up, user profile) stays in sync
+          // with ControlledChaos's own sunset palette and flips with .dark
+          // the same way the rest of the app does.
+          colorPrimary: "var(--adhd-purple)",
+          colorPrimaryForeground: "var(--primary-foreground)",
+          colorBackground: "var(--card)",
+          colorForeground: "var(--foreground)",
+          colorMuted: "var(--muted)",
+          colorMutedForeground: "var(--muted-foreground)",
+          colorInput: "var(--input)",
+          colorInputForeground: "var(--foreground)",
+          colorBorder: "var(--border)",
+          colorRing: "var(--ring)",
+          colorDanger: "var(--destructive)",
+          colorSuccess: "var(--success)",
+          colorWarning: "var(--warning)",
+          colorNeutral: "var(--adhd-lavender)",
+          fontFamily: "var(--font-plex-sans)",
+          fontFamilyButtons: "var(--font-plex-sans)",
+          borderRadius: "var(--radius)",
+        },
       }}
     >
       {children}
