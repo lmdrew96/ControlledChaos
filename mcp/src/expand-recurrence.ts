@@ -81,6 +81,9 @@ function getZonedParts(date: Date, timeZone: string) {
 }
 
 // Resolve a wall-clock date+time in `timeZone` to the correct UTC instant, DST-aware.
+// Single-pass correction: correct for daytime class/event times, not validated
+// for wall-clock times that fall within the DST transition window itself (e.g.
+// 1-3am on the fall-back date), where the zoned time is ambiguous or skipped.
 function zonedToUtc(
   year: number,
   month: number,
