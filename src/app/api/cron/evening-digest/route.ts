@@ -3,20 +3,22 @@ import { getAllUsersWithNotificationPrefs } from "@/lib/db/queries";
 import { sendEveningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone, hasLocalTimeArrivedToday } from "@/lib/timezone";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 // Vercel Pro: 60s max. Default (10s) silently truncates the per-user digest loop.
 export const maxDuration = 60;
 
 /**
- * GET /api/cron/evening-digest
- * Runs every 15 minutes (22:00–04:00 UTC covers most US timezones).
- * For each user with evening digest enabled, sends on the first poll at or
- * after their configured digest time, deduped per day — not a window match,
- * since the poller's cadence isn't guaranteed to land inside one.
+ * POST /api/cron/evening-digest
+ * Triggered by a QStash schedule within the 22:00-04:00 UTC window (falls
+ * back to CRON_SECRET bearer auth for manual/local calls). For each user
+ * with evening digest enabled, sends on the first poll at or after their
+ * configured digest time, deduped per day — not a window match, since the
+ * poller's cadence isn't guaranteed to land inside one.
  */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  if (!(await verifyCronRequest(request, rawBody))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

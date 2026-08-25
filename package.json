@@ -1,6 +1,6 @@
 {
   "name": "controlled-chaos",
-  "version": "2.17.2",
+  "version": "2.18.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -27,6 +27,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@react-email/components": "^1.0.7",
     "@types/leaflet": "^1.9.21",
+    "@upstash/qstash": "^2.11.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

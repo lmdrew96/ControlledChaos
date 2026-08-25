@@ -1,28 +1,22 @@
-name: Cron Triggers
+name: Cron Triggers (manual)
 
-# Replaces Vercel's Cron Jobs feature (Hobby plan only allows daily crons).
-# Hits the same endpoints on the same schedule via HTTP, authenticated with
-# the same CRON_SECRET the routes already check for.
+# QStash now owns the actual scheduling (see src/lib/cron-auth.ts and the
+# QStash schedules created against these same endpoints) — GH Actions'
+# `schedule` trigger was dropping the majority of its own ticks under load
+# (median gap ~36min against a nominal 15min), which is why this moved.
+#
+# This workflow is kept as a manual-only fallback (workflow_dispatch) for
+# hitting the cron endpoints by hand — e.g. to force a sync/digest without
+# waiting for the next QStash tick. It authenticates with CRON_SECRET rather
+# than a QStash signature, which the routes accept as a secondary path for
+# exactly this kind of manual call.
 #
 # Uses the *.vercel.app production domain rather than the custom domain:
 # controlledchaos.adhdesigns.dev is proxied through Cloudflare, whose bot/
 # managed-challenge protection blocks GitHub Actions' shared runner IPs
-# before the request reaches Vercel. The vercel.app domain isn't proxied,
-# so it reaches the app directly (same behavior Vercel's own Cron Jobs
-# feature relied on).
+# before the request reaches Vercel. The vercel.app domain isn't proxied.
 
-# Ticks land on 7/22/37/52 rather than the round quarter-hours: GitHub's own
-# docs warn that :00/:15/:30/:45 are the most congested slots (every repo's
-# cron piles up there) and scheduled workflows get silently dropped, not just
-# delayed, under that load. Confirmed here — median gap between actual runs
-# was ~36min against a nominal 15min. Off-round-minute scheduling reduces
-# (but doesn't eliminate) the drop rate; see push-triggers/morning-digest/
-# evening-digest for how the endpoints stay correct even when a poll is missed.
 on:
-  schedule:
-    - cron: "7,22,37,52 * * * *" # calendar-sync + push-triggers
-    - cron: "7,22,37,52 6-16 * * *" # morning-digest window (6am-4pm UTC)
-    - cron: "7,22,37,52 22-23,0-4 * * *" # evening-digest window (10pm-4am UTC)
   workflow_dispatch:
 
 jobs:
@@ -30,21 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Calendar sync
-        if: github.event.schedule == '7,22,37,52 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Push triggers
-        if: github.event.schedule == '7,22,37,52 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Morning digest
-        if: github.event.schedule == '7,22,37,52 6-16 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Evening digest
-        if: github.event.schedule == '7,22,37,52 22-23,0-4 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

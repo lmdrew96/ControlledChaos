@@ -30,6 +30,7 @@ import {
 } from "@/lib/notifications/triggers";
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 // Vercel Pro: 60s max. Default (10s) silently truncates the per-user loop
 // once the user count grows past ~5–10 push-enabled users.
@@ -367,15 +368,14 @@ async function processUser(user: PushUser): Promise<number> {
 }
 
 /**
- * GET /api/cron/push-triggers
- * Runs every 15 minutes via Vercel cron.
+ * POST /api/cron/push-triggers
+ * Triggered by a QStash schedule (falls back to CRON_SECRET bearer auth for manual/local calls).
  * Checks all push-enabled users for deadline reminders, event reminders, scheduled task alerts,
  * a single daily idle check-in (at the user's chosen window), inactivity nudges, and pending snoozed pushes.
  */
-export async function GET(request: Request) {
-  // Verify cron secret
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  if (!(await verifyCronRequest(request, rawBody))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

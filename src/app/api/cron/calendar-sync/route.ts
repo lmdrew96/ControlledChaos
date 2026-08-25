@@ -4,18 +4,19 @@ import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone } from "@/lib/timezone";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 // Vercel Pro: 60s max. Default (10s) silently truncates the per-user sync loop.
 export const maxDuration = 60;
 
 /**
- * GET /api/cron/calendar-sync
- * Runs every 15 minutes via Vercel cron.
+ * POST /api/cron/calendar-sync
+ * Triggered by a QStash schedule (falls back to CRON_SECRET bearer auth for manual/local calls).
  * Syncs all users' Canvas calendars so the AI always has fresh data.
  */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+export async function POST(request: Request) {
+  const rawBody = await request.text();
+  if (!(await verifyCronRequest(request, rawBody))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
