@@ -356,3 +356,14 @@
   }
 }
 
+/* Clerk's UserButton popover is portaled outside Radix's dialog/sheet layer
+   stack. When a Radix Sheet (e.g. the mobile "More" menu) is open, Radix
+   sets pointerEvents: none on <body> and only re-enables it on its own
+   registered layer — so the popover inherits pointer-events: none and sits
+   visually on top but unclickable, letting clicks fall through to whatever
+   sheet content is underneath it. Force it back on explicitly. */
+.cl-userButtonPopoverRootBox,
+.cl-userButtonPopoverCard {
+  pointer-events: auto;
+}
+
