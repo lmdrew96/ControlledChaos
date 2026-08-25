@@ -157,6 +157,16 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
     setWeekStart(getWeekStart(initialDate, weekStartDay));
   }, [initialDate, weekStartDay]);
 
+  // No initialDate (e.g. landing on Week view directly): weekStart is first
+  // computed with the hardcoded Monday-start default before the real
+  // weekStartDay setting loads. Realign once it arrives, or dayLabels (which
+  // reacts to weekStartDay immediately) drifts out of sync with the dates in
+  // weekDays, shifting every day's label by one.
+  useEffect(() => {
+    if (initialDate) return;
+    setWeekStart((prev) => getWeekStart(prev, weekStartDay));
+  }, [initialDate, weekStartDay]);
+
   const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
   const weekEnd = useMemo(() => {
