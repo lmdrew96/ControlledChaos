@@ -234,8 +234,11 @@ export async function generateSchedule(
       validTaskIds.has(block.taskId) && block.startTime && block.endTime
   );
 
+  // Drop any blocks the AI placed outside the free blocks it was given
+  const containedBlocks = removeBlocksOutsideFreeTime(validBlocks, freeBlocks);
+
   // Drop any blocks that overlap with existing calendar events
-  const safeBlocks = removeConflictsWithEvents(validBlocks, input.calendarEvents);
+  const safeBlocks = removeConflictsWithEvents(containedBlocks, input.calendarEvents);
 
   // Remove overlapping blocks between AI's own scheduled blocks
   return removeOverlappingBlocks(safeBlocks);
@@ -367,9 +370,41 @@ Find the best time for this task using urgency + energy matching.${input.aiConte
     reasoning,
   };
 
-  // Hard safety: ensure block doesn't overlap any real events
-  const safe = removeConflictsWithEvents([candidate], input.calendarEvents);
+  // Hard safety: ensure the AI actually placed the block inside a free block,
+  // and that it doesn't overlap any real events
+  const contained = removeBlocksOutsideFreeTime([candidate], freeBlocks);
+  const safe = removeConflictsWithEvents(contained, input.calendarEvents);
   return safe.length > 0 ? safe[0] : null;
+}
+
+/**
+ * Drop any AI-scheduled blocks that don't actually fall inside one of the
+ * free blocks it was given. The prompt asks the model to self-verify
+ * containment, but nothing enforced it in code — only conflicts with real
+ * calendar events and overlaps between the AI's own blocks were checked.
+ */
+function removeBlocksOutsideFreeTime(
+  blocks: ScheduledBlock[],
+  freeBlocks: FreeTimeBlock[]
+): ScheduledBlock[] {
+  return blocks.filter((block) => {
+    const bStart = new Date(block.startTime).getTime();
+    const bEnd = new Date(block.endTime).getTime();
+
+    const isContained = freeBlocks.some((fb) => {
+      const fbStart = new Date(fb.start).getTime();
+      const fbEnd = new Date(fb.end).getTime();
+      return bStart >= fbStart && bEnd <= fbEnd;
+    });
+
+    if (!isContained) {
+      console.warn(
+        `[AI Schedule] Dropped block for task ${block.taskId}: ${block.startTime}–${block.endTime} falls outside any free block`
+      );
+    }
+
+    return isContained;
+  });
 }
 
 /**

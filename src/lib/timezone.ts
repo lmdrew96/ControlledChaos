@@ -250,3 +250,16 @@ export function formatForDisplay(
 ): string {
   return date.toLocaleString("en-US", { timeZone: timezone, ...options });
 }
+
+/**
+ * Format a Date for inclusion in an AI prompt.
+ *
+ * Any date string handed to the model must be localized first — raw
+ * `.toISOString()` output is UTC and reads as local time to the model,
+ * silently shifting every downstream instruction by the user's UTC offset.
+ * Use this instead of `.toISOString()` anywhere a date is interpolated into
+ * a prompt sent to callHaiku/callSonnet.
+ */
+export function formatForAI(date: Date, timezone: string): string {
+  return formatForDisplay(date, timezone, DISPLAY_FULL_DATETIME);
+}
