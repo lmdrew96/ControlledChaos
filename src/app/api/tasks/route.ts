@@ -4,6 +4,7 @@ import { getTasksByUser, createTask, updateTask } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
 import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
+import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         `Task: "${task.title}"`,
         task.category ? `Category: ${task.category}` : null,
         task.priority !== "normal" ? `Priority: ${task.priority}` : null,
-        task.deadline ? `Deadline: ${task.deadline.toISOString()}` : null,
+        task.deadline ? `Deadline: ${formatForDisplay(task.deadline, aiCtx.timezone, DISPLAY_DATETIME)}` : null,
         `\n${aiCtx.formatted}`,
       ]
         .filter(Boolean)

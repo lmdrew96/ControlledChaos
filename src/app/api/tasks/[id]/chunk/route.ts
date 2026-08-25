@@ -4,6 +4,7 @@ import { callHaiku } from "@/lib/ai";
 import { TASK_CHUNKING_PROMPT } from "@/lib/ai/prompts";
 import { extractJSON } from "@/lib/ai/validate";
 import { buildAIContext } from "@/lib/ai/context";
+import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -51,7 +52,7 @@ export async function POST(_req: Request, context: RouteContext) {
       `Energy level: ${task.energyLevel}`,
       task.category ? `Category: ${task.category}` : null,
       `Priority: ${task.priority}`,
-      task.deadline ? `Deadline: ${task.deadline.toISOString()}` : null,
+      task.deadline ? `Deadline: ${formatForDisplay(task.deadline, aiCtx.timezone, DISPLAY_DATETIME)}` : null,
       `\n${aiCtx.formatted}`,
     ]
       .filter(Boolean)
