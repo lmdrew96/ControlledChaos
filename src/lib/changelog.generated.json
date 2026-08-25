@@ -4,6 +4,14 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Notifications treating stale location as current"
+      },
+      {
+        "type": "fixed",
+        "text": "What's New dialog silently no-op on empty changelog data"
+      },
+      {
+        "type": "fixed",
         "text": "Brain dump task deadlines trusting the AI's own UTC conversion"
       },
       {

@@ -387,6 +387,7 @@ Args:
   - start_date (required): Start of range (ISO 8601 in UTC, e.g. "2026-03-21T04:00:00Z" for midnight ET).
   - end_date (required): End of range (ISO 8601 in UTC).
   - source: Filter by source (canvas, google, controlledchaos).
+  - category: Filter by category (school, work, personal, errands, health).
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -395,6 +396,7 @@ Returns: Markdown-formatted list of events with times displayed in the user's ti
         start_date: z.string().describe("Start date (ISO 8601 UTC, e.g. 2026-03-21T04:00:00Z)"),
         end_date: z.string().describe("End date (ISO 8601 UTC)"),
         source: z.enum(["canvas", "google", "controlledchaos"]).optional().describe("Filter by event source"),
+        category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Filter by category"),
       },
       annotations: {
         readOnlyHint: true,
@@ -406,21 +408,23 @@ Returns: Markdown-formatted list of events with times displayed in the user's ti
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      let query: string;
-      let values: unknown[];
+
+      const conditions: string[] = ["user_id = $1", "start_time <= $3", "end_time > $2"];
+      const values: unknown[] = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString()];
+      let paramIdx = 4;
 
       if (params.source) {
-        query = `SELECT * FROM calendar_events
-                 WHERE user_id = $1 AND start_time <= $3 AND end_time > $2 AND source = $4
-                 ORDER BY start_time`;
-        values = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString(), params.source];
-      } else {
-        query = `SELECT * FROM calendar_events
-                 WHERE user_id = $1 AND start_time <= $3 AND end_time > $2
-                 ORDER BY start_time`;
-        values = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString()];
+        conditions.push(`source = $${paramIdx}`);
+        values.push(params.source);
+        paramIdx++;
+      }
+      if (params.category) {
+        conditions.push(`category = $${paramIdx}`);
+        values.push(params.category);
+        paramIdx++;
       }
 
+      const query = `SELECT * FROM calendar_events WHERE ${conditions.join(" AND ")} ORDER BY start_time`;
       const rows = await sql(query, values);
 
       if (rows.length === 0) {
@@ -448,6 +452,7 @@ Args:
   - end_time (required): End datetime of the first instance (ISO 8601 in UTC).
   - description: Optional description.
   - location: Optional location string.
+  - category: school, work, personal, errands, or health.
   - is_all_day: Whether it's an all-day event (default false).
   - recurrence: Optional. Makes this a recurring series instead of a single event:
       - type (required): "daily" or "weekly".
@@ -467,6 +472,7 @@ Returns: The created event (or a summary if recurring).`,
         end_time: z.string().describe("End datetime of the first instance (ISO 8601 UTC)"),
         description: z.string().max(2000).optional().describe("Event description"),
         location: z.string().max(500).optional().describe("Event location"),
+        category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
         is_all_day: z.boolean().default(false).describe("All-day event?"),
         recurrence: z
           .object({
@@ -516,8 +522,8 @@ Returns: The created event (or a summary if recurring).`,
       for (const inst of instances) {
         const externalId = `mcp-${crypto.randomUUID()}`;
         const rows = await sql(
-          `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, series_id, synced_at)
-           VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+          `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, category, series_id, synced_at)
+           VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
            RETURNING *`,
           [
             userId,
@@ -528,6 +534,7 @@ Returns: The created event (or a summary if recurring).`,
             inst.endTime.toISOString(),
             inst.location,
             inst.isAllDay,
+            params.category ?? null,
             seriesId,
           ]
         );
@@ -840,7 +847,7 @@ Returns: Confirmation of deletion.`,
 
 Args:
   - event_id (required): UUID of the event to update.
-  - title, description, start_time, end_time, location, is_all_day: Fields to update.
+  - title, description, start_time, end_time, location, category, is_all_day: Fields to update.
   - scope: "this" (default) updates only this event. "all" updates every event in its series (if it belongs to one) —
     title/description/location/is_all_day are applied to every instance; start_time/end_time only change the time-of-day,
     each instance keeps its own date.
@@ -855,6 +862,7 @@ Returns: The updated event, or a summary if scope is "all".`,
         start_time: z.string().optional().describe("New start datetime (ISO 8601 UTC)"),
         end_time: z.string().optional().describe("New end datetime (ISO 8601 UTC)"),
         location: z.string().max(500).optional().describe("New location"),
+        category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
         is_all_day: z.boolean().optional().describe("All-day event?"),
         scope: z.enum(["this", "all"]).default("this").describe("Update just this event, or every instance in its series"),
       },
@@ -889,6 +897,7 @@ Returns: The updated event, or a summary if scope is "all".`,
           ["start_time", params.start_time ? new Date(params.start_time).toISOString() : undefined],
           ["end_time", params.end_time ? new Date(params.end_time).toISOString() : undefined],
           ["location", params.location],
+          ["category", params.category],
           ["is_all_day", params.is_all_day],
         ];
 
@@ -919,6 +928,7 @@ Returns: The updated event, or a summary if scope is "all".`,
         ["title", params.title],
         ["description", params.description],
         ["location", params.location],
+        ["category", params.category],
         ["is_all_day", params.is_all_day],
       ];
       for (const [col, val] of metaFields) {
