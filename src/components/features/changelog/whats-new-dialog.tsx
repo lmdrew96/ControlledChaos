@@ -76,8 +76,6 @@ interface WhatsNewDialogProps {
 export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
   const timezone = useTimezone();
 
-  if (changelog.length === 0) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -91,6 +89,9 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
+        {changelog.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No updates yet.</p>
+        ) : (
         <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1 space-y-6">
           {changelog.map((week) => (
             <div key={week.weekOf}>
@@ -108,6 +109,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
             </div>
           ))}
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

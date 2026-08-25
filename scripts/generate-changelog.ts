@@ -2,7 +2,14 @@
  * Generates src/lib/changelog.generated.json from git log.
  * Run manually or via `pnpm changelog` / prebuild.
  *
- * Groups commits by week. Only includes feat: and fix: commits.
+ * Groups commits by week. Recognizes two commit styles:
+ *   - conventional: "feat: ..." / "fix(scope): ..."
+ *   - versioned (this project's actual convention): "v1.2.3: fix ..." /
+ *     "v1.2.3: add ...", optionally with a nested conventional type
+ *     ("v1.2.3: fix(cron): ..."). Commits under a versioned prefix with no
+ *     recognized fix/add verb still count as "added" — everything gets a
+ *     version bump here, so if it shipped, it's changelog-worthy. Internal
+ *     types (chore/refactor/style/docs/etc.) are always skipped.
  */
 
 import { execSync } from "child_process";
@@ -19,6 +26,45 @@ interface CommitInfo {
 interface ChangelogWeek {
   weekOf: string; // YYYY-MM-DD (Monday of that week)
   items: { type: "added" | "fixed"; text: string }[];
+}
+
+const VERSION_PREFIX = /^v\d+\.\d+\.\d+:\s*(.+)$/i;
+const CONVENTIONAL = /^(feat|fix)(?:\([^)]+\))?:\s*(.+)$/i;
+const INTERNAL_TYPE = /^(chore|refactor|style|docs|debug|perf|test|build|ci)(?:\([^)]+\))?:\s*/i;
+const LEADING_FIX = /^fix(?:e[ds])?\b[:\s]*/i;
+const LEADING_ADD = /^add(?:ed|s)?\b[:\s]*/i;
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Classifies a commit subject into a changelog type + message, or null to skip it. */
+function classify(subject: string): { type: "feat" | "fix"; message: string } | null {
+  const versioned = subject.match(VERSION_PREFIX);
+  const rest = versioned ? versioned[1] : subject;
+
+  // Nested conventional type, e.g. "v1.2.3: fix(cron): ..." or bare "fix(cron): ..."
+  const conventional = rest.match(CONVENTIONAL);
+  if (conventional) {
+    return {
+      type: conventional[1].toLowerCase() as "feat" | "fix",
+      message: capitalize(conventional[2]),
+    };
+  }
+
+  if (INTERNAL_TYPE.test(rest)) return null;
+
+  if (LEADING_FIX.test(rest)) {
+    return { type: "fix", message: capitalize(rest.replace(LEADING_FIX, "")) };
+  }
+  if (LEADING_ADD.test(rest)) {
+    return { type: "feat", message: capitalize(rest.replace(LEADING_ADD, "")) };
+  }
+
+  // Versioned commit with no recognized verb — still shipped, count as "added".
+  if (versioned) return { type: "feat", message: capitalize(rest) };
+
+  return null;
 }
 
 function parseCommits(): CommitInfo[] {
@@ -39,17 +85,10 @@ function parseCommits(): CommitInfo[] {
     const date = line.slice(firstPipe + 1, secondPipe);
     const subject = line.slice(secondPipe + 1);
 
-    // Only feat: and fix: conventional commits — scope optional, e.g.
-    // "feat: ..." or "feat(moments): ..."
-    const match = subject.match(/^(feat|fix)(?:\([^)]+\))?:\s*(.+)$/i);
-    if (!match) continue;
+    const classified = classify(subject);
+    if (!classified) continue;
 
-    commits.push({
-      hash,
-      date,
-      type: match[1].toLowerCase() as "feat" | "fix",
-      message: match[2].charAt(0).toUpperCase() + match[2].slice(1),
-    });
+    commits.push({ hash, date, type: classified.type, message: classified.message });
   }
 
   return commits;

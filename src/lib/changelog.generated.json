@@ -1,5 +1,68 @@
 [
   {
+    "weekOf": "2026-08-24",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Brain dump task deadlines trusting the AI's own UTC conversion"
+      },
+      {
+        "type": "fixed",
+        "text": "Task auto-note prompts sending raw UTC deadline"
+      },
+      {
+        "type": "fixed",
+        "text": "Crisis auto-triage cron sending raw UTC time to AI"
+      },
+      {
+        "type": "added",
+        "text": "FormatForAI() convention and free-block containment check"
+      },
+      {
+        "type": "fixed",
+        "text": "Account menu clicks passing through to mobile More sheet"
+      },
+      {
+        "type": "fixed",
+        "text": "Mobile week view day labels drifting from dates"
+      },
+      {
+        "type": "fixed",
+        "text": "Production build crash from eager Groq client init"
+      },
+      {
+        "type": "added",
+        "text": "Brand digest emails and Clerk UI with ControlledChaos sunset palette"
+      },
+      {
+        "type": "added",
+        "text": "Document DST edge-case limits in zonedToUtc"
+      },
+      {
+        "type": "added",
+        "text": "Recurring event support to cc_create_event MCP tool"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-08-17",
+    "items": [
+      {
+        "type": "added",
+        "text": "Upgrade to Sonnet 5, fix location notification accuracy"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-08-10",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Stale noreply email addresses in notification defaults"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-08-03",
     "items": [
       {
@@ -9,12 +72,301 @@
       {
         "type": "fixed",
         "text": "Use block scalars for run: to fix YAML parse error"
+      },
+      {
+        "type": "added",
+        "text": "Assign goalId from brain dump AI parsing"
+      },
+      {
+        "type": "added",
+        "text": "Cut Medications feature"
+      },
+      {
+        "type": "added",
+        "text": "Bump version for Friends & Parallel Play cut"
+      },
+      {
+        "type": "added",
+        "text": "Cut Friends & Parallel Play (retire Convex dependency)"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-06-08",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Auto-heal stale push subscriptions so notifications resume without manual toggle"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-06-01",
+    "items": [
+      {
+        "type": "added",
+        "text": "Surface Friends & Parallel Play as a top-level route"
+      },
+      {
+        "type": "fixed",
+        "text": "Render AI auto-note event time in user timezone"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-05-11",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Prevent duplicate friends via bidirectional DB constraint"
+      },
+      {
+        "type": "fixed",
+        "text": "Gate AI generation on quiet hours before calling model"
+      },
+      {
+        "type": "fixed",
+        "text": "Add launch handler for installed app launches"
+      },
+      {
+        "type": "fixed",
+        "text": "Restore prior iOS service worker lifecycle"
+      },
+      {
+        "type": "fixed",
+        "text": "Prevent iOS Safari demotion from notification clicks through SPA routing Service worker notification clicks were forcing hard navigation via client.navigate() or openWindow(), which on iOS standalone PWAs causes the browser to open a fresh browser context, demoting the app from the standalone window to Safari. Instead: - Existing app windows now receive postMessage for navigation routes through the SPA - New windows open at /dashboard with the target as a launch query param - Client-side handler consumes launch param to route in-app via Next router - Falls back to service worker message routing for older-style clicks Restores manifest id for stable app identity across updates."
+      },
+      {
+        "type": "fixed",
+        "text": "Add explicit scope to prevent browser launch on out-of-scope navigation"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-05-04",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Assignment due dates off by 24h on UTC server"
+      },
+      {
+        "type": "fixed",
+        "text": "Scope Leaflet map into its own stacking context"
+      },
+      {
+        "type": "fixed",
+        "text": "Retry-once + visible error on dashboard load"
+      },
+      {
+        "type": "fixed",
+        "text": "Drop stale parent_task_id refs in marination queries"
+      },
+      {
+        "type": "added",
+        "text": "Cc_recommend_next_task + cc_get_active_crisis tools"
+      },
+      {
+        "type": "added",
+        "text": "MaxDuration=60 + parallelize push-triggers loop"
+      },
+      {
+        "type": "added",
+        "text": "Add no-unused-vars (error) + no-floating-promises (warn)"
+      },
+      {
+        "type": "fixed",
+        "text": "Clean 23 errors + wire lint into prebuild"
+      },
+      {
+        "type": "fixed",
+        "text": "Mobile-check pass — close moments-bar gap, bump cal touch targets"
+      },
+      {
+        "type": "fixed",
+        "text": "Stop demoting iOS PWA to Safari on every deploy"
+      },
+      {
+        "type": "added",
+        "text": "Friends' rooms browse view"
+      },
+      {
+        "type": "added",
+        "text": "Source-back badges in task & event detail modals"
+      },
+      {
+        "type": "fixed",
+        "text": "Collapse microtask chips to icon-only below md:"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-04-27",
+    "items": [
+      {
+        "type": "added",
+        "text": "Mobile agenda mode below md: breakpoint"
+      },
+      {
+        "type": "fixed",
+        "text": "Bump 3 critical touch targets up to ≥36px"
+      },
+      {
+        "type": "fixed",
+        "text": "Stack Daily Check-in time picker on mobile"
+      },
+      {
+        "type": "fixed",
+        "text": "Add break-words / truncate to AI text surfaces"
+      },
+      {
+        "type": "added",
+        "text": "Surface /momentum in cmd+K palette and mobile More"
+      },
+      {
+        "type": "added",
+        "text": "Tighten auto-note prompts to one glanceable sentence"
+      },
+      {
+        "type": "added",
+        "text": "Add global cmd+K command palette"
+      },
+      {
+        "type": "added",
+        "text": "Rebuild Settings as a single search-first list"
+      },
+      {
+        "type": "added",
+        "text": "Demote dashboard secondary cards to today strip"
+      },
+      {
+        "type": "added",
+        "text": "Simplify TaskCard — cap badges, surface actions"
+      },
+      {
+        "type": "added",
+        "text": "Consolidate sidebar utilities into Clerk avatar menu"
+      },
+      {
+        "type": "added",
+        "text": "Make sidebar Log-a-moment group collapsible (collapsed by default)"
+      },
+      {
+        "type": "added",
+        "text": "Rename Mirror → Daily Recap"
+      },
+      {
+        "type": "added",
+        "text": "Apply Fraunces to CardTitle so every section header is on-brand"
+      },
+      {
+        "type": "added",
+        "text": "Tame per-step confetti in chunked tasks"
+      },
+      {
+        "type": "added",
+        "text": "Unify nav labels across desktop / mobile / More sheet"
+      },
+      {
+        "type": "added",
+        "text": "Shrink idle \"Need a nudge?\" hero to a compact inline CTA"
+      },
+      {
+        "type": "added",
+        "text": "Fix color semantic collisions and align components to brand palette"
+      },
+      {
+        "type": "added",
+        "text": "Increase paper-mode bg/card contrast"
+      },
+      {
+        "type": "added",
+        "text": "Remove body gradient blobs and Card glassmorphism"
+      },
+      {
+        "type": "added",
+        "text": "Switch to editorial type stack — Fraunces + IBM Plex Sans"
+      },
+      {
+        "type": "fixed",
+        "text": "Commit convex/_generated/ for Vercel builds"
+      },
+      {
+        "type": "fixed",
+        "text": "Use relative imports for Convex codegen"
+      },
+      {
+        "type": "added",
+        "text": "Room manager UI + /join/[code] deep link"
+      },
+      {
+        "type": "added",
+        "text": "Per-flare encourage gating"
+      },
+      {
+        "type": "added",
+        "text": "Per-task room visibility setting"
+      },
+      {
+        "type": "added",
+        "text": "Wire task start/finish to presence sync"
+      },
+      {
+        "type": "added",
+        "text": "Toggle, overlay, and Convex provider integration"
+      },
+      {
+        "type": "added",
+        "text": "Presence bubbles with reactive animations"
+      },
+      {
+        "type": "added",
+        "text": "Haiku room-awareness in recommender prompt"
+      },
+      {
+        "type": "added",
+        "text": "Room CRUD API routes"
+      },
+      {
+        "type": "added",
+        "text": "Convex crons for idle detection + event cleanup"
+      },
+      {
+        "type": "added",
+        "text": "Convex presence mutations and queries"
+      },
+      {
+        "type": "added",
+        "text": "Scaffold Convex sidecar (schema + auth bridge)"
+      },
+      {
+        "type": "added",
+        "text": "Add rooms, room_members, tasks.roomVisibility schema"
+      },
+      {
+        "type": "added",
+        "text": "Add daily prompts with chip zone + manage view"
       }
     ]
   },
   {
     "weekOf": "2026-04-20",
     "items": [
+      {
+        "type": "fixed",
+        "text": "Sync email + displayName from Clerk in ensureUser"
+      },
+      {
+        "type": "added",
+        "text": "Bundle reminders scheduled at the same time"
+      },
+      {
+        "type": "fixed",
+        "text": "Track meta/ in git + reset migration baseline"
+      },
+      {
+        "type": "fixed",
+        "text": "Gate SW reload to mid-session swaps; add onboarding sign-out"
+      },
       {
         "type": "fixed",
         "text": "Resolve unique-index collisions before re-pointing users"
@@ -699,6 +1051,321 @@
       {
         "type": "added",
         "text": "Add MCP server for ControlledChaos"
+      },
+      {
+        "type": "added",
+        "text": "Sort and filter controls to task list"
+      },
+      {
+        "type": "fixed",
+        "text": "Modal scroll containment — no more horizontal scroll on desktop"
+      },
+      {
+        "type": "added",
+        "text": "Swipe gestures to task cards on mobile"
+      },
+      {
+        "type": "fixed",
+        "text": "Mobile responsiveness in all modals"
+      },
+      {
+        "type": "added",
+        "text": "Per-task 'find a time' scheduling with related-event detection"
+      },
+      {
+        "type": "fixed",
+        "text": "Landing page not rendering — move to src/app/page.tsx"
+      },
+      {
+        "type": "added",
+        "text": "Landing page with animated brain dump demo"
+      },
+      {
+        "type": "added",
+        "text": "SW push event logging for debugging"
+      },
+      {
+        "type": "fixed",
+        "text": "VAPID not applied: extract webpush init to shared module"
+      },
+      {
+        "type": "added",
+        "text": "Push notification diagnostics to test endpoint"
+      },
+      {
+        "type": "fixed",
+        "text": "Push notifications silently blocked by pushEnabled/quiet hours"
+      },
+      {
+        "type": "fixed",
+        "text": "Push notifications not reaching devices"
+      },
+      {
+        "type": "fixed",
+        "text": "AI scheduler timezone bug: events at wrong times / 3am scheduling"
+      },
+      {
+        "type": "added",
+        "text": "AI task breakdown: break any task into subtasks with one click"
+      },
+      {
+        "type": "fixed",
+        "text": "Calendar events saving at wrong time in manual create/edit forms"
+      },
+      {
+        "type": "fixed",
+        "text": "Brain dump calendar events saving at wrong time (UTC vs local)"
+      },
+      {
+        "type": "fixed",
+        "text": "Task deletion 500: delete task_activity rows before task"
+      },
+      {
+        "type": "fixed",
+        "text": "Task deletion bug and add two-click delete confirmation"
+      },
+      {
+        "type": "added",
+        "text": "Direct task creation without Brain Dump"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-02-23",
+    "items": [
+      {
+        "type": "added",
+        "text": "Retry with exponential backoff to all Anthropic API calls"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-02-16",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "Email delivery: correct FROM domain + add Resend response logging"
+      },
+      {
+        "type": "added",
+        "text": "/api/cron routes to Clerk public routes"
+      },
+      {
+        "type": "added",
+        "text": "?force=true param to digest cron routes for testing"
+      },
+      {
+        "type": "fixed",
+        "text": "Cron jobs: change POST to GET (Vercel sends GET requests)"
+      },
+      {
+        "type": "fixed",
+        "text": "AI date reasoning errors with pre-computed deadline urgency"
+      },
+      {
+        "type": "fixed",
+        "text": "Recommendation engine blind spot for current events and schedule hallucinations"
+      },
+      {
+        "type": "fixed",
+        "text": "Calendar sync: convert raw timestamp string to Date"
+      },
+      {
+        "type": "fixed",
+        "text": "Manifest.json 404 and harden calendar API resilience"
+      },
+      {
+        "type": "added",
+        "text": "Brain dump history, PWA manifest, and update timeline doc"
+      },
+      {
+        "type": "added",
+        "text": "Terms of service and privacy policy pages"
+      },
+      {
+        "type": "added",
+        "text": "Manual calendar events and brain dump event parsing"
+      },
+      {
+        "type": "fixed",
+        "text": "Stale calendar data in AI recommendations"
+      },
+      {
+        "type": "added",
+        "text": "@react-email/components and resend packages for email functionality"
+      },
+      {
+        "type": "added",
+        "text": "React-email and resend to serverExternalPackages for Turbopack"
+      },
+      {
+        "type": "added",
+        "text": "Notification bell with in-app feed (Milestone 6, Phase 5)"
+      },
+      {
+        "type": "added",
+        "text": "Email digest system with Resend + React Email (Milestone 6, Phase 4)"
+      },
+      {
+        "type": "added",
+        "text": "Push notification cron triggers (Milestone 6, Phase 3)"
+      },
+      {
+        "type": "added",
+        "text": "Push notification infrastructure (Milestone 6 Phase 2)"
+      },
+      {
+        "type": "added",
+        "text": "Notification preferences UI and settings wiring (Milestone 6 Phase 1)"
+      },
+      {
+        "type": "fixed",
+        "text": "Calendar event contrast for light mode"
+      },
+      {
+        "type": "added",
+        "text": "Confetti + toast to task card checkbox completion"
+      },
+      {
+        "type": "added",
+        "text": "Confetti burst on task completion"
+      },
+      {
+        "type": "added",
+        "text": "Clear all AI-scheduled events button with confirmation dialog"
+      },
+      {
+        "type": "fixed",
+        "text": "AI hallucinating due dates and drag-and-drop time offset"
+      },
+      {
+        "type": "added",
+        "text": "Drag-and-drop rearranging for AI-scheduled tasks on desktop calendar"
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-02-09",
+    "items": [
+      {
+        "type": "added",
+        "text": "Hard validation to prevent scheduling over existing events"
+      },
+      {
+        "type": "added",
+        "text": "Google Calendar selection — users choose which calendars to sync"
+      },
+      {
+        "type": "added",
+        "text": "Appearance settings with light/dark/system theme toggle"
+      },
+      {
+        "type": "fixed",
+        "text": "Mobile bottom nav overflow — compact account button"
+      },
+      {
+        "type": "added",
+        "text": "Sign out and theme toggle to mobile bottom nav"
+      },
+      {
+        "type": "fixed",
+        "text": "Duplicate CC events on Google Calendar sync"
+      },
+      {
+        "type": "added",
+        "text": "Sunday/Monday week start toggle for calendar view"
+      },
+      {
+        "type": "added",
+        "text": "Calendar awareness to task recommendations and scheduling"
+      },
+      {
+        "type": "added",
+        "text": "Address search to saved locations (Nominatim geocoding)"
+      },
+      {
+        "type": "fixed",
+        "text": "Photo dump 413 by compressing images client-side"
+      },
+      {
+        "type": "added",
+        "text": "Edit and delete for AI-scheduled calendar events"
+      },
+      {
+        "type": "added",
+        "text": "Customizable calendar hours (wake/sleep time)"
+      },
+      {
+        "type": "fixed",
+        "text": "Clerk reverification error when adding second Google account"
+      },
+      {
+        "type": "fixed",
+        "text": "Zero-duration events sharing same column in overlap layout"
+      },
+      {
+        "type": "fixed",
+        "text": "Overlapping Canvas events not detected by layout algorithm"
+      },
+      {
+        "type": "fixed",
+        "text": "Overlapping events stacking on desktop calendar view"
+      },
+      {
+        "type": "fixed",
+        "text": "Recommendation engine showing wrong time and day"
+      },
+      {
+        "type": "added",
+        "text": "Google Calendar integration and AI task scheduling (Milestone 5B)"
+      },
+      {
+        "type": "fixed",
+        "text": "All-day calendar events text wrapping"
+      },
+      {
+        "type": "fixed",
+        "text": "Sidebar to viewport height with sticky positioning"
+      },
+      {
+        "type": "added",
+        "text": "Canvas iCal calendar sync and week view (Milestone 5 Phase A)"
+      },
+      {
+        "type": "added",
+        "text": "Photo brain dump with Claude Vision text extraction (Milestone 3)"
+      },
+      {
+        "type": "added",
+        "text": "Voice filler filtering to brain dump parser"
+      },
+      {
+        "type": "added",
+        "text": "Voice brain dump with Groq Whisper STT and R2 storage (Milestone 3)"
+      },
+      {
+        "type": "added",
+        "text": "AI task recommendation engine and settings page (Milestone 4)"
+      },
+      {
+        "type": "added",
+        "text": "Glassmorphism UI and light/dark mode toggle"
+      },
+      {
+        "type": "added",
+        "text": "Task detail modal and user onboarding flow (Week 3-4)"
+      },
+      {
+        "type": "added",
+        "text": "Custom logo, update docs and project config"
+      },
+      {
+        "type": "added",
+        "text": "Text brain dump → AI task parsing (Milestone 2 core loop)"
+      },
+      {
+        "type": "added",
+        "text": "Project-specific `.gitignore`, initial setup files, and documentation"
       }
     ]
   }
