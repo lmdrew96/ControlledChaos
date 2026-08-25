@@ -486,7 +486,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - crisis_worsened: The collision got worse since the last notification (new task, less available time). Brief update, no guilt. One re-nudge only — keep it calm. 1-2 sentences.
 
 ## Location context
-If "User's current location" is provided, weave it in naturally when relevant. For example, if the user is at "Campus" and the task is tagged for campus, mention it briefly ("you're already on campus"). If the location doesn't relate to the task, you can still use it for color ("while you're at home, knock this out") but don't force it. Never mention location if it would make the message awkward or longer than 2 sentences.
+If "User's last known location" is provided, weave it in naturally when relevant — but phrase it as a recent-past observation, not a live fact, since it's only as fresh as the last time the user had the app open. For example, if the user was last at "Campus" and the task is tagged for campus, mention it briefly ("since you're still on campus" or "if you're still on campus"), not a flat assertion that they're there now. If the location doesn't relate to the task, you can still use it for color ("last we knew, you were at home — knock this out") but don't force it. Never mention location if it would make the message awkward or longer than 2 sentences.
 
 ## Schedule awareness
 If "User's Current Context" is provided, USE IT. This tells you what the user's day actually looks like — their remaining calendar events, pending tasks, energy level, and recent activity.

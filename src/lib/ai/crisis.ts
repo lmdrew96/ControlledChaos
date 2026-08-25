@@ -91,7 +91,7 @@ function buildUserPrompt(params: CrisisParams): string {
     const commuteInfo = params.commuteContext && params.commuteContext.length > 0
       ? `\nKnown commute times from ${params.currentLocation}: ${params.commuteContext.map((c) => `→ ${c.to}: ${c.minutes} min`).join(", ")}.`
       : "";
-    locationLine = `\nUser's current location: ${params.currentLocation}. If the task requires being somewhere else, you MUST include a "Leave for [destination]" step with the commute time. The user needs to arrive BEFORE the deadline, not at the deadline.${commuteInfo}`;
+    locationLine = `\nUser's last known location: ${params.currentLocation}. If the task requires being somewhere else, you MUST include a "Leave for [destination]" step with the commute time. The user needs to arrive BEFORE the deadline, not at the deadline.${commuteInfo}`;
   }
 
   return `Task: ${params.taskName}

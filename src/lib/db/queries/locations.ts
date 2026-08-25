@@ -65,6 +65,16 @@ export async function getUserLocation(userId: string) {
   return row ?? null;
 }
 
+// PWAs get no background geolocation — position is only reported while the
+// app is open in the foreground (see use-geofence-tracker.ts). Past this
+// window, a stored location reflects wherever the user was last, not where
+// they are now, so callers should treat it as unknown rather than current.
+const LOCATION_STALE_AFTER_MS = 30 * 60 * 1000;
+
+export function isLocationStale(updatedAt: Date): boolean {
+  return Date.now() - updatedAt.getTime() > LOCATION_STALE_AFTER_MS;
+}
+
 export async function upsertUserLocation(
   userId: string,
   data: {

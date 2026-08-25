@@ -18,6 +18,7 @@ import {
   getRecentTaskActivity,
   createNotification,
   getUserLocation,
+  isLocationStale,
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
@@ -44,7 +45,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  const locationName = userLoc?.matchedLocationName ?? null;
+  // Digest is generated on a schedule, not while the app is necessarily open — a
+  // stale (app-not-foregrounded) location is worse than none for the AI's copy.
+  const locationName =
+    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
+      ? userLoc.matchedLocationName
+      : null;
   const now = new Date();
 
   // Today's events
@@ -103,7 +109,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User's current location: ${locationName}` : null,
+    locationName ? `User's last known location: ${locationName}` : null,
     `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `Deadlines this week: ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
@@ -183,7 +189,10 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  const locationName = userLoc?.matchedLocationName ?? null;
+  const locationName =
+    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
+      ? userLoc.matchedLocationName
+      : null;
   const now = new Date();
 
   // Tasks completed today
@@ -240,7 +249,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User's current location: ${locationName}` : null,
+    locationName ? `User's last known location: ${locationName}` : null,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `Tomorrow's top priority: ${tomorrowPriority ? `${tomorrowPriority.title} (${tomorrowPriority.priority})` : "Nothing urgent"}`,
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,

@@ -13,6 +13,7 @@ import {
   getRecentTaskActivity,
   getActiveCrisisPlans,
   getUserLocation,
+  isLocationStale,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
@@ -163,8 +164,12 @@ export async function buildAIContext(
   const timeOfDay = getTimeOfDayBlock(timezone);
   const personalityPrefs = (settings?.personalityPrefs as PersonalityPrefs | null) ?? null;
 
-  // Location
-  const locationName = userLoc?.matchedLocationName ?? null;
+  // Location — only trust it if the app was foregrounded recently enough that
+  // the position isn't stale (PWAs get no background geolocation).
+  const locationName =
+    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
+      ? userLoc.matchedLocationName
+      : null;
 
   // Top 5 pending tasks
   const topTasks = pendingTasks.slice(0, 5).map((t) => ({

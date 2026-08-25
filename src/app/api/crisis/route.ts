@@ -17,6 +17,7 @@ import {
   getUserLocation,
   getCommuteTimes,
   getSavedLocations,
+  isLocationStale,
 } from "@/lib/db/queries";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
@@ -44,8 +45,10 @@ function formatEventsForAI(
 }
 
 /**
- * Build commute context: for the user's current location, list travel
- * times to all other saved locations.
+ * Build commute context: for the user's last known location, list travel
+ * times to all other saved locations. Caller must have already filtered
+ * `userLocation` for staleness — a stale match would point commute steps
+ * at wherever the user was last, not where they are now.
  */
 function buildCommuteContext(
   userLocation: { matchedLocationId: string | null } | null,
@@ -240,8 +243,13 @@ export async function POST(request: Request) {
 
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
-    // Build commute context from user's current location
-    const commuteContext = buildCommuteContext(userLocation, allCommutes, await getSavedLocations(userId));
+    // App reports position only while foregrounded (no PWA background geolocation) —
+    // a stale match is worse than none for a "Leave for [destination]" step.
+    const freshUserLocation =
+      userLocation && !isLocationStale(userLocation.updatedAt) ? userLocation : null;
+
+    // Build commute context from user's last known location
+    const commuteContext = buildCommuteContext(freshUserLocation, allCommutes, await getSavedLocations(userId));
 
     const result = await getCrisisPlan({
       taskName,
@@ -258,7 +266,7 @@ export async function POST(request: Request) {
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
-      currentLocation: userLocation?.matchedLocationName ?? null,
+      currentLocation: freshUserLocation?.matchedLocationName ?? null,
       commuteContext,
       files,
       aiContextBlock: aiCtx.formatted,
@@ -360,7 +368,9 @@ export async function PUT(request: Request) {
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
-    const commuteContext = buildCommuteContext(userLocation, allCommutes, savedLocs);
+    const freshUserLocation =
+      userLocation && !isLocationStale(userLocation.updatedAt) ? userLocation : null;
+    const commuteContext = buildCommuteContext(freshUserLocation, allCommutes, savedLocs);
 
     // Preserve completed steps — only regenerate remaining work
     const existingTasks = plan.tasks as CrisisTask[];
@@ -384,7 +394,7 @@ export async function PUT(request: Request) {
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
       completedSteps: completedStepTitles,
-      currentLocation: userLocation?.matchedLocationName ?? null,
+      currentLocation: freshUserLocation?.matchedLocationName ?? null,
       commuteContext,
       aiContextBlock: aiCtx.formatted,
     });

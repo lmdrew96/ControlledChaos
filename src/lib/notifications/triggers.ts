@@ -7,6 +7,7 @@ import {
   getUserLocation,
   getSavedLocations,
   getCommuteTimes,
+  isLocationStale,
 } from "@/lib/db/queries";
 import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callHaiku } from "@/lib/ai";
@@ -372,8 +373,9 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
  * Generate a push notification message via Claude Haiku.
  * Falls back to a hardcoded string if the AI call fails.
  *
- * @param userLocation - The user's current matched location name (e.g. "Home", "Campus").
- *   When provided, the AI can weave it in naturally for extra context.
+ * @param userLocation - The user's last known matched location name (e.g. "Home", "Campus"),
+ *   already filtered by the caller for staleness. When provided, the AI can weave it in
+ *   naturally for extra context.
  */
 export async function generatePushMessage(
   ctx: PushNotificationContext,
@@ -414,9 +416,9 @@ export async function generatePushMessage(
     userMsg = `Type: ${ctx.type}\nTask: "${"taskTitle" in ctx ? ctx.taskTitle : ""}"`;
   }
 
-  // Append the user's current location so the AI can reference it naturally
+  // Append the user's last known location so the AI can reference it naturally
   if (userLocation) {
-    userMsg += `\nUser's current location: "${userLocation}"`;
+    userMsg += `\nUser's last known location: "${userLocation}"`;
   }
 
   // Append schedule/task context so the AI knows what the user's day looks like
@@ -473,7 +475,7 @@ export async function generateNudgeMessage(
 ): Promise<string> {
   try {
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
-    if (userLocation) userMsg += `\nUser's current location: "${userLocation}"`;
+    if (userLocation) userMsg += `\nUser's last known location: "${userLocation}"`;
     if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
     const { text } = await callHaiku({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
@@ -689,8 +691,11 @@ export async function getDepartureAlerts(
     getCommuteTimes(userId),
   ]);
 
-  // Need to know where the user currently is
-  if (!userLoc?.matchedLocationId) return [];
+  // Need to know where the user currently is — and trust it only if the app
+  // was foregrounded recently enough that the position isn't stale (PWAs get
+  // no background geolocation, see use-geofence-tracker.ts). A stale match
+  // would compute "time to leave" from wherever the user was last, not now.
+  if (!userLoc?.matchedLocationId || isLocationStale(userLoc.updatedAt)) return [];
 
   const alerts: DepartureAlert[] = [];
 

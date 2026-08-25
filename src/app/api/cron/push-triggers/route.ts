@@ -4,6 +4,7 @@ import {
   getPendingSnoozedPushes,
   markSnoozedPushSent,
   getUserLocation,
+  isLocationStale,
 } from "@/lib/db/queries";
 import { sendPushToUser, isQuietHours } from "@/lib/notifications/send-push";
 import { todayInTimezone } from "@/lib/timezone";
@@ -81,7 +82,12 @@ async function processUser(user: PushUser): Promise<number> {
   const getLocationName = async () => {
     if (!_locationFetched) {
       const userLoc = await getUserLocation(userId);
-      _locationName = userLoc?.matchedLocationName ?? undefined;
+      // Stale location (app hasn't been foregrounded recently) is worse than no
+      // location — don't let the AI assert a "current" location that's actually hours old.
+      _locationName =
+        userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
+          ? userLoc.matchedLocationName
+          : undefined;
       _locationFetched = true;
     }
     return _locationName;
