@@ -204,7 +204,7 @@ export default function CrisisPage() {
 
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error ?? "Failed to generate crisis plan");
+        throw new Error(body.error ?? "Failed to generate rescue plan");
       }
 
       const body = await res.json();
@@ -308,7 +308,7 @@ export default function CrisisPage() {
 
       if (!res.ok) {
         const body = await res.json();
-        throw new Error(body.error ?? "Failed to save crisis plan");
+        throw new Error(body.error ?? "Failed to save rescue plan");
       }
 
       const body = await res.json();
@@ -386,7 +386,7 @@ export default function CrisisPage() {
             setCompletedTaskName(null);
           }}
         >
-          Start a new crisis session
+          Start a new rescue session
         </Button>
       </div>
     );
@@ -437,7 +437,7 @@ export default function CrisisPage() {
     return (
       <div className="mx-auto max-w-lg space-y-6">
         <PageHeader
-          title="Crisis Mode"
+          title="Deadline Rescue"
           description="Behind on something? Let's figure out a path forward."
           action={
             <Button
@@ -502,7 +502,7 @@ export default function CrisisPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <PageHeader
-        title="Crisis Mode"
+        title="Deadline Rescue"
         description={`${plans.length} active session${plans.length !== 1 ? "s" : ""}`}
         action={
           <Button size="sm" onClick={handleOpenIntakeFresh}>
@@ -654,7 +654,7 @@ export default function CrisisPage() {
           <CardContent className="flex flex-col items-center justify-center py-10 text-center">
             <Siren className="h-8 w-8 text-muted-foreground/40 mb-3" />
             <p className="font-medium">
-              {showHorizonAlert ? "Nothing in the war room yet" : "No active crisis sessions"}
+              {showHorizonAlert ? "Nothing in the war room yet" : "No active rescue sessions"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {showHorizonAlert

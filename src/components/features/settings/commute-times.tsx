@@ -338,7 +338,7 @@ export function CommuteTimes() {
         </CardTitle>
         <p className="text-xs text-muted-foreground">
           How long does it take to get between your locations? Used for
-          scheduling and crisis mode planning.
+          scheduling and Deadline Rescue planning.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -3,6 +3,10 @@
     "weekOf": "2026-08-24",
     "items": [
       {
+        "type": "added",
+        "text": "Category param to calendar event MCP tools"
+      },
+      {
         "type": "fixed",
         "text": "Notifications treating stale location as current"
       },

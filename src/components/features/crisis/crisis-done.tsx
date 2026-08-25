@@ -100,7 +100,7 @@ export function CrisisDone({ taskName }: Props) {
         </div>
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
-            Crisis Averted 🎉
+            Rescue Complete 🎉
           </p>
           <h1 className="mt-2 text-3xl font-bold">{taskName}</h1>
           <p className="mt-3 text-muted-foreground">

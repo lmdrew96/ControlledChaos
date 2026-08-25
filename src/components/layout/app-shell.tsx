@@ -56,7 +56,7 @@ const navItems = [
 
 const mobileNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/crisis", label: "Crisis", icon: Siren },
+  { href: "/crisis", label: "Rescue", icon: Siren },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 
@@ -218,7 +218,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
               )}
             </span>
-            Crisis
+            Rescue
           </Link>
         </nav>
 

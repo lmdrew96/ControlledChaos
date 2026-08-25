@@ -67,7 +67,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nav-calendar", label: "Calendar", href: "/calendar", icon: Calendar, keywords: "schedule events" },
   { id: "nav-recap", label: "Daily Recap", href: "/recap", icon: Clock, keywords: "mirror journal day review" },
   { id: "nav-settings", label: "Settings", href: "/settings", icon: Settings, keywords: "preferences config" },
-  { id: "nav-crisis", label: "Crisis Mode", href: "/crisis", icon: Siren, keywords: "panic emergency support" },
+  { id: "nav-crisis", label: "Deadline Rescue", href: "/crisis", icon: Siren, keywords: "panic emergency support crisis rescue" },
 ];
 
 const SETTINGS_ITEMS: SettingsItem[] = [
@@ -79,7 +79,7 @@ const SETTINGS_ITEMS: SettingsItem[] = [
   { id: "set-calendar", label: "Calendar Integration", anchor: "calendar", icon: Calendar, keywords: "ical canvas sources colors week start" },
   { id: "set-locations", label: "Saved Locations", anchor: "locations", icon: MapPin, keywords: "places geofence map" },
   { id: "set-commute", label: "Commute Times", anchor: "commute", icon: Clock, keywords: "travel commute drive transit" },
-  { id: "set-crisis", label: "Crisis Detection", anchor: "crisis-detection", icon: Siren, keywords: "safety panic emergency" },
+  { id: "set-crisis", label: "Rescue Detection", anchor: "crisis-detection", icon: Siren, keywords: "safety panic emergency crisis rescue" },
 ];
 
 const RECENT_KEY = "cc-palette-recent";

@@ -154,14 +154,14 @@ export function CrisisChatPanel({ planId, questions }: Props) {
         <div className="flex items-center justify-between border-b px-4 py-2">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">Crisis Chat</span>
+            <span className="text-sm font-medium">Rescue Chat</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
             className="h-10 w-10"
             onClick={() => setIsOpen(false)}
-            aria-label="Close crisis chat"
+            aria-label="Close rescue chat"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -178,7 +178,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
           {!isLoading && messages.length === 0 && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground text-center">
-                Ask me anything about your crisis plan. I can help you get unstuck, adjust the plan, or just think through the next step.
+                Ask me anything about your rescue plan. I can help you get unstuck, adjust the plan, or just think through the next step.
               </p>
               {/* Quick question buttons from AI-generated questions */}
               {questions && questions.length > 0 && (

@@ -365,8 +365,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
   time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
   time_to_leave_now: "Time to leave! You need to go now to make it.",
-  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Crisis Mode if you want it.",
-  crisis_worsened: "Things just got tighter. Your crisis plan is still waiting in Crisis Mode.",
+  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Deadline Rescue if you want it.",
+  crisis_worsened: "Things just got tighter. Your rescue plan is still waiting in Deadline Rescue.",
 };
 
 /**

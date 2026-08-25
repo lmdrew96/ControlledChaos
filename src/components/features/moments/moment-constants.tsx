@@ -100,7 +100,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     label: "Tough moment",
     toastLabel: "Tough moment logged",
     detailHint:
-      "Whatever this is, it counts. Intensity helps crisis detection see it.",
+      "Whatever this is, it counts. Intensity helps rescue detection see it.",
     icon: LifeBuoy,
     tintClassName:
       "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",

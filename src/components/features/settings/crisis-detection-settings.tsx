@@ -15,7 +15,7 @@ const TIER_OPTIONS: Array<{
   {
     value: "off",
     label: "Off",
-    description: "I'll open Crisis Mode myself when I need it.",
+    description: "I'll open Deadline Rescue myself when I need it.",
   },
   {
     value: "watch",
@@ -67,7 +67,7 @@ export function CrisisDetectionSettings() {
         body: JSON.stringify({ crisisDetectionTier: value }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Crisis detection updated");
+      toast.success("Rescue detection updated");
     } catch {
       setTier(previous);
       toast.error("Failed to save setting");

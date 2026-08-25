@@ -94,12 +94,12 @@ const GROUPS: SettingGroup[] = [
   },
   {
     id: "crisis-care",
-    title: "Crisis & care",
+    title: "Deadline Rescue & care",
     settings: [
       {
         id: "crisis-detection",
-        title: "Crisis Detection",
-        keywords: "panic emergency safety triggers detect support",
+        title: "Rescue Detection",
+        keywords: "panic emergency safety triggers detect support rescue deadline",
         render: () => <CrisisDetectionSettings />,
       },
     ],

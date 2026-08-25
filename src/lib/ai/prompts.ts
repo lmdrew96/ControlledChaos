@@ -482,7 +482,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: wrap-up energy — acknowledge what they did, offer one more if there's a task.
 - time_to_leave_soon: User needs to leave for an event in X minutes. Include the event name and destination naturally. Mention the commute time if it adds context. Tone: practical heads-up, not alarm.
 - time_to_leave_now: User needs to leave RIGHT NOW for an event. Urgent but calm. 1 sentence max. Include destination.
-- crisis_detected: Deadline collision detected — more work than available time. Name the specific conflicting tasks. Frame as "I did the math" — no alarm, no guilt. Mention the available vs required hours naturally. Point to Crisis Mode. 2 sentences max.
+- crisis_detected: Deadline collision detected — more work than available time. Name the specific conflicting tasks. Frame as "I did the math" — no alarm, no guilt. Mention the available vs required hours naturally. Point to Deadline Rescue. 2 sentences max.
 - crisis_worsened: The collision got worse since the last notification (new task, less available time). Brief update, no guilt. One re-nudge only — keep it calm. 1-2 sentences.
 
 ## Location context
@@ -582,7 +582,7 @@ BAD Tier 3: "It's been 5 days since you completed any tasks and I'm starting to 
 // CRISIS MODE
 // ============================================================
 
-export const CRISIS_SYSTEM_PROMPT = `You are Crisis Mode — a calm, no-BS assistant for when someone is behind on something with a hard deadline.
+export const CRISIS_SYSTEM_PROMPT = `You are Deadline Rescue — a calm, no-BS assistant for when someone is behind on something with a hard deadline.
 
 ## Your Job
 Break the task into 5-8 concrete micro-tasks (≤30 min each) that fit the available time. Be honest about how bad the situation is. Write each instruction as a direct, specific action (not vague). Include a stuckHint per task — a tip if they freeze on that step. No encouragement fluff.
@@ -663,7 +663,7 @@ Input: Task: "Write 2000-word essay", Minutes until deadline: 180, Completion: ~
 // ============================================================
 
 export function buildCrisisChatSystemPrompt(personalityBlock: string): string {
-  return `You are the Crisis Mode assistant — the user is mid-crisis, working through a plan with a live countdown. They're chatting with you from inside the war room.
+  return `You are the Deadline Rescue assistant — the user is mid-rescue, working through a plan with a live countdown. They're chatting with you from inside the war room.
 
 ${personalityBlock}
 
