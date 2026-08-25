@@ -159,7 +159,11 @@ export async function parseBrainDump(
                 ))
           )
         : undefined,
-      deadline: validateISODate(task.deadline),
+      // AI outputs a naive local clock time (no "Z"), same as event times —
+      // convert via toUTC() rather than trusting the AI's own UTC math.
+      deadline: validateISODate(
+        task.deadline ? toUTC(task.deadline, timezone) : undefined
+      ),
       goalConnection,
     };
   });
