@@ -21,6 +21,7 @@ import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { generatePushMessage, hasEverBeenNotified } from "@/lib/notifications/triggers";
 import { getSleepBlockedMinutes } from "./time-math";
+import { formatForAI, formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
 
 interface CronContext {
@@ -286,21 +287,23 @@ async function generateAutoTriagePlan(
     timezone
   );
 
-  // Build CrisisParams for the AI
+  // Build CrisisParams for the AI — all dates must be localized before being
+  // interpolated into the prompt (see api/crisis/route.ts's identical pattern),
+  // otherwise the model reads raw UTC as the user's own local clock time.
   const taskName = result.involvedTaskNames.join(" + ");
   const params: CrisisParams = {
     taskName,
-    deadline: firstDeadline.toISOString(),
+    deadline: formatForDisplay(firstDeadline, timezone, DISPLAY_DATETIME),
     completionPct: 0, // Unknown for auto-detected crises
-    currentTime: now.toISOString(),
+    currentTime: formatForAI(now, timezone),
     minutesUntilDeadline: Math.round(minutesUntilDeadline),
     sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
     upcomingEvents: calendarRows
       .filter((e) => !e.isAllDay)
       .map((e) => ({
         title: e.title,
-        startTime: new Date(e.startTime).toISOString(),
-        endTime: new Date(e.endTime).toISOString(),
+        startTime: formatForDisplay(new Date(e.startTime), timezone, DISPLAY_DATETIME),
+        endTime: formatForDisplay(new Date(e.endTime), timezone, DISPLAY_DATETIME),
         durationMinutes: Math.round(
           (new Date(e.endTime).getTime() - new Date(e.startTime).getTime()) / 60_000
         ),
