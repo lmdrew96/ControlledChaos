@@ -233,6 +233,37 @@ export function toUserLocal(
   };
 }
 
+/**
+ * Return minutes since local midnight (0-1439) for a Date in the given timezone.
+ */
+export function getMinuteOfDayInTimezone(date: Date, timezone: string): number {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const hour = parseInt(parts.find((p) => p.type === "hour")!.value, 10) % 24; // hour12:false can give 24 for midnight
+  const minute = parseInt(parts.find((p) => p.type === "minute")!.value, 10);
+  return hour * 60 + minute;
+}
+
+/**
+ * Whether a configured local "HH:MM" time has already occurred today, in the
+ * given timezone. Used by digest crons to fire on the first poll at-or-after
+ * the configured time instead of requiring a poll to land inside a narrow
+ * window — the poller's cadence isn't guaranteed (GitHub Actions `schedule`
+ * drops ticks under load), so a window match can miss the day entirely.
+ * Pair with a same-day dedup check so a late-running poller still sends
+ * exactly once.
+ */
+export function hasLocalTimeArrivedToday(configuredTime: string, timezone: string): boolean {
+  const [configHour, configMinute] = configuredTime.split(":").map(Number);
+  const configMinutes = configHour * 60 + configMinute;
+  return getMinuteOfDayInTimezone(new Date(), timezone) >= configMinutes;
+}
+
 // ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------

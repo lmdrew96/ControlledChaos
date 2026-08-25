@@ -11,11 +11,18 @@ name: Cron Triggers
 # so it reaches the app directly (same behavior Vercel's own Cron Jobs
 # feature relied on).
 
+# Ticks land on 7/22/37/52 rather than the round quarter-hours: GitHub's own
+# docs warn that :00/:15/:30/:45 are the most congested slots (every repo's
+# cron piles up there) and scheduled workflows get silently dropped, not just
+# delayed, under that load. Confirmed here — median gap between actual runs
+# was ~36min against a nominal 15min. Off-round-minute scheduling reduces
+# (but doesn't eliminate) the drop rate; see push-triggers/morning-digest/
+# evening-digest for how the endpoints stay correct even when a poll is missed.
 on:
   schedule:
-    - cron: "*/15 * * * *" # calendar-sync + push-triggers
-    - cron: "*/15 6-16 * * *" # morning-digest window (6am-4pm UTC)
-    - cron: "*/15 22-23,0-4 * * *" # evening-digest window (10pm-4am UTC)
+    - cron: "7,22,37,52 * * * *" # calendar-sync + push-triggers
+    - cron: "7,22,37,52 6-16 * * *" # morning-digest window (6am-4pm UTC)
+    - cron: "7,22,37,52 22-23,0-4 * * *" # evening-digest window (10pm-4am UTC)
   workflow_dispatch:
 
 jobs:
@@ -23,21 +30,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Calendar sync
-        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '7,22,37,52 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Push triggers
-        if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '7,22,37,52 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Morning digest
-        if: github.event.schedule == '*/15 6-16 * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '7,22,37,52 6-16 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Evening digest
-        if: github.event.schedule == '*/15 22-23,0-4 * * *' || github.event_name == 'workflow_dispatch'
+        if: github.event.schedule == '7,22,37,52 22-23,0-4 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET "https://controlledchaos-app.vercel.app/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllUsersWithNotificationPrefs } from "@/lib/db/queries";
 import { sendMorningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
-import { todayInTimezone } from "@/lib/timezone";
+import { todayInTimezone, hasLocalTimeArrivedToday } from "@/lib/timezone";
 
 // Vercel Pro: 60s max. Default (10s) silently truncates the per-user digest loop.
 export const maxDuration = 60;
@@ -10,8 +10,9 @@ export const maxDuration = 60;
 /**
  * GET /api/cron/morning-digest
  * Runs every 15 minutes (6am–11am UTC covers most US timezones).
- * For each user with morning digest enabled, checks if their configured
- * digest time matches the current time (±15min window), then sends.
+ * For each user with morning digest enabled, sends on the first poll at or
+ * after their configured digest time, deduped per day — not a window match,
+ * since the poller's cadence isn't guaranteed to land inside one.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -28,8 +29,7 @@ export async function GET(request: Request) {
     for (const { userId, timezone, prefs } of users) {
       if (!prefs?.emailMorningDigest) continue;
 
-      // Check if current time is within ±15min of their configured digest time
-      if (!force && !isWithinWindow(prefs.morningDigestTime, timezone, 15)) continue;
+      if (!force && !hasLocalTimeArrivedToday(prefs.morningDigestTime, timezone)) continue;
 
       // Dedup: don't send twice in the same day (skip in force mode)
       const dedupKey = `morning-digest-${todayInTimezone(timezone)}`;
@@ -44,32 +44,4 @@ export async function GET(request: Request) {
     console.error("[Cron] morning-digest error:", error);
     return NextResponse.json({ error: "Cron job failed" }, { status: 500 });
   }
-}
-
-/**
- * Check if the current time in the user's timezone is within ±windowMin
- * of their configured time (e.g., "07:30").
- */
-function isWithinWindow(
-  configuredTime: string,
-  timezone: string,
-  windowMin: number
-): boolean {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const currentTime = formatter.format(now); // "HH:MM"
-
-  const [cH, cM] = configuredTime.split(":").map(Number);
-  const [nH, nM] = currentTime.split(":").map(Number);
-
-  const configMinutes = cH * 60 + cM;
-  const nowMinutes = nH * 60 + nM;
-
-  const diff = Math.abs(configMinutes - nowMinutes);
-  return diff <= windowMin || diff >= 1440 - windowMin; // handle midnight wrap
 }
