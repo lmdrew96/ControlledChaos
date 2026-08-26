@@ -11,6 +11,7 @@ import {
   Loader2,
   ChevronDown,
   MoreHorizontal,
+  PlayCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
@@ -126,6 +127,7 @@ export function TaskCard({
     swipeDirection.current = null;
   }
   const isCompleted = task.status === "completed";
+  const isInProgress = task.status === "in_progress";
   const hasSteps = !!task.progressSteps && task.progressSteps.length > 0;
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
@@ -390,8 +392,19 @@ export function TaskCard({
             )}
 
             {/* Metadata row — capped at 3 visible: priority + time + one temporal hint.
-                Steps button shows separately when steps exist (it's an expand affordance). */}
+                Steps button shows separately when steps exist (it's an expand affordance).
+                In-progress badge only appears when a task has actually been started. */}
             <div className="flex flex-wrap items-center gap-2">
+              {isInProgress && (
+                <Badge
+                  variant="outline"
+                  className="bg-adhd-lavender/20 text-adhd-lavender border-adhd-lavender/40"
+                >
+                  <PlayCircle className="h-3 w-3" />
+                  In Progress
+                </Badge>
+              )}
+
               <Badge variant="outline" className={priority.className}>
                 {priority.label}
               </Badge>

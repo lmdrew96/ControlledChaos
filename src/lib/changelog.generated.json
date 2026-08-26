@@ -4,6 +4,22 @@
     "items": [
       {
         "type": "added",
+        "text": "Ignore all .env* files (vercel link)"
+      },
+      {
+        "type": "added",
+        "text": "Replace GitHub Actions cron with QStash for reliable scheduling"
+      },
+      {
+        "type": "fixed",
+        "text": "Notification timing drift from dropped GitHub Actions cron ticks"
+      },
+      {
+        "type": "added",
+        "text": "Rename 'Crisis Mode' to 'Deadline Rescue' in user-facing copy"
+      },
+      {
+        "type": "added",
         "text": "Category param to calendar event MCP tools"
       },
       {
