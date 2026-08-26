@@ -254,8 +254,8 @@ export function CalendarSettings() {
       if (!res.ok) throw new Error("Failed to save");
       toast.success(
         checked
-          ? "Canvas assignments will auto-add as tasks"
-          : "You'll add Canvas assignments as tasks manually"
+          ? "Canvas assignments will auto-add as tasks again"
+          : "Canvas assignments won't auto-add as tasks anymore"
       );
     } catch {
       setAutoAddCanvasTasks(!checked);
@@ -534,7 +534,7 @@ export function CalendarSettings() {
             <div>
               <p className="text-sm">Auto-add assignments as tasks</p>
               <p className="text-xs text-muted-foreground">
-                When on, quizzes and exams from Canvas get a prep task automatically. Turn off to add tasks yourself.
+                When on, Canvas assignments, quizzes, and exams get a prep task automatically. Turn off to add tasks yourself &mdash; existing prep tasks stay either way.
               </p>
             </div>
             <Switch
