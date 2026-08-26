@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS, EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import { cn } from "@/lib/utils";
 import type { CalendarColors } from "@/types";
@@ -35,6 +36,8 @@ export function CalendarSettings() {
     total: number;
     syncedAt: string;
   } | null>(null);
+  const [autoAddCanvasTasks, setAutoAddCanvasTasks] = useState(true);
+  const [isSavingAutoAdd, setIsSavingAutoAdd] = useState(false);
 
   // iCal export state
   const [subscribeUrl, setSubscribeUrl] = useState<string | null>(null);
@@ -75,6 +78,9 @@ export function CalendarSettings() {
           if (data.canvasIcalUrl) {
             setCanvasUrl(data.canvasIcalUrl);
             setOriginal(data.canvasIcalUrl);
+          }
+          if (data.autoAddCanvasTasks != null) {
+            setAutoAddCanvasTasks(data.autoAddCanvasTasks);
           }
           if (data.calendarStartHour != null) {
             setCalendarStartHour(data.calendarStartHour);
@@ -233,6 +239,29 @@ export function CalendarSettings() {
       toast.error(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setIsSyncing(false);
+    }
+  }
+
+  async function handleAutoAddToggle(checked: boolean) {
+    setAutoAddCanvasTasks(checked);
+    setIsSavingAutoAdd(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoAddCanvasTasks: checked }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      toast.success(
+        checked
+          ? "Canvas assignments will auto-add as tasks"
+          : "You'll add Canvas assignments as tasks manually"
+      );
+    } catch {
+      setAutoAddCanvasTasks(!checked);
+      toast.error("Failed to update this setting");
+    } finally {
+      setIsSavingAutoAdd(false);
     }
   }
 
@@ -499,6 +528,22 @@ export function CalendarSettings() {
             Find this in Canvas &rarr; Calendar &rarr; Calendar Feed
           </p>
         </div>
+
+        {(hasUrl || canvasUrl.trim()) && (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2.5">
+            <div>
+              <p className="text-sm">Auto-add assignments as tasks</p>
+              <p className="text-xs text-muted-foreground">
+                When on, quizzes and exams from Canvas get a prep task automatically. Turn off to add tasks yourself.
+              </p>
+            </div>
+            <Switch
+              checked={autoAddCanvasTasks}
+              disabled={isSavingAutoAdd}
+              onCheckedChange={handleAutoAddToggle}
+            />
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {isDirty && (

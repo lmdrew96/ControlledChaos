@@ -32,7 +32,8 @@ export async function POST(request: Request) {
           await syncCanvasCalendar(
             user.userId,
             user.canvasIcalUrl,
-            user.timezone ?? "America/New_York"
+            user.timezone ?? "America/New_York",
+            user.autoAddCanvasTasks ?? true
           );
           synced++;
         } catch (err) {

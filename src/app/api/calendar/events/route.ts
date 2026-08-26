@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       if (isStale) {
         import("@/lib/calendar/sync-canvas")
           .then(({ syncCanvasCalendar }) =>
-            syncCanvasCalendar(userId, settings.canvasIcalUrl!, tz)
+            syncCanvasCalendar(userId, settings.canvasIcalUrl!, tz, settings.autoAddCanvasTasks ?? true)
           )
           .catch((err) =>
             console.error("[Calendar] Auto-sync Canvas failed:", err)

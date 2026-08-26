@@ -53,7 +53,7 @@ export async function POST(_req: Request, context: RouteContext) {
 
     // Sync Canvas before scheduling so we have the latest events
     if (settings?.canvasIcalUrl) {
-      await syncCanvasCalendar(userId, settings.canvasIcalUrl, timezone).catch((err) =>
+      await syncCanvasCalendar(userId, settings.canvasIcalUrl, timezone, settings.autoAddCanvasTasks ?? true).catch((err) =>
         console.error("[ScheduleTask] Canvas pre-sync failed:", err)
       );
     }

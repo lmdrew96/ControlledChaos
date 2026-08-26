@@ -163,6 +163,7 @@ export async function updateUserSettings(
     calendarEndHour: number;
     weekStartDay: number;
     calendarColors: CalendarColors | null;
+    autoAddCanvasTasks: boolean;
   }>
 ) {
   const [updated] = await db

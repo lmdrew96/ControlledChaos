@@ -46,6 +46,7 @@ export const userSettings = pgTable(
     notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
     personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
     canvasIcalUrl: text("canvas_ical_url"),
+    autoAddCanvasTasks: boolean("auto_add_canvas_tasks").default(true), // Auto-create prep tasks from Canvas assessment events; false = user adds tasks manually
     onboardingComplete: boolean("onboarding_complete").default(false),
     wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)
     sleepTime: integer("sleep_time").default(22), // Hour 0-23 — AI scheduling window end (default 10pm)

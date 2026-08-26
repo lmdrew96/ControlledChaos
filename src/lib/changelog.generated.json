@@ -4,6 +4,18 @@
     "items": [
       {
         "type": "added",
+        "text": "Realign QStash cron schedules off the GH-Actions congestion offset"
+      },
+      {
+        "type": "added",
+        "text": "Remove stale Convex skill artifacts, file root docs"
+      },
+      {
+        "type": "added",
+        "text": "In-progress badge to task cards"
+      },
+      {
+        "type": "added",
         "text": "Ignore all .env* files (vercel link)"
       },
       {

@@ -1,0 +1,1 @@
+ALTER TABLE "user_settings" ADD COLUMN "auto_add_canvas_tasks" boolean DEFAULT true;

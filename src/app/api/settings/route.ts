@@ -21,6 +21,7 @@ export async function GET() {
       displayName: user?.displayName ?? "",
       timezone: user?.timezone ?? "America/New_York",
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
+      autoAddCanvasTasks: settings?.autoAddCanvasTasks ?? true,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       calendarStartHour: settings?.calendarStartHour ?? settings?.wakeTime ?? 7,
@@ -52,6 +53,11 @@ export async function PATCH(request: Request) {
 
     if (body.canvasIcalUrl !== undefined) {
       data.canvasIcalUrl = body.canvasIcalUrl;
+    }
+    if (body.autoAddCanvasTasks !== undefined) {
+      if (typeof body.autoAddCanvasTasks === "boolean") {
+        data.autoAddCanvasTasks = body.autoAddCanvasTasks;
+      }
     }
     if (body.wakeTime !== undefined) {
       const h = Number(body.wakeTime);

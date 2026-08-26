@@ -90,7 +90,8 @@ function buildPrepTaskFields(
 export async function syncCanvasCalendar(
   userId: string,
   icalUrl: string,
-  timezone: string = "America/New_York"
+  timezone: string = "America/New_York",
+  autoAddCanvasTasks: boolean = true
 ): Promise<CalendarSyncResult> {
   if (!icalUrl.startsWith("https://")) {
     throw new Error("Canvas iCal URL must use HTTPS");
@@ -183,7 +184,7 @@ export async function syncCanvasCalendar(
     // closes the activation-energy gap. sourceEventId uniquely ties the task
     // to its originating Canvas event so we don't create duplicates on
     // subsequent syncs, and so we never recreate one the user deleted.
-    if (isAssessmentTitle(title)) {
+    if (autoAddCanvasTasks && isAssessmentTitle(title)) {
       try {
         const prepDeadline = computePrepDeadline(startDate, timezone);
         if (prepDeadline) {
