@@ -15,6 +15,17 @@ name: Cron Triggers (manual)
 # controlledchaos.adhdesigns.dev is proxied through Cloudflare, whose bot/
 # managed-challenge protection blocks GitHub Actions' shared runner IPs
 # before the request reaches Vercel. The vercel.app domain isn't proxied.
+#
+# The actual QStash schedules (cron cadence, destination, retries) live in
+# the Upstash console/API only — nothing in this repo enforces them, which is
+# how they silently inherited GH Actions' old off-round-minute offset
+# (7,22,37,52 — a congestion dodge QStash doesn't need) and added up to 15min
+# of pure delivery lag. Canonical cadence as of 2026-08-26:
+#   push-triggers:   */2 * * * *
+#   calendar-sync:   */15 * * * *
+#   morning-digest:  */5 6-16 * * *      (6am-4pm UTC window)
+#   evening-digest:  */5 22-23,0-4 * * * (10pm-4am UTC window)
+# Verify/update via `GET/POST https://qstash-us-east-1.upstash.io/v2/schedules`.
 
 on:
   workflow_dispatch:

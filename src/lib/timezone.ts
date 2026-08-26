@@ -253,10 +253,10 @@ export function getMinuteOfDayInTimezone(date: Date, timezone: string): number {
  * Whether a configured local "HH:MM" time has already occurred today, in the
  * given timezone. Used by digest crons to fire on the first poll at-or-after
  * the configured time instead of requiring a poll to land inside a narrow
- * window — the poller's cadence isn't guaranteed (GitHub Actions `schedule`
- * drops ticks under load), so a window match can miss the day entirely.
- * Pair with a same-day dedup check so a late-running poller still sends
- * exactly once.
+ * window — QStash's schedule cadence is reliable but still discrete (polls,
+ * doesn't fire exactly on the configured time), so a window match could miss
+ * the day entirely. Pair with a same-day dedup check so a late-running poll
+ * still sends exactly once.
  */
 export function hasLocalTimeArrivedToday(configuredTime: string, timezone: string): boolean {
   const [configHour, configMinute] = configuredTime.split(":").map(Number);
