@@ -73,6 +73,7 @@ function timeLeftLabel(isoString: string): string {
 }
 
 function progressPct(plan: ActivePlanData): number {
+  if (plan.plan.tasks.length === 0) return 0;
   return Math.round(
     (plan.plan.currentTaskIndex / plan.plan.tasks.length) * 100
   );

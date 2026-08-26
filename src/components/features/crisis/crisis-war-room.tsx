@@ -102,7 +102,10 @@ export function CrisisWarRoom({
 
   const currentTask = currentPlan.tasks[currentTaskIndex];
   const nextTask = currentPlan.tasks[currentTaskIndex + 1] ?? null;
-  const progressPct = (currentTaskIndex / currentPlan.tasks.length) * 100;
+  const progressPct =
+    currentPlan.tasks.length === 0
+      ? 0
+      : (currentTaskIndex / currentPlan.tasks.length) * 100;
 
   const handleNextTask = useCallback(async () => {
     const isLast = currentTaskIndex === currentPlan.tasks.length - 1;
@@ -129,7 +132,33 @@ export function CrisisWarRoom({
     }
   }, [currentTaskIndex, currentPlan.tasks.length, planId, onComplete]);
 
-  if (!currentTask) return null;
+  if (!currentTask) {
+    // AI returned zero actionable tasks (e.g. a genuinely zero-time-left
+    // scenario). Surface the summary instead of rendering a blank screen.
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold leading-tight">{taskName}</h1>
+          <Badge variant={panicBadgeVariant(currentPlan.panicLevel)}>
+            {currentPlan.panicLabel}
+          </Badge>
+        </div>
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm text-muted-foreground">{currentPlan.summary}</p>
+            <Button
+              onClick={async () => {
+                await patchProgress(planId, { completed: true });
+                onComplete();
+              }}
+            >
+              Done — finish session
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
