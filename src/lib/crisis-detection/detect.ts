@@ -1,14 +1,20 @@
 /**
  * Crisis detection engine — pure function, no side effects.
  *
- * Calculates the ratio of required work time to available time and determines
- * whether a crisis condition exists. The detection algorithm:
+ * Feasibility is evaluated at EACH distinct task deadline within the window
+ * (not just the earliest one): each checkpoint sums required minutes for
+ * tasks due at-or-before it, against the time available up to that same
+ * point. The worst (highest-ratio) checkpoint is the reported crisis —
+ * this stops a task due tomorrow from inflating the ratio for a task due
+ * tonight. `firstDeadline` on the result is that worst checkpoint's
+ * deadline, since that's the deadline the crisis (and any rescue plan)
+ * actually needs to be built around.
  *
- *   crisis_ratio = required_minutes / available_minutes
+ *   crisis_ratio = required_minutes / available_minutes   (at the worst checkpoint)
  *
- * A crisis is detected when BOTH are true:
- *   1. ratio > 1.0 (more work than time) OR ratio > 0.8 with 2+ conflicting deadlines
- *   2. First deadline is within the detection window (default 48 hours)
+ * A crisis is detected when EITHER is true:
+ *   1. ratio > 1.0 (more work than time)
+ *   2. ratio > 0.8 with 2+ distinct deadlines across the at-risk workload
  */
 
 import { getAvailableMinutes } from "./time-math";
@@ -113,23 +119,49 @@ export function detectCrisis(input: CrisisDetectionInput): CrisisDetectionResult
   // Sort by deadline ascending
   atRiskTasks.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
 
-  const firstDeadline = atRiskTasks[0].deadline;
-  const requiredMinutes = atRiskTasks.reduce((sum, t) => sum + t.estimatedMinutes, 0);
+  // Evaluate feasibility at EACH distinct deadline, not just the earliest one.
+  // A task due tomorrow afternoon must not count against the available-time
+  // budget for a task due tonight — each checkpoint only sums the minutes for
+  // tasks due at-or-before it, matched against the time available up to that
+  // same point. The worst (highest-ratio) checkpoint is the real crisis.
+  const distinctDeadlines = Array.from(
+    new Set(atRiskTasks.map((t) => t.deadline.getTime()))
+  ).sort((a, b) => a - b);
 
-  // Calculate available time from now to the first deadline
-  const availableMinutes = getAvailableMinutes(
-    calendarEvents,
-    wakeTime,
-    sleepTime,
-    now,
-    firstDeadline,
-    timezone
-  );
+  let firstDeadline = new Date(distinctDeadlines[0]);
+  let requiredMinutes = 0;
+  let availableMinutes = 0;
+  let crisisRatio = -Infinity;
+  let tasksAtWorstCheckpoint = atRiskTasks;
 
-  // Compute crisis ratio (guard against zero available time)
-  const crisisRatio = availableMinutes <= 0 ? Infinity : requiredMinutes / availableMinutes;
+  for (const ts of distinctDeadlines) {
+    const checkpointDeadline = new Date(ts);
+    const tasksDueByCheckpoint = atRiskTasks.filter((t) => t.deadline.getTime() <= ts);
+    const checkpointRequired = tasksDueByCheckpoint.reduce((sum, t) => sum + t.estimatedMinutes, 0);
+    const checkpointAvailable = getAvailableMinutes(
+      calendarEvents,
+      wakeTime,
+      sleepTime,
+      now,
+      checkpointDeadline,
+      timezone
+    );
+    const checkpointRatio =
+      checkpointAvailable <= 0 ? Infinity : checkpointRequired / checkpointAvailable;
 
-  // Count distinct deadline timestamps (grouped by hour to avoid minute-level splits)
+    if (checkpointRatio > crisisRatio) {
+      crisisRatio = checkpointRatio;
+      requiredMinutes = checkpointRequired;
+      availableMinutes = checkpointAvailable;
+      firstDeadline = checkpointDeadline;
+      tasksAtWorstCheckpoint = tasksDueByCheckpoint;
+    }
+  }
+
+  // Count distinct deadline timestamps across the WHOLE at-risk workload
+  // (grouped by hour to avoid minute-level splits) — this is a crowding
+  // signal ("how many things are converging on me"), not a property of
+  // whichever single checkpoint happened to be worst.
   const uniqueDeadlines = new Set(
     atRiskTasks.map((t) => t.deadline.toISOString().slice(0, 13)) // "YYYY-MM-DDTHH"
   );
@@ -186,8 +218,8 @@ export function detectCrisis(input: CrisisDetectionInput): CrisisDetectionResult
     crisisRatio: crisisRatio === Infinity ? 999 : Math.round(crisisRatio * 1000) / 1000,
     availableMinutes,
     requiredMinutes,
-    involvedTaskIds: atRiskTasks.map((t) => t.id),
-    involvedTaskNames: atRiskTasks.map((t) => t.title),
+    involvedTaskIds: tasksAtWorstCheckpoint.map((t) => t.id),
+    involvedTaskNames: tasksAtWorstCheckpoint.map((t) => t.title),
     firstDeadline,
   };
 }

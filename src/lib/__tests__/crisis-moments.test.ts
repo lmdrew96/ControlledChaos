@@ -118,6 +118,33 @@ describe("detectCrisis: base behavior with empty recentMoments", () => {
     );
     expect(result).not.toBeNull();
   });
+
+  it("does not inflate a near deadline's ratio with minutes needed for a later, separate deadline", () => {
+    // Old bug: summed ALL at-risk minutes against only the earliest deadline's
+    // available window, so a huge task due tomorrow could falsely trigger a
+    // crisis for a small task due tonight. Each deadline gets its own checkpoint now.
+    const result = detectCrisis(
+      softBaselineInput({
+        tasks: [
+          {
+            id: "t1",
+            title: "Small, due soon",
+            deadline: hoursAhead(1),
+            estimatedMinutes: 30, // 30/60 = 0.5 at its own checkpoint
+            status: "pending",
+          },
+          {
+            id: "t2",
+            title: "Big, due tomorrow",
+            deadline: hoursAhead(24),
+            estimatedMinutes: 500, // plenty of runway by its own checkpoint
+            status: "pending",
+          },
+        ],
+      })
+    );
+    expect(result).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -199,7 +226,7 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
   // Deadlines are bucketed by hour (YYYY-MM-DDTHH) for uniqueness counting,
   // so deadlines must fall in different UTC hours to count as 2 distinct deadlines.
   it("pushes ratio 0.75 over the 0.8 soft threshold when 2 deadlines exist", () => {
-    // Base ratio = (60+75) / 180 = 0.75 — below 0.8 soft threshold
+    // Worst checkpoint is @ +4h: (60+120) / 240 = 0.75 — below 0.8 soft threshold
     const tasks = [
       {
         id: "t1",
@@ -212,7 +239,7 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
         id: "t2",
         title: "B",
         deadline: hoursAhead(4), // Different UTC hour from t1
-        estimatedMinutes: 75,
+        estimatedMinutes: 120,
         status: "pending",
       },
     ];
@@ -244,7 +271,7 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
         id: "t2",
         title: "B",
         deadline: hoursAhead(4),
-        estimatedMinutes: 75,
+        estimatedMinutes: 120,
         status: "pending",
       },
     ];
@@ -258,7 +285,8 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
   });
 
   it("stored crisisRatio reflects the real ratio, not the biased one", () => {
-    // Ratio 0.95 with 2 deadlines → soft-threshold triggers even without bias
+    // Worst checkpoint is @ +4h: (90+138) / 240 = 0.95 — soft-threshold triggers
+    // even without bias (2 deadlines ≥ min)
     const tasks = [
       {
         id: "t1",
@@ -271,7 +299,7 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
         id: "t2",
         title: "B",
         deadline: hoursAhead(4),
-        estimatedMinutes: 81,
+        estimatedMinutes: 138,
         status: "pending",
       },
     ];
@@ -282,7 +310,7 @@ describe("detectCrisis: Rule 3 — energy_crash bias", () => {
       ],
     });
     expect(result).not.toBeNull();
-    // Real ratio = 171/180 = 0.95 — NOT 1.05 (the biased value)
+    // Real ratio = 228/240 = 0.95 — NOT 1.05 (the biased value)
     expect(result!.crisisRatio).toBeCloseTo(0.95, 1);
   });
 });

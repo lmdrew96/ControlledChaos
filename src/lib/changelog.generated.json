@@ -3,6 +3,10 @@
     "weekOf": "2026-08-24",
     "items": [
       {
+        "type": "fixed",
+        "text": "Auto-triage Rescue plan counting classes past the deadline as blocked time"
+      },
+      {
         "type": "added",
         "text": "Dial back push-triggers QStash cadence from */2 to */10"
       },
