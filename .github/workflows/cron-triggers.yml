@@ -21,7 +21,9 @@ name: Cron Triggers (manual)
 # how they silently inherited GH Actions' old off-round-minute offset
 # (7,22,37,52 — a congestion dodge QStash doesn't need) and added up to 15min
 # of pure delivery lag. Canonical cadence as of 2026-08-26:
-#   push-triggers:   */2 * * * *
+#   push-triggers:   */10 * * * * (was */2 — that 7.5x tick rate on the
+#                     most expensive route, per-user AI generation, spiked
+#                     Vercel CPU billing; */10 still fixes the offset lag)
 #   calendar-sync:   */15 * * * *
 #   morning-digest:  */5 6-16 * * *      (6am-4pm UTC window)
 #   evening-digest:  */5 22-23,0-4 * * * (10pm-4am UTC window)
