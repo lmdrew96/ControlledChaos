@@ -1,6 +1,6 @@
 {
   "name": "controlled-chaos",
-  "version": "2.20.6",
+  "version": "2.20.7",
   "private": true,
   "scripts": {
     "dev": "next dev",

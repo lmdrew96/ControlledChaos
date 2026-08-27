@@ -119,7 +119,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   const filterParam = searchParams.get("filter");
   const filter: FilterStatus = filterParam && VALID_FILTERS.has(filterParam) ? filterParam as FilterStatus : "active";
   const sortParam = searchParams.get("sort");
-  const sortBy: SortBy = sortParam && VALID_SORTS.has(sortParam) ? sortParam as SortBy : "none";
+  const sortBy: SortBy = sortParam && VALID_SORTS.has(sortParam) ? sortParam as SortBy : "deadline";
   const filterPriority = searchParams.get("priority") || "all";
   const filterEnergy = searchParams.get("energy") || "all";
   const filterCategory = searchParams.get("category") || "all";
@@ -130,7 +130,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       // Remove param if it's the default value
-      const defaults: Record<string, string> = { filter: "active", sort: "none", priority: "all", energy: "all", category: "all", q: "" };
+      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "" };
       if (value === defaults[key]) {
         params.delete(key);
       } else {
@@ -221,7 +221,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     normalizedSearch === "";
 
   const hasActiveFilters =
-    sortBy !== "none" ||
+    sortBy !== "deadline" ||
     filterPriority !== "all" ||
     filterEnergy !== "all" ||
     filterCategory !== "all" ||
@@ -229,7 +229,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
   function clearFilters() {
     setSearchInput("");
-    updateParams({ sort: "none", priority: "all", energy: "all", category: "all", q: "" });
+    updateParams({ sort: "deadline", priority: "all", energy: "all", category: "all", q: "" });
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
