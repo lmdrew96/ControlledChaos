@@ -298,16 +298,22 @@ async function generateAutoTriagePlan(
     currentTime: formatForAI(now, timezone),
     minutesUntilDeadline: Math.round(minutesUntilDeadline),
     sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
+    // calendarRows spans the full 48h detection window, not this task's
+    // deadline — clip to [now, firstDeadline] so events past THIS deadline
+    // (e.g. tomorrow's classes) don't get counted as blocking it.
     upcomingEvents: calendarRows
       .filter((e) => !e.isAllDay)
-      .map((e) => ({
-        title: e.title,
-        startTime: formatForDisplay(new Date(e.startTime), timezone, DISPLAY_DATETIME),
-        endTime: formatForDisplay(new Date(e.endTime), timezone, DISPLAY_DATETIME),
-        durationMinutes: Math.round(
-          (new Date(e.endTime).getTime() - new Date(e.startTime).getTime()) / 60_000
-        ),
-      })),
+      .filter((e) => new Date(e.startTime) < firstDeadline && new Date(e.endTime) > now)
+      .map((e) => {
+        const clippedStart = new Date(Math.max(new Date(e.startTime).getTime(), now.getTime()));
+        const clippedEnd = new Date(Math.min(new Date(e.endTime).getTime(), firstDeadline.getTime()));
+        return {
+          title: e.title,
+          startTime: formatForDisplay(clippedStart, timezone, DISPLAY_DATETIME),
+          endTime: formatForDisplay(clippedEnd, timezone, DISPLAY_DATETIME),
+          durationMinutes: Math.round((clippedEnd.getTime() - clippedStart.getTime()) / 60_000),
+        };
+      }),
     existingPendingTaskCount: totalPendingTaskCount,
   };
 

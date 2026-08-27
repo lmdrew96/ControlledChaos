@@ -4,6 +4,22 @@
     "items": [
       {
         "type": "added",
+        "text": "Dial back push-triggers QStash cadence from */2 to */10"
+      },
+      {
+        "type": "fixed",
+        "text": "Rescue plan showing NaN% when AI returns zero tasks"
+      },
+      {
+        "type": "fixed",
+        "text": "Auto-add-tasks toggle copy to match actual keyword scope"
+      },
+      {
+        "type": "added",
+        "text": "Settings toggle for auto-adding Canvas assignments as tasks"
+      },
+      {
+        "type": "added",
         "text": "Realign QStash cron schedules off the GH-Actions congestion offset"
       },
       {
