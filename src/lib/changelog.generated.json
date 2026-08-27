@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "fixed",
+        "text": "Crisis detection counting a later deadline's work against an earlier deadline's available time"
+      },
+      {
+        "type": "fixed",
         "text": "Auto-triage Rescue plan counting classes past the deadline as blocked time"
       },
       {

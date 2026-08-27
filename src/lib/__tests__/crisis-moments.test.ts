@@ -145,6 +145,33 @@ describe("detectCrisis: base behavior with empty recentMoments", () => {
     );
     expect(result).toBeNull();
   });
+
+  it("excludes quick errands (<5 min) from crisis math even with a hard deadline", () => {
+    // A "grab X from car"-style task shouldn't spike the ratio or drag a
+    // real assignment's crisis plan into treating it as equally urgent.
+    const result = detectCrisis(
+      softBaselineInput({
+        tasks: [
+          {
+            id: "t1",
+            title: "Grab Loops from car",
+            deadline: hoursAhead(1),
+            estimatedMinutes: 2,
+            status: "pending",
+          },
+          {
+            id: "t2",
+            title: "Read Language Files",
+            deadline: hoursAhead(16),
+            estimatedMinutes: 60,
+            status: "pending",
+          },
+        ],
+      })
+    );
+    // Neither task alone crosses a threshold once the 2-min errand is excluded.
+    expect(result).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------

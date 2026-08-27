@@ -73,6 +73,7 @@ const DEFAULT_DETECTION_WINDOW_HOURS = 48;
 const CRISIS_RATIO_HARD = 1.0;      // More work than available time
 const CRISIS_RATIO_SOFT = 0.8;      // Tight but maybe doable — crisis only with 2+ deadlines
 const MIN_CONFLICTING_DEADLINES = 2; // Required for soft threshold
+const MIN_TASK_MINUTES_FOR_CRISIS = 5; // Quick errands ("grab X from car") aren't crisis-shaped work
 
 // Moment augmentation thresholds
 const TOUGH_MOMENT_OVERRIDE_MINUTES = 60;   // Rule 1 window
@@ -109,7 +110,7 @@ export function detectCrisis(input: CrisisDetectionInput): CrisisDetectionResult
   const atRiskTasks = tasks.filter((t) => {
     if (t.status !== "pending" && t.status !== "in_progress") return false;
     if (!t.deadline || !t.estimatedMinutes) return false;
-    if (t.estimatedMinutes <= 0) return false;
+    if (t.estimatedMinutes < MIN_TASK_MINUTES_FOR_CRISIS) return false;
     return t.deadline > now && t.deadline <= windowEnd;
   });
 
