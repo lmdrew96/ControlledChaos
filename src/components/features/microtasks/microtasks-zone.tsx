@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Settings2, Check, RefreshCw } from "lucide-react";
+import { Settings2, Check, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -39,6 +39,7 @@ export function MicrotasksZone() {
   const [sheetTask, setSheetTask] = useState<Microtask | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   // Fetch + state update. Returns true on success.
   // Used for both initial load (with retry-then-error) and post-mutation
@@ -194,9 +195,22 @@ export function MicrotasksZone() {
     <>
       <div className="space-y-3 rounded-xl border border-border/40 bg-card/50 p-3">
         <div className="flex items-center justify-between px-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {expanded ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
             Microtasks
-          </p>
+            <span className="normal-case">
+              ({scheduledToday.filter((m) => m.completedToday).length}/{scheduledToday.length})
+            </span>
+          </button>
           <Link
             href="/microtasks"
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -206,27 +220,28 @@ export function MicrotasksZone() {
           </Link>
         </div>
 
-        {grouped.map(({ tod, items }) => (
-          <div key={tod} className="space-y-1.5">
-            <p className="px-1 text-xs text-muted-foreground">
-              {TIME_OF_DAY_LABELS[tod]}
-            </p>
-            <div
-              className="flex items-center gap-2 overflow-x-auto pb-1 [touch-action:pan-x]"
-              role="toolbar"
-              aria-label={`${TIME_OF_DAY_LABELS[tod]} microtasks`}
-            >
-              {items.map((mt) => (
-                <MicrotaskChip
-                  key={mt.id}
-                  microtask={mt}
-                  onTap={() => toggleComplete(mt)}
-                  onLongPress={() => setSheetTask(mt)}
-                />
-              ))}
+        {expanded &&
+          grouped.map(({ tod, items }) => (
+            <div key={tod} className="space-y-1.5">
+              <p className="px-1 text-xs text-muted-foreground">
+                {TIME_OF_DAY_LABELS[tod]}
+              </p>
+              <div
+                className="flex items-center gap-2 overflow-x-auto pb-1 [touch-action:pan-x]"
+                role="toolbar"
+                aria-label={`${TIME_OF_DAY_LABELS[tod]} microtasks`}
+              >
+                {items.map((mt) => (
+                  <MicrotaskChip
+                    key={mt.id}
+                    microtask={mt}
+                    onTap={() => toggleComplete(mt)}
+                    onLongPress={() => setSheetTask(mt)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       <MicrotaskNoteSheet
