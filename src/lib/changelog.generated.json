@@ -3,6 +3,18 @@
     "weekOf": "2026-08-24",
     "items": [
       {
+        "type": "added",
+        "text": "Make dashboard microtasks zone collapsible, collapsed by default"
+      },
+      {
+        "type": "added",
+        "text": "Default task list sort to deadline instead of manual order"
+      },
+      {
+        "type": "added",
+        "text": "Exclude quick errands from crisis detection so they don't inflate urgency for real deadlines"
+      },
+      {
         "type": "fixed",
         "text": "Crisis detection counting a later deadline's work against an earlier deadline's available time"
       },

@@ -110,14 +110,25 @@ async function processUser(user: PushUser): Promise<number> {
     return _snapshot;
   };
 
+  // Caps non-urgent pushes to 1 per cron tick (~10 min) per user. Without this,
+  // every reminder that became eligible during quiet hours fires in the same
+  // tick the moment quiet hours end — the "bombarded at wake time" bug. Capped
+  // items simply retry next tick since eligibility windows (the [1440,60,10]
+  // reminder bands) stay open far longer than a few ticks. High-priority/
+  // quiet-hours-bypassing items are exempt — delaying those risks a missed deadline.
+  const NORMAL_PUSH_TICK_BUDGET = 1;
+  let normalSentThisTick = 0;
+
   const canSend = (priority: "high" | "normal", bypassesQuietHours = false) => {
     if (quietHoursActive && !bypassesQuietHours) return false;
+    if (priority === "normal" && normalSentThisTick >= NORMAL_PUSH_TICK_BUDGET) return false;
     return priority === "high" || sentToday < dailyCap;
   };
 
-  const markSent = () => {
+  const markSent = (priority: "high" | "normal" = "high") => {
     sentToday += 1;
     userSent += 1;
+    if (priority === "normal") normalSentThisTick += 1;
   };
 
   // --- Deadline Reminders ---
@@ -148,7 +159,7 @@ async function processUser(user: PushUser): Promise<number> {
       actions: TASK_ACTIONS,
       bypassQuietHours: reminder.intervalMinutes <= 30,
     });
-    if (sent) markSent();
+    if (sent) markSent(priority);
   }
 
   // --- Event Reminders ---
@@ -178,7 +189,7 @@ async function processUser(user: PushUser): Promise<number> {
       actions: EVENT_ACTIONS,
       bypassQuietHours: reminder.intervalMinutes <= 30,
     });
-    if (sent) markSent();
+    if (sent) markSent(priority);
   }
 
   // --- Scheduled Task Alerts ---
@@ -206,7 +217,7 @@ async function processUser(user: PushUser): Promise<number> {
       userId,
       actions: TASK_ACTIONS,
     });
-    if (sent) markSent();
+    if (sent) markSent("normal");
   }
 
   // --- Missed Scheduled Task Follow-up (assertive only) ---
@@ -235,7 +246,7 @@ async function processUser(user: PushUser): Promise<number> {
         userId,
         actions: MISSED_TASK_ACTIONS,
       });
-      if (sent) markSent();
+      if (sent) markSent("normal");
     }
   }
 
@@ -314,7 +325,7 @@ async function processUser(user: PushUser): Promise<number> {
         actions: IDLE_ACTIONS,
       });
       if (sent) {
-        markSent();
+        markSent("normal");
         console.log(`[Push][CheckIn] sent user=${userId} window=${checkInConfig.window}`);
       }
     }
@@ -341,7 +352,7 @@ async function processUser(user: PushUser): Promise<number> {
         tag: nudgeDedupKey,
         userId,
       });
-      if (sent) markSent();
+      if (sent) markSent("normal");
     }
   }
 
