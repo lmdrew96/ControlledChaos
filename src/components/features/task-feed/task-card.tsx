@@ -12,6 +12,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   PlayCircle,
+  PauseCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
@@ -164,6 +165,30 @@ export function TaskCard({
             ? "Couldn't complete task. Try again."
             : "Couldn't update task. Try again."
       );
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleToggleInProgress() {
+    const nextStatus = isInProgress ? "pending" : "in_progress";
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      toast.success(
+        nextStatus === "in_progress"
+          ? `'${task.title}' marked in progress`
+          : `'${task.title}' moved back to not started`
+      );
+      onUpdate();
+    } catch (error) {
+      console.error("Task status toggle failed:", error);
+      toast.error("Couldn't update task status. Try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -340,6 +365,22 @@ export function TaskCard({
                     align="end"
                     onClick={(e) => e.stopPropagation()}
                   >
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        void handleToggleInProgress();
+                      }}
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : isInProgress ? (
+                        <PauseCircle className="h-4 w-4" />
+                      ) : (
+                        <PlayCircle className="h-4 w-4" />
+                      )}
+                      {isInProgress ? "Not started" : "In progress"}
+                    </DropdownMenuItem>
                     {!hasSteps && (
                       <DropdownMenuItem
                         onSelect={(e) => {

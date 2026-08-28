@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Selective Canvas course import"
+      },
+      {
+        "type": "added",
         "text": "Cap non-urgent push notifications to 1 per cron tick to stop wake-time bombardment"
       },
       {
