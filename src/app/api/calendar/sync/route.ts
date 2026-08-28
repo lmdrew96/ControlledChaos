@@ -27,7 +27,8 @@ export async function POST() {
           userId,
           settings.canvasIcalUrl,
           timezone,
-          settings.autoAddCanvasTasks ?? true
+          settings.autoAddCanvasTasks ?? true,
+          (settings.canvasSelectedCourses as string[] | null) ?? null
         );
       } catch (err) {
         console.error("[API] Canvas sync failed:", err);

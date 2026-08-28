@@ -39,6 +39,13 @@ export function CalendarSettings() {
   const [autoAddCanvasTasks, setAutoAddCanvasTasks] = useState(true);
   const [isSavingAutoAdd, setIsSavingAutoAdd] = useState(false);
 
+  // Selective course import — null selectedCourses means "sync all"
+  const [canvasCourses, setCanvasCourses] = useState<string[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<string[] | null>(null);
+  const [coursesLoaded, setCoursesLoaded] = useState(false);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [isSavingCourses, setIsSavingCourses] = useState(false);
+
   // iCal export state
   const [subscribeUrl, setSubscribeUrl] = useState<string | null>(null);
   const [isLoadingExport, setIsLoadingExport] = useState(false);
@@ -81,6 +88,9 @@ export function CalendarSettings() {
           }
           if (data.autoAddCanvasTasks != null) {
             setAutoAddCanvasTasks(data.autoAddCanvasTasks);
+          }
+          if (data.canvasSelectedCourses != null) {
+            setSelectedCourses(data.canvasSelectedCourses);
           }
           if (data.calendarStartHour != null) {
             setCalendarStartHour(data.calendarStartHour);
@@ -275,9 +285,53 @@ export function CalendarSettings() {
       setCanvasUrl("");
       setOriginal("");
       setSyncResult(null);
+      setCanvasCourses([]);
+      setSelectedCourses(null);
+      setCoursesLoaded(false);
       toast.success("Canvas calendar disconnected");
     } catch {
       toast.error("Failed to disconnect");
+    }
+  }
+
+  async function handleLoadCourses() {
+    setIsLoadingCourses(true);
+    try {
+      const res = await fetch("/api/calendar/canvas-courses");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load courses");
+      setCanvasCourses(data.courses ?? []);
+      setCoursesLoaded(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load courses");
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  }
+
+  async function handleToggleCourse(course: string, checked: boolean) {
+    const previous = selectedCourses;
+    // null means "every course" — expand to the known list before toggling one off
+    const base = selectedCourses ?? canvasCourses;
+    const next = checked ? Array.from(new Set([...base, course])) : base.filter((c) => c !== course);
+    // Every known course selected is equivalent to no filter — store null so a
+    // course added to Canvas later isn't silently excluded.
+    const toSave = next.length === canvasCourses.length ? null : next;
+
+    setSelectedCourses(toSave);
+    setIsSavingCourses(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canvasSelectedCourses: toSave }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    } catch {
+      setSelectedCourses(previous);
+      toast.error("Failed to update course selection");
+    } finally {
+      setIsSavingCourses(false);
     }
   }
 
@@ -542,6 +596,55 @@ export function CalendarSettings() {
               disabled={isSavingAutoAdd}
               onCheckedChange={handleAutoAddToggle}
             />
+          </div>
+        )}
+
+        {hasUrl && (
+          <div className="space-y-2 rounded-md border border-input px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm">Courses to sync</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedCourses === null
+                    ? "Syncing all courses from your Canvas feed."
+                    : `Syncing ${selectedCourses.length} of ${canvasCourses.length} courses.`}
+                </p>
+              </div>
+              {!coursesLoaded && (
+                <Button
+                  onClick={handleLoadCourses}
+                  disabled={isLoadingCourses}
+                  variant="outline"
+                  size="sm"
+                >
+                  {isLoadingCourses && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                  {isLoadingCourses ? "Loading..." : "Choose courses"}
+                </Button>
+              )}
+            </div>
+            {coursesLoaded && (
+              canvasCourses.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No course tags found in your Canvas feed.
+                </p>
+              ) : (
+                <div className="space-y-1.5 pt-1">
+                  {canvasCourses.map((course) => {
+                    const checked = selectedCourses === null || selectedCourses.includes(course);
+                    return (
+                      <div key={course} className="flex items-center justify-between gap-3">
+                        <span className="text-sm">{course}</span>
+                        <Switch
+                          checked={checked}
+                          disabled={isSavingCourses}
+                          onCheckedChange={(c) => handleToggleCourse(course, c)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
           </div>
         )}
 

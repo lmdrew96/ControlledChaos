@@ -33,7 +33,8 @@ export async function POST(request: Request) {
             user.userId,
             user.canvasIcalUrl,
             user.timezone ?? "America/New_York",
-            user.autoAddCanvasTasks ?? true
+            user.autoAddCanvasTasks ?? true,
+            (user.canvasSelectedCourses as string[] | null) ?? null
           );
           synced++;
         } catch (err) {

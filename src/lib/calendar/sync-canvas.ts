@@ -62,6 +62,55 @@ function paramValue(val: ParameterValue | undefined): string | null {
   return val.val ?? null;
 }
 
+/** Fetch a Canvas .ics feed and return its parsed VEVENT components. */
+export async function fetchCanvasEvents(icalUrl: string): Promise<VEvent[]> {
+  if (!icalUrl.startsWith("https://")) {
+    throw new Error("Canvas iCal URL must use HTTPS");
+  }
+
+  const response = await fetch(icalUrl, {
+    headers: { Accept: "text/calendar" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch Canvas calendar: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const icsText = await response.text();
+  const parsed = ical.sync.parseICS(icsText);
+
+  const events: VEvent[] = [];
+  for (const key of Object.keys(parsed)) {
+    const component = parsed[key];
+    if (component && "type" in component && component.type === "VEVENT") {
+      events.push(component as VEvent);
+    }
+  }
+  return events;
+}
+
+/**
+ * Return the distinct course codes found in a Canvas feed's event titles
+ * (e.g. ["ANTH104", "ENGL204"]), for the selective-course-import picker.
+ * Events whose title doesn't carry a recognizable `[SEM-DEPT###-SECTION]`
+ * tag are excluded — they have no course to attribute them to.
+ */
+export async function listCanvasCourses(icalUrl: string): Promise<string[]> {
+  const events = await fetchCanvasEvents(icalUrl);
+  const courses = new Set<string>();
+  for (const event of events) {
+    const title = paramValue(event.summary);
+    if (!title) continue;
+    const { courseCode } = parseCanvasTitle(title);
+    if (courseCode) courses.add(courseCode);
+  }
+  return Array.from(courses).sort();
+}
+
 /** Build the prep task's title/description from the raw Canvas event title. */
 function buildPrepTaskFields(
   rawTitle: string,
@@ -91,38 +140,10 @@ export async function syncCanvasCalendar(
   userId: string,
   icalUrl: string,
   timezone: string = "America/New_York",
-  autoAddCanvasTasks: boolean = true
+  autoAddCanvasTasks: boolean = true,
+  selectedCourses: string[] | null = null
 ): Promise<CalendarSyncResult> {
-  if (!icalUrl.startsWith("https://")) {
-    throw new Error("Canvas iCal URL must use HTTPS");
-  }
-
-  // Fetch the .ics feed
-  const response = await fetch(icalUrl, {
-    headers: { Accept: "text/calendar" },
-    cache: "no-store",
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Canvas calendar: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const icsText = await response.text();
-
-  // Parse with node-ical (sync parse is fine — the text is already in memory)
-  const parsed = ical.sync.parseICS(icsText);
-
-  // Extract VEVENTs
-  const events: VEvent[] = [];
-  for (const key of Object.keys(parsed)) {
-    const component = parsed[key];
-    if (component && "type" in component && component.type === "VEVENT") {
-      events.push(component as VEvent);
-    }
-  }
+  const events = await fetchCanvasEvents(icalUrl);
 
   if (events.length > MAX_EVENTS) {
     console.warn(
@@ -140,6 +161,18 @@ export async function syncCanvasCalendar(
   for (const event of events) {
     const uid = event.uid;
     if (!uid) continue;
+
+    const title = paramValue(event.summary) ?? "Untitled Event";
+    const { courseCode } = parseCanvasTitle(title);
+
+    // Selective course import: a non-null selectedCourses list means "only
+    // sync these courses". Events without a recognizable course tag always
+    // sync — there's no course to attribute them to. Skipping the uid here
+    // (not adding it to currentExternalIds) means deleteStaleCalendarEvents
+    // below cleans up any events for a course the user just deselected.
+    if (selectedCourses !== null && courseCode !== null && !selectedCourses.includes(courseCode)) {
+      continue;
+    }
 
     currentExternalIds.push(uid);
 
@@ -161,8 +194,6 @@ export async function syncCanvasCalendar(
       endDate = new Date(startDate);
       isAllDay = false;
     }
-
-    const title = paramValue(event.summary) ?? "Untitled Event";
 
     await upsertCalendarEvent({
       userId,

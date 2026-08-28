@@ -164,6 +164,7 @@ export async function updateUserSettings(
     weekStartDay: number;
     calendarColors: CalendarColors | null;
     autoAddCanvasTasks: boolean;
+    canvasSelectedCourses: string[] | null;
   }>
 ) {
   const [updated] = await db

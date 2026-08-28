@@ -22,6 +22,7 @@ export async function GET() {
       timezone: user?.timezone ?? "America/New_York",
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       autoAddCanvasTasks: settings?.autoAddCanvasTasks ?? true,
+      canvasSelectedCourses: (settings?.canvasSelectedCourses as string[] | null) ?? null,
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       calendarStartHour: settings?.calendarStartHour ?? settings?.wakeTime ?? 7,
@@ -57,6 +58,16 @@ export async function PATCH(request: Request) {
     if (body.autoAddCanvasTasks !== undefined) {
       if (typeof body.autoAddCanvasTasks === "boolean") {
         data.autoAddCanvasTasks = body.autoAddCanvasTasks;
+      }
+    }
+    if (body.canvasSelectedCourses !== undefined) {
+      if (body.canvasSelectedCourses === null) {
+        data.canvasSelectedCourses = null;
+      } else if (
+        Array.isArray(body.canvasSelectedCourses) &&
+        body.canvasSelectedCourses.every((c: unknown) => typeof c === "string")
+      ) {
+        data.canvasSelectedCourses = body.canvasSelectedCourses;
       }
     }
     if (body.wakeTime !== undefined) {
