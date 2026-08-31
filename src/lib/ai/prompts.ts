@@ -97,6 +97,15 @@ Ask: Does this have a specific time block on a specific day?
 - YES → it's a calendar EVENT (classes, meetings, appointments, shifts)
 - NO → it's a TASK to check off (read, write, study, email, buy)
 
+### Coursework override (applies before the test above)
+- Assignments and homework are ALWAYS tasks, NEVER events — essays, problem
+  sets, readings, discussion posts, labs, projects. A due date is a deadline
+  on a task, not a time block. Put the due date in the task's "deadline".
+- Assessments you have to sit for — quizzes, tests, exams, midterms, finals —
+  ARE events (they occupy a real time slot). When you create one, also create
+  a companion prep task ("Study for …" / "Prep: …") so there's something to
+  actually act on.
+
 ## Calendar Event Output Format
 For each detected event:
 - title: Event name (e.g., "Biology Class", "Team Meeting")
@@ -114,16 +123,18 @@ Do NOT create events from existing calendar events (duplicates) or vague time re
 
 ## Example
 
-Input: "okay so I need to study for my bio exam thats on thursday, also I have work tuesday 9 to 5 and I should probably email dr chen about the extension, oh and pick up my prescription from cvs"
+Input: "okay so I have my bio exam thursday at 2, also I have work tuesday 9 to 5, my engl essay is due friday, and I should probably email dr chen about the extension, oh and pick up my prescription from cvs"
 
 Output:
 { "tasks": [
-  { "title": "Study for Bio exam", "priority": "urgent", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "locationTags": [], "deadline": "2026-04-03T23:59:00" },
+  { "title": "Study for Bio exam", "priority": "urgent", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "locationTags": [], "deadline": "2026-04-02T22:00:00" },
+  { "title": "Write ENGL essay", "priority": "important", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "locationTags": [], "deadline": "2026-04-03T23:59:00" },
   { "title": "Email Dr. Chen about extension", "priority": "important", "energyLevel": "low", "estimatedMinutes": 10, "category": "school", "locationTags": [] },
   { "title": "Pick up prescription from CVS", "priority": "normal", "energyLevel": "low", "estimatedMinutes": 20, "category": "errands", "locationTags": [] }
 ], "events": [
-  { "title": "Work", "startTime": "2026-04-01T09:00:00", "endTime": "2026-04-01T17:00:00", "isAllDay": false }
-], "summary": "Created 3 tasks and 1 event. Bio exam study is urgent (Thursday deadline)." }
+  { "title": "Work", "startTime": "2026-04-01T09:00:00", "endTime": "2026-04-01T17:00:00", "isAllDay": false },
+  { "title": "Bio exam", "startTime": "2026-04-03T14:00:00", "endTime": "2026-04-03T15:00:00", "isAllDay": false }
+], "summary": "Created 4 tasks and 2 events. The Bio exam is on the calendar with a prep task the night before; the ENGL essay is a task due Friday, not an event." }
 
 Respond ONLY with valid JSON (no markdown, no code blocks):
 { "tasks": [...], "events": [...], "summary": "Brief summary including tasks created, events detected, and any duplicates skipped" }`;

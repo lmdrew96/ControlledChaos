@@ -15,8 +15,8 @@ import {
 import { parseCanvasTitle } from "@/lib/calendar/assessments";
 import {
   toEndOfDayLocal,
-  isAssignmentEvent,
   classifyCanvasEvent,
+  shouldSyncAsCalendarEvent,
   type CanvasTaskKind,
 } from "@/lib/calendar/canvas-helpers";
 import type { CalendarSyncResult } from "@/types";
@@ -174,7 +174,10 @@ export async function syncCanvasCalendar(
       continue;
     }
 
-    currentExternalIds.push(uid);
+    // Classify BEFORE deciding anything else. This drives both whether the
+    // event lands on the calendar and what kind of task it generates, so it
+    // must not depend on the auto-add-tasks setting.
+    const taskKind = classifyCanvasEvent(uid, title);
 
     let startDate =
       event.start instanceof Date ? event.start : new Date(event.start);
@@ -186,29 +189,38 @@ export async function syncCanvasCalendar(
 
     let isAllDay = event.datetype === "date";
 
-    // Convert Canvas assignment all-day events to timed events at 23:59 LOCAL time.
-    // Canvas defaults assignments to 11:59 PM in the user's timezone — iCal loses
-    // the time for VALUE=DATE entries. We restore it correctly using the user's timezone.
-    if (isAllDay && isAssignmentEvent(uid)) {
+    // Convert Canvas coursework all-day events to timed events at 23:59 LOCAL time.
+    // Canvas defaults coursework to 11:59 PM in the user's timezone — iCal loses
+    // the time for VALUE=DATE entries. We restore it correctly using the user's
+    // timezone. This matters even for assignments, which never become calendar
+    // events: their task deadline is derived from startDate.
+    if (isAllDay && taskKind !== null) {
       startDate = toEndOfDayLocal(startDate, timezone);
       endDate = new Date(startDate);
       isAllDay = false;
     }
 
-    await upsertCalendarEvent({
-      userId,
-      source: "canvas",
-      externalId: uid,
-      title,
-      description: paramValue(event.description),
-      startTime: startDate,
-      endTime: endDate,
-      location: paramValue(event.location),
-      isAllDay,
-      category: "school",
-    });
+    // Assignments and homework are tasks, never calendar events. Leaving the
+    // uid out of currentExternalIds also means deleteStaleCalendarEvents below
+    // cleans up assignment events synced by earlier versions of this adapter.
+    if (shouldSyncAsCalendarEvent(taskKind)) {
+      currentExternalIds.push(uid);
 
-    synced++;
+      await upsertCalendarEvent({
+        userId,
+        source: "canvas",
+        externalId: uid,
+        title,
+        description: paramValue(event.description),
+        startTime: startDate,
+        endTime: endDate,
+        location: paramValue(event.location),
+        isAllDay,
+        category: "school",
+      });
+
+      synced++;
+    }
 
     // Auto-generate a task for coursework. ADHD brains act on tasks, not
     // calendar entries — the task closes the activation-energy gap.
@@ -217,8 +229,7 @@ export async function syncCanvasCalendar(
     // becomes a task. sourceEventId uniquely ties the task to its originating
     // Canvas event so we don't create duplicates on subsequent syncs, and so
     // we never recreate one the user deleted.
-    const taskKind = autoAddCanvasTasks ? classifyCanvasEvent(uid, title) : null;
-    if (taskKind) {
+    if (autoAddCanvasTasks && taskKind) {
       try {
         // Never backfill. A feed carries the whole term, so without this guard
         // the first sync after a classification change would dump every past

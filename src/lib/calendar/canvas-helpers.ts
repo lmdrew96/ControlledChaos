@@ -68,3 +68,21 @@ export function classifyCanvasEvent(
   }
   return "assignment";
 }
+
+/**
+ * Whether a Canvas event should be stored as a calendar event.
+ *
+ * Assignments and homework are work you DO, not a block of time you're
+ * somewhere — they belong in the task list only. Putting them on the
+ * calendar too double-counts them and clutters the day view with 11:59 PM
+ * entries that aren't really appointments.
+ *
+ * Assessments (quizzes, tests, exams, midterms, finals) stay on the calendar:
+ * they genuinely occupy a fixed time slot you have to show up for. They also
+ * get a companion "prep" task, created by the Canvas sync adapter.
+ *
+ * Everything else (class meetings, office hours, holidays) stays an event.
+ */
+export function shouldSyncAsCalendarEvent(kind: CanvasTaskKind): boolean {
+  return kind !== "assignment";
+}

@@ -3,6 +3,7 @@ import {
   toEndOfDayLocal,
   isAssignmentEvent,
   classifyCanvasEvent,
+  shouldSyncAsCalendarEvent,
 } from "@/lib/calendar/canvas-helpers";
 
 describe("toEndOfDayLocal — Canvas all-day assignment regression", () => {
@@ -118,5 +119,62 @@ describe("isAssignmentEvent", () => {
     expect(
       isAssignmentEvent("event-calendar-event-1@canvas.instructure.com")
     ).toBe(false);
+  });
+});
+
+describe("shouldSyncAsCalendarEvent — assignments are tasks only", () => {
+  const HW_UID = "event-assignment-90210@canvas.instructure.com";
+  const QUIZ_UID = "event-quiz-90210@canvas.instructure.com";
+  const DISCUSSION_UID = "event-discussion_topic-90210@canvas.instructure.com";
+  const PLAIN_UID = "event-calendar-event-90210@canvas.instructure.com";
+
+  it("keeps assignments and homework off the calendar entirely", () => {
+    expect(shouldSyncAsCalendarEvent("assignment")).toBe(false);
+  });
+
+  it("keeps assessments on the calendar (they have a real time slot)", () => {
+    expect(shouldSyncAsCalendarEvent("assessment")).toBe(true);
+  });
+
+  it("keeps non-coursework entries on the calendar", () => {
+    expect(shouldSyncAsCalendarEvent(null)).toBe(true);
+  });
+
+  it("end-to-end: homework titles never reach the calendar", () => {
+    const homework = [
+      [HW_UID, "Reading Response 3 [26S-ENGL204-510]"],
+      [HW_UID, "Problem Set 4 [26S-MATH221-010]"],
+      [HW_UID, "Second Creative Response Project Assignment [26S-ENGL204-510]"],
+      [DISCUSSION_UID, "Week 3 Discussion [26S-ANTH104-080]"],
+      ["abc123@example.com", "Essay 2 due"],
+      ["abc123@example.com", "Chapter 7 homework"],
+    ] as const;
+    for (const [uid, title] of homework) {
+      const kind = classifyCanvasEvent(uid, title);
+      expect(kind).toBe("assignment");
+      expect(shouldSyncAsCalendarEvent(kind)).toBe(false);
+    }
+  });
+
+  it("end-to-end: quizzes, tests and exams stay events (and get prep tasks)", () => {
+    const assessments = [
+      [QUIZ_UID, "Unit 2 [26S-ENGL204-510]"],
+      [HW_UID, "QUIZ: Sonny's Blues [26S-ENGL204-510]"],
+      [HW_UID, "Midterm Exam [26S-MATH221-010]"],
+      ["abc123@example.com", "Final Exam"],
+    ] as const;
+    for (const [uid, title] of assessments) {
+      const kind = classifyCanvasEvent(uid, title);
+      expect(kind).toBe("assessment");
+      expect(shouldSyncAsCalendarEvent(kind)).toBe(true);
+    }
+  });
+
+  it("end-to-end: class meetings and office hours stay events with no task", () => {
+    for (const title of ["ENGL204 Lecture [26S-ENGL204-510]", "Office Hours"]) {
+      const kind = classifyCanvasEvent(PLAIN_UID, title);
+      expect(kind).toBeNull();
+      expect(shouldSyncAsCalendarEvent(kind)).toBe(true);
+    }
   });
 });
