@@ -253,6 +253,22 @@ export default function CrisisPage() {
     setPhase("done");
   }
 
+  /**
+   * Dismiss the detection banner. Persisted server-side — clearing only React
+   * state meant the banner came straight back on the next status fetch.
+   */
+  async function handleDismissDetection() {
+    const previous = detectionStatus;
+    setDetectionStatus((prev) => (prev ? { ...prev, dismissed: true } : prev));
+    try {
+      const res = await fetch("/api/crisis-detection/dismiss", { method: "POST" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setDetectionStatus(previous);
+      toast.error("Couldn't dismiss that — it'll still be here on refresh");
+    }
+  }
+
   async function handleAbandon(planId: string) {
     setAbandoningId(planId);
     try {
@@ -472,8 +488,11 @@ export default function CrisisPage() {
     );
   }
 
-  // Check if detection has an auto-generated plan (proposal banner)
-  const hasAutoProposal = detectionStatus?.active && detectionStatus.crisisPlanId;
+  // Check if detection has an auto-generated plan (proposal banner).
+  // A dismissed detection stays active (badge/re-nudge keep working) but its
+  // banner stays down until a genuinely new collision creates a new row.
+  const hasAutoProposal =
+    detectionStatus?.active && detectionStatus.crisisPlanId && !detectionStatus.dismissed;
 
   // Horizon: detection is active but no plan covers the conflict yet.
   // Suppress if any active plan's taskName already matches one of the involved tasks.
@@ -482,7 +501,10 @@ export default function CrisisPage() {
     plans.some((p) => p.taskName.toLowerCase() === name.toLowerCase())
   );
   const showHorizonAlert =
-    detectionStatus?.active && !hasAutoProposal && !conflictAlreadyPlanned;
+    detectionStatus?.active &&
+    !detectionStatus.crisisPlanId &&
+    !detectionStatus.dismissed &&
+    !conflictAlreadyPlanned;
 
   function handleBuildPlanFromHorizon(suggestedTaskName: string, suggestedDeadline?: string) {
     setIntakePrefill({
@@ -528,6 +550,7 @@ export default function CrisisPage() {
           requiredMinutes={detectionStatus.requiredMinutes}
           timezone={timezone}
           onBuildPlan={handleBuildPlanFromHorizon}
+          onDismiss={handleDismissDetection}
         />
       )}
 
@@ -549,6 +572,12 @@ export default function CrisisPage() {
                 <> You have about {Math.round(detectionStatus.availableMinutes / 60 * 10) / 10}h of real work time and ~{Math.round(detectionStatus.requiredMinutes / 60 * 10) / 10}h of work.</>
               )}
             </p>
+            {detectionStatus.stale && (
+              <p className="text-xs text-muted-foreground/90">
+                Heads up — things have shifted since I built this. The plan may not
+                match what&apos;s actually on your plate now.
+              </p>
+            )}
             <div className="flex gap-2 pt-1">
               <Button
                 size="sm"
@@ -566,7 +595,7 @@ export default function CrisisPage() {
                 size="sm"
                 variant="ghost"
                 className="text-muted-foreground"
-                onClick={() => setDetectionStatus(null)}
+                onClick={handleDismissDetection}
               >
                 Not now
               </Button>

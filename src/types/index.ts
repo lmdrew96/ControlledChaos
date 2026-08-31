@@ -449,5 +449,8 @@ export interface CrisisDetectionStatus {
   availableMinutes?: number;
   requiredMinutes?: number;
   crisisPlanId?: string | null;
+  /** The stored plan was built for a different set of tasks than are now in conflict. */
   stale?: boolean;
+  /** User dismissed the proposal banner. Row stays active — badge/re-nudge unaffected. */
+  dismissed?: boolean;
 }

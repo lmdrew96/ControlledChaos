@@ -17,6 +17,11 @@ interface CrisisHorizonAlertProps {
   requiredMinutes?: number;
   timezone: string;
   onBuildPlan: (suggestedTaskName: string, suggestedDeadline?: string) => void;
+  /**
+   * Persist the dismissal server-side. Only meaningful when a detection row
+   * exists; the inline-detection case has no row, so localStorage carries it.
+   */
+  onDismiss?: () => void;
 }
 
 function dismissalKey(
@@ -44,6 +49,7 @@ export function CrisisHorizonAlert({
   requiredMinutes,
   timezone,
   onBuildPlan,
+  onDismiss,
 }: CrisisHorizonAlertProps) {
   const [visible, setVisible] = useState(false);
 
@@ -59,6 +65,9 @@ export function CrisisHorizonAlert({
       localStorage.setItem(key, "1");
     }
     setVisible(false);
+    // localStorage alone is per-device and can't outlive a cleared cache —
+    // persist against the detection row when there is one.
+    if (detectionId) onDismiss?.();
   };
 
   const tasks = involvedTaskNames ?? [];

@@ -1,5 +1,26 @@
 [
   {
+    "weekOf": "2026-08-31",
+    "items": [
+      {
+        "type": "added",
+        "text": "Configure deadline and event reminders separately"
+      },
+      {
+        "type": "added",
+        "text": "Cluster push notifications so one situation sends one alert"
+      },
+      {
+        "type": "added",
+        "text": "Assignments and homework are tasks only, never calendar events"
+      },
+      {
+        "type": "added",
+        "text": "Import Canvas assignments as tasks, not just events"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-08-24",
     "items": [
       {

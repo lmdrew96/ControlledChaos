@@ -210,7 +210,11 @@ export async function updateCrisisDetection(
     requiredMinutes: number;
     crisisPlanId: string;
     reNudgeSent: boolean;
+    dismissedAt: Date;
     resolvedAt: Date;
+    involvedTaskIds: string[];
+    involvedTaskNames: string[];
+    firstDeadline: Date;
   }>
 ) {
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
@@ -219,7 +223,11 @@ export async function updateCrisisDetection(
   if (data.requiredMinutes !== undefined) updateData.requiredMinutes = data.requiredMinutes;
   if (data.crisisPlanId !== undefined) updateData.crisisPlanId = data.crisisPlanId;
   if (data.reNudgeSent !== undefined) updateData.reNudgeSent = data.reNudgeSent;
+  if (data.dismissedAt !== undefined) updateData.dismissedAt = data.dismissedAt;
   if (data.resolvedAt !== undefined) updateData.resolvedAt = data.resolvedAt;
+  if (data.involvedTaskIds !== undefined) updateData.involvedTaskIds = data.involvedTaskIds;
+  if (data.involvedTaskNames !== undefined) updateData.involvedTaskNames = data.involvedTaskNames;
+  if (data.firstDeadline !== undefined) updateData.firstDeadline = data.firstDeadline;
 
   await db
     .update(crisisDetections)
@@ -242,6 +250,29 @@ export async function resolveStaleDetections(userId: string): Promise<number> {
     )
     .returning({ id: crisisDetections.id });
   return result.length;
+}
+
+/**
+ * Mark the user's active detection as dismissed.
+ *
+ * Dismissal suppresses the proposal banner only — the row stays active so the
+ * nav badge, re-nudge logic, and any generated plan are all unaffected. A new
+ * detection row (i.e. a genuinely new collision) surfaces a fresh banner.
+ */
+export async function dismissActiveDetection(userId: string): Promise<string | null> {
+  const now = new Date();
+  const result = await db
+    .update(crisisDetections)
+    .set({ dismissedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(crisisDetections.userId, userId),
+        isNull(crisisDetections.resolvedAt),
+        isNull(crisisDetections.dismissedAt)
+      )
+    )
+    .returning({ id: crisisDetections.id });
+  return result[0]?.id ?? null;
 }
 
 /** Get the crisis detection tier for a user (defaults to "nudge"). */

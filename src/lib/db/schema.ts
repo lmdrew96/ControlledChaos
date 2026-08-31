@@ -397,6 +397,7 @@ export const crisisDetections = pgTable(
     requiredMinutes: integer("required_minutes").notNull(),
     crisisPlanId: uuid("crisis_plan_id").references(() => crisisPlans.id),
     reNudgeSent: boolean("re_nudge_sent").default(false),
+    dismissedAt: timestamp("dismissed_at"), // null = not dismissed; suppresses the proposal banner only
     resolvedAt: timestamp("resolved_at"), // null = active
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

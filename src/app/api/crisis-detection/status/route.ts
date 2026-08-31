@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   getCrisisDetectionTier,
   getActiveDetectionForUser,
+  updateCrisisDetection,
   getTasksByUser,
   getCalendarEventsByDateRange,
   getUserSettings,
@@ -12,11 +13,19 @@ import {
 import { detectCrisis } from "@/lib/crisis-detection";
 import type { CrisisDetectionStatus, MomentType } from "@/types";
 
+const DETECTION_WINDOW_HOURS = 48;
+
 /**
  * GET /api/crisis-detection/status
  *
  * Returns the current crisis detection state for the authenticated user.
  * Powers the badge on the Crisis Mode nav item and the proposal UI.
+ *
+ * Detection is ALWAYS re-run against live data rather than trusting a stored
+ * row: a stored detection goes stale the moment the user reschedules, deletes,
+ * or completes one of the conflicting tasks, and the only other thing that
+ * resolves a row is the 15-minute push-triggers cron — which iterates users
+ * with push enabled, so users without push had no resolution path at all.
  */
 export async function GET() {
   try {
@@ -31,26 +40,8 @@ export async function GET() {
       return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
     }
 
-    // Check for an existing cron-created detection
-    const existing = await getActiveDetectionForUser(userId);
-
-    if (existing) {
-      return NextResponse.json({
-        active: true,
-        detectionId: existing.id,
-        crisisRatio: Number(existing.crisisRatio),
-        involvedTaskNames: existing.involvedTaskNames as string[],
-        firstDeadline: existing.firstDeadline.toISOString(),
-        availableMinutes: existing.availableMinutes,
-        requiredMinutes: existing.requiredMinutes,
-        crisisPlanId: existing.crisisPlanId ?? null,
-        stale: false, // TODO: compare dataHash for auto-plans
-      } satisfies CrisisDetectionStatus);
-    }
-
-    // No existing detection row — run detection inline for Watch-tier users
-    // (and as a fresher check for all tiers between cron ticks)
-    const [user, settings, allTasks] = await Promise.all([
+    const [existing, user, settings, allTasks] = await Promise.all([
+      getActiveDetectionForUser(userId),
       getUser(userId),
       getUserSettings(userId),
       getTasksByUser(userId), // Gets all non-cancelled tasks
@@ -60,9 +51,9 @@ export async function GET() {
     const wakeTime = settings?.wakeTime ?? 7;
     const sleepTime = settings?.sleepTime ?? 22;
 
-    // Get actionable tasks with deadlines in the next 48 hours
+    // Get actionable tasks with deadlines in the detection window
     const now = new Date();
-    const windowEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const windowEnd = new Date(now.getTime() + DETECTION_WINDOW_HOURS * 60 * 60 * 1000);
 
     const tasksWithDeadlines = allTasks.filter((t) => {
       if (t.status !== "pending" && t.status !== "in_progress") return false;
@@ -71,52 +62,97 @@ export async function GET() {
       return dl > now && dl <= windowEnd;
     });
 
-    if (tasksWithDeadlines.length === 0) {
-      return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
+    let result = null;
+
+    if (tasksWithDeadlines.length > 0) {
+      // Fetch calendar events for the detection window + recent Moments for augmentation
+      const [calendarRows, recentMomentRows] = await Promise.all([
+        getCalendarEventsByDateRange(userId, now, windowEnd),
+        getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
+      ]);
+
+      result = detectCrisis({
+        tasks: tasksWithDeadlines.map((t) => ({
+          id: t.id,
+          title: t.title,
+          deadline: new Date(t.deadline!),
+          estimatedMinutes: t.estimatedMinutes ?? 0,
+          status: t.status,
+        })),
+        calendarEvents: calendarRows.map((e) => ({
+          startTime: new Date(e.startTime),
+          endTime: new Date(e.endTime),
+          isAllDay: e.isAllDay ?? false,
+        })),
+        recentMoments: recentMomentRows.map((m) => ({
+          type: m.type as MomentType,
+          intensity: m.intensity,
+          occurredAt: m.occurredAt,
+        })),
+        timezone,
+        wakeTime,
+        sleepTime,
+      });
     }
 
-    // Fetch calendar events for the detection window + recent Moments for augmentation
-    const [calendarRows, recentMomentRows] = await Promise.all([
-      getCalendarEventsByDateRange(userId, now, windowEnd),
-      getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
-    ]);
-
-    const result = detectCrisis({
-      tasks: tasksWithDeadlines.map((t) => ({
-        id: t.id,
-        title: t.title,
-        deadline: new Date(t.deadline!),
-        estimatedMinutes: t.estimatedMinutes ?? 0,
-        status: t.status,
-      })),
-      calendarEvents: calendarRows.map((e) => ({
-        startTime: new Date(e.startTime),
-        endTime: new Date(e.endTime),
-        isAllDay: e.isAllDay ?? false,
-      })),
-      recentMoments: recentMomentRows.map((m) => ({
-        type: m.type as MomentType,
-        intensity: m.intensity,
-        occurredAt: m.occurredAt,
-      })),
-      timezone,
-      wakeTime,
-      sleepTime,
-    });
-
+    // --- The conflict is gone ---
     if (!result) {
+      // Retire the stored row so the badge, cron, and banner all agree.
+      if (existing) {
+        await updateCrisisDetection(existing.id, { resolvedAt: new Date() });
+        console.log(
+          `[CrisisDetection] Resolved detection=${existing.id} user=${userId} (conflict cleared)`
+        );
+      }
       return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
     }
+
+    // --- No stored row: a fresh inline detection, nothing to reconcile ---
+    if (!existing) {
+      return NextResponse.json({
+        active: true,
+        crisisRatio: result.crisisRatio,
+        involvedTaskNames: result.involvedTaskNames,
+        firstDeadline: result.firstDeadline.toISOString(),
+        availableMinutes: result.availableMinutes,
+        requiredMinutes: result.requiredMinutes,
+        crisisPlanId: null,
+        stale: false,
+        dismissed: false,
+      } satisfies CrisisDetectionStatus);
+    }
+
+    // --- Still a conflict, and we have a stored row: reconcile it ---
+    // The situation may have shifted underneath a plan that was already built
+    // (a task rescheduled out, another one added). Report the LIVE numbers and
+    // task names, and flag the row as stale when the cast of tasks changed.
+    const storedTaskIds = [...((existing.involvedTaskIds as string[]) ?? [])].sort();
+    const liveTaskIds = [...result.involvedTaskIds].sort();
+    const taskSetChanged =
+      storedTaskIds.length !== liveTaskIds.length ||
+      storedTaskIds.some((id, i) => id !== liveTaskIds[i]);
+
+    await updateCrisisDetection(existing.id, {
+      crisisRatio: result.crisisRatio,
+      availableMinutes: result.availableMinutes,
+      requiredMinutes: result.requiredMinutes,
+      involvedTaskIds: result.involvedTaskIds,
+      involvedTaskNames: result.involvedTaskNames,
+      firstDeadline: result.firstDeadline,
+    });
 
     return NextResponse.json({
       active: true,
+      detectionId: existing.id,
       crisisRatio: result.crisisRatio,
       involvedTaskNames: result.involvedTaskNames,
       firstDeadline: result.firstDeadline.toISOString(),
       availableMinutes: result.availableMinutes,
       requiredMinutes: result.requiredMinutes,
-      crisisPlanId: null,
-      stale: false,
+      crisisPlanId: existing.crisisPlanId ?? null,
+      // A plan built for a different set of tasks no longer matches reality.
+      stale: taskSetChanged && existing.crisisPlanId !== null,
+      dismissed: existing.dismissedAt !== null,
     } satisfies CrisisDetectionStatus);
   } catch (error) {
     console.error("[API] GET /api/crisis-detection/status error:", error);

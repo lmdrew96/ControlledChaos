@@ -1,0 +1,1 @@
+ALTER TABLE "crisis_detections" ADD COLUMN "dismissed_at" timestamp;
