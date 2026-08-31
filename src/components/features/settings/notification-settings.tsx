@@ -7,7 +7,12 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
 import {
-  DEFAULT_REMINDER_INTERVALS,
+  getReminderIntervals,
+  sortIntervalsDesc,
+} from "@/lib/notifications/reminder-intervals";
+import {
+  DEFAULT_DEADLINE_REMINDER_INTERVALS,
+  DEFAULT_EVENT_REMINDER_INTERVALS,
   type DailyCheckInTime,
   type NotificationAssertiveness,
   type NotificationPrefs,
@@ -27,7 +32,8 @@ const DEFAULT_PREFS: NotificationPrefs = {
   mutedFriendIds: [],
   celebrationLevel: "full",
   momentumStyle: "neutral",
-  reminderIntervals: DEFAULT_REMINDER_INTERVALS,
+  deadlineReminderIntervals: DEFAULT_DEADLINE_REMINDER_INTERVALS,
+  eventReminderIntervals: DEFAULT_EVENT_REMINDER_INTERVALS,
   dailyCheckInEnabled: true,
   dailyCheckInTime: "morning",
 };
@@ -62,12 +68,6 @@ function unitToMinutes(value: number, unit: ReminderUnit): number {
   return value;
 }
 
-function sortIntervalsDesc(list: number[]): number[] {
-  return Array.from(new Set(list.filter((n) => Number.isFinite(n) && n > 0))).sort(
-    (a, b) => b - a
-  );
-}
-
 const ASSERTIVENESS_OPTIONS: Array<{
   value: NotificationAssertiveness;
   label: string;
@@ -94,11 +94,10 @@ const ASSERTIVENESS_OPTIONS: Array<{
 ];
 
 function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): NotificationPrefs {
-  const rawIntervals = raw?.reminderIntervals;
-  // null/undefined = use defaults. Empty array = user explicitly opted out.
-  const intervals = Array.isArray(rawIntervals)
-    ? sortIntervalsDesc(rawIntervals)
-    : DEFAULT_REMINDER_INTERVALS;
+  // Same resolver the push cron uses, so what the UI shows is exactly what
+  // will fire — kind-specific list, then the legacy shared list, then default.
+  const deadlineIntervals = getReminderIntervals(raw, "deadline");
+  const eventIntervals = getReminderIntervals(raw, "event");
   const checkInTime: DailyCheckInTime =
     raw?.dailyCheckInTime === "morning" ||
     raw?.dailyCheckInTime === "afternoon" ||
@@ -116,11 +115,100 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
         : "balanced",
     friendNudgesEnabled: raw?.friendNudgesEnabled ?? true,
     mutedFriendIds: raw?.mutedFriendIds ?? [],
-    reminderIntervals: intervals,
+    deadlineReminderIntervals: deadlineIntervals,
+    eventReminderIntervals: eventIntervals,
     dailyCheckInEnabled:
       typeof raw?.dailyCheckInEnabled === "boolean" ? raw.dailyCheckInEnabled : true,
     dailyCheckInTime: checkInTime,
   };
+}
+
+/**
+ * Chip list + add control for one reminder schedule. Deadlines and events each
+ * get their own, so the "add" input state lives here rather than being shared.
+ */
+function ReminderIntervalEditor({
+  label,
+  hint,
+  intervals,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  intervals: number[];
+  onChange: (next: number[]) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [unit, setUnit] = useState<ReminderUnit>("minutes");
+
+  return (
+    <div className="space-y-2 sm:pl-6">
+      <p className="text-xs font-medium">{label}</p>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+      <div className="flex flex-wrap gap-2">
+        {intervals.map((minutes) => (
+          <span
+            key={minutes}
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/40 px-3 py-1 text-xs"
+          >
+            {formatIntervalLabel(minutes)}
+            <button
+              type="button"
+              aria-label={`Remove ${formatIntervalLabel(minutes)} ${label.toLowerCase()} reminder`}
+              onClick={() => onChange(intervals.filter((m) => m !== minutes))}
+              className="rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        {intervals.length === 0 && (
+          <span className="text-xs italic text-muted-foreground">
+            No reminders — you won&apos;t be notified before these.
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          placeholder="Amount"
+          aria-label={`${label} reminder amount`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs"
+        />
+        <select
+          value={unit}
+          aria-label={`${label} reminder unit`}
+          onChange={(e) => setUnit(e.target.value as ReminderUnit)}
+          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+        >
+          <option value="minutes">minutes</option>
+          <option value="hours">hours</option>
+          <option value="days">days</option>
+        </select>
+        <span className="text-xs text-muted-foreground">before</span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const n = Number(value);
+            if (!Number.isFinite(n) || n <= 0) {
+              toast.error("Enter a positive number.");
+              return;
+            }
+            onChange(sortIntervalsDesc([...intervals, unitToMinutes(Math.floor(n), unit)]));
+            setValue("");
+          }}
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function NotificationSettings() {
@@ -130,8 +218,6 @@ export function NotificationSettings() {
   const [loadError, setLoadError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingPush, setIsTogglingPush] = useState(false);
-  const [newIntervalValue, setNewIntervalValue] = useState("");
-  const [newIntervalUnit, setNewIntervalUnit] = useState<ReminderUnit>("minutes");
   const {
     isSupported: pushSupported,
     isSubscribed: pushSubscribed,
@@ -494,86 +580,28 @@ export function NotificationSettings() {
       </div>
 
       {/* Reminder Times */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Clock className="h-4 w-4 text-muted-foreground" />
           Reminder Times
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">
-          When to get reminders before events and deadlines. Defaults to 1 day, 1 hour,
-          and 10 minutes before.
+          Deadlines and events are set separately &mdash; you might want a day&rsquo;s
+          warning on an essay but only ten minutes before a class. Remove every entry
+          from a list to turn that kind off.
         </p>
-        <div className="flex flex-wrap gap-2 sm:pl-6">
-          {(prefs.reminderIntervals ?? []).map((minutes) => (
-            <span
-              key={minutes}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/40 px-3 py-1 text-xs"
-            >
-              {formatIntervalLabel(minutes)}
-              <button
-                type="button"
-                aria-label={`Remove ${formatIntervalLabel(minutes)} reminder`}
-                onClick={() =>
-                  update({
-                    reminderIntervals: (prefs.reminderIntervals ?? []).filter(
-                      (m) => m !== minutes
-                    ),
-                  })
-                }
-                className="rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          {(prefs.reminderIntervals ?? []).length === 0 && (
-            <span className="text-xs italic text-muted-foreground">
-              No reminders configured.
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:pl-6">
-          <input
-            type="number"
-            min={1}
-            placeholder="Amount"
-            value={newIntervalValue}
-            onChange={(e) => setNewIntervalValue(e.target.value)}
-            className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs"
-          />
-          <select
-            value={newIntervalUnit}
-            onChange={(e) => setNewIntervalUnit(e.target.value as ReminderUnit)}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-          >
-            <option value="minutes">minutes</option>
-            <option value="hours">hours</option>
-            <option value="days">days</option>
-          </select>
-          <span className="text-xs text-muted-foreground">before</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const n = Number(newIntervalValue);
-              if (!Number.isFinite(n) || n <= 0) {
-                toast.error("Enter a positive number.");
-                return;
-              }
-              const minutes = unitToMinutes(Math.floor(n), newIntervalUnit);
-              const next = sortIntervalsDesc([
-                ...(prefs.reminderIntervals ?? []),
-                minutes,
-              ]);
-              update({ reminderIntervals: next });
-              setNewIntervalValue("");
-            }}
-          >
-            <Plus className="h-3 w-3" />
-            Add
-          </Button>
-        </div>
+        <ReminderIntervalEditor
+          label="Task deadlines"
+          hint="Before a task is due."
+          intervals={prefs.deadlineReminderIntervals ?? []}
+          onChange={(next) => update({ deadlineReminderIntervals: next })}
+        />
+        <ReminderIntervalEditor
+          label="Calendar events"
+          hint="Before an event starts. Classes, appointments, shifts."
+          intervals={prefs.eventReminderIntervals ?? []}
+          onChange={(next) => update({ eventReminderIntervals: next })}
+        />
       </div>
 
       {/* Quiet Hours */}

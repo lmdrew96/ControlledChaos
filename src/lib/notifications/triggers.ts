@@ -13,8 +13,13 @@ import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
 import { callHaiku } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
+import { getReminderIntervals } from "@/lib/notifications/reminder-intervals";
+
+export {
+  getReminderIntervals,
+  type ReminderKind,
+} from "@/lib/notifications/reminder-intervals";
 import {
-  DEFAULT_REMINDER_INTERVALS,
   type DailyCheckInTime,
   type NotificationAssertiveness,
   type NotificationPrefs,
@@ -40,24 +45,6 @@ export interface EventReminder {
   /** Canvas UID, so a generated task can be matched back to its event. */
   externalId: string | null;
   location: string | null;
-}
-
-/**
- * Normalize a user's reminder intervals. Defaults to [1440, 60, 10] (1 day, 1 hour, 10 min).
- * Returned intervals are unique positive minutes, sorted descending.
- */
-export function getReminderIntervals(prefs: NotificationPrefs | null | undefined): number[] {
-  const raw = prefs?.reminderIntervals;
-  // null/undefined = use defaults. Empty array = user explicitly opted out.
-  const source = Array.isArray(raw) ? raw : DEFAULT_REMINDER_INTERVALS;
-  const cleaned = Array.from(
-    new Set(
-      source
-        .filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0)
-        .map((n) => Math.floor(n))
-    )
-  );
-  return cleaned.sort((a, b) => b - a);
 }
 
 /**
@@ -148,7 +135,7 @@ export async function getDeadlineReminders(
   userId: string,
   prefs: NotificationPrefs | null | undefined
 ): Promise<DeadlineReminder[]> {
-  const intervals = getReminderIntervals(prefs);
+  const intervals = getReminderIntervals(prefs, "deadline");
   if (intervals.length === 0) return [];
 
   const tasks = await getPendingTasks(userId);
@@ -188,7 +175,7 @@ export async function getEventReminders(
   userId: string,
   prefs: NotificationPrefs | null | undefined
 ): Promise<EventReminder[]> {
-  const intervals = getReminderIntervals(prefs);
+  const intervals = getReminderIntervals(prefs, "event");
   if (intervals.length === 0) return [];
 
   const now = new Date();

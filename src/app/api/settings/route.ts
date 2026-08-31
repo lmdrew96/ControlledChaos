@@ -108,15 +108,23 @@ export async function PATCH(request: Request) {
         timeRegex.test(prefs.quietHoursStart) &&
         timeRegex.test(prefs.quietHoursEnd)
       ) {
-        const reminderIntervals = Array.isArray(prefs.reminderIntervals)
-          ? Array.from(
-              new Set(
-                prefs.reminderIntervals
-                  .filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0)
-                  .map((n) => Math.floor(n))
-              )
-            ).sort((a, b) => b - a)
-          : undefined;
+        // Unique positive whole minutes, sorted descending. Returns undefined
+        // for a non-array so an unsent field is left untouched rather than
+        // being overwritten with an empty (= "opted out") list.
+        const cleanIntervals = (raw: unknown): number[] | undefined =>
+          Array.isArray(raw)
+            ? Array.from(
+                new Set(
+                  raw
+                    .filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0)
+                    .map((n) => Math.floor(n))
+                )
+              ).sort((a, b) => b - a)
+            : undefined;
+
+        const reminderIntervals = cleanIntervals(prefs.reminderIntervals);
+        const deadlineReminderIntervals = cleanIntervals(prefs.deadlineReminderIntervals);
+        const eventReminderIntervals = cleanIntervals(prefs.eventReminderIntervals);
 
         data.notificationPrefs = {
           ...prefs,
@@ -126,6 +134,8 @@ export async function PATCH(request: Request) {
               ? prefs.locationNotificationsEnabled
               : false,
           ...(reminderIntervals !== undefined ? { reminderIntervals } : {}),
+          ...(deadlineReminderIntervals !== undefined ? { deadlineReminderIntervals } : {}),
+          ...(eventReminderIntervals !== undefined ? { eventReminderIntervals } : {}),
         };
       }
     }

@@ -260,15 +260,28 @@ export interface NotificationPrefs {
   mutedFriendIds: string[];
   celebrationLevel: CelebrationLevel;
   momentumStyle: "motivational" | "neutral";
-  /** Minutes before a deadline/event to fire a reminder. Defaults to [1440, 60, 10] (1 day, 1 hour, 10 min). */
+  /**
+   * @deprecated Superseded by `deadlineReminderIntervals` / `eventReminderIntervals`.
+   * Retained as the fallback for accounts saved before the split, so an
+   * existing custom schedule (or an explicit `[]` opt-out) keeps applying to
+   * both kinds until the user sets them separately. Do not read directly —
+   * use `getReminderIntervals(prefs, kind)`.
+   */
   reminderIntervals?: number[];
+  /** Minutes before a task deadline to fire a reminder. Empty array = opted out. */
+  deadlineReminderIntervals?: number[];
+  /** Minutes before a calendar event to fire a reminder. Empty array = opted out. */
+  eventReminderIntervals?: number[];
   /** Whether to send a once-daily idle check-in. If undefined, derived from assertivenessMode. */
   dailyCheckInEnabled?: boolean;
   /** Which time window the daily check-in fires in. If undefined, defaults to "morning". */
   dailyCheckInTime?: DailyCheckInTime;
 }
 
-export const DEFAULT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
+// Deadlines and events are now tuned independently. They start identical so
+// the split changes nobody's behavior; adjust either list on its own.
+export const DEFAULT_DEADLINE_REMINDER_INTERVALS: number[] = [1440, 60, 10];
+export const DEFAULT_EVENT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 
 export interface PersonalityPrefs {
   /** 0 = strict, 1 = balanced, 2 = supportive */
