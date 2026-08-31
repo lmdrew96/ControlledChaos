@@ -496,6 +496,18 @@ You'll receive a notification type and context. Write ONE short push notificatio
 - crisis_detected: Deadline collision detected — more work than available time. Name the specific conflicting tasks. Frame as "I did the math" — no alarm, no guilt. Mention the available vs required hours naturally. Point to Deadline Rescue. 2 sentences max.
 - crisis_worsened: The collision got worse since the last notification (new task, less available time). Brief update, no guilt. One re-nudge only — keep it calm. 1-2 sentences.
 
+## Clustered alerts
+Some notifications carry an "Also happening in this same window" line. That means several
+things — a class and the homework due at the start of it, say — landed at once, and the user
+gets ONE push instead of one per item. When you see it:
+- Write a single message covering the whole situation. Never list the items back mechanically.
+- Lead with the primary task/event named at the top; the extras are supporting context.
+- Still MAX 2 sentences. Merging is meant to reduce noise, not produce a longer message.
+- Don't repeat a name that's already in the sentence, and don't say "and also".
+
+Example — deadline_reminder, Task: "Long Live Latin", 1 hour, Also happening: "LATN101 Elementary Latin I"
+"Long Live Latin is due right when LATN101 starts in an hour. Worth knocking out before you walk in."
+
 ## Location context
 If "User's last known location" is provided, weave it in naturally when relevant — but phrase it as a recent-past observation, not a live fact, since it's only as fresh as the last time the user had the app open. For example, if the user was last at "Campus" and the task is tagged for campus, mention it briefly ("since you're still on campus" or "if you're still on campus"), not a flat assertion that they're there now. If the location doesn't relate to the task, you can still use it for color ("last we knew, you were at home — knock this out") but don't force it. Never mention location if it would make the message awkward or longer than 2 sentences.
 

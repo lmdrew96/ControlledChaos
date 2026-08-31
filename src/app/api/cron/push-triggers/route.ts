@@ -6,7 +6,11 @@ import {
   getUserLocation,
   isLocationStale,
 } from "@/lib/db/queries";
-import { sendPushToUser, isQuietHours } from "@/lib/notifications/send-push";
+import {
+  sendPushToUser,
+  isQuietHours,
+  type PushAction,
+} from "@/lib/notifications/send-push";
 import { todayInTimezone } from "@/lib/timezone";
 import {
   getDeadlineReminders,
@@ -23,11 +27,18 @@ import {
   resolveDailyCheckInConfig,
   hasBeenNotifiedToday,
   hasEverBeenNotified,
+  getNotifiedDedupKeys,
   getInactivityNudgeTier,
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTaskTitle,
+  type PushNotificationContext,
 } from "@/lib/notifications/triggers";
+import {
+  clusterAlerts,
+  extractCourseCode,
+  type ClusterableAlert,
+} from "@/lib/notifications/cluster";
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
 import { verifyCronRequest } from "@/lib/cron-auth";
@@ -61,6 +72,54 @@ const EVENT_ACTIONS = [
 ];
 
 type PushUser = Awaited<ReturnType<typeof getAllUsersWithPushEnabled>>[number];
+
+/**
+ * An alert that is eligible to send this tick, before clustering decides
+ * whether it gets its own push or is folded into a neighbour's.
+ */
+type Candidate = ClusterableAlert & {
+  priority: "high" | "normal";
+  bypassQuietHours: boolean;
+  /** Whether the key must be unique forever or only for today. */
+  dedupScope: "ever" | "today";
+  /** Minutes until the thing happens; absent for scheduled-start alerts. */
+  intervalMinutes?: number;
+  url: string;
+  taskId?: string;
+  actions: PushAction[];
+};
+
+/**
+ * Build the AI context for a cluster: the primary alert's own shape, plus the
+ * titles of whatever was folded into it so the model writes one message for
+ * the whole situation.
+ */
+function buildClusterContext(
+  primary: Candidate,
+  absorbed: Candidate[]
+): PushNotificationContext {
+  const alsoHappening = absorbed.map((a) => a.title);
+  switch (primary.kind) {
+    case "deadline":
+      return {
+        type: "deadline_reminder",
+        taskTitle: primary.title,
+        minutesUntil: primary.intervalMinutes ?? 0,
+        alsoHappening,
+      };
+    case "event":
+      return {
+        type: "event_reminder",
+        eventTitle: primary.title,
+        minutesUntil: primary.intervalMinutes ?? 0,
+        alsoHappening,
+      };
+    case "scheduled":
+      return { type: "scheduled", taskTitle: primary.title, alsoHappening };
+    case "scheduled_missed":
+      return { type: "scheduled_missed", taskTitle: primary.title, alsoHappening };
+  }
+}
 
 /**
  * Per-user trigger evaluation. Returns the number of pushes sent for this user
@@ -110,150 +169,194 @@ async function processUser(user: PushUser): Promise<number> {
     return _snapshot;
   };
 
-  // Caps non-urgent pushes to 1 per cron tick (~10 min) per user. Without this,
-  // every reminder that became eligible during quiet hours fires in the same
-  // tick the moment quiet hours end — the "bombarded at wake time" bug. Capped
-  // items simply retry next tick since eligibility windows (the [1440,60,10]
-  // reminder bands) stay open far longer than a few ticks. High-priority/
-  // quiet-hours-bypassing items are exempt — delaying those risks a missed deadline.
+  // Per-tick budgets. Without them, every reminder that became eligible during
+  // quiet hours fires in the same tick the moment quiet hours end — the
+  // "bombarded at wake time" bug. Budgeted items simply retry next tick, since
+  // eligibility windows (the [1440,60,10] reminder bands) stay open far longer
+  // than a few ticks.
+  //
+  // High-priority alerts used to skip this AND the daily cap entirely, which
+  // is how a single class-plus-homework hour produced an unbounded burst: at
+  // <=60 min everything is high-priority, so nothing was holding it back. They
+  // now get their own (larger) budget and respect the user's assertiveness cap.
   const NORMAL_PUSH_TICK_BUDGET = 1;
-  let normalSentThisTick = 0;
+  const HIGH_PUSH_TICK_BUDGET = 2;
+  // Right up against the wire, a missed alert costs more than an extra push,
+  // so these bypass both the tick budget and the daily cap. Quiet hours still
+  // apply unless the alert separately opts out.
+  const ALWAYS_SEND_MINUTES = 15;
 
-  const canSend = (priority: "high" | "normal", bypassesQuietHours = false) => {
+  let normalSentThisTick = 0;
+  let highSentThisTick = 0;
+
+  const canSend = (
+    priority: "high" | "normal",
+    bypassesQuietHours = false,
+    urgent = false
+  ) => {
     if (quietHoursActive && !bypassesQuietHours) return false;
-    if (priority === "normal" && normalSentThisTick >= NORMAL_PUSH_TICK_BUDGET) return false;
-    return priority === "high" || sentToday < dailyCap;
+    if (urgent) return true;
+    const budget = priority === "high" ? HIGH_PUSH_TICK_BUDGET : NORMAL_PUSH_TICK_BUDGET;
+    const usedThisTick = priority === "high" ? highSentThisTick : normalSentThisTick;
+    if (usedThisTick >= budget) return false;
+    return sentToday < dailyCap;
   };
 
   const markSent = (priority: "high" | "normal" = "high") => {
     sentToday += 1;
     userSent += 1;
     if (priority === "normal") normalSentThisTick += 1;
+    else highSentThisTick += 1;
   };
 
-  // --- Deadline Reminders ---
-  const deadlineReminders = await getDeadlineReminders(userId, notificationPrefs);
-  for (const reminder of deadlineReminders) {
-    const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
-    const bypassQH = reminder.intervalMinutes <= 30;
-    if (!canSend(priority, bypassQH)) continue;
+  // --- Upcoming-thing alerts: collect, cluster, then send ---
+  //
+  // Deadlines, event reminders and scheduled starts all answer the same
+  // question ("something is coming up"), and a single situation routinely
+  // produces several of them — a class meeting plus the homework due at the
+  // start of it. Sending each one as it is found is what produced the
+  // lock-screen burst. So: gather every eligible alert first, drop the ones
+  // already notified, group what's left by situation, and send one push per
+  // group. See lib/notifications/cluster.ts for the grouping rules.
+  //
+  // Time-to-leave and crisis alerts stay out of this on purpose (below):
+  // "leave now" must never be buried inside a merged message.
+  const candidates: Candidate[] = [];
 
-    const dedupKey = `deadline-${reminder.taskId}-${reminder.intervalMinutes}-${reminder.deadline.toISOString()}`;
-    if (await hasEverBeenNotified(userId, dedupKey)) continue;
-
-    const message = await generatePushMessage(
-      { type: "deadline_reminder", taskTitle: reminder.taskTitle, minutesUntil: reminder.intervalMinutes },
-      personalityPrefs,
-      timezone,
-      mode,
-      await getLocationName(),
-      await getSnapshot()
-    );
-    const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
-      body: message,
-      url: `/tasks?taskId=${reminder.taskId}`,
-      tag: dedupKey,
-      taskId: reminder.taskId,
-      userId,
+  for (const r of await getDeadlineReminders(userId, notificationPrefs)) {
+    candidates.push({
+      kind: "deadline",
+      dedupKey: `deadline-${r.taskId}-${r.intervalMinutes}-${r.deadline.toISOString()}`,
+      dedupScope: "ever",
+      at: r.deadline,
+      title: r.taskTitle,
+      courseCode: extractCourseCode(r.taskTitle, r.taskDescription),
+      sourceEventId: r.sourceEventId,
+      intervalMinutes: r.intervalMinutes,
+      priority: r.intervalMinutes <= 60 ? "high" : "normal",
+      bypassQuietHours: r.intervalMinutes <= 30,
+      url: `/tasks?taskId=${r.taskId}`,
+      taskId: r.taskId,
       actions: TASK_ACTIONS,
-      bypassQuietHours: reminder.intervalMinutes <= 30,
     });
-    if (sent) markSent(priority);
   }
 
-  // --- Event Reminders ---
-  const eventReminders = await getEventReminders(userId, notificationPrefs);
-  for (const reminder of eventReminders) {
-    const priority = reminder.intervalMinutes <= 60 ? "high" : "normal";
-    const bypassQH = reminder.intervalMinutes <= 30;
-    if (!canSend(priority, bypassQH)) continue;
-
-    const dedupKey = `event-${reminder.eventId}-${reminder.intervalMinutes}-${reminder.startTime.toISOString()}`;
-    if (await hasEverBeenNotified(userId, dedupKey)) continue;
-
-    const message = await generatePushMessage(
-      { type: "event_reminder", eventTitle: reminder.eventTitle, minutesUntil: reminder.intervalMinutes },
-      personalityPrefs,
-      timezone,
-      mode,
-      await getLocationName(),
-      await getSnapshot()
-    );
-    const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
-      body: message,
+  for (const r of await getEventReminders(userId, notificationPrefs)) {
+    candidates.push({
+      kind: "event",
+      dedupKey: `event-${r.eventId}-${r.intervalMinutes}-${r.startTime.toISOString()}`,
+      dedupScope: "ever",
+      at: r.startTime,
+      title: r.eventTitle,
+      courseCode: extractCourseCode(r.eventTitle, r.location),
+      externalId: r.externalId,
+      intervalMinutes: r.intervalMinutes,
+      priority: r.intervalMinutes <= 60 ? "high" : "normal",
+      bypassQuietHours: r.intervalMinutes <= 30,
       url: "/calendar",
-      tag: dedupKey,
-      userId,
       actions: EVENT_ACTIONS,
-      bypassQuietHours: reminder.intervalMinutes <= 30,
     });
-    if (sent) markSent(priority);
   }
 
-  // --- Scheduled Task Alerts ---
-  const alerts = await getScheduledTaskAlerts(userId);
-  for (const alert of alerts) {
-    if (!canSend("normal")) continue;
-
-    const dedupKey = `scheduled-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 16)}`;
-    if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
-
-    const message = await generatePushMessage(
-      { type: "scheduled", taskTitle: alert.taskTitle },
-      personalityPrefs,
-      timezone,
-      mode,
-      await getLocationName(),
-      await getSnapshot()
-    );
-    const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
-      body: message,
-      url: `/tasks?taskId=${alert.taskId}`,
-      tag: dedupKey,
-      taskId: alert.taskId,
-      userId,
+  for (const a of await getScheduledTaskAlerts(userId)) {
+    candidates.push({
+      kind: "scheduled",
+      dedupKey: `scheduled-${a.taskId}-${a.scheduledFor.toISOString().slice(0, 16)}`,
+      dedupScope: "today",
+      at: a.scheduledFor,
+      title: a.taskTitle,
+      courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
+      sourceEventId: a.sourceEventId,
+      priority: "normal",
+      bypassQuietHours: false,
+      url: `/tasks?taskId=${a.taskId}`,
+      taskId: a.taskId,
       actions: TASK_ACTIONS,
     });
-    if (sent) markSent("normal");
   }
 
-  // --- Missed Scheduled Task Follow-up (assertive only) ---
   if (mode === "assertive") {
-    const missedAlerts = await getMissedScheduledTaskAlerts(userId);
-    for (const alert of missedAlerts) {
-      if (!canSend("normal")) continue;
-
-      const dedupKey = `scheduled-missed-${alert.taskId}-${alert.scheduledFor.toISOString().slice(0, 13)}`;
-      if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
-
-      const message = await generatePushMessage(
-        { type: "scheduled_missed", taskTitle: alert.taskTitle },
-        personalityPrefs,
-        timezone,
-        mode,
-        await getLocationName(),
-        await getSnapshot()
-      );
-      const sent = await sendPushToUser(userId, {
-        title: "ControlledChaos",
-        body: message,
-        url: `/tasks?taskId=${alert.taskId}`,
-        tag: dedupKey,
-        taskId: alert.taskId,
-        userId,
+    for (const a of await getMissedScheduledTaskAlerts(userId)) {
+      candidates.push({
+        kind: "scheduled_missed",
+        dedupKey: `scheduled-missed-${a.taskId}-${a.scheduledFor.toISOString().slice(0, 13)}`,
+        dedupScope: "today",
+        at: a.scheduledFor,
+        title: a.taskTitle,
+        courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
+        sourceEventId: a.sourceEventId,
+        priority: "normal",
+        bypassQuietHours: false,
+        url: `/tasks?taskId=${a.taskId}`,
+        taskId: a.taskId,
         actions: MISSED_TASK_ACTIONS,
       });
-      if (sent) markSent("normal");
+    }
+  }
+
+  // Drop already-notified alerts BEFORE clustering. Filtering afterwards
+  // would let a stale member become a cluster's primary and suppress the
+  // fresh alerts grouped with it.
+  const notified = candidates.length > 0
+    ? await getNotifiedDedupKeys(userId, timezone)
+    : { ever: new Set<string>(), today: new Set<string>() };
+  const fresh = candidates.filter((c) =>
+    c.dedupScope === "ever"
+      ? !notified.ever.has(c.dedupKey)
+      : !notified.today.has(c.dedupKey)
+  );
+
+  // Soonest first, so the tick budget is spent on the most urgent situation.
+  fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  for (const cluster of clusterAlerts(fresh)) {
+    const { primary, absorbed, dedupKeys } = cluster;
+    // The cluster inherits the most permissive gating of its members: it
+    // speaks for all of them, so it must not be held back by the calmest one.
+    const members = [primary, ...absorbed];
+    const priority = members.some((m) => m.priority === "high") ? "high" : "normal";
+    const bypassQuietHours = members.some((m) => m.bypassQuietHours);
+    const urgent = members.some(
+      (m) => m.intervalMinutes !== undefined && m.intervalMinutes <= ALWAYS_SEND_MINUTES
+    );
+
+    if (!canSend(priority, bypassQuietHours, urgent)) continue;
+
+    const message = await generatePushMessage(
+      buildClusterContext(primary, absorbed),
+      personalityPrefs,
+      timezone,
+      mode,
+      await getLocationName(),
+      await getSnapshot()
+    );
+    const sent = await sendPushToUser(userId, {
+      title: "ControlledChaos",
+      body: message,
+      url: primary.url,
+      tag: primary.dedupKey,
+      dedupKeys,
+      taskId: primary.taskId,
+      userId,
+      actions: primary.actions,
+      bypassQuietHours,
+    });
+    if (sent) {
+      markSent(priority);
+      if (absorbed.length > 0) {
+        console.log(
+          `[Push][Cluster] user=${userId} merged=${members.length} primary=${primary.kind} absorbed=${absorbed.map((a) => a.kind).join(",")}`
+        );
+      }
     }
   }
 
   // --- Time to Leave Alerts ---
   const departureAlerts = await getDepartureAlerts(userId, timezone);
   for (const alert of departureAlerts) {
-    if (!canSend("high", alert.level === "now")) continue;
+    // "Leave now" is the one alert where being late is unrecoverable, so it
+    // bypasses the tick budget and the daily cap outright.
+    if (!canSend("high", alert.level === "now", alert.level === "now")) continue;
 
     const dedupKey = `time-to-leave-${alert.eventId}-${alert.level}`;
     if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;

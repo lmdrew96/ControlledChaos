@@ -26,6 +26,10 @@ interface DeadlineReminder {
   taskTitle: string;
   intervalMinutes: number;
   deadline: Date;
+  /** Auto-generated tasks lead their description with the course code. */
+  taskDescription: string | null;
+  /** Canvas event UID for tasks generated from the calendar; null if manual. */
+  sourceEventId: string | null;
 }
 
 export interface EventReminder {
@@ -33,6 +37,9 @@ export interface EventReminder {
   eventTitle: string;
   intervalMinutes: number;
   startTime: Date;
+  /** Canvas UID, so a generated task can be matched back to its event. */
+  externalId: string | null;
+  location: string | null;
 }
 
 /**
@@ -71,12 +78,16 @@ interface ScheduledAlert {
   taskId: string;
   taskTitle: string;
   scheduledFor: Date;
+  taskDescription: string | null;
+  sourceEventId: string | null;
 }
 
 interface MissedScheduledAlert {
   taskId: string;
   taskTitle: string;
   scheduledFor: Date;
+  taskDescription: string | null;
+  sourceEventId: string | null;
 }
 
 const NOTIFICATION_CAPS: Record<NotificationAssertiveness, number> = {
@@ -156,6 +167,8 @@ export async function getDeadlineReminders(
       taskTitle: task.title,
       intervalMinutes: interval,
       deadline: task.deadline,
+      taskDescription: task.description ?? null,
+      sourceEventId: task.sourceEventId ?? null,
     });
   }
 
@@ -204,6 +217,8 @@ export async function getEventReminders(
       eventTitle: event.title,
       intervalMinutes: interval,
       startTime: event.startTime,
+      externalId: event.externalId ?? null,
+      location: event.location ?? null,
     });
   }
 
@@ -233,6 +248,8 @@ export async function getScheduledTaskAlerts(
         taskId: task.id,
         taskTitle: task.title,
         scheduledFor: task.scheduledFor,
+        taskDescription: task.description ?? null,
+        sourceEventId: task.sourceEventId ?? null,
       });
     }
   }
@@ -262,6 +279,8 @@ export async function getMissedScheduledTaskAlerts(
         taskId: task.id,
         taskTitle: task.title,
         scheduledFor: task.scheduledFor,
+        taskDescription: task.description ?? null,
+        sourceEventId: task.sourceEventId ?? null,
       });
     }
   }
@@ -295,6 +314,24 @@ export async function shouldSendIdleCheckin(
 }
 
 /**
+ * Does a logged notification account for `dedupKey`?
+ *
+ * A clustered push speaks for several alerts at once and records all their
+ * keys in `dedupKeys`; `dedupKey` is the single key that became the tag.
+ * Both are checked so an absorbed alert is not re-sent on the next tick.
+ * Older rows predate `dedupKeys` and carry only `dedupKey`.
+ */
+function notificationCovers(
+  content: unknown,
+  dedupKey: string
+): boolean {
+  const c = content as Record<string, unknown> | null;
+  if (!c) return false;
+  if (c.dedupKey === dedupKey) return true;
+  return Array.isArray(c.dedupKeys) && c.dedupKeys.includes(dedupKey);
+}
+
+/**
  * Check if a notification with the given dedup key was already sent today.
  */
 export async function hasBeenNotifiedToday(
@@ -307,9 +344,48 @@ export async function hasBeenNotifiedToday(
 
   return recent.some((n) => {
     if (!n.sentAt || new Date(n.sentAt) < todayStart) return false;
-    const content = n.content as Record<string, unknown> | null;
-    return content?.dedupKey === dedupKey;
+    return notificationCovers(n.content, dedupKey);
   });
+}
+
+/**
+ * Fetch every dedup key this user has already been notified under, in one
+ * query, split by scope.
+ *
+ * The per-alert `hasEverBeenNotified` / `hasBeenNotifiedToday` helpers each
+ * hit the notifications table, which is fine for a handful of checks but adds
+ * up once the cron evaluates every candidate alert per tick. Callers checking
+ * more than one key should use this instead.
+ */
+export async function getNotifiedDedupKeys(
+  userId: string,
+  timezone = "America/New_York"
+): Promise<{ ever: Set<string>; today: Set<string> }> {
+  const recent = await getRecentNotifications(userId, 200);
+  const todayStart = startOfDayInTimezone(new Date(), timezone);
+
+  const ever = new Set<string>();
+  const today = new Set<string>();
+
+  for (const n of recent) {
+    const content = n.content as Record<string, unknown> | null;
+    if (!content) continue;
+
+    const keys: string[] = [];
+    if (typeof content.dedupKey === "string") keys.push(content.dedupKey);
+    if (Array.isArray(content.dedupKeys)) {
+      for (const k of content.dedupKeys) if (typeof k === "string") keys.push(k);
+    }
+    if (keys.length === 0) continue;
+
+    const isToday = Boolean(n.sentAt) && new Date(n.sentAt!) >= todayStart;
+    for (const k of keys) {
+      ever.add(k);
+      if (isToday) today.add(k);
+    }
+  }
+
+  return { ever, today };
 }
 
 /**
@@ -321,17 +397,21 @@ export async function hasEverBeenNotified(
   dedupKey: string
 ): Promise<boolean> {
   const recent = await getRecentNotifications(userId, 200);
-  return recent.some((n) => {
-    const content = n.content as Record<string, unknown> | null;
-    return content?.dedupKey === dedupKey;
-  });
+  return recent.some((n) => notificationCovers(n.content, dedupKey));
 }
 
-type PushNotificationContext =
-  | { type: "deadline_reminder"; taskTitle: string; minutesUntil: number }
-  | { type: "event_reminder"; eventTitle: string; minutesUntil: number }
-  | { type: "scheduled"; taskTitle: string }
-  | { type: "scheduled_missed"; taskTitle: string }
+/**
+ * Other alerts folded into this message because they describe the same
+ * situation (see lib/notifications/cluster.ts). The AI writes ONE message
+ * covering all of them instead of the user getting a push per row.
+ */
+type ClusteredWith = { alsoHappening?: string[] };
+
+export type PushNotificationContext =
+  | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number } & ClusteredWith)
+  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number } & ClusteredWith)
+  | ({ type: "scheduled"; taskTitle: string } & ClusteredWith)
+  | ({ type: "scheduled_missed"; taskTitle: string } & ClusteredWith)
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" }
@@ -414,6 +494,14 @@ export async function generatePushMessage(
     userMsg = `Type: crisis_worsened\nConflicting tasks: ${names}\nNew crisis ratio: ${ctx.newRatio.toFixed(2)} (higher = worse)`;
   } else {
     userMsg = `Type: ${ctx.type}\nTask: "${"taskTitle" in ctx ? ctx.taskTitle : ""}"`;
+  }
+
+  // Fold in the rest of the cluster so the model writes one message for the
+  // whole situation rather than one per underlying record.
+  if ("alsoHappening" in ctx && ctx.alsoHappening?.length) {
+    userMsg += `\nAlso happening in this same window: ${ctx.alsoHappening
+      .map((t) => `"${t}"`)
+      .join(", ")}`;
   }
 
   // Append the user's last known location so the AI can reference it naturally

@@ -27,6 +27,12 @@ interface PushPayload {
   recipientUserId?: string;
   /** Action buttons shown on the notification (Android Chrome / desktop Chrome). */
   actions?: PushAction[];
+  /**
+   * Every dedup key this push accounts for. A clustered push speaks for
+   * several alerts at once, and all of them must be suppressed on later ticks
+   * — not just the one whose key became the tag. Defaults to [tag].
+   */
+  dedupKeys?: string[];
 }
 
 /**
@@ -138,6 +144,7 @@ export async function sendPushToUser(
       url: payload.url,
       tag: payload.tag,
       dedupKey: payload.tag,
+      dedupKeys: payload.dedupKeys ?? (payload.tag ? [payload.tag] : []),
     });
   }
 
