@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "In-progress toggle to task three-dot menu"
+      },
+      {
+        "type": "added",
         "text": "Selective Canvas course import"
       },
       {

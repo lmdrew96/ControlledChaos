@@ -588,7 +588,7 @@ export function CalendarSettings() {
             <div>
               <p className="text-sm">Auto-add assignments as tasks</p>
               <p className="text-xs text-muted-foreground">
-                When on, Canvas assignments, quizzes, and exams get a prep task automatically. Turn off to add tasks yourself &mdash; existing prep tasks stay either way.
+                When on, Canvas assignments become tasks due when the work is, and quizzes and exams get a prep task the night before. Turn off to add tasks yourself &mdash; existing tasks stay either way.
               </p>
             </div>
             <Switch
