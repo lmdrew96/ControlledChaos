@@ -52,6 +52,7 @@ interface FormState {
   estimatedMinutes: string;
   deadline: string;
   targetDate: string;
+  scheduledFor: string;
   status: string;
   goalId: string;
 }
@@ -72,6 +73,9 @@ function formFromTask(task: Task, timezone: string): FormState {
     locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
+    scheduledFor: task.scheduledFor
+      ? toDatetimeLocal(task.scheduledFor, timezone)
+      : "",
     targetDate: task.targetDate
       ? toDatetimeLocal(task.targetDate, timezone)
       : "",
@@ -96,6 +100,7 @@ export function TaskDetailModal({
     estimatedMinutes: "",
     deadline: "",
     targetDate: "",
+    scheduledFor: "",
     status: "pending",
     goalId: "",
   });
@@ -222,6 +227,10 @@ export function TaskDetailModal({
       if (form.targetDate !== original.targetDate)
         payload.targetDate = form.targetDate
           ? toUTC(form.targetDate, timezone)
+          : null;
+      if (form.scheduledFor !== original.scheduledFor)
+        payload.scheduledFor = form.scheduledFor
+          ? toUTC(form.scheduledFor, timezone)
           : null;
       if (form.status !== original.status) payload.status = form.status;
       if (form.goalId !== original.goalId)
@@ -532,6 +541,23 @@ export function TaskDetailModal({
                 double-check it&apos;s what you meant.
               </p>
             )}
+          </div>
+
+          {/* Planned start — a "when", not a "by when". Set by Plan my day and
+              the auto-schedule button; editable here so two plan blocks landing
+              on the same slot can actually be pulled apart. */}
+          <div className="space-y-2">
+            <Label htmlFor="task-scheduled">Planned for</Label>
+            <Input
+              id="task-scheduled"
+              type="datetime-local"
+              value={form.scheduledFor}
+              onChange={(e) => updateField("scheduledFor", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              When you plan to start. This is the block that shows on your
+              calendar — clear it to take the task off the schedule.
+            </p>
           </div>
 
           {/* Goal */}

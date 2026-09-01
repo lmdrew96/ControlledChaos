@@ -149,8 +149,15 @@ function eventPosition(
  * Returns a map of event ID → { column, totalColumns } so events
  * sit side by side instead of stacking on top of each other.
  */
+/** Minimum shape this layout needs — works for events and plan blocks alike. */
+interface Spannable {
+  id: string;
+  startTime: string;
+  endTime: string;
+}
+
 function layoutOverlappingEvents(
-  events: CalendarEvent[]
+  events: Spannable[]
 ): Map<string, { column: number; totalColumns: number }> {
   const layout = new Map<string, { column: number; totalColumns: number }>();
   if (events.length === 0) return layout;
@@ -164,8 +171,8 @@ function layoutOverlappingEvents(
   });
 
   // Group into overlap clusters
-  const clusters: CalendarEvent[][] = [];
-  let currentCluster: CalendarEvent[] = [sorted[0]];
+  const clusters: Spannable[][] = [];
+  let currentCluster: Spannable[] = [sorted[0]];
   let clusterEnd = new Date(sorted[0].endTime).getTime();
 
   for (let i = 1; i < sorted.length; i++) {
@@ -909,26 +916,44 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         unfinished one starts to feel like a missed obligation.
                         Sits below real events (z-5 vs z-10) so a genuine
                         commitment always wins the pixel. */}
-                    {(planByDay.get(dayKey(day, timezone)) ?? []).map((block) => {
-                      const pos = eventPosition(block, startHour, timezone);
-                      return (
-                        <div
-                          key={block.taskId}
-                          title={`Planned: ${block.title} · ${block.minutes} min`}
-                          className={cn(
-                            "pointer-events-none absolute z-[5] overflow-hidden rounded-md",
-                            "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
-                            "px-1.5 py-1 text-left",
-                            "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
-                          )}
-                          style={{ top: pos.top, height: pos.height, left: 2, right: 2 }}
-                        >
-                          <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
-                            {block.title}
-                          </p>
-                        </div>
+                    {(() => {
+                      const dayPlan = planByDay.get(dayKey(day, timezone)) ?? [];
+                      // Two blocks planned into the same slot used to render
+                      // stacked on top of each other, unreadable and with no way
+                      // to tell there were two. Same column layout as events.
+                      const planLayout = layoutOverlappingEvents(
+                        dayPlan.map((b) => ({ ...b, id: b.taskId }))
                       );
-                    })}
+                      return dayPlan.map((block) => {
+                        const pos = eventPosition(block, startHour, timezone);
+                        const overlap = planLayout.get(block.taskId);
+                        const planCols = overlap?.totalColumns ?? 1;
+                        const planWidth = 100 / planCols;
+                        const planLeft = (overlap?.column ?? 0) * planWidth;
+                        return (
+                          <div
+                            key={block.taskId}
+                            title={`Planned: ${block.title} · ${block.minutes} min`}
+                            className={cn(
+                              "pointer-events-none absolute z-[5] overflow-hidden rounded-md",
+                              "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
+                              "px-1.5 py-1 text-left",
+                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                            )}
+                            style={{
+                              top: pos.top,
+                              height: pos.height,
+                              left: `calc(${planLeft}% + 2px)`,
+                              width: `calc(${planWidth}% - 4px)`,
+                            }}
+                          >
+                            <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
+                              {block.title}
+                            </p>
+                          </div>
+                        );
+                      });
+                    })()}
 
                     {/* Event blocks */}
                     {(() => {
