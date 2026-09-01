@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
+import { OptionalDateTimeField } from "./optional-datetime-field";
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -329,32 +330,22 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           </div>
 
           {/* Deadline — hard, externally imposed */}
-          <div className="space-y-2">
-            <Label htmlFor="create-task-deadline">Due</Label>
-            <Input
-              id="create-task-deadline"
-              type="datetime-local"
-              value={form.deadline}
-              onChange={(e) => updateField("deadline", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              When it&apos;s actually due. Leave empty if nothing external is
-              driving this.
-            </p>
-          </div>
+          <OptionalDateTimeField
+            id="create-task-deadline"
+            label="Due"
+            value={form.deadline}
+            onChange={(v) => updateField("deadline", v)}
+            hint="When it's actually due — a date something outside you set."
+          />
 
           {/* Target — soft, self-imposed */}
-          <div className="space-y-2">
-            <Label htmlFor="create-task-target">Target</Label>
-            <Input
-              id="create-task-target"
-              type="datetime-local"
-              value={form.targetDate}
-              onChange={(e) => updateField("targetDate", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              When you want it done. Reminders about a target stay gentle.
-            </p>
+          <OptionalDateTimeField
+            id="create-task-target"
+            label="Target"
+            value={form.targetDate}
+            onChange={(v) => updateField("targetDate", v)}
+            hint="When you want it done. Reminders about a target stay gentle."
+          >
             {targetAfterDeadline && (
               <p className="flex items-center gap-1 text-xs text-adhd-amber">
                 <AlertCircle className="h-3 w-3 shrink-0" />
@@ -362,7 +353,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
                 double-check it&apos;s what you meant.
               </p>
             )}
-          </div>
+          </OptionalDateTimeField>
 
         </div>
 

@@ -35,6 +35,7 @@ import {
   categoryOptions,
   statusOptions,
 } from "./task-config";
+import { OptionalDateTimeField } from "./optional-datetime-field";
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -509,31 +510,22 @@ export function TaskDetailModal({
           </div>
 
           {/* Deadline — hard, externally imposed */}
-          <div className="space-y-2">
-            <Label htmlFor="task-deadline">Due</Label>
-            <Input
-              id="task-deadline"
-              type="datetime-local"
-              value={form.deadline}
-              onChange={(e) => updateField("deadline", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              When it&apos;s actually due.
-            </p>
-          </div>
+          <OptionalDateTimeField
+            id="task-deadline"
+            label="Due"
+            value={form.deadline}
+            onChange={(v) => updateField("deadline", v)}
+            hint="When it's actually due — a date something outside you set."
+          />
 
           {/* Target — soft, self-imposed */}
-          <div className="space-y-2">
-            <Label htmlFor="task-target">Target</Label>
-            <Input
-              id="task-target"
-              type="datetime-local"
-              value={form.targetDate}
-              onChange={(e) => updateField("targetDate", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              When you want it done. Reminders about a target stay gentle.
-            </p>
+          <OptionalDateTimeField
+            id="task-target"
+            label="Target"
+            value={form.targetDate}
+            onChange={(v) => updateField("targetDate", v)}
+            hint="When you want it done. Reminders about a target stay gentle."
+          >
             {targetAfterDeadline && (
               <p className="flex items-center gap-1 text-xs text-adhd-amber">
                 <AlertCircle className="h-3 w-3 shrink-0" />
@@ -541,24 +533,18 @@ export function TaskDetailModal({
                 double-check it&apos;s what you meant.
               </p>
             )}
-          </div>
+          </OptionalDateTimeField>
 
           {/* Planned start — a "when", not a "by when". Set by Plan my day and
               the auto-schedule button; editable here so two plan blocks landing
               on the same slot can actually be pulled apart. */}
-          <div className="space-y-2">
-            <Label htmlFor="task-scheduled">Planned for</Label>
-            <Input
-              id="task-scheduled"
-              type="datetime-local"
-              value={form.scheduledFor}
-              onChange={(e) => updateField("scheduledFor", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              When you plan to start. This is the block that shows on your
-              calendar — clear it to take the task off the schedule.
-            </p>
-          </div>
+          <OptionalDateTimeField
+            id="task-scheduled"
+            label="Planned for"
+            value={form.scheduledFor}
+            onChange={(v) => updateField("scheduledFor", v)}
+            hint="When you plan to start. This is the block that shows on your calendar — clearing it takes the task off the schedule."
+          />
 
           {/* Goal */}
           {goals.length > 0 && (
