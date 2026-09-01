@@ -147,7 +147,12 @@ export const tasks = pgTable(
     estimatedMinutes: integer("estimated_minutes"),
     category: text("category"), // school, work, personal, errands, health
     locationTags: jsonb("location_tags").$type<string[]>(), // ["home", "campus"] — null or [] = anywhere
+    // HARD wall — externally imposed (Canvas, an instructor, the world). Never inferred.
     deadline: timestamp("deadline"),
+    // SOFT aim — self-imposed buffer ("done by Wed even though it's due Fri").
+    // Independent of deadline: either, both, or neither may be set. Never auto-derived.
+    targetDate: timestamp("target_date"),
+    // Planned work START (a "when", not a "by when"). Set by Plan-my-day.
     scheduledFor: timestamp("scheduled_for"),
     completedAt: timestamp("completed_at"),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
@@ -165,6 +170,7 @@ export const tasks = pgTable(
     index("idx_tasks_user_status").on(table.userId, table.status),
     index("idx_tasks_user_deadline").on(table.userId, table.deadline),
     index("idx_tasks_user_scheduled").on(table.userId, table.scheduledFor),
+    index("idx_tasks_user_target").on(table.userId, table.targetDate),
     uniqueIndex("idx_tasks_user_source_event").on(
       table.userId,
       table.sourceEventId

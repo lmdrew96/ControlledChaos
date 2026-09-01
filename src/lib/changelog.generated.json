@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Persist rescue suggestion dismissal and re-validate stale detections"
+      },
+      {
+        "type": "added",
         "text": "Configure deadline and event reminders separately"
       },
       {

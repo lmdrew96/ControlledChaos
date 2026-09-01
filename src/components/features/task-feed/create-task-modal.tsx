@@ -38,6 +38,7 @@ interface FormState {
   locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
+  targetDate: string;
   goalId: string;
 }
 
@@ -55,6 +56,7 @@ const DEFAULT_FORM: FormState = {
   locationTags: [],
   estimatedMinutes: "",
   deadline: "",
+  targetDate: "",
   goalId: "",
 };
 
@@ -83,6 +85,14 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
       setErrors({});
     }
   }, [open]);
+
+  // Advisory only — a target after the due date still saves. We warn instead of
+  // clamping: a date that silently moves itself is worse than one that's wrong
+  // and visible. Both values are datetime-local strings in the same frame.
+  const targetAfterDeadline =
+    Boolean(form.targetDate) &&
+    Boolean(form.deadline) &&
+    new Date(form.targetDate) > new Date(form.deadline);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -119,6 +129,9 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           category: form.category || null,
           locationTags: form.locationTags.length ? form.locationTags : null,
           deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
+          targetDate: form.targetDate
+            ? new Date(form.targetDate).toISOString()
+            : null,
           goalId: form.goalId || null,
         }),
       });
@@ -311,15 +324,40 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
             />
           </div>
 
-          {/* Deadline */}
+          {/* Deadline — hard, externally imposed */}
           <div className="space-y-2">
-            <Label htmlFor="create-task-deadline">Deadline</Label>
+            <Label htmlFor="create-task-deadline">Due</Label>
             <Input
               id="create-task-deadline"
               type="datetime-local"
               value={form.deadline}
               onChange={(e) => updateField("deadline", e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              When it&apos;s actually due. Leave empty if nothing external is
+              driving this.
+            </p>
+          </div>
+
+          {/* Target — soft, self-imposed */}
+          <div className="space-y-2">
+            <Label htmlFor="create-task-target">Target</Label>
+            <Input
+              id="create-task-target"
+              type="datetime-local"
+              value={form.targetDate}
+              onChange={(e) => updateField("targetDate", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              When you want it done. Reminders about a target stay gentle.
+            </p>
+            {targetAfterDeadline && (
+              <p className="flex items-center gap-1 text-xs text-adhd-amber">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                Your target is after the due date. That still saves — just
+                double-check it&apos;s what you meant.
+              </p>
+            )}
           </div>
 
         </div>

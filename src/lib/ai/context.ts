@@ -46,7 +46,10 @@ export interface AIContext {
   topTasks: Array<{
     title: string;
     priority: string;
+    /** HARD wall — externally imposed. */
     deadline: string | null;
+    /** SOFT aim — self-imposed. Never merge with deadline. */
+    targetDate: string | null;
     energyLevel: string;
   }>;
 
@@ -176,6 +179,7 @@ export async function buildAIContext(
     title: t.title,
     priority: t.priority,
     deadline: t.deadline?.toISOString() ?? null,
+    targetDate: t.targetDate?.toISOString() ?? null,
     energyLevel: t.energyLevel,
   }));
 
@@ -367,10 +371,21 @@ export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   if (ctx.topTasks.length > 0) {
     lines.push("\n### Top Priority Tasks");
     for (const t of ctx.topTasks) {
-      const deadlineStr = t.deadline
-        ? ` (due ${formatForDisplay(new Date(t.deadline), ctx.timezone, DISPLAY_DATE)})`
-        : "";
-      lines.push(`- ${t.title} [${t.priority}, ${t.energyLevel} energy]${deadlineStr}`);
+      // Hard and soft dates are emitted as separate, explicitly labeled facts.
+      // Merging them is what let the assistant call a self-imposed date "due".
+      const dateParts: string[] = [];
+      if (t.deadline) {
+        dateParts.push(
+          `hard deadline ${formatForDisplay(new Date(t.deadline), ctx.timezone, DISPLAY_DATE)}`
+        );
+      }
+      if (t.targetDate) {
+        dateParts.push(
+          `self-imposed target ${formatForDisplay(new Date(t.targetDate), ctx.timezone, DISPLAY_DATE)}`
+        );
+      }
+      const dateStr = dateParts.length > 0 ? ` (${dateParts.join("; ")})` : "";
+      lines.push(`- ${t.title} [${t.priority}, ${t.energyLevel} energy]${dateStr}`);
     }
   }
 

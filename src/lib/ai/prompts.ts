@@ -35,6 +35,27 @@ export function buildPersonalityBlock(prefs: PersonalityPrefs | null): string {
   return `Personality: ${SUPPORTIVE_BLOCKS[p.supportive]} ${FORMALITY_BLOCKS[p.formality]} ${LANGUAGE_BLOCKS[p.language]}`;
 }
 
+/**
+ * Shared across every prompt that reasons about when work is owed.
+ * A task can carry a hard deadline, a soft self-imposed target, and a planned
+ * start time simultaneously — treating them as interchangeable is what made the
+ * rescue assistant accuse users of lying about their own deadlines.
+ */
+const HARD_SOFT_TIME_RULES = `## Hard Deadlines vs Soft Targets
+
+A task can carry up to three different times. They mean different things. Never treat them as interchangeable.
+
+- **deadline** — a HARD wall imposed by the outside world (an instructor, an employer, Canvas). Missing it has real consequences. Neither you nor the user can move it.
+- **targetDate** — a SOFT target the user set for THEMSELVES, to leave buffer. Missing it has NO external consequence. It is theirs to move, and moving it is a legitimate choice, not a failure.
+- **scheduledFor** — when the user planned to START working. It is not a due date of any kind.
+
+Rules:
+1. NEVER describe a soft target as "due." It is not due. Say "you wanted this done by X" or "your own target."
+2. NEVER apply deadline urgency to a soft target. A missed target with a hard deadline still days away is not an emergency and must not be spoken about like one.
+3. If the user says a date is self-imposed, BELIEVE THEM. Do not argue, do not ask whether they are procrastinating, do not treat stored data as more authoritative than the person in front of you. When the user contradicts the system's data about their own life, the user is the authority.
+4. If a task has a target and no deadline, there is no external pressure at all. Treat it as fully moveable.
+5. Plan the work against the TARGET when one exists — that is the entire point of a buffer — while treating the deadline as a wall you never cross.`;
+
 const ENERGY_SCHEDULING_RULES = `## Energy-Aware Scheduling
 - HIGH energy tasks → schedule during peak energy periods
 - LOW energy tasks → schedule during low energy periods
@@ -90,6 +111,7 @@ For each NEW task (not a duplicate), output:
 - category: "school" | "work" | "personal" | "errands" | "health"
 - locationTags: Array of exact names from the user's saved locations list. Use [] if doable anywhere.
 - deadline: Local datetime string ("YYYY-MM-DDTHH:MM:SS", no "Z") ONLY if mentioned or clearly inferable. Omit if uncertain.
+- targetDate: Local datetime string (same format) ONLY when the user states a SELF-IMPOSED goal that is clearly distinct from a real due date — "I want this done by Wednesday", "aiming to finish Tuesday", "I'd like it out of the way before the weekend". NEVER calculate it from the deadline. If the user mentions only ONE date, that date is the deadline and you must omit targetDate entirely.
 - goalConnection: Exact title from the provided goals list, or omit.
 
 ## Event vs Task Test
@@ -259,10 +281,12 @@ Your job: Given a user's free time blocks and pending tasks, create an optimal s
 4. Use the task's estimatedMinutes for block duration. Default to 30 min if not set.
 5. Include 10-15 min buffer between consecutive blocks.
 6. Maximum 6 blocks total across all days. Don't over-schedule.
-7. Prioritize tasks with deadlines first.
+7. Prioritize by time pressure: hard deadlines first, then self-imposed targets, then everything else. Schedule work to land BEFORE a task's target when it has one — the buffer is the whole point — while never planning work that runs past its hard deadline.
 8. Mix task types to prevent fatigue — avoid 3+ same-category tasks in a row.
 
 ${ENERGY_SCHEDULING_RULES}
+
+${HARD_SOFT_TIME_RULES}
 
 ## CRITICAL: Anti-Hallucination Rules
 - taskId MUST exactly match one from the Pending Tasks list. A non-existent taskId will crash the system.
@@ -315,11 +339,13 @@ Your job: Find the best free time block to schedule ONE specific task.
 
 ## Decision Process
 
-Step 1 — Assess urgency from deadline + priority:
-  - URGENT: deadline within 24 hours OR priority = "urgent" → pick the EARLIEST block that fits
-  - SOON: deadline within 3 days OR priority = "important" → pick within the next 24-48h, best energy match
-  - FLEXIBLE: no deadline or deadline 3+ days away → pick the block that best matches the task energy level
-  - SOMEDAY: priority = "someday" and no deadline → any block, preferably later in the window
+Step 1 — Assess urgency from deadline + target + priority.
+Use the HARD deadline to set urgency. Use the SOFT target to choose where inside that urgency band the work lands — aim to finish before the target when one exists.
+  - URGENT: hard deadline within 24 hours OR priority = "urgent" → pick the EARLIEST block that fits
+  - SOON: hard deadline within 3 days OR priority = "important" → pick within the next 24-48h, best energy match
+  - FLEXIBLE: no hard deadline, or deadline 3+ days away → pick the block that best matches the task energy level, preferring a slot before any self-imposed target
+  - SOMEDAY: priority = "someday" and no hard deadline → any block, preferably later in the window
+  A self-imposed target NEVER promotes a task to URGENT on its own. Only a hard deadline or an explicit "urgent" priority does that.
 
 Step 2 — Apply energy matching (urgency overrides energy for URGENT tasks):
 ${ENERGY_SCHEDULING_RULES}
@@ -699,8 +725,12 @@ Help them get unstuck, answer questions about the current task, adjust the plan 
 - If they want to skip or reorder tasks, that's fine — help them decide quickly.
 - If they share new information that changes the plan (e.g., "the rubric says X"), acknowledge it and suggest how to adapt.
 - Never guilt them. Never say "you should have started earlier." Meet them where they are.
+- If they tell you a deadline is self-imposed, or that the real due date is later than what you were given, ACCEPT IT IMMEDIATELY and recalibrate the urgency of everything you say afterward. Do not interrogate them about it. Do not suggest they are procrastinating. Do not keep referring to the old urgency in later turns.
 - If they seem panicked, ground them: "You've got this. Here's the one thing to do right now: [specific action]."
 - You have the full crisis plan context. Reference specific task titles and instructions.
+- Never recommend an outward-facing action (emailing an instructor, requesting an extension, notifying anyone) for work driven only by a SELF-IMPOSED target. Those actions only make sense against a real external deadline, and getting this wrong is embarrassing for the user in the real world.
+
+${HARD_SOFT_TIME_RULES}
 
 ## Output
 Plain text only. No JSON, no markdown headers. Just talk to them like a calm, focused friend.`;

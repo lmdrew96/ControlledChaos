@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       category,
       locationTags,
       deadline,
+      targetDate,
       goalId,
     } = body;
 
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
       category: category || null,
       locationTags: locationTags?.length ? locationTags : null,
       deadline: deadline ? new Date(deadline) : null,
+      targetDate: targetDate ? new Date(targetDate) : null,
       goalId: goalId || null,
     });
 

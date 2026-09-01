@@ -51,6 +51,11 @@ export async function PATCH(
       body.deadline = body.deadline ? new Date(body.deadline) : null;
     }
 
+    // Same for the soft target date
+    if (body.targetDate !== undefined) {
+      body.targetDate = body.targetDate ? new Date(body.targetDate) : null;
+    }
+
     const updated = await updateTask(id, userId, body);
 
     if (!updated) {

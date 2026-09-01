@@ -141,6 +141,7 @@ function buildSchedulingPrompt(
     category: t.category,
     locationTags: t.locationTags,
     deadline: fmtDeadline(t.deadline),
+    targetDate: fmtDeadline(t.targetDate),
     scheduledFor: fmtDeadline(t.scheduledFor),
   }));
 
@@ -313,6 +314,7 @@ ${JSON.stringify({
   estimatedMinutes: input.task.estimatedMinutes,
   category: input.task.category,
   deadline: input.task.deadline,
+  targetDate: input.task.targetDate,
 }, null, 2)}
 
 ## Free Time Blocks (next ${scheduleDays} days)

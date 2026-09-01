@@ -55,6 +55,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       category: t.category,
       locationTags: t.locationTags,
       deadlineIn: relativeTime(t.deadline),
+      targetIn: relativeTime(t.targetDate),
       plannedIn: relativeTime(t.scheduledFor),
       status: t.status,
     };
@@ -172,7 +173,8 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}
 - Last action: ${context.recentActivity?.lastAction ?? "None"}${rejectedLine}
 
-NOTE: All deadline/timing info is pre-computed in the "deadlineIn" and "plannedIn" fields. Do NOT attempt to derive dates or days from any other context.${calendarSection}
+NOTE: All deadline/timing info is pre-computed in the "deadlineIn", "targetIn" and "plannedIn" fields. Do NOT attempt to derive dates or days from any other context.
+"deadlineIn" is a HARD externally-imposed due date. "targetIn" is a SOFT target the user set for themselves — it carries real intent but NO external consequence, so it must never outrank a hard deadline or be described as "due". A task whose only time pressure is "targetIn" is not urgent.${calendarSection}
 
 ## Pending Tasks (${taskList.length})
 ${JSON.stringify(taskList, null, 2)}${descriptionNote}

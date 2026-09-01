@@ -164,6 +164,9 @@ export async function parseBrainDump(
       deadline: validateISODate(
         task.deadline ? toUTC(task.deadline, timezone) : undefined
       ),
+      targetDate: validateISODate(
+        task.targetDate ? toUTC(task.targetDate, timezone) : undefined
+      ),
       goalConnection,
     };
   });

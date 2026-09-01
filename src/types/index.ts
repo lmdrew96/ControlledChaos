@@ -14,6 +14,7 @@ export interface Task {
   category: string | null;
   locationTags: string[] | null;
   deadline: string | null;
+  targetDate: string | null;
   scheduledFor: string | null;
   completedAt: string | null;
   sourceDumpId: string | null;
@@ -66,6 +67,7 @@ export interface ParsedTask {
   category?: TaskCategory;
   locationTags?: LocationTag[];
   deadline?: string;
+  targetDate?: string;
   goalConnection?: string;
 }
 

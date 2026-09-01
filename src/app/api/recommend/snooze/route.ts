@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       category: task.category ?? null,
       locationTags: (task.locationTags as string[] | null) ?? null,
       deadline: task.deadline ? task.deadline.toISOString() : null,
+      targetDate: task.targetDate ? task.targetDate.toISOString() : null,
       scheduledFor: task.scheduledFor ? task.scheduledFor.toISOString() : null,
       completedAt: task.completedAt ? task.completedAt.toISOString() : null,
       sourceDumpId: task.sourceDumpId ?? null,

@@ -51,6 +51,7 @@ interface FormState {
   locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
+  targetDate: string;
   status: string;
   goalId: string;
 }
@@ -71,6 +72,9 @@ function formFromTask(task: Task, timezone: string): FormState {
     locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
+    targetDate: task.targetDate
+      ? toDatetimeLocal(task.targetDate, timezone)
+      : "",
     status: task.status,
     goalId: task.goalId ?? "",
   };
@@ -91,6 +95,7 @@ export function TaskDetailModal({
     locationTags: [],
     estimatedMinutes: "",
     deadline: "",
+    targetDate: "",
     status: "pending",
     goalId: "",
   });
@@ -171,6 +176,14 @@ export function TaskDetailModal({
     }
   );
 
+  // Advisory only — a target after the due date still saves. We warn instead of
+  // clamping: a date that silently moves itself is worse than one that's wrong
+  // and visible. Both values are datetime-local strings in the same frame.
+  const targetAfterDeadline =
+    Boolean(form.targetDate) &&
+    Boolean(form.deadline) &&
+    new Date(form.targetDate) > new Date(form.deadline);
+
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key === "title" && titleError) setTitleError(null);
@@ -203,6 +216,10 @@ export function TaskDetailModal({
       if (form.deadline !== original.deadline)
         payload.deadline = form.deadline
           ? toUTC(form.deadline, timezone)
+          : null;
+      if (form.targetDate !== original.targetDate)
+        payload.targetDate = form.targetDate
+          ? toUTC(form.targetDate, timezone)
           : null;
       if (form.status !== original.status) payload.status = form.status;
       if (form.goalId !== original.goalId)
@@ -480,15 +497,39 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          {/* Deadline */}
+          {/* Deadline — hard, externally imposed */}
           <div className="space-y-2">
-            <Label htmlFor="task-deadline">Deadline</Label>
+            <Label htmlFor="task-deadline">Due</Label>
             <Input
               id="task-deadline"
               type="datetime-local"
               value={form.deadline}
               onChange={(e) => updateField("deadline", e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              When it&apos;s actually due.
+            </p>
+          </div>
+
+          {/* Target — soft, self-imposed */}
+          <div className="space-y-2">
+            <Label htmlFor="task-target">Target</Label>
+            <Input
+              id="task-target"
+              type="datetime-local"
+              value={form.targetDate}
+              onChange={(e) => updateField("targetDate", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              When you want it done. Reminders about a target stay gentle.
+            </p>
+            {targetAfterDeadline && (
+              <p className="flex items-center gap-1 text-xs text-adhd-amber">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                Your target is after the due date. That still saves — just
+                double-check it&apos;s what you meant.
+              </p>
+            )}
           </div>
 
           {/* Goal */}

@@ -88,6 +88,7 @@ export async function POST() {
       category: t.category,
       locationTags: t.locationTags,
       deadline: t.deadline?.toISOString() ?? null,
+      targetDate: t.targetDate?.toISOString() ?? null,
       scheduledFor: t.scheduledFor?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,
       sourceDumpId: t.sourceDumpId ?? null,

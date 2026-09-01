@@ -94,6 +94,7 @@ export async function POST(_req: Request, context: RouteContext) {
       category: task.category,
       locationTags: task.locationTags,
       deadline: task.deadline?.toISOString() ?? null,
+      targetDate: task.targetDate?.toISOString() ?? null,
       scheduledFor: task.scheduledFor?.toISOString() ?? null,
       completedAt: task.completedAt?.toISOString() ?? null,
       sourceDumpId: task.sourceDumpId ?? null,

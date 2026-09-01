@@ -7,6 +7,7 @@ import {
   Clock,
   Calendar,
   CalendarClock,
+  Target,
   Layers,
   Loader2,
   ChevronDown,
@@ -266,13 +267,43 @@ export function TaskCard({
   const isSwipingLeft = swipeOffset < -20;
   const isSwipingRight = swipeOffset > 20;
 
-  // Pick ONE temporal hint: scheduled-for > deadline > none.
+  // Hard due date, soft target, and planned time are three different facts and
+  // can coexist. This used to pick exactly ONE (scheduledFor > deadline), so
+  // planning a task silently hid its real due date — the one that matters most.
   // Steps progress is its own affordance (expand/collapse), shown separately.
-  const temporalHint: "scheduled" | "deadline" | null = task.scheduledFor
-    ? "scheduled"
-    : task.deadline
-      ? "deadline"
-      : null;
+  const temporalChips: Array<{
+    key: string;
+    Icon: typeof Calendar;
+    label: string;
+    tone: string;
+  }> = [];
+
+  if (task.deadline) {
+    temporalChips.push({
+      key: "deadline",
+      Icon: Calendar,
+      label: `Due ${formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}`,
+      tone: "text-muted-foreground",
+    });
+  }
+
+  if (task.targetDate) {
+    temporalChips.push({
+      key: "target",
+      Icon: Target,
+      label: `Target ${formatForDisplay(new Date(task.targetDate), timezone, DISPLAY_DATE)}`,
+      tone: "text-adhd-purple dark:text-adhd-lavender",
+    });
+  }
+
+  if (task.scheduledFor) {
+    temporalChips.push({
+      key: "scheduled",
+      Icon: CalendarClock,
+      label: formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME),
+      tone: "text-primary/80 font-medium",
+    });
+  }
 
   return (
     <div className="relative overflow-hidden rounded-lg">
@@ -432,7 +463,11 @@ export function TaskCard({
               <p className="text-sm text-muted-foreground">{task.description}</p>
             )}
 
-            {/* Metadata row — capped at 3 visible: priority + time + one temporal hint.
+            {/* Metadata row — priority + time estimate, then the temporal group.
+                The temporal chips (due / target / planned) can all be present at
+                once, so they live in their own wrapper and drop to a full-width
+                line as soon as there's more than one, instead of breaking apart
+                mid-group against the badges.
                 Steps button shows separately when steps exist (it's an expand affordance).
                 In-progress badge only appears when a task has actually been started. */}
             <div className="flex flex-wrap items-center gap-2">
@@ -457,18 +492,32 @@ export function TaskCard({
                 </span>
               )}
 
-              {temporalHint === "scheduled" && task.scheduledFor && (
-                <span className="flex items-center gap-1 text-xs text-primary/80 font-medium">
-                  <CalendarClock className="h-3 w-3" />
-                  {formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME)}
-                </span>
-              )}
-
-              {temporalHint === "deadline" && task.deadline && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {formatForDisplay(new Date(task.deadline), timezone, DISPLAY_DATE)}
-                </span>
+              {temporalChips.length > 0 && (
+                <div
+                  className={cn(
+                    // Own wrapper so the group wraps as a unit. gap-x-3 spaces
+                    // chips from each other a little wider than the parent's
+                    // gap-2 spaces the group from the badges, which keeps the
+                    // dates reading as one cluster.
+                    "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1",
+                    // One chip is narrow enough to sit inline with the badges.
+                    // Two or three need their own line or they crowd the row.
+                    temporalChips.length > 1 && "basis-full"
+                  )}
+                >
+                  {temporalChips.map(({ key, Icon, label, tone }) => (
+                    <span
+                      key={key}
+                      className={cn(
+                        "flex min-w-0 items-center gap-1 text-xs",
+                        tone
+                      )}
+                    >
+                      <Icon className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{label}</span>
+                    </span>
+                  ))}
+                </div>
               )}
 
               {steps && steps.length > 0 && (

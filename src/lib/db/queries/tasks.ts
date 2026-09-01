@@ -18,6 +18,7 @@ export async function createTask(
     category?: string | null;
     locationTags?: string[] | null;
     deadline?: Date | null;
+    targetDate?: Date | null;
     goalId?: string | null;
     sourceEventId?: string | null;
   }
@@ -34,6 +35,7 @@ export async function createTask(
       category: params.category ?? null,
       locationTags: params.locationTags?.length ? params.locationTags : null,
       deadline: params.deadline ?? null,
+      targetDate: params.targetDate ?? null,
       goalId: params.goalId ?? null,
       sourceEventId: params.sourceEventId ?? null,
     })
@@ -86,6 +88,7 @@ export async function createTasksFromDump(
     category: task.category ?? null,
     locationTags: task.locationTags?.length ? task.locationTags : null,
     deadline: task.deadline ? new Date(task.deadline) : null,
+    targetDate: task.targetDate ? new Date(task.targetDate) : null,
     goalId: task.goalConnection
       ? (goalIdByTitle.get(task.goalConnection.toLowerCase()) ?? null)
       : null,
@@ -130,6 +133,7 @@ export async function updateTask(
     category: string | null;
     locationTags: string[] | null;
     deadline: Date | null;
+    targetDate: Date | null;
     scheduledFor: Date | null;
     completedAt: Date | null;
     progressSteps: object[] | null;
