@@ -33,6 +33,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { compareBySoonestTime } from "@/lib/tasks/task-times";
 
 type FilterStatus = "active" | "completed" | "all";
 type SortBy = "none" | "priority" | "deadline" | "manual";
@@ -50,11 +51,9 @@ function applySort(tasks: Task[], sortBy: SortBy): Task[] {
     if (sortBy === "priority") {
       return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
     }
-    // deadline: nulls go last
-    if (!a.deadline && !b.deadline) return 0;
-    if (!a.deadline) return 1;
-    if (!b.deadline) return -1;
-    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    // "Soonest": whichever of hard deadline / soft target / planned start
+    // comes first. Tasks with none of the three go last.
+    return compareBySoonestTime(a, b);
   });
 }
 
@@ -414,7 +413,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
             <SelectContent>
               <SelectItem value="none">Sort</SelectItem>
               <SelectItem value="priority">Priority</SelectItem>
-              <SelectItem value="deadline">Deadline</SelectItem>
+              <SelectItem value="deadline">Soonest</SelectItem>
               <SelectItem value="manual">Manual</SelectItem>
             </SelectContent>
           </Select>
