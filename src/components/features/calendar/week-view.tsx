@@ -245,6 +245,11 @@ function layoutOverlappingEvents(
   return layout;
 }
 
+/** Either kind of thing the grid lets you drag while Rearrange is on. */
+type DragTarget =
+  | { kind: "event"; event: CalendarEvent }
+  | { kind: "plan"; block: PlanBlock };
+
 // ============================================================
 // Component
 // ============================================================
@@ -286,7 +291,17 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
   // Drag-and-drop state (desktop only, CC events only)
   const gridRef = useRef<HTMLDivElement>(null);
-  const [dragEvent, setDragEvent] = useState<CalendarEvent | null>(null);
+  /**
+   * What's being dragged. Calendar events and plan blocks share all of the
+   * grid math — only the write-back differs — so one drag machine handles both
+   * rather than two parallel copies drifting apart.
+   */
+  const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
+  const dragSubject = dragTarget
+    ? dragTarget.kind === "event"
+      ? dragTarget.event
+      : dragTarget.block
+    : null;
   const [dragGhost, setDragGhost] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [dragDayIdx, setDragDayIdx] = useState<number | null>(null);
   const [dragTimeSlot, setDragTimeSlot] = useState<number | null>(null);
@@ -502,22 +517,25 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // ---- Drag-and-drop handlers (desktop, CC events only) ----
 
   const handleDragStart = useCallback(
-    (e: React.PointerEvent, event: CalendarEvent) => {
+    (e: React.PointerEvent, target: DragTarget) => {
       if (!isEditMode) return;
-      if (event.source !== "controlledchaos") return;
+      // Canvas events are read-only mirrors of an external feed; moving one
+      // here would be silently undone on the next sync.
+      if (target.kind === "event" && target.event.source !== "controlledchaos") return;
       e.preventDefault();
       e.stopPropagation();
 
-      const target = e.currentTarget as HTMLElement;
-      const rect = target.getBoundingClientRect();
+      const subject = target.kind === "event" ? target.event : target.block;
+      const el = e.currentTarget as HTMLElement;
+      const rect = el.getBoundingClientRect();
       dragOffsetY.current = e.clientY - rect.top;
       isDragging.current = false;
 
-      const pos = eventPosition(event, startHour, timezone);
+      const pos = eventPosition(subject, startHour, timezone);
       const gridRect = gridRef.current?.getBoundingClientRect();
       if (!gridRect) return;
 
-      setDragEvent(event);
+      setDragTarget(target);
       setDragGhost({
         top: rect.top - gridRect.top,
         left: rect.left - gridRect.left,
@@ -532,7 +550,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
   const handleDragMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!dragEvent || !gridRef.current) return;
+      if (!dragSubject || !gridRef.current) return;
 
       isDragging.current = true;
       const gridRect = gridRef.current.getBoundingClientRect();
@@ -555,7 +573,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       setDragDayIdx(dayIdx);
       setDragTimeSlot(clampedSlot);
 
-      const pos = eventPosition(dragEvent, startHour, timezone);
+      const pos = eventPosition(dragSubject, startHour, timezone);
       setDragGhost({
         top: clampedSlot * ROW_HEIGHT,
         left: timeColWidth + dayIdx * colWidth + 2,
@@ -563,18 +581,18 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         height: pos.height,
       });
     },
-    [dragEvent, startHour, endHour, timezone]
+    [dragSubject, startHour, endHour, timezone]
   );
 
   const handleDragEnd = useCallback(
     async (e: React.PointerEvent) => {
-      if (!dragEvent) return;
+      if (!dragTarget || !dragSubject) return;
 
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
 
       if (!isDragging.current || dragDayIdx === null || dragTimeSlot === null) {
         // No real drag — let the click handler fire
-        setDragEvent(null);
+        setDragTarget(null);
         setDragGhost(null);
         setDragDayIdx(null);
         setDragTimeSlot(null);
@@ -586,8 +604,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       const hours = startHour + Math.floor(dragTimeSlot / 2);
       const minutes = (dragTimeSlot % 2) * 30;
 
-      const originalStart = new Date(dragEvent.startTime);
-      const originalEnd = new Date(dragEvent.endTime);
+      const originalStart = new Date(dragSubject.startTime);
+      const originalEnd = new Date(dragSubject.endTime);
       const durationMs = originalEnd.getTime() - originalStart.getTime();
 
       const newStart = new Date(targetDay);
@@ -595,7 +613,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       const newEnd = new Date(newStart.getTime() + durationMs);
 
       // Reset drag state
-      setDragEvent(null);
+      setDragTarget(null);
       setDragGhost(null);
       setDragDayIdx(null);
       setDragTimeSlot(null);
@@ -604,27 +622,42 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       // Skip if times haven't changed
       if (newStart.getTime() === originalStart.getTime()) return;
 
-      // PATCH the event
+      const isPlan = dragTarget.kind === "plan";
+
       try {
-        const res = await fetch(`/api/calendar/events/${dragEvent.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            startTime: newStart.toISOString(),
-            endTime: newEnd.toISOString(),
-          }),
-        });
+        // A plan block lives as `scheduledFor` on its task, not as a calendar
+        // event, so it writes back through the task route. No conflict check
+        // here on purpose: dragging one somewhere is an explicit request, and
+        // the user is allowed to overlap their own plan if they mean to.
+        const res = isPlan
+          ? await fetch(`/api/tasks/${dragTarget.block.taskId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ scheduledFor: newStart.toISOString() }),
+            })
+          : await fetch(`/api/calendar/events/${dragTarget.event.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                startTime: newStart.toISOString(),
+                endTime: newEnd.toISOString(),
+              }),
+            });
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.error || "Failed to move event");
+          throw new Error(data.error || "Failed to move");
         }
-        toast.success("Event moved!");
+        toast.success(isPlan ? "Plan moved!" : "Event moved!");
         await fetchEvents(weekStart, weekEnd);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to move event");
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : `Failed to move ${isPlan ? "plan block" : "event"}`
+        );
       }
     },
-    [dragEvent, dragDayIdx, dragTimeSlot, weekDays, startHour, fetchEvents, weekStart, weekEnd]
+    [dragTarget, dragSubject, dragDayIdx, dragTimeSlot, weekDays, startHour, fetchEvents, weekStart, weekEnd]
   );
 
   // Time labels for the grid
@@ -817,8 +850,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           <div className="mb-2 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
             <Move className="h-3.5 w-3.5 shrink-0 text-primary" />
             <span>
-              Drag your own events to move them. Canvas events stay put — they
-              come from your course feed. Hit{" "}
+              Drag your own events and planned blocks to move them. Canvas
+              events stay put — they come from your course feed. Hit{" "}
               <span className="font-medium text-foreground">Done</span> when
               you&apos;re finished.
             </span>
@@ -980,12 +1013,24 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                   div rather than pretending to be a button. */}
                               <div
                                 tabIndex={0}
+                                onPointerDown={
+                                  isEditMode
+                                    ? (e) => handleDragStart(e, { kind: "plan", block })
+                                    : undefined
+                                }
                                 className={cn(
-                                  "absolute z-[5] cursor-default overflow-hidden rounded-md",
+                                  "absolute z-[5] overflow-hidden rounded-md",
                                   "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
                                   "px-1.5 py-1 text-left outline-none",
                                   "focus-visible:ring-2 focus-visible:ring-primary/60",
-                                  "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                                  "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]",
+                                  // Grabbable only while Rearrange is on, matching events.
+                                  isEditMode
+                                    ? "cursor-grab touch-none active:cursor-grabbing"
+                                    : "cursor-default",
+                                  dragTarget?.kind === "plan" &&
+                                    dragTarget.block.taskId === block.taskId &&
+                                    "opacity-40"
                                 )}
                                 style={{
                                   top: pos.top,
@@ -1011,6 +1056,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">
                                 Planned
                               </p>
+                              {isEditMode && (
+                                <p className="text-[10px] opacity-60">Drag to move</p>
+                              )}
                               <p className="font-medium">{block.title}</p>
                               <p className="opacity-75">
                                 {formatDateRange(
@@ -1041,7 +1089,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         const leftPercent = col * widthPercent;
 
                         const isCC = event.source === "controlledchaos";
-                        const isBeingDragged = dragEvent?.id === event.id;
+                        const isBeingDragged =
+                          dragTarget?.kind === "event" && dragTarget.event.id === event.id;
 
                         return (
                           <Tooltip key={event.id} delayDuration={TOOLTIP_DELAY_MS}>
@@ -1052,7 +1101,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             }}
                             onPointerDown={
                               isCC && isEditMode
-                                ? (e) => handleDragStart(e, event)
+                                ? (e) => handleDragStart(e, { kind: "event", event })
                                 : undefined
                             }
                             className={cn(
@@ -1132,11 +1181,14 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
               })}
 
               {/* Drag ghost overlay */}
-              {dragEvent && dragGhost && (
+              {dragSubject && dragGhost && (
                 <div
                   className={cn(
                     "pointer-events-none absolute z-30 overflow-hidden rounded border-l-2 px-1 py-0.5 opacity-80 shadow-lg ring-2 ring-primary/50",
-                    categoryColor(dragEvent.category as EventCategory, calendarColors)
+                    categoryColor(
+                      (dragTarget?.kind === "event" ? dragTarget.event.category : null) as EventCategory,
+                      calendarColors
+                    )
                   )}
                   style={{
                     top: dragGhost.top,
@@ -1146,7 +1198,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   }}
                 >
                   <p className="truncate text-[11px] font-medium leading-tight">
-                    {dragEvent.title}
+                    {dragSubject.title}
                   </p>
                   {dragTimeSlot !== null && (
                     <p className="truncate text-[10px] opacity-70">

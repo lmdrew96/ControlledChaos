@@ -30,6 +30,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -113,6 +118,9 @@ function sourceLabel(source: CalendarSource, externalId?: string | null): string
       return source;
   }
 }
+
+/** Matches week-view, so hovering either surface feels the same. */
+const TOOLTIP_DELAY_MS = 350;
 
 export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   const {
@@ -485,9 +493,25 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                               <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums text-adhd-purple/80 dark:text-adhd-lavender/80">
                                 {formatTimeTz(new Date(item.plan.startTime), timezone)}
                               </span>
-                              <span className="flex-1 truncate text-sm font-medium text-adhd-purple dark:text-adhd-lavender">
-                                {item.plan.title}
-                              </span>
+                              <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
+                                <TooltipTrigger asChild>
+                                  {/* Focusable so a truncated title is readable
+                                      by keyboard too, not only on hover. */}
+                                  <span
+                                    tabIndex={0}
+                                    className="flex-1 truncate text-sm font-medium text-adhd-purple outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:text-adhd-lavender"
+                                  >
+                                    {item.plan.title}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">
+                                    Planned
+                                  </p>
+                                  <p className="font-medium">{item.plan.title}</p>
+                                  <p className="opacity-75">{item.plan.minutes} min</p>
+                                </TooltipContent>
+                              </Tooltip>
                             </div>
                             <p className="ml-[3.875rem] mt-0.5 text-[11px] text-adhd-purple/70 dark:text-adhd-lavender/70">
                               Planned · {item.plan.minutes} min
@@ -515,14 +539,31 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                                       timezone
                                     )}
                               </span>
-                              <span className="flex-1 truncate text-sm font-medium">
-                                {item.event.title}
-                              </span>
+                              <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
+                                <TooltipTrigger asChild>
+                                  <span className="flex-1 truncate text-sm font-medium">
+                                    {item.event.title}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p className="font-medium">{item.event.title}</p>
+                                  {item.event.location && (
+                                    <p className="opacity-75">{item.event.location}</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
                             </div>
                             {item.event.location && (
-                              <p className="ml-[3.875rem] mt-0.5 truncate text-[11px] opacity-60">
-                                {item.event.location}
-                              </p>
+                              <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
+                                <TooltipTrigger asChild>
+                                  <p className="ml-[3.875rem] mt-0.5 truncate text-[11px] opacity-60">
+                                    {item.event.location}
+                                  </p>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  {item.event.location}
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </button>
                         </li>

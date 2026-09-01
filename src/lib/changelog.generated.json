@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Gentle reminder tier for soft self-imposed targets"
+      },
+      {
+        "type": "added",
         "text": "Teach notifications and emails the hard/soft/planned model"
       },
       {
