@@ -68,6 +68,13 @@ Junk-journal entries — longer-form reflective writing, separate from task brai
 | `cc_create_journal` | Save a new junk-journal entry |
 | `cc_list_journals` | List recent junk-journal entries |
 
+### Settings (1)
+| Tool | What it does |
+|---|---|
+| `cc_get_settings` | Read timezone, the AI scheduling window, and the calendar display range |
+
+> **Note:** read-only by design. `wake_time`/`sleep_time` is the scheduling window a planner must respect; `calendar_start_hour`/`calendar_end_hour` is only the visual range of the calendar grid. They are different things, and they often *read* the same because `calendar_start_hour` falls back to `wake_time` when unset. There is deliberately no write counterpart — settings are the user's.
+
 ### Daily Recap & Stats (2)
 | Tool | What it does |
 |---|---|

@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { sql, getUserId, getUserTimezone } from "./db.js";
+import { sql, getUserId, getUserTimezone, getUserSettings } from "./db.js";
 import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal } from "./helpers.js";
 import { expandRecurrence } from "./expand-recurrence.js";
 
@@ -2378,7 +2378,14 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
         });
       }
 
-      const ctxLines: string[] = [`Now: ${fmtTimeLocal(nowIso, tz)}`];
+      // The day's bounds ride along here so a planner acting on a
+      // recommendation doesn't need a second call to know where the day ends.
+      const settings = await getUserSettings(userId);
+      const ctxLines: string[] = [
+        `Now: ${fmtTimeLocal(nowIso, tz)}`,
+        `Timezone: ${tz}`,
+        `Scheduling window: ${settings.wakeTime}:00–${settings.sleepTime}:00 local (wake_time–sleep_time). Never place work outside it. The calendar's display range is a separate, cosmetic setting — see cc_get_settings.`,
+      ];
       if (currentEventRows[0]) {
         ctxLines.push(`Currently in: ${currentEventRows[0].title} (until ${fmtTimeLocal(currentEventRows[0].end_time, tz)})`);
       }
@@ -2481,6 +2488,66 @@ Returns: Markdown with task name, deadline (or an explicit "no hard deadline"), 
         if (currentTask.title) lines.push(`**${currentTask.title}**`);
         if (currentTask.instruction) lines.push(String(currentTask.instruction));
       }
+
+      return { content: [{ type: "text" as const, text: lines.join("\n") }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_get_settings
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_get_settings",
+    {
+      title: "Get Settings",
+      description: `Read the user's timezone and the hour bounds of their day. Read-only.
+
+Call this BEFORE proposing or writing any schedule. Without it you are guessing at boundaries the app itself enforces, and a plan that lands outside them will be rejected or will simply be wrong.
+
+THE TWO HOUR RANGES ARE NOT THE SAME THING:
+  - wake_time / sleep_time — the AI SCHEDULING WINDOW. This is the one you must respect. Never place work before wake_time or after sleep_time.
+  - calendar_start_hour / calendar_end_hour — purely the VISUAL range of the calendar grid. It only controls what the user sees on screen. It is NOT permission to schedule, and it is NOT a constraint on scheduling.
+
+They often read the same because calendar_start_hour falls back to wake_time when the user has never set it explicitly. Do not infer from that they are interchangeable.
+
+There is deliberately NO write counterpart. Settings belong to the user; a model quietly moving someone's sleep time is a worse failure than not being able to.
+
+Returns: Markdown with timezone, the scheduling window, the calendar display range, and the week start day.`,
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      const userId = getUserId();
+      const s = await getUserSettings(userId);
+
+      const hour = (h: number) => {
+        const suffix = h < 12 ? "AM" : "PM";
+        const display = h % 12 === 0 ? 12 : h % 12;
+        return `${display} ${suffix}`;
+      };
+
+      const lines = [
+        `## Settings`,
+        ``,
+        `**Timezone:** ${s.timezone}`,
+        `All datetimes you send must be UTC. Convert from this timezone before writing.`,
+        ``,
+        `### Scheduling window — respect this`,
+        `${hour(s.wakeTime)} to ${hour(s.sleepTime)} (wake_time ${s.wakeTime}, sleep_time ${s.sleepTime})`,
+        `Never schedule work outside this range.`,
+        ``,
+        `### Calendar display range — cosmetic only`,
+        `${hour(s.calendarStartHour)} to ${hour(s.calendarEndHour)} (calendar_start_hour ${s.calendarStartHour}, calendar_end_hour ${s.calendarEndHour})`,
+        `This is only what the calendar grid draws. It is not a scheduling constraint.`,
+        ``,
+        `### Week starts on`,
+        s.weekStartDay === 0 ? "Sunday" : "Monday",
+      ];
 
       return { content: [{ type: "text" as const, text: lines.join("\n") }] };
     }
