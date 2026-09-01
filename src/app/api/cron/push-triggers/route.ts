@@ -8,9 +8,9 @@ import {
 } from "@/lib/db/queries";
 import {
   sendPushToUser,
-  isQuietHours,
   type PushAction,
 } from "@/lib/notifications/send-push";
+import { isQuietHours } from "@/lib/notifications/quiet-hours";
 import { todayInTimezone } from "@/lib/timezone";
 import {
   getDeadlineReminders,
@@ -234,7 +234,11 @@ async function processUser(user: PushUser): Promise<number> {
       sourceEventId: r.sourceEventId,
       intervalMinutes: r.intervalMinutes,
       priority: r.intervalMinutes <= 60 ? "high" : "normal",
-      bypassQuietHours: r.intervalMinutes <= 30,
+      // Quiet hours are the user's explicit instruction and the settings screen
+      // promises them unconditionally. A near deadline does NOT earn an override:
+      // this used to be `r.intervalMinutes <= 30`, which meant anyone with a
+      // 10-minute reminder configured got woken up mid-quiet-hours.
+      bypassQuietHours: false,
       url: `/tasks?taskId=${r.taskId}`,
       taskId: r.taskId,
       actions: TASK_ACTIONS,
@@ -252,7 +256,8 @@ async function processUser(user: PushUser): Promise<number> {
       externalId: r.externalId,
       intervalMinutes: r.intervalMinutes,
       priority: r.intervalMinutes <= 60 ? "high" : "normal",
-      bypassQuietHours: r.intervalMinutes <= 30,
+      // See the deadline reminder above — proximity never overrides quiet hours.
+      bypassQuietHours: false,
       url: "/calendar",
       actions: EVENT_ACTIONS,
     });

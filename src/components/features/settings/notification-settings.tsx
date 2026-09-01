@@ -611,8 +611,10 @@ export function NotificationSettings() {
           Quiet Hours
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">
-          No push notifications during these hours. Email digests are
-          unaffected.
+          No push notifications during these hours — including deadline
+          reminders, no matter how close the deadline is. The only exception is
+          a &ldquo;time to leave now&rdquo; alert for an event you would
+          otherwise miss. Email digests are unaffected.
         </p>
         <div className="flex flex-wrap items-center gap-2 sm:pl-6">
           <input

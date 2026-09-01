@@ -7,6 +7,7 @@ import {
   deletePushSubscription,
 } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
+import { isQuietHours } from "./quiet-hours";
 
 export interface PushAction {
   action: string;
@@ -35,31 +36,6 @@ interface PushPayload {
   dedupKeys?: string[];
 }
 
-/**
- * Check if the current time falls within quiet hours for a user.
- * Exported so the cron layer can gate AI generation before calling sendPushToUser.
- */
-export function isQuietHours(prefs: NotificationPrefs, timezone: string): boolean {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  const currentTime = formatter.format(now); // "HH:MM"
-  const start = prefs.quietHoursStart; // "22:00"
-  const end = prefs.quietHoursEnd; // "07:00"
-
-  if (start <= end) {
-    // Same-day range (e.g., 09:00-17:00)
-    return currentTime >= start && currentTime < end;
-  } else {
-    // Overnight range (e.g., 22:00-07:00)
-    return currentTime >= start || currentTime < end;
-  }
-}
 
 /**
  * Send a push notification to all of a user's subscribed devices.

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Distinguish hard deadlines from self-imposed targets"
+      },
+      {
+        "type": "added",
         "text": "Persist rescue suggestion dismissal and re-validate stale detections"
       },
       {
