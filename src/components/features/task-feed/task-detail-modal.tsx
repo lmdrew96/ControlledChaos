@@ -126,7 +126,9 @@ export function TaskDetailModal({
       setForm(formFromTask(task, timezone));
       setLocalStepIndex(task.currentStepIndex ?? 0);
     }
-  }, [task]);
+    // timezone is a dep: useTimezone starts on the browser zone and re-renders
+    // with the stored one, and the datetime-local strings are built from it.
+  }, [task, timezone]);
 
   const handleStepDone = useCallback(async () => {
     if (!task?.progressSteps) return;

@@ -23,6 +23,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
+import { toUTC } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import type { EventCategory } from "@/types";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -83,6 +85,7 @@ export function CreateEventDialog({
   const [error, setError] = useState<string | null>(null);
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
   const [locationMode, setLocationMode] = useState<"none" | "saved" | "custom">("none");
+  const timezone = useTimezone();
 
   useEffect(() => {
     if (!open) return;
@@ -129,15 +132,15 @@ export function CreateEventDialog({
       return;
     }
 
-    // Build UTC ISO timestamps from local browser time
-    // new Date("YYYY-MM-DDTHH:MM:SS") in a browser is treated as LOCAL time,
-    // so .toISOString() correctly converts to UTC.
+    // Build UTC ISO timestamps from the user's APP timezone setting, not the
+    // browser's. edit-event-dialog already used toUTC — creating an event in
+    // one frame and editing it in the other shifted it by the offset delta.
     const startISO = isAllDay
       ? `${date}T00:00:00`
-      : new Date(`${date}T${startTime}:00`).toISOString();
+      : toUTC(`${date}T${startTime}:00`, timezone);
     const endISO = isAllDay
       ? `${date}T23:59:59`
-      : new Date(`${date}T${endTime}:00`).toISOString();
+      : toUTC(`${date}T${endTime}:00`, timezone);
 
     if (new Date(endISO) <= new Date(startISO) && !isAllDay) {
       setError("End time must be after start time");
@@ -151,7 +154,7 @@ export function CreateEventDialog({
             type: recurrenceType as "daily" | "weekly",
             daysOfWeek:
               recurrenceType === "weekly" ? selectedDays : undefined,
-            endDate: new Date(`${recurrenceEndDate}T23:59:59`).toISOString(),
+            endDate: toUTC(`${recurrenceEndDate}T23:59:59`, timezone),
           };
 
     setIsSubmitting(true);

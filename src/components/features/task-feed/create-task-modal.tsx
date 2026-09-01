@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { toUTC } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
 
 interface CreateTaskModalProps {
@@ -66,6 +68,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
   const [isSaving, setIsSaving] = useState(false);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
+  const timezone = useTimezone();
 
   useEffect(() => {
     fetch("/api/locations")
@@ -128,10 +131,11 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           estimatedMinutes: form.estimatedMinutes || null,
           category: form.category || null,
           locationTags: form.locationTags.length ? form.locationTags : null,
-          deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
-          targetDate: form.targetDate
-            ? new Date(form.targetDate).toISOString()
-            : null,
+          // toUTC (the app's timezone SETTING), not new Date().toISOString()
+          // (the BROWSER's timezone). task-detail-modal already used toUTC —
+          // when the two disagree, create → edit silently moved the deadline.
+          deadline: form.deadline ? toUTC(form.deadline, timezone) : null,
+          targetDate: form.targetDate ? toUTC(form.targetDate, timezone) : null,
           goalId: form.goalId || null,
         }),
       });

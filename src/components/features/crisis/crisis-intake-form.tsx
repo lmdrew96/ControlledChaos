@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { CrisisFileAttachment } from "@/types";
+import { toUTC, toUserLocal } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 const COMPLETION_OPTIONS = [
   { label: "0%", value: 0 },
@@ -46,17 +48,21 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-function isoToDatetimeLocal(iso: string): string {
+// Mirror of toUTC: render the instant in the app's timezone setting, so the
+// value that goes into the input and the value read back out share one frame.
+function isoToDatetimeLocal(iso: string, timezone: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
+  const local = toUserLocal(d, timezone);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${local.year}-${pad(local.month)}-${pad(local.day)}T${pad(local.hour)}:${pad(local.minute)}`;
 }
 
 export function CrisisIntakeForm({ onSubmit, initialTaskName, initialDeadline }: Props) {
+  const timezone = useTimezone();
   const [taskName, setTaskName] = useState(initialTaskName ?? "");
   const [deadline, setDeadline] = useState(
-    initialDeadline ? isoToDatetimeLocal(initialDeadline) : ""
+    initialDeadline ? isoToDatetimeLocal(initialDeadline, timezone) : ""
   );
   const [completionPct, setCompletionPct] = useState(0);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -107,9 +113,10 @@ export function CrisisIntakeForm({ onSubmit, initialTaskName, initialDeadline }:
         }))
       );
 
-      // datetime-local gives "YYYY-MM-DDTHH:mm" (no tz, no seconds).
-      // Convert to full ISO in the browser where this parsing is reliable.
-      const deadlineISO = new Date(deadline).toISOString();
+      // datetime-local gives "YYYY-MM-DDTHH:mm" (no tz, no seconds). Resolve it
+      // against the app's timezone SETTING, not the browser's — a crisis
+      // deadline off by the offset delta feeds straight into feasibility ratios.
+      const deadlineISO = toUTC(deadline, timezone);
       onSubmit({ taskName: taskName.trim(), deadline: deadlineISO, completionPct, files });
     } finally {
       setIsSubmitting(false);
