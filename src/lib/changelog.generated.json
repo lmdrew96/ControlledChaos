@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Notify stale tabs that a new version is available"
+      },
+      {
+        "type": "added",
         "text": "Teach the MCP tools the hard/soft time model"
       },
       {

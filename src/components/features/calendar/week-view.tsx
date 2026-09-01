@@ -32,6 +32,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -100,6 +105,23 @@ function isSameDayTz(utcDate: Date, localDay: Date, tz: string): boolean {
     parseInt(parts.month) === localDay.getMonth() + 1 &&
     parseInt(parts.day) === localDay.getDate()
   );
+}
+
+/** Long enough not to fire while the pointer sweeps across a dense grid. */
+const TOOLTIP_DELAY_MS = 350;
+
+/**
+ * How many lines of title a block can show at its rendered height.
+ *
+ * Blocks were hard-truncated to one line regardless of size, so a tall block
+ * wasted its space and a long title was unreadable either way. The tooltip is
+ * the full answer; this just stops short blocks from being the only case.
+ */
+function titleLineClamp(heightPx: number): number {
+  const LINE_HEIGHT_PX = 14;
+  const PADDING_PX = 8;
+  const lines = Math.floor((heightPx - PADDING_PX) / LINE_HEIGHT_PX);
+  return Math.max(1, Math.min(lines, 4));
 }
 
 function formatTimeTz(date: Date, timezone: string): string {
@@ -964,26 +986,57 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         const planWidth = 100 / planCols;
                         const planLeft = (overlap?.column ?? 0) * planWidth;
                         return (
-                          <div
-                            key={block.taskId}
-                            title={`Planned: ${block.title} · ${block.minutes} min`}
-                            className={cn(
-                              "pointer-events-none absolute z-[5] overflow-hidden rounded-md",
-                              "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
-                              "px-1.5 py-1 text-left",
-                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
-                            )}
-                            style={{
-                              top: pos.top,
-                              height: pos.height,
-                              left: `calc(${planLeft}% + 2px)`,
-                              width: `calc(${planWidth}% - 4px)`,
-                            }}
-                          >
-                            <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
-                              {block.title}
-                            </p>
-                          </div>
+                          <Tooltip key={block.taskId} delayDuration={TOOLTIP_DELAY_MS}>
+                            <TooltipTrigger asChild>
+                              {/* Focusable so the tooltip is reachable by keyboard,
+                                  not just by hover. It is not actionable — a plan
+                                  block has no detail view to open — so it stays a
+                                  div rather than pretending to be a button. */}
+                              <div
+                                tabIndex={0}
+                                className={cn(
+                                  "absolute z-[5] cursor-default overflow-hidden rounded-md",
+                                  "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
+                                  "px-1.5 py-1 text-left outline-none",
+                                  "focus-visible:ring-2 focus-visible:ring-primary/60",
+                                  "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                                )}
+                                style={{
+                                  top: pos.top,
+                                  height: pos.height,
+                                  left: `calc(${planLeft}% + 2px)`,
+                                  width: `calc(${planWidth}% - 4px)`,
+                                }}
+                              >
+                                <p
+                                  className="text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitBoxOrient: "vertical",
+                                    WebkitLineClamp: titleLineClamp(pos.height),
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {block.title}
+                                </p>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">
+                                Planned
+                              </p>
+                              <p className="font-medium">{block.title}</p>
+                              <p className="opacity-75">
+                                {formatDateRange(
+                                  new Date(block.startTime),
+                                  new Date(block.endTime),
+                                  false,
+                                  timezone
+                                )}{" "}
+                                · {block.minutes} min
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       });
                     })()}
@@ -1005,8 +1058,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         const isBeingDragged = dragEvent?.id === event.id;
 
                         return (
+                          <Tooltip key={event.id} delayDuration={TOOLTIP_DELAY_MS}>
+                            <TooltipTrigger asChild>
                           <button
-                            key={event.id}
                             onClick={() => {
                               if (!isDragging.current) setSelectedEvent(event);
                             }}
@@ -1031,7 +1085,16 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               width: `calc(${widthPercent}% - 4px)`,
                             }}
                           >
-                            <p className="truncate text-[11px] font-semibold leading-tight">
+                            <p
+                              className="text-[11px] font-semibold leading-tight"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                // One line is reserved for the start time below.
+                                WebkitLineClamp: titleLineClamp(pos.height - ROW_HEIGHT / 2),
+                                overflow: "hidden",
+                              }}
+                            >
                               {event.title}
                             </p>
                             {pos.height > ROW_HEIGHT && (
@@ -1040,6 +1103,28 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               </p>
                             )}
                           </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="font-medium">{event.title}</p>
+                              <p className="opacity-75">
+                                {formatDateRange(
+                                  new Date(event.startTime),
+                                  new Date(event.endTime),
+                                  event.isAllDay,
+                                  timezone
+                                )}
+                              </p>
+                              {event.location && (
+                                <p className="opacity-75">{event.location}</p>
+                              )}
+                              <p className="opacity-60">
+                                {sourceLabel(
+                                  event.source as CalendarSource,
+                                  event.externalId
+                                )}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       });
                     })()}
