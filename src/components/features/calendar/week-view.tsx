@@ -15,6 +15,7 @@ import {
   Plus,
   Repeat,
   MoreHorizontal,
+  Move,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -268,6 +269,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const [dragTimeSlot, setDragTimeSlot] = useState<number | null>(null);
   const dragOffsetY = useRef(0);
   const isDragging = useRef(false);
+  // Drag-to-move is opt-in. An unsteady click on a densely packed week used to
+  // be enough to move a class, with the write landing before the user knew
+  // anything had happened. Scoped to the visible week: leaving it armed across
+  // navigation is the same accident one screen later.
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const dayLabels = weekStartDay === 0 ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY;
 
@@ -369,6 +375,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const today = new Date();
 
   function navigateWeek(delta: number) {
+    setIsEditMode(false);
     setWeekStart((prev) => {
       const next = new Date(prev);
       next.setDate(next.getDate() + delta * 7);
@@ -377,6 +384,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   }
 
   function goToToday() {
+    setIsEditMode(false);
     setWeekStart(getWeekStart(new Date(), weekStartDay));
     setSelectedDay(new Date());
   }
@@ -487,6 +495,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
   const handleDragStart = useCallback(
     (e: React.PointerEvent, event: CalendarEvent) => {
+      if (!isEditMode) return;
       if (event.source !== "controlledchaos") return;
       e.preventDefault();
       e.stopPropagation();
@@ -510,7 +519,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [startHour]
+    [startHour, isEditMode, timezone]
   );
 
   const handleDragMove = useCallback(
@@ -679,6 +688,19 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
             <span className="hidden sm:inline">Add Event</span>
           </Button>
 
+          {/* Desktop-only: dragging is a pointer-grid interaction and doesn't
+              exist in the mobile day list, so neither should the toggle. */}
+          <Button
+            variant={isEditMode ? "default" : "outline"}
+            size="sm"
+            className="hidden h-8 gap-1.5 px-3 text-xs md:inline-flex"
+            aria-pressed={isEditMode}
+            onClick={() => setIsEditMode((prev) => !prev)}
+          >
+            <Move className="h-3.5 w-3.5" />
+            {isEditMode ? "Done" : "Rearrange"}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 w-8 border-border/50 p-0" aria-label="More calendar options">
@@ -783,6 +805,17 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
       {/* Desktop: full week grid (hidden < md) */}
       <div className="hidden md:block">
+        {isEditMode && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+            <Move className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span>
+              Drag your own events to move them. Canvas events stay put — they
+              come from your course feed. Hit{" "}
+              <span className="font-medium text-foreground">Done</span> when
+              you&apos;re finished.
+            </span>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -977,11 +1010,17 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             onClick={() => {
                               if (!isDragging.current) setSelectedEvent(event);
                             }}
-                            onPointerDown={isCC ? (e) => handleDragStart(e, event) : undefined}
+                            onPointerDown={
+                              isCC && isEditMode
+                                ? (e) => handleDragStart(e, event)
+                                : undefined
+                            }
                             className={cn(
                               "calendar-event-card absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition-all",
                               "hover:brightness-105 hover:shadow-md",
-                              isCC && "cursor-grab active:cursor-grabbing",
+                              isCC &&
+                                isEditMode &&
+                                "cursor-grab ring-1 ring-inset ring-primary/40 active:cursor-grabbing",
                               isBeingDragged && "opacity-30",
                               categoryColor(event.category as EventCategory, calendarColors)
                             )}
