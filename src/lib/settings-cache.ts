@@ -43,16 +43,10 @@ function defaults(): AppSettings {
 
 let cached: AppSettings | null = null;
 let fetchPromise: Promise<AppSettings> | null = null;
-/** Bumped on invalidation so mounted hooks know to re-read. */
-let version = 0;
 const listeners = new Set<() => void>();
 
 export function getCachedSettings(): AppSettings | null {
   return cached;
-}
-
-export function getSettingsVersion(): number {
-  return version;
 }
 
 export function subscribeToSettings(listener: () => void): () => void {
@@ -103,6 +97,5 @@ export function fetchSettings(): Promise<AppSettings> {
 export function invalidateSettings(): void {
   cached = null;
   fetchPromise = null;
-  version += 1;
   for (const listener of listeners) listener();
 }

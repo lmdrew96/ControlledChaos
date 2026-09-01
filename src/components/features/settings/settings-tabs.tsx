@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,111 +14,27 @@ import { CommuteTimes } from "./commute-times";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
+import {
+  SETTINGS_GROUPS,
+  settingMatchesQuery,
+} from "./settings-catalog";
 
-interface SettingEntry {
-  id: string;
-  title: string;
-  keywords: string;
-  render: () => React.ReactNode;
-  /** When true, the setting renders its own Card chrome and we should not wrap it. */
-  bare?: boolean;
-}
-
-interface SettingGroup {
-  id: string;
-  title: string;
-  settings: SettingEntry[];
-}
-
-const GROUPS: SettingGroup[] = [
-  {
-    id: "you",
-    title: "You",
-    settings: [
-      {
-        id: "display-name",
-        title: "Display Name",
-        keywords: "name profile identity",
-        render: () => <DisplayNameSettings />,
-      },
-      {
-        id: "timezone",
-        title: "Timezone",
-        keywords: "tz time clock region",
-        render: () => <TimezoneSettings />,
-      },
-      {
-        id: "appearance",
-        title: "Appearance",
-        keywords: "theme dark light celebration density spacing colors",
-        render: () => <AppearanceSettings />,
-      },
-    ],
-  },
-  {
-    id: "how-cc-works",
-    title: "How CC works",
-    settings: [
-      {
-        id: "ai-personality",
-        title: "AI Personality",
-        keywords: "claude assistant tone voice energy personality",
-        render: () => <PersonalitySettings />,
-      },
-      {
-        id: "notifications",
-        title: "Notifications",
-        keywords: "push email digest reminders quiet hours alerts",
-        render: () => <NotificationSettings />,
-      },
-      {
-        id: "calendar",
-        title: "Calendar Integration",
-        keywords: "ical canvas sources colors week start",
-        render: () => <CalendarSettings />,
-      },
-      {
-        id: "locations",
-        title: "Saved Locations",
-        keywords: "places geofence map address",
-        render: () => <SavedLocations />,
-      },
-      {
-        id: "commute",
-        title: "Commute Times",
-        keywords: "travel commute drive transit time estimate",
-        render: () => <CommuteTimes />,
-        bare: true,
-      },
-    ],
-  },
-  {
-    id: "crisis-care",
-    title: "Deadline Rescue & care",
-    settings: [
-      {
-        id: "crisis-detection",
-        title: "Rescue Detection",
-        keywords: "panic emergency safety triggers detect support rescue deadline",
-        render: () => <CrisisDetectionSettings />,
-      },
-    ],
-  },
-];
-
-const ALL_ENTRIES: Array<SettingEntry & { groupId: string; groupTitle: string }> =
-  GROUPS.flatMap((g) =>
-    g.settings.map((s) => ({ ...s, groupId: g.id, groupTitle: g.title }))
-  );
-
-function entryMatchesQuery(
-  entry: { title: string; keywords: string },
-  terms: string[]
-): boolean {
-  if (terms.length === 0) return true;
-  const haystack = `${entry.title} ${entry.keywords}`.toLowerCase();
-  return terms.every((term) => haystack.includes(term));
-}
+/**
+ * Which component renders each setting. The catalog owns the ids, titles and
+ * keywords (see settings-catalog.ts); this map owns the components, so the
+ * command palette can read the catalog without importing all of these.
+ */
+const RENDERERS: Record<string, () => React.ReactNode> = {
+  "display-name": () => <DisplayNameSettings />,
+  timezone: () => <TimezoneSettings />,
+  appearance: () => <AppearanceSettings />,
+  "ai-personality": () => <PersonalitySettings />,
+  notifications: () => <NotificationSettings />,
+  calendar: () => <CalendarSettings />,
+  locations: () => <SavedLocations />,
+  commute: () => <CommuteTimes />,
+  "crisis-detection": () => <CrisisDetectionSettings />,
+};
 
 export function SettingsTabs() {
   const searchParams = useSearchParams();
@@ -155,6 +71,47 @@ export function SettingsTabs() {
     }
   }, [searchParams, router]);
 
+  /**
+   * Scroll to the `#anchor` in the URL.
+   *
+   * This page renders inside a <Suspense> boundary, so when a link like
+   * /settings#notifications arrives, Next finishes the navigation and makes its
+   * own scroll attempt while the fallback is still showing — the target element
+   * does not exist yet, the scroll silently no-ops, and the visitor lands at the
+   * top of the page. Nothing re-tried it once the sections mounted, which is why
+   * the legacy ?tab= path (which has always done this explicitly) worked and
+   * every #anchor link did not.
+   *
+   * No dependency array: this runs after every render and is guarded by a ref,
+   * so it also catches a hash-only push (/settings#a → /settings#b), which
+   * changes neither the pathname nor the search params.
+   */
+  const handledHash = useRef<string | null>(null);
+  useEffect(() => {
+    const scrollToHash = () => {
+      const id = window.location.hash.slice(1);
+      if (!id || id === handledHash.current) return;
+      handledHash.current = id;
+      // Defer a frame so the section is painted before we scroll to it.
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    };
+
+    scrollToHash();
+
+    // Covers back/forward and hand-edited URLs, which don't re-render this tree.
+    const onHashChange = () => {
+      handledHash.current = null;
+      scrollToHash();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  });
+
   const terms = useMemo(
     () =>
       query
@@ -166,10 +123,10 @@ export function SettingsTabs() {
   );
 
   const visibleGroups = useMemo(() => {
-    if (terms.length === 0) return GROUPS;
-    return GROUPS.map((g) => ({
+    if (terms.length === 0) return SETTINGS_GROUPS;
+    return SETTINGS_GROUPS.map((g) => ({
       ...g,
-      settings: g.settings.filter((s) => entryMatchesQuery(s, terms)),
+      settings: g.settings.filter((s) => settingMatchesQuery(s, terms)),
     })).filter((g) => g.settings.length > 0);
   }, [terms]);
 
@@ -223,14 +180,14 @@ export function SettingsTabs() {
               {group.settings.map((s) =>
                 s.bare ? (
                   <div key={s.id} id={s.id} className="scroll-mt-24">
-                    {s.render()}
+                    {RENDERERS[s.id]?.()}
                   </div>
                 ) : (
                   <Card key={s.id} id={s.id} className="scroll-mt-24">
                     <CardHeader>
                       <CardTitle className="text-lg">{s.title}</CardTitle>
                     </CardHeader>
-                    <CardContent>{s.render()}</CardContent>
+                    <CardContent>{RENDERERS[s.id]?.()}</CardContent>
                   </Card>
                 )
               )}
@@ -241,5 +198,3 @@ export function SettingsTabs() {
     </div>
   );
 }
-
-export const SETTINGS_ENTRIES = ALL_ENTRIES;

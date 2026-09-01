@@ -711,14 +711,6 @@ export async function getEveningCheckinStatus(
   };
 }
 
-export async function shouldSendEveningCheckin(
-  userId: string,
-  timezone: string
-): Promise<boolean> {
-  const status = await getEveningCheckinStatus(userId, timezone);
-  return status.shouldSend;
-}
-
 /**
  * Determines which inactivity nudge tier a user is in based on their last task completion.
  * Returns null if the user doesn't qualify for a nudge.

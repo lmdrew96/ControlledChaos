@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Trash2, Copy, MapPin } from "lucide-react";
+import { Loader2, Trash2, MapPin } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -37,7 +37,6 @@ interface EditEventDialogProps {
   onClose: () => void;
   onSaved: () => void;
   onDeleted: () => void;
-  onDuplicate?: (event: CalendarEvent) => void;
 }
 
 interface FormState {
@@ -73,7 +72,6 @@ export function EditEventDialog({
   onClose,
   onSaved,
   onDeleted,
-  onDuplicate,
 }: EditEventDialogProps) {
   const timezone = useTimezone();
   const [form, setForm] = useState<FormState>({
@@ -217,11 +215,6 @@ export function EditEventDialog({
     }
   }
 
-  function handleDuplicate() {
-    if (!event) return;
-    if (onDuplicate) onDuplicate(event);
-    onClose();
-  }
 
   return (
     <Dialog open={!!event} onOpenChange={(open) => !open && onClose()}>
@@ -447,12 +440,6 @@ export function EditEventDialog({
                 className="text-destructive hover:text-destructive"
               >
                 Delete series
-              </Button>
-            )}
-            {onDuplicate && (
-              <Button variant="outline" size="sm" onClick={handleDuplicate}>
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
-                Duplicate
               </Button>
             )}
           </div>

@@ -18,9 +18,6 @@ import {
   Sparkles,
   Sun,
   Moon,
-  User,
-  Bell,
-  MapPin,
   Search,
   ArrowRight,
 } from "lucide-react";
@@ -33,6 +30,7 @@ import {
 import { VisuallyHidden } from "radix-ui";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
+import { SETTINGS_ENTRIES } from "@/components/features/settings/settings-catalog";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -49,15 +47,6 @@ interface NavItem {
   keywords?: string;
 }
 
-interface SettingsItem {
-  id: string;
-  label: string;
-  /** Anchor id of the settings card on /settings, or null for top of page. */
-  anchor: string | null;
-  icon: React.ComponentType<{ className?: string }>;
-  keywords?: string;
-}
-
 const NAV_ITEMS: NavItem[] = [
   { id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview momentum stats progress streak weekly" },
   { id: "nav-dump", label: "Brain Dump", href: "/dump", icon: Brain, keywords: "capture thoughts journal writing notes" },
@@ -70,17 +59,12 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nav-crisis", label: "Deadline Rescue", href: "/crisis", icon: Siren, keywords: "panic emergency support crisis rescue" },
 ];
 
-const SETTINGS_ITEMS: SettingsItem[] = [
-  { id: "set-display-name", label: "Display Name", anchor: "display-name", icon: User, keywords: "name profile" },
-  { id: "set-timezone", label: "Timezone", anchor: "timezone", icon: Clock, keywords: "tz region" },
-  { id: "set-appearance", label: "Appearance", anchor: "appearance", icon: Sun, keywords: "theme dark light celebration density" },
-  { id: "set-ai", label: "AI Personality", anchor: "ai-personality", icon: Brain, keywords: "energy assistant claude" },
-  { id: "set-notifications", label: "Notifications", anchor: "notifications", icon: Bell, keywords: "push email digest reminders quiet hours" },
-  { id: "set-calendar", label: "Calendar Integration", anchor: "calendar", icon: Calendar, keywords: "ical canvas sources colors week start" },
-  { id: "set-locations", label: "Saved Locations", anchor: "locations", icon: MapPin, keywords: "places geofence map" },
-  { id: "set-commute", label: "Commute Times", anchor: "commute", icon: Clock, keywords: "travel commute drive transit" },
-  { id: "set-crisis", label: "Rescue Detection", anchor: "crisis-detection", icon: Siren, keywords: "safety panic emergency crisis rescue" },
-];
+/**
+ * The settings list comes from the shared catalog rather than a second
+ * hardcoded copy — a setting added to /settings now shows up here for free,
+ * and the two can't disagree about an anchor id.
+ */
+const SETTINGS_ITEMS = SETTINGS_ENTRIES;
 
 const RECENT_KEY = "cc-palette-recent";
 const RECENT_MAX = 5;
@@ -162,10 +146,10 @@ export function CommandPalette({
       map.set(n.id, { label: n.label, run: () => router.push(n.href) })
     );
     SETTINGS_ITEMS.forEach((s) =>
-      map.set(s.id, {
-        label: s.label,
-        run: () =>
-          router.push(s.anchor ? `/settings#${s.anchor}` : "/settings"),
+      // Prefixed so a setting id can't collide with a nav id in the recents map.
+      map.set(`set-${s.id}`, {
+        label: s.title,
+        run: () => router.push(`/settings#${s.id}`),
       })
     );
     return map;
@@ -295,14 +279,12 @@ export function CommandPalette({
               {SETTINGS_ITEMS.map((s) => (
                 <CommandRow
                   key={s.id}
-                  value={`${s.label} settings ${s.keywords ?? ""}`}
+                  value={`${s.title} settings ${s.keywords}`}
                   onSelect={() =>
-                    run(s.id, () =>
-                      router.push(s.anchor ? `/settings#${s.anchor}` : "/settings")
-                    )
+                    run(`set-${s.id}`, () => router.push(`/settings#${s.id}`))
                   }
                   icon={<s.icon className="h-4 w-4" />}
-                  label={s.label}
+                  label={s.title}
                 />
               ))}
             </Command.Group>
