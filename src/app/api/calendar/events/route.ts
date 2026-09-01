@@ -7,7 +7,13 @@ import {
   getLastCalendarSync,
   createManualCalendarEvent,
   updateCalendarEvent,
+  getScheduledTasksInRange,
 } from "@/lib/db/queries";
+import {
+  isPlanBlockCurrent,
+  planBlockEnd,
+  planBlockMinutes,
+} from "@/lib/calendar/plan-blocks";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { callHaiku } from "@/lib/ai";
 import { AUTO_NOTE_EVENT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
@@ -67,13 +73,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const events = await getCalendarEventsByDateRange(
-      userId,
-      startDate,
-      endDate
-    );
+    const [events, scheduled] = await Promise.all([
+      getCalendarEventsByDateRange(userId, startDate, endDate),
+      getScheduledTasksInRange(userId, startDate, endDate),
+    ]);
 
-    return NextResponse.json({ events });
+    // Plan blocks ride along with events so the calendar renders both from one
+    // fetch — but they stay a SEPARATE array. They are intentions, not
+    // commitments, and the views draw them differently on purpose.
+    //
+    // Stale blocks are dropped here rather than by a nightly job: a plan is an
+    // intention for a given day, so yesterday's unfinished blocks simply stop
+    // being shown instead of piling up as a record of what didn't happen.
+    const planBlocks = scheduled
+      .filter((t) => t.scheduledFor && isPlanBlockCurrent(t.scheduledFor, tz))
+      .map((t) => ({
+        taskId: t.id,
+        title: t.title,
+        startTime: (t.scheduledFor as Date).toISOString(),
+        endTime: planBlockEnd(t.scheduledFor as Date, t.estimatedMinutes).toISOString(),
+        minutes: planBlockMinutes(t.estimatedMinutes),
+        status: t.status,
+        category: t.category,
+      }));
+
+    return NextResponse.json({ events, planBlocks });
   } catch (error) {
     console.error("[API] GET /api/calendar/events error:", error);
     return NextResponse.json(

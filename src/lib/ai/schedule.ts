@@ -256,6 +256,12 @@ interface SingleTaskSchedulingInput {
   personalityPrefs?: PersonalityPrefs | null;
   /** Supplementary context (location, crises, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
+  /**
+   * How many days ahead to search. Defaults to 5 for the standalone
+   * "find me a time" action; Plan-my-day's per-row retry passes 1 so a retry
+   * stays inside the same day as the plan it belongs to.
+   */
+  scheduleDays?: number;
 }
 
 /**
@@ -268,7 +274,8 @@ export async function scheduleOneTask(
 ): Promise<ScheduledBlock | null> {
   const wakeTime = input.wakeTime ?? 7;
   const sleepTime = input.sleepTime ?? 22;
-  const scheduleDays = 5; // Extended from 3 — more chances to find a valid slot
+  // Default 5 for standalone "find me a time" — more chances to land a slot.
+  const scheduleDays = input.scheduleDays ?? 5;
 
   const freeBlocks = findFreeBlocks(
     input.calendarEvents,

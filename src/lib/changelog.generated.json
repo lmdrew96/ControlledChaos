@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop deadline reminders from overriding quiet hours"
+      },
+      {
+        "type": "added",
         "text": "Distinguish hard deadlines from self-imposed targets"
       },
       {

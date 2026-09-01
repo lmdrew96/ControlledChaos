@@ -40,11 +40,13 @@ import type {
   CalendarEvent,
   CalendarSource,
   EventCategory,
+  PlanBlock,
 } from "@/types";
 import {
   formatForDisplay,
   DISPLAY_TIME,
   getCalendarParts,
+  startOfDayInTimezone,
 } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 
@@ -114,11 +116,12 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   const timezone = useTimezone();
   const {
     events,
+    planBlocks,
     isLoading,
     error,
     fetchEvents,
     syncCalendar,
-    clearScheduled,
+    clearTodaysPlan,
     createEvent,
     deleteEventSeries,
   } = useCalendarEvents();
@@ -179,6 +182,17 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
     fetchEvents(weekStart, weekEnd);
   }, [weekStart, weekEnd, fetchEvents]);
 
+  const planByDay = useMemo(() => {
+    const map = new Map<string, PlanBlock[]>();
+    for (const day of weekDays) {
+      map.set(dayKey(day, timezone), []);
+    }
+    for (const block of planBlocks) {
+      map.get(dayKey(new Date(block.startTime), timezone))?.push(block);
+    }
+    return map;
+  }, [planBlocks, weekDays, timezone]);
+
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     for (const day of weekDays) {
@@ -234,22 +248,29 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
     }
   }
 
-  const scheduledCount = events.filter(
-    (e) => e.source === "controlledchaos"
-  ).length;
+  // Plan blocks are tasks with a scheduledFor, not calendar events. Only
+  // today's are clearable — a plan is an intention for one specific day.
+  const todayStart = startOfDayInTimezone(new Date(), timezone);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 3_600_000);
+  const scheduledCount = planBlocks.filter((b) => {
+    const at = new Date(b.startTime);
+    return at >= todayStart && at < todayEnd;
+  }).length;
 
   async function handleClearScheduled() {
     setIsClearing(true);
     try {
-      const result = await clearScheduled();
+      const result = await clearTodaysPlan();
       toast.success(
-        `Cleared ${result.deleted} scheduled event${result.deleted !== 1 ? "s" : ""}.`
+        result.cleared === 1
+          ? "Cleared 1 planned block."
+          : `Cleared ${result.cleared} planned blocks.`
       );
       setShowClearConfirm(false);
       await fetchEvents(weekStart, weekEnd);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to clear events"
+        err instanceof Error ? err.message : "Failed to clear today's plan"
       );
     } finally {
       setIsClearing(false);
@@ -382,7 +403,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Clear Scheduled
+                  Clear today&apos;s plan
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -406,6 +427,22 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
         <div className="space-y-5">
           {weekDays.map((day, i) => {
             const dayEvents = eventsByDay.get(dayKey(day, timezone)) ?? [];
+            const dayPlans = planByDay.get(dayKey(day, timezone)) ?? [];
+            // Events and plan blocks share one time-ordered list so the day
+            // reads chronologically, but they stay visually distinct: a
+            // commitment is filled and tappable, an intention is dashed.
+            const dayItems = [
+              ...dayEvents.map((e) => ({
+                kind: "event" as const,
+                at: e.isAllDay ? -Infinity : new Date(e.startTime).getTime(),
+                event: e,
+              })),
+              ...dayPlans.map((p) => ({
+                kind: "plan" as const,
+                at: new Date(p.startTime).getTime(),
+                plan: p,
+              })),
+            ].sort((a, b) => a.at - b.at);
             const isToday = isSameDay(day, today);
             return (
               <section key={day.toISOString()} className="space-y-2">
@@ -442,45 +479,69 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                   </div>
                 </div>
 
-                {dayEvents.length === 0 ? (
+                {dayItems.length === 0 ? (
                   <p className="pl-12 text-xs italic text-muted-foreground/50">
                     Free day
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
-                    {dayEvents.map((event) => (
-                      <li key={event.id}>
-                        <button
-                          onClick={() => setSelectedEvent(event)}
-                          className={cn(
-                            "w-full rounded-lg border-l-4 px-3 py-2.5 text-left transition-all hover:brightness-110 active:brightness-95",
-                            categoryColor(
-                              event.category as EventCategory,
-                              calendarColors
-                            )
-                          )}
-                        >
-                          <div className="flex items-baseline gap-3">
-                            <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums opacity-80">
-                              {event.isAllDay
-                                ? "All day"
-                                : formatTimeTz(
-                                    new Date(event.startTime),
-                                    timezone
-                                  )}
-                            </span>
-                            <span className="flex-1 truncate text-sm font-medium">
-                              {event.title}
-                            </span>
-                          </div>
-                          {event.location && (
-                            <p className="ml-[3.875rem] mt-0.5 truncate text-[11px] opacity-60">
-                              {event.location}
+                    {dayItems.map((item) =>
+                      item.kind === "plan" ? (
+                        <li key={`plan-${item.plan.taskId}`}>
+                          <div
+                            className={cn(
+                              "w-full rounded-lg border-2 border-dashed px-3 py-2.5 text-left",
+                              "border-adhd-purple/55 bg-adhd-purple/[0.07]",
+                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                            )}
+                          >
+                            <div className="flex items-baseline gap-3">
+                              <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums text-adhd-purple/80 dark:text-adhd-lavender/80">
+                                {formatTimeTz(new Date(item.plan.startTime), timezone)}
+                              </span>
+                              <span className="flex-1 truncate text-sm font-medium text-adhd-purple dark:text-adhd-lavender">
+                                {item.plan.title}
+                              </span>
+                            </div>
+                            <p className="ml-[3.875rem] mt-0.5 text-[11px] text-adhd-purple/70 dark:text-adhd-lavender/70">
+                              Planned · {item.plan.minutes} min
                             </p>
-                          )}
-                        </button>
-                      </li>
-                    ))}
+                          </div>
+                        </li>
+                      ) : (
+                        <li key={item.event.id}>
+                          <button
+                            onClick={() => setSelectedEvent(item.event)}
+                            className={cn(
+                              "w-full rounded-lg border-l-4 px-3 py-2.5 text-left transition-all hover:brightness-110 active:brightness-95",
+                              categoryColor(
+                                item.event.category as EventCategory,
+                                calendarColors
+                              )
+                            )}
+                          >
+                            <div className="flex items-baseline gap-3">
+                              <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums opacity-80">
+                                {item.event.isAllDay
+                                  ? "All day"
+                                  : formatTimeTz(
+                                      new Date(item.event.startTime),
+                                      timezone
+                                    )}
+                              </span>
+                              <span className="flex-1 truncate text-sm font-medium">
+                                {item.event.title}
+                              </span>
+                            </div>
+                            {item.event.location && (
+                              <p className="ml-[3.875rem] mt-0.5 truncate text-[11px] opacity-60">
+                                {item.event.location}
+                              </p>
+                            )}
+                          </button>
+                        </li>
+                      )
+                    )}
                   </ul>
                 )}
               </section>
@@ -622,12 +683,12 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Clear All Scheduled Tasks
+              Clear today&apos;s plan
             </DialogTitle>
             <DialogDescription>
-              This will remove all AI-scheduled events from your calendar.
-              Manual events, brain dump events, and Canvas events will not be
-              affected.
+              Unschedules everything you planned for today. The tasks stay
+              exactly where they are — only their planned times are removed.
+              Real events are untouched.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -650,7 +711,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
               ) : (
                 <Trash2 className="mr-2 h-3 w-3" />
               )}
-              Clear All
+              Clear plan
             </Button>
           </div>
         </DialogContent>

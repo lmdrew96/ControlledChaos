@@ -353,9 +353,36 @@ export interface ScheduledBlock {
   reasoning: string;
 }
 
-export interface ScheduleResult {
-  blocks: ScheduledBlock[];
-  eventsCreated: number;
+/**
+ * A block the AI is PROPOSING. Nothing is written until the user accepts it.
+ */
+export interface PlanProposal {
+  taskId: string;
+  taskTitle: string;
+  startTime: string;
+  endTime: string;
+  /** Block length, resolved from estimatedMinutes with a shared default. */
+  minutes: number;
+  reasoning: string;
+}
+
+/** A committed plan block, as the calendar renders it. */
+export interface PlanBlock {
+  taskId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  minutes: number;
+  status: string;
+  category: string | null;
+}
+
+/** Why a propose/retry call came back without blocks. */
+export type PlanOutcome = "ok" | "day_over" | "no_tasks" | "no_room";
+
+export interface PlanProposalResult {
+  blocks: PlanProposal[];
+  reason: PlanOutcome;
   message: string;
 }
 

@@ -124,8 +124,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     const formatEvent = (e: (typeof context.upcomingEvents)[number]) => {
       const start = formatForDisplay(new Date(e.startTime), context.timezone, DISPLAY_TIME);
       const end = formatForDisplay(new Date(e.endTime), context.timezone, DISPLAY_TIME);
-      const tag = e.source === "controlledchaos" ? " [Scheduled]" : "";
-      return `  - ${start}–${end}: ${e.title}${tag}`;
+      return `  - ${start}–${end}: ${e.title}`;
     };
 
     const todayEvents = context.upcomingEvents.filter(

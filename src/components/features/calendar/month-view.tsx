@@ -83,7 +83,7 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
   const gridStart = weeks[0][0];
   const gridEnd = weeks[weeks.length - 1][6];
 
-  const { events, fetchEvents, isLoading } = useCalendarEvents();
+  const { events, planBlocks, fetchEvents, isLoading } = useCalendarEvents();
 
   useEffect(() => {
     // Add a day buffer on each side
@@ -106,6 +106,17 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
     }
     return map;
   }, [events]);
+
+  const plansByDay = useMemo(() => {
+    const map = new Map<string, typeof planBlocks>();
+    for (const block of planBlocks) {
+      const d = new Date(block.startTime);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(block);
+    }
+    return map;
+  }, [planBlocks]);
 
   function dayKey(date: Date): string {
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -169,8 +180,13 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
               const isToday = isSameDay(day, today);
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const dayEvents = eventsByDay.get(dayKey(day)) ?? [];
+              const dayPlans = plansByDay.get(dayKey(day)) ?? [];
+              // Real events claim the limited chip slots first — a commitment
+              // matters more at a glance than an intention.
               const visible = dayEvents.slice(0, 3);
-              const overflow = dayEvents.length - visible.length;
+              const visiblePlans = dayPlans.slice(0, Math.max(0, 3 - visible.length));
+              const overflow =
+                dayEvents.length - visible.length + (dayPlans.length - visiblePlans.length);
 
               return (
                 <button
@@ -212,6 +228,20 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
                             )}
                           />
                           <span className="truncate">{event.title.replace(/^\[CC\] /, "")}</span>
+                        </span>
+                      ))}
+                      {/* Plan chips — dashed and unfilled, so planned time is
+                          never mistaken for a fixed commitment. */}
+                      {visiblePlans.map((block) => (
+                        <span
+                          key={`plan-${block.taskId}`}
+                          className={cn(
+                            "flex w-full items-center gap-1 truncate rounded border border-dashed px-1 py-0.5 text-[10px]",
+                            "border-adhd-purple/60 text-adhd-purple",
+                            "dark:border-adhd-lavender/60 dark:text-adhd-lavender"
+                          )}
+                        >
+                          <span className="truncate">{block.title}</span>
                         </span>
                       ))}
                       {overflow > 0 && (

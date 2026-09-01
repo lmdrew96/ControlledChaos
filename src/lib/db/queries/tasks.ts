@@ -264,3 +264,96 @@ export async function getPendingTasks(userId: string) {
 }
 
 
+
+// ============================================================
+// Plan blocks — tasks with a scheduledFor, rendered as an intention
+// layer on the calendar rather than as real calendar events.
+// ============================================================
+
+/**
+ * Tasks planned into a time range. Active work only — completed, cancelled
+ * and soft-deleted tasks drop out so a finished plan block disappears from
+ * every surface at once (the whole reason plans are not calendar events).
+ */
+export async function getScheduledTasksInRange(
+  userId: string,
+  start: Date,
+  end: Date
+) {
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        inArray(tasks.status, ["pending", "in_progress", "snoozed"]),
+        gte(tasks.scheduledFor, start),
+        lt(tasks.scheduledFor, end)
+      )
+    )
+    .orderBy(asc(tasks.scheduledFor));
+}
+
+/**
+ * Clear planned times inside a window. Used both by "Clear today's plan" and
+ * by the midnight rollover — a plan is an intention for a given day, and an
+ * unfinished one should not survive into the next as evidence of failure.
+ * Returns the number of tasks unscheduled.
+ */
+export async function clearScheduledInRange(
+  userId: string,
+  start: Date,
+  end: Date
+): Promise<number> {
+  const cleared = await db
+    .update(tasks)
+    .set({ scheduledFor: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        gte(tasks.scheduledFor, start),
+        lt(tasks.scheduledFor, end)
+      )
+    )
+    .returning({ id: tasks.id });
+
+  return cleared.length;
+}
+
+/**
+ * Commit one accepted plan block.
+ *
+ * estimatedMinutes doubles as the block's duration on the calendar, so when a
+ * task has no estimate we backfill it from the proposed block. We only ever
+ * FILL IN a missing value — an estimate the user set themselves is never
+ * overwritten by the AI's opinion.
+ */
+export async function commitPlanBlock(
+  taskId: string,
+  userId: string,
+  scheduledFor: Date,
+  proposedMinutes: number | null
+) {
+  const [existing] = await db
+    .select({ estimatedMinutes: tasks.estimatedMinutes })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .limit(1);
+
+  if (!existing) return null;
+
+  const [updated] = await db
+    .update(tasks)
+    .set({
+      scheduledFor,
+      estimatedMinutes:
+        existing.estimatedMinutes ?? (proposedMinutes ?? null),
+      updatedAt: new Date(),
+    })
+    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .returning();
+
+  return updated ?? null;
+}

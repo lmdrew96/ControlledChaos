@@ -12,6 +12,9 @@ import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
 
 export default function DashboardPage() {
   const [momentumExpanded, setMomentumExpanded] = useState(false);
+  // Bumped after a plan is committed; used as a key so TimeAnchor and the task
+  // feed re-read rather than showing yesterday's picture of today.
+  const [planVersion, setPlanVersion] = useState(0);
 
   // Old /momentum bookmarks/links redirect here with this hash — auto-expand
   // and scroll to it instead of leaving the visitor at a collapsed header.
@@ -28,7 +31,7 @@ export default function DashboardPage() {
       {/* Greeting + Time anchor */}
       <div className="space-y-3">
         <Greeting />
-        <TimeAnchor />
+        <TimeAnchor key={`anchor-${planVersion}`} />
       </div>
 
       {/* Hero: Task Recommendation — only loud surface */}
@@ -45,7 +48,8 @@ export default function DashboardPage() {
           }}
         />
         <div className="ml-auto">
-          <ScheduleMyDay />
+          {/* Remount the dependent surfaces so a fresh plan shows immediately. */}
+          <ScheduleMyDay onPlanCommitted={() => setPlanVersion((v) => v + 1)} />
         </div>
       </div>
 
@@ -59,7 +63,7 @@ export default function DashboardPage() {
       <MicrotasksZone />
 
       {/* Task feed — collapsed by default; click header to expand */}
-      <TaskList collapsible />
+      <TaskList key={`tasks-${planVersion}`} collapsible />
     </div>
   );
 }

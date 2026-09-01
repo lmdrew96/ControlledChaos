@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { CalendarEvent, ScheduleResult } from "@/types";
+import type { CalendarEvent, PlanBlock } from "@/types";
 
 export function useCalendarEvents() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [planBlocks, setPlanBlocks] = useState<PlanBlock[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ export function useCalendarEvents() {
       }
       const data = await res.json();
       setEvents(data.events);
+      setPlanBlocks(data.planBlocks ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
@@ -41,17 +43,14 @@ export function useCalendarEvents() {
     };
   }, []);
 
-  const scheduleTasks = useCallback(async (): Promise<ScheduleResult> => {
-    const res = await fetch("/api/calendar/schedule", { method: "POST" });
+  /**
+   * Clear today's plan. One update nulling scheduledFor — no event rows to
+   * hunt down, because plan blocks were never calendar events.
+   */
+  const clearTodaysPlan = useCallback(async (): Promise<{ cleared: number }> => {
+    const res = await fetch("/api/plan", { method: "DELETE" });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Scheduling failed");
-    return data;
-  }, []);
-
-  const clearScheduled = useCallback(async (): Promise<{ deleted: number }> => {
-    const res = await fetch("/api/calendar/schedule/clear", { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to clear events");
+    if (!res.ok) throw new Error(data.error || "Failed to clear today's plan");
     return data;
   }, []);
 
@@ -95,12 +94,12 @@ export function useCalendarEvents() {
 
   return {
     events,
+    planBlocks,
     isLoading,
     error,
     fetchEvents,
     syncCalendar,
-    scheduleTasks,
-    clearScheduled,
+    clearTodaysPlan,
     createEvent,
     deleteEventSeries,
   };

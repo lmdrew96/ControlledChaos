@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Clock, ChevronUp, ChevronDown, CalendarClock } from "lucide-react";
+import { Clock, ChevronUp, ChevronDown, CalendarClock, Sparkles } from "lucide-react";
 import { toUserLocal, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 
@@ -10,6 +10,15 @@ interface CalendarEvent {
   title: string;
   startTime: string;
   endTime: string;
+}
+
+/** What the anchor shows next — a real event or a block you planned. */
+interface UpNext {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  isPlanned: boolean;
 }
 
 const STORAGE_KEY = "cc-time-anchor-collapsed";
@@ -24,7 +33,7 @@ function formatMinutes(mins: number): string {
 export function TimeAnchor() {
   const timezone = useTimezone();
   const [now, setNow] = useState<Date | null>(null);
-  const [nextEvent, setNextEvent] = useState<CalendarEvent | null>(null);
+  const [nextEvent, setNextEvent] = useState<UpNext | null>(null);
   const [wakeHour, setWakeHour] = useState(7);
   const [sleepHour, setSleepHour] = useState(22);
   const [collapsed, setCollapsed] = useState(false);
@@ -70,10 +79,37 @@ export function TimeAnchor() {
 
       if (eventsRes.ok) {
         const data = await eventsRes.json();
-        const upcoming = (data.events as CalendarEvent[])
-          ?.filter((e) => new Date(e.startTime) > new Date())
-          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-        setNextEvent(upcoming?.[0] ?? null);
+        // Planned blocks count as "what's next" too — they're the whole point
+        // of having planned the day. They read as time you claimed, not as a
+        // commitment someone else imposed, so they're tagged as planned.
+        const events = ((data.events ?? []) as CalendarEvent[]).map((e) => ({
+          id: e.id,
+          title: e.title,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          isPlanned: false,
+        }));
+        const plans = ((data.planBlocks ?? []) as Array<{
+          taskId: string;
+          title: string;
+          startTime: string;
+          endTime: string;
+        }>).map((p) => ({
+          id: `plan-${p.taskId}`,
+          title: p.title,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          isPlanned: true,
+        }));
+
+        const now = new Date();
+        const upcoming = [...events, ...plans]
+          .filter((e) => new Date(e.startTime) > now)
+          .sort(
+            (a, b) =>
+              new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          );
+        setNextEvent(upcoming[0] ?? null);
       }
     } catch {
       // Silent fail — ambient feature, not critical
@@ -180,7 +216,14 @@ export function TimeAnchor() {
       {/* Next event — second row on mobile, inline on sm+ */}
       {showNextEvent && (
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:max-w-[220px]">
-          <CalendarClock className="h-3 w-3 shrink-0" />
+          {nextEvent!.isPlanned ? (
+            <Sparkles
+              className="h-3 w-3 shrink-0 text-adhd-purple dark:text-adhd-lavender"
+              aria-label="Planned time"
+            />
+          ) : (
+            <CalendarClock className="h-3 w-3 shrink-0" />
+          )}
           <span className="min-w-0 flex-1 truncate sm:flex-none sm:max-w-[140px]">
             {nextEvent!.title}
           </span>

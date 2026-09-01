@@ -36,8 +36,14 @@ import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
-import type { CalendarColors, CalendarEvent, CalendarSource, EventCategory } from "@/types";
-import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts } from "@/lib/timezone";
+import type {
+  CalendarColors,
+  CalendarEvent,
+  CalendarSource,
+  EventCategory,
+  PlanBlock,
+} from "@/types";
+import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, startOfDayInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 
 // ============================================================
@@ -120,7 +126,11 @@ function sourceLabel(source: CalendarSource, externalId?: string | null): string
   }
 }
 
-function eventPosition(event: CalendarEvent, startHour: number, timezone: string) {
+function eventPosition(
+  event: { startTime: string; endTime: string },
+  startHour: number,
+  timezone: string
+) {
   const startLocal = toUserLocal(new Date(event.startTime), timezone);
   const endLocal = toUserLocal(new Date(event.endTime), timezone);
 
@@ -213,11 +223,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const timezone = useTimezone();
   const {
     events,
+    planBlocks,
     isLoading,
     error,
     fetchEvents,
     syncCalendar,
-    clearScheduled,
+    clearTodaysPlan,
     createEvent,
     deleteEventSeries,
   } = useCalendarEvents();
@@ -336,6 +347,18 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     return map;
   }, [timedEvents, weekDays]);
 
+  const planByDay = useMemo(() => {
+    const map = new Map<string, PlanBlock[]>();
+    for (const day of weekDays) {
+      map.set(dayKey(day, timezone), []);
+    }
+    for (const block of planBlocks) {
+      const key = dayKey(new Date(block.startTime), timezone);
+      map.get(key)?.push(block);
+    }
+    return map;
+  }, [planBlocks, weekDays, timezone]);
+
   const today = new Date();
 
   function navigateWeek(delta: number) {
@@ -371,22 +394,29 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   }
 
   // Count how many CC events are on the current view
-  const scheduledCount = events.filter(
-    (e) => e.source === "controlledchaos"
-  ).length;
+  // Plan blocks are tasks with a scheduledFor, not calendar events. Only
+  // today's are clearable — a plan is an intention for one specific day.
+  const todayStart = startOfDayInTimezone(new Date(), timezone);
+  const todayEnd = new Date(todayStart.getTime() + 24 * 3_600_000);
+  const scheduledCount = planBlocks.filter((b) => {
+    const at = new Date(b.startTime);
+    return at >= todayStart && at < todayEnd;
+  }).length;
 
   async function handleClearScheduled() {
     setIsClearing(true);
     try {
-      const result = await clearScheduled();
+      const result = await clearTodaysPlan();
       toast.success(
-        `Cleared ${result.deleted} scheduled event${result.deleted !== 1 ? "s" : ""}.`
+        result.cleared === 1
+          ? "Cleared 1 planned block."
+          : `Cleared ${result.cleared} planned blocks.`
       );
       setShowClearConfirm(false);
       await fetchEvents(weekStart, weekEnd);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to clear events"
+        err instanceof Error ? err.message : "Failed to clear today's plan"
       );
     } finally {
       setIsClearing(false);
@@ -666,7 +696,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Clear Scheduled
+                  Clear today&apos;s plan
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -872,6 +902,33 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         style={{ top: (i + 1) * ROW_HEIGHT }}
                       />
                     ))}
+
+                    {/* Plan blocks — intentions, not commitments.
+                        Dashed and unfilled on purpose: a planned block must
+                        never read like a class or an appointment, or an
+                        unfinished one starts to feel like a missed obligation.
+                        Sits below real events (z-5 vs z-10) so a genuine
+                        commitment always wins the pixel. */}
+                    {(planByDay.get(dayKey(day, timezone)) ?? []).map((block) => {
+                      const pos = eventPosition(block, startHour, timezone);
+                      return (
+                        <div
+                          key={block.taskId}
+                          title={`Planned: ${block.title} · ${block.minutes} min`}
+                          className={cn(
+                            "pointer-events-none absolute z-[5] overflow-hidden rounded-md",
+                            "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
+                            "px-1.5 py-1 text-left",
+                            "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                          )}
+                          style={{ top: pos.top, height: pos.height, left: 2, right: 2 }}
+                        >
+                          <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
+                            {block.title}
+                          </p>
+                        </div>
+                      );
+                    })}
 
                     {/* Event blocks */}
                     {(() => {
@@ -1098,11 +1155,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Clear All Scheduled Tasks
+              Clear today&apos;s plan
             </DialogTitle>
             <DialogDescription>
-              This will remove all AI-scheduled events from your calendar. Manual events,
-              brain dump events, and Canvas events will not be affected.
+              Unschedules everything you planned for today. The tasks stay
+              exactly where they are — only their planned times are removed.
+              Real events are untouched.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -1125,7 +1183,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
               ) : (
                 <Trash2 className="mr-2 h-3 w-3" />
               )}
-              Clear All
+              Clear plan
             </Button>
           </div>
         </DialogContent>
