@@ -476,8 +476,17 @@ export interface CrisisFileAttachment {
 // ============================================================
 export type CrisisDetectionTier = "off" | "watch" | "nudge" | "auto_triage";
 
+/**
+ * How urgent a detection is.
+ * - "crisis": hard deadlines are genuinely unreachable. The emergency tier.
+ * - "drift": falling behind SOFT self-imposed targets, with slack still behind
+ *   it. A gentle nudge — never the crisis UI, never crisis-toned copy.
+ */
+export type CrisisSeverity = "crisis" | "drift";
+
 export interface CrisisDetectionResult {
   detected: boolean;
+  severity: CrisisSeverity;
   crisisRatio: number;
   availableMinutes: number;
   requiredMinutes: number;

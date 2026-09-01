@@ -95,6 +95,16 @@ export async function GET() {
       });
     }
 
+    // This endpoint drives the crisis badge and banner, which are the emergency
+    // surface. A "drift" result is a gentle nudge about the user's own targets
+    // and must never light those up — so anything short of a real crisis is
+    // treated here as no conflict. (Today the filter above passes only tasks
+    // with hard deadlines, so drift cannot arise; this keeps that true if the
+    // filter ever widens.)
+    if (result?.severity === "drift") {
+      result = null;
+    }
+
     // --- The conflict is gone ---
     if (!result) {
       // Retire the stored row so the badge, cron, and banner all agree.

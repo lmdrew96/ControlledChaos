@@ -21,7 +21,7 @@ import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { generatePushMessage, hasEverBeenNotified } from "@/lib/notifications/triggers";
 import { getSleepBlockedMinutes } from "./time-math";
-import { formatForAI, formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
+import { formatForAI, formatForDisplay, todayInTimezone, DISPLAY_DATETIME } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
 
 interface CronContext {
@@ -66,12 +66,15 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   const now = new Date();
   const windowEnd = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
-  // Filter to actionable tasks with deadlines in the detection window
+  // Actionable tasks with EITHER a hard deadline or a soft target in the
+  // window. The drift tier needs the target-only ones, which a deadline-only
+  // filter would have discarded before detection ever saw them.
   const tasksWithDeadlines = allTasks.filter((t) => {
     if (t.status !== "pending" && t.status !== "in_progress") return false;
-    if (!t.deadline) return false;
-    const dl = new Date(t.deadline);
-    return dl > now && dl <= windowEnd;
+    const dl = t.deadline ? new Date(t.deadline) : null;
+    const target = t.targetDate ? new Date(t.targetDate) : null;
+    const inWindow = (d: Date | null) => !!d && d > now && d <= windowEnd;
+    return inWindow(dl) || inWindow(target);
   });
 
   // Fetch calendar events for the window and recent Moments for augmentation
@@ -84,12 +87,20 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     ]),
   ]);
 
+  // A drift warning stands for the day it was sent. Feeding that back in gives
+  // the detector its hysteresis band, so a workload parked near the threshold
+  // can't flip the warning on and off every tick.
+  const driftDedupKeyToday = `drift-${todayInTimezone(userTimezone)}`;
+  const driftActive = await hasEverBeenNotified(userId, driftDedupKeyToday);
+
   // Run detection
   const result = detectCrisis({
+    driftActive,
     tasks: tasksWithDeadlines.map((t) => ({
       id: t.id,
       title: t.title,
-      deadline: new Date(t.deadline!),
+      deadline: t.deadline ? new Date(t.deadline) : null,
+      targetDate: t.targetDate ? new Date(t.targetDate) : null,
       estimatedMinutes: t.estimatedMinutes ?? 0,
       status: t.status,
     })),
@@ -107,6 +118,49 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     wakeTime,
     sleepTime,
   });
+
+  // --- Drift: falling behind their OWN targets, not a crisis ---
+  //
+  // Handled before anything crisis-shaped and returned immediately: no
+  // detection row, no /crisis deep link, no rescue plan, no crisis-toned copy.
+  // A date the user set for themselves is theirs to move, and dressing that up
+  // as an emergency is exactly how the app would start crying wolf.
+  if (result?.severity === "drift") {
+    if (driftActive) {
+      return { detected: false, notificationSent: false };
+    }
+
+    const message = await generatePushMessage(
+      {
+        type: "target_reminder",
+        taskTitle: result.involvedTaskNames.join(" and "),
+        minutesUntil: Math.max(
+          0,
+          Math.round((result.firstDeadline.getTime() - now.getTime()) / 60_000)
+        ),
+      },
+      ctx.personalityPrefs,
+      userTimezone,
+      ctx.assertivenessMode,
+      await ctx.getLocationName(),
+      await ctx.getSnapshot()
+    );
+
+    const sent = await sendPushToUser(userId, {
+      title: "ControlledChaos",
+      body: message,
+      url: "/tasks",
+      tag: driftDedupKeyToday,
+      userId,
+      bypassQuietHours: false,
+    });
+
+    console.log(
+      `[CrisisDetection] Drift warning user=${userId} ratio=${result.crisisRatio} ` +
+      `targets=${result.involvedTaskNames.join(", ")} sent=${sent}`
+    );
+    return { detected: false, notificationSent: sent };
+  }
 
   // Check for existing active detection
   const existing = await getActiveDetectionForUser(userId);

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Drag plan blocks in week view, tooltips in agenda view"
+      },
+      {
+        "type": "added",
         "text": "Gentle reminder tier for soft self-imposed targets"
       },
       {
