@@ -4,6 +4,34 @@
     "items": [
       {
         "type": "added",
+        "text": "Teach the MCP tools the hard/soft time model"
+      },
+      {
+        "type": "added",
+        "text": "Gate calendar drag-to-move behind a Rearrange toggle"
+      },
+      {
+        "type": "added",
+        "text": "Let optional date fields say they are unset"
+      },
+      {
+        "type": "added",
+        "text": "Make the planned start time editable and stop plan blocks stacking"
+      },
+      {
+        "type": "added",
+        "text": "Unify datetime-local to UTC conversion on the app timezone"
+      },
+      {
+        "type": "added",
+        "text": "Whitelist writable fields in PATCH /api/tasks/[id]"
+      },
+      {
+        "type": "added",
+        "text": "Rescue chat can correct the plan, and corrections survive the turn"
+      },
+      {
+        "type": "added",
         "text": "Plan my day proposes today, and plans stop being calendar events"
       },
       {

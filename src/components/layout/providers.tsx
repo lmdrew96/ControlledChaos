@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { UpdateAvailableToast } from "./update-available-toast";
 
 function ClerkProviderWithTheme({
   publishableKey,
@@ -74,12 +75,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <TooltipProvider>
             {children}
             <Toaster />
+            <UpdateAvailableToast />
           </TooltipProvider>
         </ClerkProviderWithTheme>
       ) : (
         <TooltipProvider>
           {children}
           <Toaster />
+          <UpdateAvailableToast />
         </TooltipProvider>
       )}
     </ThemeProvider>

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { recoverFromChunkError } from "@/lib/useAppVersion";
 
 export default function AppError({
   error,
@@ -13,6 +14,10 @@ export default function AppError({
 }) {
   useEffect(() => {
     console.error("[App Error]", error);
+    // A chunk that 404s after a deploy isn't a bug to apologise for — the tab
+    // is just holding a build that no longer exists. Reload once (guarded, so
+    // a genuinely broken build can't loop) and let the user carry on.
+    recoverFromChunkError(error);
   }, [error]);
 
   return (

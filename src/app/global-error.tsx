@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { recoverFromChunkError } from "@/lib/useAppVersion";
 
 export default function GlobalError({
   error,
@@ -11,6 +12,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("[Global Error]", error);
+    recoverFromChunkError(error);
   }, [error]);
 
   return (

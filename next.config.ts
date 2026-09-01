@@ -1,8 +1,20 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+// Baked into the client bundle at build time and served fresh by
+// /api/version. A tab compares the two to notice it is running stale JS.
+// Commit SHA when Vercel provides one (changes every deploy); the package
+// version is the local/dev fallback.
+const APP_VERSION =
+  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+  process.env.npm_package_version ??
+  "dev";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+  },
   turbopack: {
     root: path.resolve(__dirname),
   },
