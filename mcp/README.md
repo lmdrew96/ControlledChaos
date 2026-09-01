@@ -6,7 +6,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 32 tools across 8 feature areas. All scope automatically to your `CC_USER_ID`.
 
-### Tasks (6)
+### Tasks (7)
 | Tool | What it does |
 |---|---|
 | `cc_list_tasks` | List/filter tasks by status, priority, category, energy |
@@ -14,6 +14,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_update_task` | Update any field on an existing task |
 | `cc_complete_task` | Quick-complete a task |
 | `cc_delete_task` | Permanently delete a task |
+| `cc_uncomplete_task` | Reopen a completed task (inverse of `cc_complete_task`) |
 | `cc_search_tasks` | Search tasks by text across titles/descriptions |
 
 ### Calendar (4)
@@ -60,13 +61,16 @@ Lightweight one-tap behavioral state logs — energy, focus, sleep, tough moment
 | `cc_update_moment` | Update intensity, note, or time on an existing moment |
 | `cc_delete_moment` | Soft-delete a moment |
 
-### Journal (2)
+### Journal (3)
 Junk-journal entries — longer-form reflective writing, separate from task brain dumps.
 
 | Tool | What it does |
 |---|---|
 | `cc_create_journal` | Save a new junk-journal entry |
 | `cc_list_journals` | List recent junk-journal entries |
+| `cc_update_journal` | Replace the text of an existing journal entry |
+
+> **No delete tool for journals or brain dumps, on purpose.** Both live in `brain_dumps`, which has no soft-delete column — a delete would be permanent. Worse, `tasks.source_dump_id` and `calendar_events.source_dump_id` are foreign keys into it, so deleting a dump that produced work would either fail or break the "from brain dump" back-link in the app. Adding `deleted_at` first would make this safe; until then, deleting raw user thought from a chat turn is too easy and too final. `cc_update_journal` deliberately does not accept brain dumps either — rewriting what someone actually said is not the same as fixing their journal prose.
 
 ### Settings (1)
 | Tool | What it does |

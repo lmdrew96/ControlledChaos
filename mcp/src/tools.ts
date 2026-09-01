@@ -2552,4 +2552,100 @@ Returns: Markdown with timezone, the scheduling window, the calendar display ran
       return { content: [{ type: "text" as const, text: lines.join("\n") }] };
     }
   );
+
+  // ----------------------------------------------------------
+  // cc_update_journal
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_journal",
+    {
+      title: "Update Journal Entry",
+      description: `Edit the text of an existing junk journal entry — fixing a typo, finishing a sentence the user trailed off on.
+
+Only entries with category='junk_journal' can be edited. A brain dump is raw unedited input and is deliberately NOT editable here: rewriting what someone actually said is not the same as fixing their journal prose.
+
+Args:
+  - journal_id (required): UUID of the journal entry.
+  - content (required): The full replacement text (max 20000 chars). This REPLACES the entry, it does not append.
+
+Returns: Confirmation with the updated entry.`,
+      inputSchema: {
+        journal_id: z.string().uuid().describe("Journal entry ID"),
+        content: z.string().min(1).max(20000).describe("Replacement text for the entry"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const rows = await sql(
+        `UPDATE brain_dumps SET raw_content = $3
+          WHERE id = $1 AND user_id = $2 AND category = 'junk_journal'
+          RETURNING id, raw_content, created_at`,
+        [params.journal_id, userId, params.content]
+      );
+
+      if (rows.length === 0) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `No journal entry \`${params.journal_id}\` found. (Brain dumps are not editable — only entries created as journals.)`,
+          }],
+        };
+      }
+
+      return {
+        content: [{
+          type: "text" as const,
+          text: `📖 Journal entry updated.\nID: \`${rows[0].id}\`\n\n${String(rows[0].raw_content ?? "")}`,
+        }],
+      };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // cc_uncomplete_task — mirrors cc_uncomplete_microtask
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_uncomplete_task",
+    {
+      title: "Uncomplete Task",
+      description: `Reopen a completed task — put it back to pending and clear its completion timestamp. The inverse of cc_complete_task.
+
+Use when a task was marked done by mistake, or turned out not to actually be finished.
+
+Args:
+  - task_id (required): UUID of the task to reopen.
+
+Returns: The reopened task.`,
+      inputSchema: {
+        task_id: z.string().uuid().describe("Task ID to reopen"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const rows = await sql(
+        `UPDATE tasks SET status = 'pending', completed_at = NULL, updated_at = NOW()
+          WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING *`,
+        [params.task_id, userId]
+      );
+
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
+      }
+
+      return { content: [{ type: "text" as const, text: `↩️ Task reopened.\n\n${formatTask(rows[0], tz)}` }] };
+    }
+  );
 }
