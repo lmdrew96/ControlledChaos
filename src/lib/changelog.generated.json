@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop the calendar painting a default layout before settings load"
+      },
+      {
+        "type": "added",
         "text": "Tooltips on calendar events and plan blocks"
       },
       {

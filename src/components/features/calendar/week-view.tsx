@@ -49,7 +49,6 @@ import type {
   PlanBlock,
 } from "@/types";
 import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, startOfDayInTimezone } from "@/lib/timezone";
-import { useTimezone } from "@/hooks/use-timezone";
 import {
   useCalendarSettings,
   DEFAULT_WEEK_START_DAY,
@@ -251,7 +250,6 @@ function layoutOverlappingEvents(
 // ============================================================
 
 export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
-  const timezone = useTimezone();
   const {
     events,
     planBlocks,
@@ -269,7 +267,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // event's top/height, and which day each column is. The grid stays behind
   // `settingsLoaded` so it is never painted from defaults and then rebuilt.
   const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
-  const { startHour, endHour, weekStartDay, calendarColors } = settings;
+  const { startHour, endHour, weekStartDay, calendarColors, timezone } = settings;
   const [weekStart, setWeekStart] = useState(() =>
     getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
   );

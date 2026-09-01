@@ -16,7 +16,7 @@ import {
 import { formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { toast } from "sonner";
-import { invalidateCalendarSettings } from "@/hooks/use-calendar-settings";
+import { invalidateSettings } from "@/lib/settings-cache";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -158,7 +158,7 @@ export function CalendarSettings() {
       setSavedCalendarStartHour(calendarStartHour);
       setSavedCalendarEndHour(calendarEndHour);
       setSavedWeekStartDay(weekStartDay);
-      invalidateCalendarSettings();
+      invalidateSettings();
       toast.success("Calendar view updated!");
     } catch {
       toast.error("Failed to save calendar view settings");
@@ -185,7 +185,7 @@ export function CalendarSettings() {
       // /api/settings resolves calendarStartHour as `calendarStartHour ??
       // wakeTime ?? 7`, so the scheduling window can move the calendar's hour
       // range even though this form never mentions the calendar.
-      invalidateCalendarSettings();
+      invalidateSettings();
       toast.success("Scheduling window updated!");
     } catch {
       toast.error("Failed to save scheduling window");
@@ -209,7 +209,7 @@ export function CalendarSettings() {
       });
       if (!res.ok) throw new Error("Failed to save");
       setSavedCalendarColors({ ...calendarColors });
-      invalidateCalendarSettings();
+      invalidateSettings();
       toast.success("Calendar colors updated!");
     } catch {
       toast.error("Failed to save calendar colors");

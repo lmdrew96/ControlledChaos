@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Loader2, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { invalidateSettings } from "@/lib/settings-cache";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -139,6 +140,10 @@ export function TimezoneSettings() {
       });
       if (!res.ok) throw new Error("Failed to save");
       setOriginal(timezone);
+      // Every mounted surface reads the timezone from the shared settings
+      // cache. Without this the whole session keeps formatting in the old zone
+      // until a full page reload.
+      invalidateSettings();
       toast.success("Timezone updated!");
     } catch {
       toast.error("Failed to save timezone");

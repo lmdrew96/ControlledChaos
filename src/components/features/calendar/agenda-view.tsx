@@ -47,7 +47,6 @@ import {
   getCalendarParts,
   startOfDayInTimezone,
 } from "@/lib/timezone";
-import { useTimezone } from "@/hooks/use-timezone";
 import {
   useCalendarSettings,
   DEFAULT_WEEK_START_DAY,
@@ -116,7 +115,6 @@ function sourceLabel(source: CalendarSource, externalId?: string | null): string
 }
 
 export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
-  const timezone = useTimezone();
   const {
     events,
     planBlocks,
@@ -130,7 +128,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   } = useCalendarEvents();
 
   const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
-  const { weekStartDay, calendarColors } = settings;
+  const { weekStartDay, calendarColors, timezone } = settings;
   const [weekStart, setWeekStart] = useState(() =>
     getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
   );
