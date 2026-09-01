@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
@@ -29,6 +29,7 @@ import { Logo } from "@/components/ui/logo";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
 import { CommandPalette } from "@/components/features/command-palette/command-palette";
+import { ScheduleMyDay } from "@/components/features/dashboard/schedule-my-day";
 import { CreateTaskModal } from "@/components/features/task-feed/create-task-modal";
 import { MomentsQuickLogFab } from "@/components/features/moments/moments-quick-log-fab";
 import {
@@ -80,7 +81,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Keyboard shortcut dialogs
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState(false);
+  const router = useRouter();
   const [showPalette, setShowPalette] = useState(false);
+  // Hosted here rather than on the dashboard so the command palette can reach
+  // it from any page. The dashboard still renders its own trigger button.
+  const [showPlanner, setShowPlanner] = useState(false);
   const toggleShortcuts = useCallback(() => setShowShortcuts((v) => !v), []);
   const togglePalette = useCallback(() => setShowPalette((v) => !v), []);
   const openCreateTask = useCallback(() => setShowCreateTask(true), []);
@@ -341,6 +346,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={showPalette}
         onOpenChange={setShowPalette}
         onNewTask={openCreateTask}
+        onPlanMyDay={() => setShowPlanner(true)}
+      />
+      <ScheduleMyDay
+        hideTrigger
+        open={showPlanner}
+        onOpenChange={setShowPlanner}
+        onPlanCommitted={() => router.refresh()}
       />
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
       <CreateTaskModal

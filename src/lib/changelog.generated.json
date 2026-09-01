@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Auto-schedule no longer discards a hand-set planned start in silence"
+      },
+      {
+        "type": "added",
         "text": "Stop plan blocks landing on top of each other"
       },
       {

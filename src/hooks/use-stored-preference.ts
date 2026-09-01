@@ -26,7 +26,7 @@ const subscribe = (onChange: () => void) => {
   };
 };
 
-export const readStored = (key: string): string | null => {
+const readStored = (key: string): string | null => {
   if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(key);
@@ -36,7 +36,7 @@ export const readStored = (key: string): string | null => {
   }
 };
 
-export const writeStored = (key: string, value: string): void => {
+const writeStored = (key: string, value: string): void => {
   try {
     localStorage.setItem(key, value);
   } catch {

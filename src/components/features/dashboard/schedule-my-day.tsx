@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,9 +36,36 @@ interface Row extends PlanProposal {
 
 type Phase = "proposing" | "reviewing" | "empty" | "committing" | "done" | "error";
 
-export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => void }) {
+interface ScheduleMyDayProps {
+  onPlanCommitted?: () => void;
+  /**
+   * Controlled open state, for hosts that trigger the planner from somewhere
+   * other than its own button — the command palette, via app-shell.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the built-in "Plan my day" button when the host supplies its own trigger. */
+  hideTrigger?: boolean;
+}
+
+export function ScheduleMyDay({
+  onPlanCommitted,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
+}: ScheduleMyDayProps) {
   const timezone = useTimezone();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!isControlled) setUncontrolledOpen(next);
+      controlledOnOpenChange?.(next);
+    },
+    [isControlled, controlledOnOpenChange]
+  );
   const [phase, setPhase] = useState<Phase>("proposing");
   const [rows, setRows] = useState<Row[]>([]);
   const [emptyMessage, setEmptyMessage] = useState("");
@@ -48,8 +75,7 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
 
   const accepted = rows.filter((r) => r.state === "accepted");
 
-  const propose = async () => {
-    setOpen(true);
+  const propose = useCallback(async () => {
     setPhase("proposing");
     setRows([]);
     setUnplaced([]);
@@ -74,7 +100,14 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
       setEmptyMessage(err instanceof Error ? err.message : "Something went wrong.");
       setPhase("error");
     }
-  };
+  }, []);
+
+  // Proposing is what "opening the planner" means, however it was opened —
+  // the button, or the command palette by way of app-shell.
+  useEffect(() => {
+    if (!open) return;
+    void propose();
+  }, [open, propose]);
 
   const toggleRow = (taskId: string) => {
     setRows((prev) =>
@@ -172,10 +205,12 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={propose} className="gap-1.5">
-        <Sparkles className="h-3.5 w-3.5 text-primary" />
-        Plan my day
-      </Button>
+      {!hideTrigger && (
+        <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          Plan my day
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -339,7 +374,7 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
 
           {phase === "error" && (
             <div className="flex justify-end">
-              <Button size="sm" onClick={propose}>
+              <Button size="sm" onClick={() => void propose()}>
                 Try again
               </Button>
             </div>
