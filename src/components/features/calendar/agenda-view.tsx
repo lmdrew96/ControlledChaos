@@ -36,7 +36,6 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import type {
-  CalendarColors,
   CalendarEvent,
   CalendarSource,
   EventCategory,
@@ -49,6 +48,10 @@ import {
   startOfDayInTimezone,
 } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import {
+  useCalendarSettings,
+  DEFAULT_WEEK_START_DAY,
+} from "@/hooks/use-calendar-settings";
 
 const DAY_LABELS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -126,9 +129,10 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
     deleteEventSeries,
   } = useCalendarEvents();
 
-  const [weekStartDay, setWeekStartDay] = useState(1);
+  const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
+  const { weekStartDay, calendarColors } = settings;
   const [weekStart, setWeekStart] = useState(() =>
-    getWeekStart(initialDate ?? new Date(), 1)
+    getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
   );
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -138,33 +142,17 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   const [isDeletingSeries, setIsDeletingSeries] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
 
   const dayLabels = weekStartDay === 0 ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY;
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          const startDay = data.weekStartDay ?? 1;
-          setWeekStartDay(startDay);
-          if (data.calendarColors) setCalendarColors(data.calendarColors);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!initialDate) return;
     setWeekStart(getWeekStart(initialDate, weekStartDay));
   }, [initialDate, weekStartDay]);
 
-  // No initialDate (e.g. landing on Week view directly): weekStart is first
-  // computed with the hardcoded Monday-start default before the real
-  // weekStartDay setting loads. Realign once it arrives, or dayLabels (which
-  // reacts to weekStartDay immediately) drifts out of sync with the dates in
-  // weekDays, shifting every day's label by one.
+  // Kept for navigation, not for settings: the list is gated on settingsLoaded
+  // now, so weekStartDay no longer arrives mid-render and drags the labels out
+  // of sync with the dates.
   useEffect(() => {
     if (initialDate) return;
     setWeekStart((prev) => getWeekStart(prev, weekStartDay));
@@ -418,7 +406,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
       )}
 
       {/* Day-by-day agenda */}
-      {isLoading ? (
+      {isLoading || !settingsLoaded ? (
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Loading events...

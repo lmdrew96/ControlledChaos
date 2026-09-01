@@ -43,7 +43,6 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import type {
-  CalendarColors,
   CalendarEvent,
   CalendarSource,
   EventCategory,
@@ -51,12 +50,14 @@ import type {
 } from "@/types";
 import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, startOfDayInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import {
+  useCalendarSettings,
+  DEFAULT_WEEK_START_DAY,
+} from "@/hooks/use-calendar-settings";
 
 // ============================================================
 // Constants
 // ============================================================
-const DEFAULT_START_HOUR = 7;
-const DEFAULT_END_HOUR = 22;
 const ROW_HEIGHT = 48; // px per 30-min slot
 const DAY_LABELS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -264,8 +265,14 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   } = useCalendarEvents();
 
   // Week start day preference: 0=Sunday, 1=Monday
-  const [weekStartDay, setWeekStartDay] = useState(1);
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(initialDate ?? new Date(), 1));
+  // Layout settings, not styling: these decide the grid's row count, every
+  // event's top/height, and which day each column is. The grid stays behind
+  // `settingsLoaded` so it is never painted from defaults and then rebuilt.
+  const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
+  const { startHour, endHour, weekStartDay, calendarColors } = settings;
+  const [weekStart, setWeekStart] = useState(() =>
+    getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
+  );
   const [selectedDay, setSelectedDay] = useState(() => initialDate ?? new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
@@ -278,10 +285,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Calendar hour boundaries + colors from user settings
-  const [startHour, setStartHour] = useState(DEFAULT_START_HOUR);
-  const [endHour, setEndHour] = useState(DEFAULT_END_HOUR);
-  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
 
   // Drag-and-drop state (desktop only, CC events only)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -298,21 +301,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   const [isEditMode, setIsEditMode] = useState(false);
 
   const dayLabels = weekStartDay === 0 ? DAY_LABELS_SUNDAY : DAY_LABELS_MONDAY;
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setStartHour(data.calendarStartHour ?? DEFAULT_START_HOUR);
-          setEndHour(data.calendarEndHour ?? DEFAULT_END_HOUR);
-          const startDay = data.weekStartDay ?? 1;
-          setWeekStartDay(startDay);
-          if (data.calendarColors) setCalendarColors(data.calendarColors);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!initialDate) return;
@@ -784,7 +772,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
       {/* Mobile: single day list */}
       <div className="md:hidden">
-        {isLoading ? (
+        {isLoading || !settingsLoaded ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading events...
@@ -838,7 +826,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
             </span>
           </div>
         )}
-        {isLoading ? (
+        {isLoading || !settingsLoaded ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading events...

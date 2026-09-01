@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { WeekView } from "@/components/features/calendar/week-view";
 import { AgendaView } from "@/components/features/calendar/agenda-view";
 import { MonthView } from "@/components/features/calendar/month-view";
 import { PageHeader } from "@/components/ui/page-header";
-import type { CalendarColors } from "@/types";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 
 type CalendarView = "week" | "month";
 
@@ -23,20 +23,8 @@ export default function CalendarPage() {
 
   const [view, setView] = useState<CalendarView>("week");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialFromUrl);
-  const [weekStartDay, setWeekStartDay] = useState(1);
-  const [calendarColors, setCalendarColors] = useState<CalendarColors | null>(null);
-
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          if (data.weekStartDay != null) setWeekStartDay(data.weekStartDay);
-          if (data.calendarColors) setCalendarColors(data.calendarColors);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const { settings } = useCalendarSettings();
+  const { weekStartDay, calendarColors } = settings;
 
   function handleDayClick(date: Date) {
     setSelectedDate(date);

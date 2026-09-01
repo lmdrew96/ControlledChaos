@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Tooltips on calendar events and plan blocks"
+      },
+      {
+        "type": "added",
         "text": "Notify stale tabs that a new version is available"
       },
       {
