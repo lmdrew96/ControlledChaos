@@ -6,6 +6,10 @@ import {
   todayPlanningWindow,
   isPlanBlockCurrent,
   planBlocksAsBusyIntervals,
+  planBlocksAsBusy,
+  eventsAsBusyIntervals,
+  findConflict,
+  type BusyInterval,
 } from "@/lib/calendar/plan-blocks";
 
 const NY = "America/New_York"; // UTC-4 in September (EDT)
@@ -109,5 +113,88 @@ describe("planBlocksAsBusyIntervals", () => {
         { id: "t2", title: "Unplanned", scheduledFor: null, estimatedMinutes: 30 },
       ])
     ).toHaveLength(0);
+  });
+});
+
+describe("findConflict", () => {
+  const busy: BusyInterval[] = [
+    { startMs: Date.parse("2026-09-01T14:00:00Z"), endMs: Date.parse("2026-09-01T15:00:00Z"), label: "Lecture" },
+    { startMs: Date.parse("2026-09-01T16:00:00Z"), endMs: Date.parse("2026-09-01T16:30:00Z"), label: "Read ch. 4", taskId: "task-a" },
+  ];
+
+  const at = (start: string, end: string) =>
+    findConflict(Date.parse(start), Date.parse(end), busy);
+
+  it("returns null for a slot that touches nothing", () => {
+    expect(at("2026-09-01T12:00:00Z", "2026-09-01T13:00:00Z")).toBeNull();
+  });
+
+  it("treats back-to-back blocks as clear, not conflicting", () => {
+    expect(at("2026-09-01T13:00:00Z", "2026-09-01T14:00:00Z")).toBeNull();
+    expect(at("2026-09-01T15:00:00Z", "2026-09-01T16:00:00Z")).toBeNull();
+  });
+
+  it("catches a partial overlap at either edge", () => {
+    expect(at("2026-09-01T13:30:00Z", "2026-09-01T14:30:00Z")?.label).toBe("Lecture");
+    expect(at("2026-09-01T14:30:00Z", "2026-09-01T15:30:00Z")?.label).toBe("Lecture");
+  });
+
+  it("catches a slot fully inside a busy interval, and one that swallows it", () => {
+    expect(at("2026-09-01T14:15:00Z", "2026-09-01T14:45:00Z")?.label).toBe("Lecture");
+    expect(at("2026-09-01T13:00:00Z", "2026-09-01T18:00:00Z")?.label).toBe("Lecture");
+  });
+
+  it("reports a collision with another task's committed plan block", () => {
+    expect(at("2026-09-01T16:10:00Z", "2026-09-01T16:40:00Z")?.label).toBe("Read ch. 4");
+  });
+
+  it("lets a task move within its own block without self-conflicting", () => {
+    const conflict = findConflict(
+      Date.parse("2026-09-01T16:10:00Z"),
+      Date.parse("2026-09-01T16:40:00Z"),
+      busy,
+      { ignoreTaskId: "task-a" }
+    );
+    expect(conflict).toBeNull();
+  });
+});
+
+describe("eventsAsBusyIntervals", () => {
+  it("ignores all-day events, which never occupy a slot", () => {
+    const intervals = eventsAsBusyIntervals([
+      { title: "Reading day", startTime: "2026-09-01T04:00:00Z", endTime: "2026-09-02T04:00:00Z", isAllDay: true },
+      { title: "Lecture", startTime: "2026-09-01T14:00:00Z", endTime: "2026-09-01T15:00:00Z", isAllDay: false },
+    ]);
+    expect(intervals.map((i) => i.label)).toEqual(["Lecture"]);
+  });
+
+  it("recovers the task id from a plan block round-tripped through the event shape", () => {
+    const [interval] = eventsAsBusyIntervals([
+      { title: "Read ch. 4", startTime: "2026-09-01T16:00:00Z", endTime: "2026-09-01T16:30:00Z", externalId: "plan-task-a" },
+    ]);
+    expect(interval.taskId).toBe("task-a");
+  });
+
+  it("leaves taskId undefined for a real calendar event", () => {
+    const [interval] = eventsAsBusyIntervals([
+      { title: "Lecture", startTime: "2026-09-01T14:00:00Z", endTime: "2026-09-01T15:00:00Z", externalId: "canvas-123" },
+    ]);
+    expect(interval.taskId).toBeUndefined();
+  });
+});
+
+describe("planBlocksAsBusy", () => {
+  it("uses the default block length when a task has no estimate", () => {
+    const [interval] = planBlocksAsBusy([
+      { id: "t1", title: "Untimed", scheduledFor: "2026-09-01T16:00:00Z", estimatedMinutes: null },
+    ]);
+    expect(interval.endMs - interval.startMs).toBe(DEFAULT_PLAN_BLOCK_MINUTES * 60_000);
+    expect(interval.taskId).toBe("t1");
+  });
+
+  it("skips tasks that have no planned start", () => {
+    expect(
+      planBlocksAsBusy([{ id: "t1", title: "Unplanned", scheduledFor: null, estimatedMinutes: 30 }])
+    ).toEqual([]);
   });
 });

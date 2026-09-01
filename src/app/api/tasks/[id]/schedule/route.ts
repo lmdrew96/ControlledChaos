@@ -6,9 +6,11 @@ import {
   getUser,
   getUserSettings,
   getCalendarEventsByDateRange,
+  getScheduledTasksInRange,
   upsertCalendarEvent,
   updateTask,
 } from "@/lib/db/queries";
+import { planBlocksAsBusyIntervals } from "@/lib/calendar/plan-blocks";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -63,7 +65,14 @@ export async function POST(_req: Request, context: RouteContext) {
     const windowEnd = new Date(now);
     windowEnd.setDate(windowEnd.getDate() + 3);
 
-    const existingEvents = await getCalendarEventsByDateRange(userId, now, windowEnd);
+    // Committed plan blocks are loaded alongside real events. A plan block is
+    // stored as `scheduledFor` on a task, not as a calendar event, so without
+    // this the scheduler is blind to every slot the user has already claimed
+    // and will happily drop this task on top of one.
+    const [existingEvents, scheduledTasks] = await Promise.all([
+      getCalendarEventsByDateRange(userId, now, windowEnd),
+      getScheduledTasksInRange(userId, now, windowEnd),
+    ]);
 
     const serializedEvents = existingEvents.map((e) => ({
       id: e.id,
@@ -106,11 +115,23 @@ export async function POST(_req: Request, context: RouteContext) {
       updatedAt: task.updatedAt.toISOString(),
     };
 
+    // This task's own existing block isn't an obstacle to rescheduling it.
+    const otherPlanBlocks = planBlocksAsBusyIntervals(
+      scheduledTasks
+        .filter((t) => t.id !== task.id)
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          scheduledFor: t.scheduledFor?.toISOString() ?? null,
+          estimatedMinutes: t.estimatedMinutes,
+        }))
+    );
+
     const currentEnergy = await getCurrentEnergy(userId, timezone);
 
     const block = await scheduleOneTask({
       task: serializedTask,
-      calendarEvents: serializedEvents,
+      calendarEvents: [...serializedEvents, ...otherPlanBlocks],
       currentEnergy,
       timezone,
       wakeTime,

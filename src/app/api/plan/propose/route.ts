@@ -5,6 +5,13 @@ import { generateSchedule } from "@/lib/ai/schedule";
 import { buildPlanningContext } from "@/lib/plan/context";
 import { planBlockMinutes } from "@/lib/calendar/plan-blocks";
 
+/** "A", "A and B", "A, B and C" — for a message a person reads. */
+function listTitles(titles: string[]): string {
+  if (titles.length === 1) return titles[0];
+  if (titles.length === 2) return `${titles[0]} and ${titles[1]}`;
+  return `${titles.slice(0, -1).join(", ")} and ${titles[titles.length - 1]}`;
+}
+
 /**
  * POST /api/plan/propose
  *
@@ -38,7 +45,7 @@ export async function POST() {
       });
     }
 
-    const blocks = await generateSchedule({
+    const { blocks, unplaced } = await generateSchedule({
       pendingTasks: ctx.schedulableTasks,
       calendarEvents: ctx.busyIntervals,
       currentEnergy: ctx.currentEnergy,
@@ -50,15 +57,26 @@ export async function POST() {
       aiContextBlock: ctx.aiContextBlock,
     });
 
+    const taskById = new Map(ctx.schedulableTasks.map((t) => [t.id, t]));
+
+    // Blocks the model proposed that the guards rejected. Naming them beats a
+    // plan that quietly comes back two blocks short.
+    const unplacedTitles = unplaced.flatMap((u) => {
+      const title = taskById.get(u.taskId)?.title;
+      return title ? [title] : [];
+    });
+
     if (blocks.length === 0) {
       return NextResponse.json({
         blocks: [],
+        unplaced: unplacedTitles,
         reason: "no_room",
-        message: "No open stretches left today that fit these tasks.",
+        message:
+          unplacedTitles.length > 0
+            ? `No open stretches left today that fit these tasks — ${listTitles(unplacedTitles)} couldn't be placed.`
+            : "No open stretches left today that fit these tasks.",
       });
     }
-
-    const taskById = new Map(ctx.schedulableTasks.map((t) => [t.id, t]));
 
     const proposals = blocks.flatMap((b) => {
       const task = taskById.get(b.taskId);
@@ -75,10 +93,16 @@ export async function POST() {
       ];
     });
 
+    const proposedMessage = `${proposals.length} block${proposals.length === 1 ? "" : "s"} proposed.`;
+
     return NextResponse.json({
       blocks: proposals,
+      unplaced: unplacedTitles,
       reason: "ok",
-      message: `${proposals.length} block${proposals.length === 1 ? "" : "s"} proposed.`,
+      message:
+        unplacedTitles.length > 0
+          ? `${proposedMessage} No room for ${listTitles(unplacedTitles)}.`
+          : proposedMessage,
     });
   } catch (error) {
     console.error("[API] POST /api/plan/propose error:", error);

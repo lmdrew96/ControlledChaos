@@ -186,14 +186,27 @@ ${JSON.stringify(taskList, null, 2)}
 Create an optimal schedule. Only schedule tasks that fit in the free blocks. Don't schedule more than 6-8 tasks total.${input.aiContextBlock ? `\n\n${input.aiContextBlock}` : ""}`;
 }
 
+/** Why a block the AI proposed didn't survive validation. */
+export type UnplacedReason = "outside_free_time" | "event_conflict" | "overlap";
+
+export interface ScheduleResult {
+  blocks: ScheduledBlock[];
+  /**
+   * Blocks the AI proposed that were rejected by the deterministic guards.
+   * Surfaced rather than silently discarded — "no room for the last two" is a
+   * usable answer; a plan that quietly comes back short is not.
+   */
+  unplaced: Array<{ taskId: string; reason: UnplacedReason }>;
+}
+
 /**
  * Call the AI to generate an optimal schedule from pending tasks and free time.
  */
 export async function generateSchedule(
   input: SchedulingInput
-): Promise<ScheduledBlock[]> {
+): Promise<ScheduleResult> {
   if (input.pendingTasks.length === 0) {
-    return [];
+    return { blocks: [], unplaced: [] };
   }
 
   const freeBlocks = findFreeBlocks(
@@ -205,7 +218,7 @@ export async function generateSchedule(
   );
 
   if (freeBlocks.length === 0) {
-    return [];
+    return { blocks: [], unplaced: [] };
   }
 
   const userPrompt = buildSchedulingPrompt(input, freeBlocks);
@@ -225,7 +238,7 @@ export async function generateSchedule(
   }
 
   if (!parsed.blocks || !Array.isArray(parsed.blocks)) {
-    return [];
+    return { blocks: [], unplaced: [] };
   }
 
   // Only keep blocks with valid task IDs
@@ -235,14 +248,28 @@ export async function generateSchedule(
       validTaskIds.has(block.taskId) && block.startTime && block.endTime
   );
 
-  // Drop any blocks the AI placed outside the free blocks it was given
-  const containedBlocks = removeBlocksOutsideFreeTime(validBlocks, freeBlocks);
+  const unplaced: ScheduleResult["unplaced"] = [];
+  const record = (reason: UnplacedReason) => (block: ScheduledBlock) =>
+    unplaced.push({ taskId: block.taskId, reason });
 
-  // Drop any blocks that overlap with existing calendar events
-  const safeBlocks = removeConflictsWithEvents(containedBlocks, input.calendarEvents);
+  // Drop any blocks the AI placed outside the free blocks it was given
+  const containedBlocks = removeBlocksOutsideFreeTime(
+    validBlocks,
+    freeBlocks,
+    record("outside_free_time")
+  );
+
+  // Drop any blocks that overlap with existing calendar events or committed plan blocks
+  const safeBlocks = removeConflictsWithEvents(
+    containedBlocks,
+    input.calendarEvents,
+    record("event_conflict")
+  );
 
   // Remove overlapping blocks between AI's own scheduled blocks
-  return removeOverlappingBlocks(safeBlocks);
+  const blocks = removeOverlappingBlocks(safeBlocks, record("overlap"));
+
+  return { blocks, unplaced };
 }
 
 interface SingleTaskSchedulingInput {
@@ -394,7 +421,8 @@ Find the best time for this task using urgency + energy matching.${input.aiConte
  */
 function removeBlocksOutsideFreeTime(
   blocks: ScheduledBlock[],
-  freeBlocks: FreeTimeBlock[]
+  freeBlocks: FreeTimeBlock[],
+  onDropped: (block: ScheduledBlock) => void = () => {}
 ): ScheduledBlock[] {
   return blocks.filter((block) => {
     const bStart = new Date(block.startTime).getTime();
@@ -410,6 +438,7 @@ function removeBlocksOutsideFreeTime(
       console.warn(
         `[AI Schedule] Dropped block for task ${block.taskId}: ${block.startTime}–${block.endTime} falls outside any free block`
       );
+      onDropped(block);
     }
 
     return isContained;
@@ -423,7 +452,8 @@ function removeBlocksOutsideFreeTime(
  */
 function removeConflictsWithEvents(
   blocks: ScheduledBlock[],
-  events: CalendarEvent[]
+  events: CalendarEvent[],
+  onDropped: (block: ScheduledBlock) => void = () => {}
 ): ScheduledBlock[] {
   // Build a list of busy intervals from all non-all-day events
   const busy = events
@@ -445,6 +475,7 @@ function removeConflictsWithEvents(
       console.warn(
         `[AI Schedule] Dropped block for task ${block.taskId}: ${block.startTime}–${block.endTime} conflicts with an existing event`
       );
+      onDropped(block);
     }
 
     return !hasConflict;
@@ -455,7 +486,10 @@ function removeConflictsWithEvents(
  * Remove overlapping blocks from the schedule.
  * Keeps the first block in each conflict, drops later ones.
  */
-function removeOverlappingBlocks(blocks: ScheduledBlock[]): ScheduledBlock[] {
+function removeOverlappingBlocks(
+  blocks: ScheduledBlock[],
+  onDropped: (block: ScheduledBlock) => void = () => {}
+): ScheduledBlock[] {
   if (blocks.length <= 1) return blocks;
 
   // Sort by start time
@@ -478,6 +512,7 @@ function removeOverlappingBlocks(blocks: ScheduledBlock[]): ScheduledBlock[] {
       console.warn(
         `[AI Schedule] Dropped overlapping block for task ${curr.taskId}: ${curr.startTime} overlaps with ${prev.startTime}-${prev.endTime}`
       );
+      onDropped(curr);
     }
   }
 

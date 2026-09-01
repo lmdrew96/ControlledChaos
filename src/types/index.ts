@@ -382,6 +382,11 @@ export type PlanOutcome = "ok" | "day_over" | "no_tasks" | "no_room";
 
 export interface PlanProposalResult {
   blocks: PlanProposal[];
+  /**
+   * Titles of tasks the model proposed a time for that the server's conflict
+   * guards rejected. Named rather than silently dropped.
+   */
+  unplaced?: string[];
   reason: PlanOutcome;
   message: string;
 }

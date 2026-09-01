@@ -4,6 +4,14 @@
     "items": [
       {
         "type": "added",
+        "text": "Sort by soonest of the three task times, not just the deadline"
+      },
+      {
+        "type": "added",
+        "text": "Clear all 76 lint warnings"
+      },
+      {
+        "type": "added",
         "text": "Document the client settings cache convention"
       },
       {

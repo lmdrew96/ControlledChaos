@@ -43,6 +43,8 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
   const [rows, setRows] = useState<Row[]>([]);
   const [emptyMessage, setEmptyMessage] = useState("");
   const [committedCount, setCommittedCount] = useState(0);
+  /** Task titles the server refused to place, so the plan never comes back quietly short. */
+  const [unplaced, setUnplaced] = useState<string[]>([]);
 
   const accepted = rows.filter((r) => r.state === "accepted");
 
@@ -50,10 +52,13 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
     setOpen(true);
     setPhase("proposing");
     setRows([]);
+    setUnplaced([]);
     try {
       const res = await fetch("/api/plan/propose", { method: "POST" });
       const data: PlanProposalResult & { error?: string } = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not build a plan");
+
+      setUnplaced(data.unplaced ?? []);
 
       if (data.blocks.length === 0) {
         setEmptyMessage(data.message);
@@ -143,6 +148,17 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
       if (!res.ok) throw new Error(data.error || "Could not save your plan");
 
       setCommittedCount(data.committed);
+
+      // Commit re-checks every block against live state, so a slot claimed
+      // since the proposal was built comes back rejected here.
+      const conflicts: string[] = (data.rejected ?? [])
+        .filter((r: { reason?: string }) => r.reason === "conflict")
+        .flatMap((r: { taskId: string; conflictsWith?: string }) => {
+          const title = accepted.find((a) => a.taskId === r.taskId)?.taskTitle;
+          return title ? [r.conflictsWith ? `${title} (${r.conflictsWith} took that slot)` : title] : [];
+        });
+      setUnplaced(conflicts);
+
       setPhase("done");
       onPlanCommitted?.();
     } catch (err) {
@@ -190,6 +206,27 @@ export function ScheduleMyDay({ onPlanCommitted }: { onPlanCommitted?: () => voi
               {(phase === "empty" || phase === "error") && emptyMessage}
             </DialogDescription>
           </DialogHeader>
+
+          {/*
+            Blocks the server refused to place — either the model proposed a
+            slot that was already claimed, or something took the slot between
+            proposing and committing. Saying so beats a plan that is quietly
+            two blocks short.
+          */}
+          {unplaced.length > 0 && (phase === "reviewing" || phase === "done" || phase === "empty") && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                No room for {unplaced.length === 1 ? "this one" : `these ${unplaced.length}`}:
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {unplaced.map((title) => (
+                  <li key={title} className="text-xs text-muted-foreground">
+                    {title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {phase === "reviewing" && (
             <>

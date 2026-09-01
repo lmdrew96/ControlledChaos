@@ -82,6 +82,84 @@ export function planBlocksAsBusyIntervals(
     });
 }
 
+/** A claimed stretch of time, whatever claimed it. */
+export interface BusyInterval {
+  startMs: number;
+  endMs: number;
+  /** What is occupying the time, for a message the user can act on. */
+  label: string;
+  /** Set when the claim is a task's plan block, so a task can ignore its own. */
+  taskId?: string;
+}
+
+/** The bits of a calendar event that matter for occupancy — DB row or serialized. */
+export interface EventLike {
+  title: string;
+  startTime: string | Date;
+  endTime: string | Date;
+  isAllDay?: boolean | null;
+  externalId?: string | null;
+}
+
+/** Real calendar events as busy intervals. All-day events never block a slot. */
+export function eventsAsBusyIntervals(events: EventLike[]): BusyInterval[] {
+  return events
+    .filter((e) => !e.isAllDay)
+    .map((e) => ({
+      startMs: new Date(e.startTime).getTime(),
+      endMs: new Date(e.endTime).getTime(),
+      label: e.title,
+      // Plan blocks round-tripped through planBlocksAsBusyIntervals() keep their
+      // task id, so a task can still recognise its own block as its own.
+      taskId: e.externalId?.startsWith("plan-")
+        ? e.externalId.slice("plan-".length)
+        : undefined,
+    }));
+}
+
+/** Committed plan blocks as busy intervals, tagged with their task id. */
+export function planBlocksAsBusy(
+  scheduledTasks: Array<
+    Pick<Task, "id" | "title" | "scheduledFor" | "estimatedMinutes">
+  >
+): BusyInterval[] {
+  return scheduledTasks
+    .filter((t) => t.scheduledFor)
+    .map((t) => {
+      const start = new Date(t.scheduledFor as string);
+      return {
+        startMs: start.getTime(),
+        endMs: planBlockEnd(start, t.estimatedMinutes).getTime(),
+        label: t.title,
+        taskId: t.id,
+      };
+    });
+}
+
+/**
+ * The first interval a candidate collides with, or null if the slot is clear.
+ *
+ * Zero-length touches don't count: a block ending exactly when the next starts
+ * is back-to-back, not a conflict.
+ */
+export function findConflict(
+  startMs: number,
+  endMs: number,
+  busy: BusyInterval[],
+  { ignoreTaskId }: { ignoreTaskId?: string } = {}
+): BusyInterval | null {
+  return (
+    busy.find((interval) => {
+      // Guard on `ignoreTaskId` being set: an untagged interval (a real
+      // calendar event) has taskId === undefined, and would otherwise match
+      // an absent ignoreTaskId and be skipped as if it were the task's own.
+      const isOwnBlock =
+        ignoreTaskId !== undefined && interval.taskId === ignoreTaskId;
+      return !isOwnBlock && startMs < interval.endMs && endMs > interval.startMs;
+    }) ?? null
+  );
+}
+
 /**
  * A plan is an intention for a specific day. An unfinished block from an
  * earlier day is not carried forward — it is simply no longer shown, so every
