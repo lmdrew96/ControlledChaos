@@ -4,6 +4,18 @@
     "items": [
       {
         "type": "added",
+        "text": "Close two MCP lifecycle gaps, decline the third"
+      },
+      {
+        "type": "added",
+        "text": "MCP can read the day's bounds (cc_get_settings)"
+      },
+      {
+        "type": "added",
+        "text": "Dead code audit — wire up the palette's Plan my day entry"
+      },
+      {
+        "type": "added",
         "text": "Auto-schedule no longer discards a hand-set planned start in silence"
       },
       {

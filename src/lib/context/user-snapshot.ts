@@ -29,6 +29,8 @@ export interface UserSnapshot {
     title: string;
     priority: string;
     deadline: string | null;
+    targetDate: string | null;
+    scheduledFor: string | null;
   }>;
   todayEvents: Array<{
     title: string;
@@ -70,12 +72,27 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
 
   const timeBlock = getTimeOfDayBlock(timezone);
 
-  // Top 5 pending tasks (already sorted by deadline priority from query)
+  // Top 5 pending tasks (already sorted by deadline priority from query).
+  // All three times ride along: a snapshot that only carried `deadline` had
+  // every AI surface describing a self-imposed target as "due", which is the
+  // one thing HARD_SOFT_TIME_RULES says never to do.
   const topPending = pendingTasks.slice(0, 5).map((t) => ({
     title: t.title,
     priority: t.priority,
     deadline: t.deadline?.toISOString() ?? null,
+    targetDate: t.targetDate?.toISOString() ?? null,
+    scheduledFor: t.scheduledFor?.toISOString() ?? null,
   }));
+
+  // Work the user planned to START today. Not a due date of any kind — but it
+  // is time they have claimed, and copy that ignores it reads as oblivious.
+  const plannedToday = pendingTasks
+    .filter((t) => {
+      if (!t.scheduledFor) return false;
+      const at = new Date(t.scheduledFor);
+      return at >= startOfDayInTimezone(now, timezone) && at <= endOfDay;
+    })
+    .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime());
 
   // Format events for AI consumption
   const formattedEvents = todayEvents.map((e) => ({
@@ -97,10 +114,33 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   if (topPending.length > 0) {
     lines.push(`Top pending:`);
     for (const t of topPending) {
-      const deadlineStr = t.deadline
-        ? ` (due ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATE)})`
-        : "";
-      lines.push(`  - ${t.title} [${t.priority}]${deadlineStr}`);
+      const times: string[] = [];
+      if (t.deadline) {
+        times.push(
+          `HARD deadline ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATE)}`
+        );
+      }
+      if (t.targetDate) {
+        times.push(
+          `SOFT self-imposed target ${formatForDisplay(new Date(t.targetDate), timezone, DISPLAY_DATE)} — NOT due, do not call it due`
+        );
+      }
+      if (t.scheduledFor) {
+        times.push(
+          `planned to start ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_TIME)}`
+        );
+      }
+      const suffix = times.length > 0 ? ` (${times.join("; ")})` : "";
+      lines.push(`  - ${t.title} [${t.priority}]${suffix}`);
+    }
+  }
+
+  if (plannedToday.length > 0) {
+    lines.push(`Planned to work on today (their own plan, not deadlines):`);
+    for (const t of plannedToday) {
+      lines.push(
+        `  - ${formatForDisplay(new Date(t.scheduledFor!), timezone, DISPLAY_TIME)}: ${t.title}`
+      );
     }
   }
 

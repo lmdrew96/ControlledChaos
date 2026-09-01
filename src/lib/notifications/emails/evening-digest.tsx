@@ -15,7 +15,13 @@ interface EveningDigestProps {
   userName: string;
   aiNote: string;
   completedTasks: Array<{ title: string }>;
-  tomorrowPriority: { title: string; deadline?: string } | null;
+  tomorrowPriority: {
+    title: string;
+    /** HARD deadline. */
+    deadline?: string;
+    /** SOFT self-imposed target — never rendered as "due". */
+    target?: string;
+  } | null;
   settingsUrl: string;
 }
 
@@ -71,6 +77,12 @@ export function EveningDigestEmail({
                     <span style={emailStyles.deadlineStyle}>
                       {" "}
                       (due {tomorrowPriority.deadline})
+                    </span>
+                  )}
+                  {tomorrowPriority.target && (
+                    <span style={emailStyles.targetStyle}>
+                      {" "}
+                      (your target: {tomorrowPriority.target})
                     </span>
                   )}
                 </Text>

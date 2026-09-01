@@ -154,6 +154,12 @@ export const emailStyles = {
     color: emailColors.footerText,
     fontSize: "13px",
   },
+  /** Soft self-imposed targets. Visually quieter than a deadline, on purpose. */
+  targetStyle: {
+    color: emailColors.footerText,
+    fontSize: "13px",
+    fontStyle: "italic" as const,
+  },
   hr: {
     borderColor: emailColors.border,
     margin: "24px 0 16px",

@@ -437,6 +437,8 @@ export function buildMorningDigestPrompt(prefs: PersonalityPrefs | null): string
 
 ${buildPersonalityBlock(prefs)}
 
+${HARD_SOFT_TIME_RULES}
+
 Given the user's data, write a short note (2-4 sentences) that:
 - Greets warmly using their name (if provided) without being cheesy
 - Highlights the 1-2 most important things for today — reference specific task/event names
@@ -463,6 +465,8 @@ export function buildEveningDigestPrompt(prefs: PersonalityPrefs | null): string
   return `You are writing a brief, warm evening wrap-up for an ADHD user of ControlledChaos.
 
 ${buildPersonalityBlock(prefs)}
+
+${HARD_SOFT_TIME_RULES}
 
 Given the user's data, write a short note (2-4 sentences) that:
 - Celebrates what they accomplished, no matter how small — reference specific task names
@@ -502,6 +506,8 @@ export function buildPushNotificationPrompt(
 ${timeContext}
 
 ${buildPersonalityBlock(prefs)}
+
+${HARD_SOFT_TIME_RULES}
 
 Assertiveness mode: ${mode}. ${assertivenessGuidance}
 
@@ -586,6 +592,8 @@ export function buildInactivityNudgePrompt(
 ${timeContext}
 
 ${buildPersonalityBlock(prefs)}
+
+${HARD_SOFT_TIME_RULES}
 
 Assertiveness mode: ${mode}. ${assertivenessGuidance}
 
