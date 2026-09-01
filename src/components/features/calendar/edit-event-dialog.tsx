@@ -123,7 +123,7 @@ export function EditEventDialog({
         setLocationMode("custom");
       }
     }
-  }, [event, savedLocations]);
+  }, [event, savedLocations, timezone]);
 
   if (!event) return null;
 

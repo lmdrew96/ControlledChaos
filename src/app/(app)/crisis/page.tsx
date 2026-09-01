@@ -180,7 +180,7 @@ export default function CrisisPage() {
   }, []);
 
   useEffect(() => {
-    loadPlans();
+    void loadPlans();
   }, [loadPlans]);
 
   // -------------------------------------------------------
@@ -638,7 +638,7 @@ export default function CrisisPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAbandon(plan.id);
+                          void handleAbandon(plan.id);
                         }}
                         disabled={abandoningId === plan.id}
                         aria-label={`Abandon ${plan.taskName}`}

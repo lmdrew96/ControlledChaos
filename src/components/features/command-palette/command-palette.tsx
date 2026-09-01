@@ -113,12 +113,14 @@ export function CommandPalette({
   const { resolvedTheme, setTheme } = useTheme();
   const [query, setQuery] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [recentIds, setRecentIds] = useState<string[]>([]);
+
+  // Re-read on each open rather than mirroring localStorage into state — the
+  // list only changes via pushRecent(), which happens as the palette closes.
+  const recentIds = useMemo(() => (open ? getRecent() : []), [open]);
 
   // Fetch tasks once when palette opens; cache for the session.
   useEffect(() => {
     if (!open) return;
-    setRecentIds(getRecent());
     if (tasks.length > 0) return;
     fetch("/api/tasks")
       .then((r) => (r.ok ? r.json() : null))
@@ -130,10 +132,13 @@ export function CommandPalette({
       .catch(() => {});
   }, [open, tasks.length]);
 
-  // Reset query when closing
-  useEffect(() => {
+  // Reset the query when the palette closes. Adjusting state during render is
+  // React's prescribed way to respond to a prop change without an extra pass.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (!open) setQuery("");
-  }, [open]);
+  }
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 

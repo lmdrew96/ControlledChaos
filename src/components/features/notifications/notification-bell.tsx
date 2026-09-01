@@ -123,7 +123,7 @@ export function NotificationBell() {
               <button
                 key={n.id}
                 onClick={() => {
-                  if (!n.openedAt) markAsRead(n.id);
+                  if (!n.openedAt) void markAsRead(n.id);
                   setExpandedId(isExpanded ? null : n.id);
                 }}
                 className={cn(

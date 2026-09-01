@@ -222,7 +222,7 @@ export function JournalCompose({ onSaved }: JournalComposeProps = {}) {
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
-                addFiles(e.target.files);
+                void addFiles(e.target.files);
                 e.target.value = "";
               }
             }}

@@ -23,7 +23,7 @@ export function useCrisisDetection() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    void fetchStatus();
 
     // Re-poll periodically
     const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);

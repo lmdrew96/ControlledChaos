@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { Sparkles } from "lucide-react";
 import { formatForDisplay } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
@@ -13,37 +13,25 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { changelog, getLatestWeek } from "@/lib/changelog";
+import { useStoredPreference } from "@/hooks/use-stored-preference";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 const STORAGE_KEY = "cc-last-seen-changelog";
-
-function getLastSeen(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(STORAGE_KEY);
-}
-
-function setLastSeen(weekOf: string) {
-  localStorage.setItem(STORAGE_KEY, weekOf);
-}
 
 export function useHasNewChangelog(): {
   hasNew: boolean;
   markSeen: () => void;
 } {
-  const [hasNew, setHasNew] = useState(false);
-
-  useEffect(() => {
-    const lastSeen = getLastSeen();
-    const latest = getLatestWeek();
-    if (latest && lastSeen !== latest) {
-      setHasNew(true);
-    }
-  }, []);
+  // Gate on `mounted`: the "" fallback can't distinguish "never seen" from
+  // "not hydrated yet", and only the first should light up the badge.
+  const mounted = useIsMounted();
+  const [lastSeen, setLastSeen] = useStoredPreference<string>(STORAGE_KEY, "");
+  const latest = getLatestWeek();
+  const hasNew = mounted && !!latest && lastSeen !== latest;
 
   const markSeen = useCallback(() => {
-    const latest = getLatestWeek();
     if (latest) setLastSeen(latest);
-    setHasNew(false);
-  }, []);
+  }, [latest, setLastSeen]);
 
   return { hasNew, markSeen };
 }

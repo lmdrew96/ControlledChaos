@@ -32,7 +32,7 @@ export function useNotifications() {
 
   // Fetch on mount + poll every 60 seconds
   useEffect(() => {
-    refresh();
+    void refresh();
     const interval = setInterval(refresh, 60_000);
     return () => clearInterval(interval);
   }, [refresh]);
@@ -40,7 +40,7 @@ export function useNotifications() {
   // Refresh immediately when the user returns to this tab
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
+      if (document.visibilityState === "visible") void refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);

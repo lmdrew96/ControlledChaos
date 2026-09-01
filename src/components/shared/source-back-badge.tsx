@@ -32,13 +32,24 @@ export function SourceBackBadge({
   sourceEventId,
   className,
 }: SourceBackBadgeProps) {
-  const [info, setInfo] = useState<Resolved | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Tag the result with the request it belongs to, so switching sources shows
+  // nothing rather than the previous source's badge until the fetch lands.
+  const requestKey = sourceDumpId ?? sourceEventId ?? "";
+  const [resolved, setResolved] = useState<{
+    key: string;
+    info: Resolved | null;
+    failed: boolean;
+  } | null>(null);
+
+  const current = resolved?.key === requestKey ? resolved : null;
+  const info = current?.info ?? null;
+  const loadFailed = current?.failed ?? false;
 
   useEffect(() => {
     let cancelled = false;
-    setInfo(null);
-    setLoadFailed(false);
+    const key = sourceDumpId ?? sourceEventId ?? "";
+    const setInfo = (value: Resolved) => setResolved({ key, info: value, failed: false });
+    const setLoadFailed = (failed: boolean) => setResolved({ key, info: null, failed });
 
     if (sourceDumpId) {
       fetch(`/api/dump/${sourceDumpId}/source-info`)

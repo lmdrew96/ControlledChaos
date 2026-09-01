@@ -1,5 +1,11 @@
 "use client";
 
+/*
+ * `preview` is a base64 data: URL produced by FileReader, never a remote asset.
+ * next/image can't optimize a data URL, so a plain <img> is the correct element.
+ */
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, Loader2, RotateCcw, Send } from "lucide-react";
@@ -147,7 +153,7 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
   }
 
   function handleParse() {
-    parseExtractedText(extractedText, mediaUrl);
+    void parseExtractedText(extractedText, mediaUrl);
   }
 
   function handleReset() {
@@ -162,7 +168,7 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -179,7 +185,7 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   // READY state

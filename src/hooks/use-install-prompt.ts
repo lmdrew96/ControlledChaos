@@ -1,31 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const STANDALONE_QUERY = "(display-mode: standalone)";
+
+const subscribeStandalone = (onChange: () => void) => {
+  const mql = window.matchMedia(STANDALONE_QUERY);
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+};
+
 export function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [installedThisSession, setInstalledThisSession] = useState(false);
+
+  // Running in standalone mode means it's already installed. This is a live
+  // media query rather than a one-shot read, so launching the installed copy
+  // mid-session updates it too.
+  const isStandalone = useSyncExternalStore(
+    subscribeStandalone,
+    () => window.matchMedia(STANDALONE_QUERY).matches,
+    () => false
+  );
+  const isInstalled = isStandalone || installedThisSession;
 
   useEffect(() => {
-    // Check if already installed (standalone mode)
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-      return;
-    }
-
     function handleBeforeInstall(e: Event) {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     }
 
     function handleAppInstalled() {
-      setIsInstalled(true);
+      setInstalledThisSession(true);
       setDeferredPrompt(null);
     }
 

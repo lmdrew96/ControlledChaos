@@ -4,6 +4,22 @@
     "items": [
       {
         "type": "added",
+        "text": "Document the client settings cache convention"
+      },
+      {
+        "type": "added",
+        "text": "Accept string booleans for cc_list_calendar include_planned"
+      },
+      {
+        "type": "added",
+        "text": "Complete the MCP write surface for all three task times"
+      },
+      {
+        "type": "added",
+        "text": "One shared settings cache for timezone and calendar layout"
+      },
+      {
+        "type": "added",
         "text": "Stop the calendar painting a default layout before settings load"
       },
       {

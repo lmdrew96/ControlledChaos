@@ -58,7 +58,7 @@ export function VoiceRecorder({ category, onSaved }: VoiceRecorderProps) {
       !transcribeTriggered.current
     ) {
       transcribeTriggered.current = true;
-      transcribeRecording(audioBlob);
+      void transcribeRecording(audioBlob);
     }
   }, [recorderStatus, audioBlob]); // eslint-disable-line react-hooks/exhaustive-deps
 

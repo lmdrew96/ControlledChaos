@@ -184,7 +184,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   }, []);
 
   useEffect(() => {
-    fetchTasks();
+    void fetchTasks();
   }, [fetchTasks]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -263,7 +263,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
       });
     } catch {
       // Revert on failure
-      fetchTasks();
+      void fetchTasks();
     }
   };
 
@@ -323,7 +323,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
-            fetchTasks();
+            void fetchTasks();
             // Refetch after a short delay to pick up the AI-generated note
             setTimeout(fetchTasks, 3000);
           }}

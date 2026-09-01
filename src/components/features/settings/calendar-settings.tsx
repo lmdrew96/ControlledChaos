@@ -124,7 +124,7 @@ export function CalendarSettings() {
         setIsLoading(false);
       }
     }
-    load();
+    void load();
   }, []);
 
   // Load the iCal export URL on mount

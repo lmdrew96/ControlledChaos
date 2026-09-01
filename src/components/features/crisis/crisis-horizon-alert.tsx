@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+
 import { Clock, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
+import { useStoredFlag } from "@/hooks/use-stored-preference";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 const STORAGE_PREFIX = "cc-crisis-horizon-dismissed:";
 
@@ -51,20 +53,15 @@ export function CrisisHorizonAlert({
   onBuildPlan,
   onDismiss,
 }: CrisisHorizonAlertProps) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = dismissalKey(detectionId, involvedTaskNames, firstDeadline);
-    setVisible(!localStorage.getItem(key));
-  }, [detectionId, involvedTaskNames, firstDeadline]);
+  const [dismissed, markDismissed] = useStoredFlag(
+    dismissalKey(detectionId, involvedTaskNames, firstDeadline)
+  );
+  // Hidden until hydration so a previously dismissed alert never flashes back.
+  const mounted = useIsMounted();
+  const visible = mounted && !dismissed;
 
   const dismiss = () => {
-    if (typeof window !== "undefined") {
-      const key = dismissalKey(detectionId, involvedTaskNames, firstDeadline);
-      localStorage.setItem(key, "1");
-    }
-    setVisible(false);
+    markDismissed();
     // localStorage alone is per-device and can't outlive a cleared cache —
     // persist against the detection row when there is one.
     if (detectionId) onDismiss?.();

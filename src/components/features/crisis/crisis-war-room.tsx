@@ -117,7 +117,7 @@ export function CrisisWarRoom({
       onComplete();
     } else {
       // Mini-burst per step — just enough dopamine
-      confetti({
+      void confetti({
         particleCount: 60,
         spread: 80,
         startVelocity: 45,

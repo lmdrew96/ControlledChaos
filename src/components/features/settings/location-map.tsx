@@ -29,55 +29,61 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
     if (!containerRef.current || mapRef.current) return;
 
     // Leaflet must only run client-side
-    import("leaflet").then((L) => {
-      // Fix default icon path broken by webpack/Next.js
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
+    void import("leaflet")
+      .then((L) => {
+        // Fix default icon path broken by webpack/Next.js
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
 
-      const validLocs = locations.filter(
-        (l) => l.latitude && l.longitude
-      );
+        const validLocs = locations.filter((l) => l.latitude && l.longitude);
 
-      // Default center: first pin, or world center
-      const defaultCenter: [number, number] =
-        validLocs.length > 0
-          ? [parseFloat(validLocs[0].latitude!), parseFloat(validLocs[0].longitude!)]
-          : [20, 0];
+        // Default center: first pin, or world center
+        const defaultCenter: [number, number] =
+          validLocs.length > 0
+            ? [
+                parseFloat(validLocs[0].latitude!),
+                parseFloat(validLocs[0].longitude!),
+              ]
+            : [20, 0];
 
-      const map = L.map(containerRef.current!, {
-        center: defaultCenter,
-        zoom: validLocs.length === 0 ? 2 : 14,
-        zoomControl: true,
-        attributionControl: true,
-      });
+        const map = L.map(containerRef.current!, {
+          center: defaultCenter,
+          zoom: validLocs.length === 0 ? 2 : 14,
+          zoomControl: true,
+          attributionControl: true,
+        });
 
-      mapRef.current = map;
+        mapRef.current = map;
 
-      // OSM tiles — free, no API key
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-        className: "osm-tiles",
-      }).addTo(map);
+        // OSM tiles — free, no API key
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+          className: "osm-tiles",
+        }).addTo(map);
 
-      const bounds: [number, number][] = [];
+        const bounds: [number, number][] = [];
 
-      validLocs.forEach((loc) => {
-        const lat = parseFloat(loc.latitude!);
-        const lng = parseFloat(loc.longitude!);
-        const radius = loc.radiusMeters ?? 200;
+        validLocs.forEach((loc) => {
+          const lat = parseFloat(loc.latitude!);
+          const lng = parseFloat(loc.longitude!);
+          const radius = loc.radiusMeters ?? 200;
 
-        bounds.push([lat, lng]);
+          bounds.push([lat, lng]);
 
-        // Custom DivIcon — clean pin matching the app's design language
-        const icon = L.divIcon({
-          className: "",
-          html: `
+          // Custom DivIcon — clean pin matching the app's design language
+          const icon = L.divIcon({
+            className: "",
+            html: `
             <div style="
               display:flex;flex-direction:column;align-items:center;cursor:pointer;
             ">
@@ -100,33 +106,37 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
               ">${loc.name}</span>
             </div>
           `,
-          iconSize: [20, 36],
-          iconAnchor: [10, 20],
-          popupAnchor: [0, -22],
+            iconSize: [20, 36],
+            iconAnchor: [10, 20],
+            popupAnchor: [0, -22],
+          });
+
+          const marker = L.marker([lat, lng], { icon }).addTo(map);
+          marker.on("click", () => onSelect(loc));
+
+          // Radius circle
+          L.circle([lat, lng], {
+            radius,
+            color: "hsl(221,83%,54%)",
+            fillColor: "hsl(221,83%,54%)",
+            fillOpacity: 0.08,
+            weight: 1.5,
+          }).addTo(map);
         });
 
-        const marker = L.marker([lat, lng], { icon }).addTo(map);
-        marker.on("click", () => onSelect(loc));
-
-        // Radius circle
-        L.circle([lat, lng], {
-          radius,
-          color: "hsl(221,83%,54%)",
-          fillColor: "hsl(221,83%,54%)",
-          fillOpacity: 0.08,
-          weight: 1.5,
-        }).addTo(map);
-      });
-
-      // Fit map to all pins
-      if (bounds.length > 0) {
-        if (bounds.length === 1) {
-          map.setView(bounds[0], 15);
-        } else {
-          map.fitBounds(bounds, { padding: [40, 40] });
+        // Fit map to all pins
+        if (bounds.length > 0) {
+          if (bounds.length === 1) {
+            map.setView(bounds[0], 15);
+          } else {
+            map.fitBounds(bounds, { padding: [40, 40] });
+          }
         }
-      }
-    });
+      })
+      .catch((error) => {
+        // A failed chunk load (stale deploy, offline) would otherwise leave a blank box
+        console.error("Failed to load Leaflet:", error);
+      });
 
     return () => {
       if (mapRef.current) {

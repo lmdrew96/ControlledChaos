@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { getHourInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { Squiggle } from "@/components/ui/squiggle";
 
 function getGreeting(hour: number): { text: string; emoji: string } {
@@ -15,11 +15,10 @@ function getGreeting(hour: number): { text: string; emoji: string } {
 
 export function Greeting() {
   const timezone = useTimezone();
-  const [hour, setHour] = useState<number | null>(null);
-
-  useEffect(() => {
-    setHour(getHourInTimezone(new Date(), timezone));
-  }, [timezone]);
+  // The greeting depends on the viewer's local clock, so it can only be
+  // resolved after hydration — the server has no idea what time it is for them.
+  const mounted = useIsMounted();
+  const hour = mounted ? getHourInTimezone(new Date(), timezone) : null;
 
   if (hour === null) {
     return (

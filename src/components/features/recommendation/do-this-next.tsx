@@ -42,17 +42,17 @@ export function DoThisNext() {
     // otherwise the useEffect below will re-fetch once coords arrive
     requestLocation();
     if (latitude != null && longitude != null) {
-      fetchRecommendation({ latitude, longitude, energyOverride });
+      void fetchRecommendation({ latitude, longitude, energyOverride });
     } else {
       // No location yet — fetch without it; re-fetch triggers when location arrives
-      fetchRecommendation({ energyOverride });
+      void fetchRecommendation({ energyOverride });
     }
   }, [fetchRecommendation, latitude, longitude, energyOverride, requestLocation]);
 
   // Re-fetch when location arrives (only if user already requested)
   useEffect(() => {
     if (latitude != null && longitude != null && hasFetched.current) {
-      fetchRecommendation({
+      void fetchRecommendation({
         latitude,
         longitude,
         energyOverride,
@@ -77,7 +77,7 @@ export function DoThisNext() {
     (level: EnergyLevel) => {
       setEnergyOverride(level);
       setEnergyDismissed(true);
-      refresh(level);
+      void refresh(level);
     },
     [refresh]
   );

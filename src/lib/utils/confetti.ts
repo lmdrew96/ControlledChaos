@@ -34,13 +34,15 @@ export function fireTaskConfetti() {
 
   // "subtle" or OS reduced-motion — single gentle burst
   if (level === "subtle" || prefersReducedMotion()) {
-    confetti({ colors: COLORS, zIndex: 9999, particleCount: 30, spread: 60, startVelocity: 20, origin: { x: 0.5, y: 0.6 } });
+    void confetti({ colors: COLORS, zIndex: 9999, particleCount: 30, spread: 60, startVelocity: 20, origin: { x: 0.5, y: 0.6 } });
     return;
   }
 
   // "full" — the full detonation
-  const fire = (opts: confetti.Options) =>
-    confetti({ colors: COLORS, zIndex: 9999, ...opts });
+  // Fire-and-forget: canvas-confetti resolves when the animation ends, which we never await.
+  const fire = (opts: confetti.Options) => {
+    void confetti({ colors: COLORS, zIndex: 9999, ...opts });
+  };
 
   // Wave 1 (0ms) — massive center explosion
   fire({ particleCount: 250, spread: 130, startVelocity: 60, origin: { x: 0.5, y: 0.6 } });

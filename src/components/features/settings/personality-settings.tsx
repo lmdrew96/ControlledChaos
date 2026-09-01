@@ -130,7 +130,7 @@ export function PersonalitySettings() {
         setIsLoading(false);
       }
     }
-    load();
+    void load();
   }, []);
 
   async function handleSave() {

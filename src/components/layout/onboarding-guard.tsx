@@ -9,11 +9,9 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    // Skip check on the onboarding page itself
-    if (pathname === "/onboarding") {
-      setChecked(true);
-      return;
-    }
+    // Skip the check on the onboarding page itself — the render below already
+    // lets that route through regardless of `checked`.
+    if (pathname === "/onboarding") return;
 
     let cancelled = false;
 
@@ -36,7 +34,7 @@ export function OnboardingGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    checkOnboarding();
+    void checkOnboarding();
 
     return () => {
       cancelled = true;

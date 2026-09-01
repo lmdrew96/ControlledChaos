@@ -144,7 +144,7 @@ export function TaskDetailModal({
     if (isLast) {
       fireTaskConfetti();
     } else {
-      confetti({
+      void confetti({
         particleCount: 60,
         spread: 80,
         startVelocity: 45,

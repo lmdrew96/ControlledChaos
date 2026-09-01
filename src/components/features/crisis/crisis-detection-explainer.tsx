@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useStoredFlag } from "@/hooks/use-stored-preference";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 const STORAGE_KEY = "cc-crisis-explainer-seen";
 
@@ -12,19 +13,11 @@ interface CrisisDetectionExplainerProps {
 }
 
 export function CrisisDetectionExplainer({ taskNames }: CrisisDetectionExplainerProps) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setVisible(true);
-    }
-  }, []);
-
-  const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, "1");
-    setVisible(false);
-  };
+  const [dismissed, dismiss] = useStoredFlag(STORAGE_KEY);
+  // Stay hidden until hydration — otherwise someone who already dismissed this
+  // gets a flash of it on every page load.
+  const mounted = useIsMounted();
+  const visible = mounted && !dismissed;
 
   return (
     <AnimatePresence>

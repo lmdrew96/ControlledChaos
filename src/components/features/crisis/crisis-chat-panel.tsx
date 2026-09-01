@@ -55,7 +55,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
 
   const handleOpen = useCallback(() => {
     setIsOpen(true);
-    loadMessages();
+    void loadMessages();
   }, [loadMessages]);
 
   const sendMessage = useCallback(
@@ -105,7 +105,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      sendMessage(input);
+      void sendMessage(input);
     },
     [input, sendMessage]
   );
@@ -114,7 +114,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        sendMessage(input);
+        void sendMessage(input);
       }
     },
     [input, sendMessage]
@@ -123,7 +123,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
   // Quick question buttons
   const handleQuickQuestion = useCallback(
     (question: string) => {
-      sendMessage(question);
+      void sendMessage(question);
     },
     [sendMessage]
   );

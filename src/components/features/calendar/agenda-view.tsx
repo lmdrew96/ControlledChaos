@@ -165,7 +165,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   }, [weekStart]);
 
   useEffect(() => {
-    fetchEvents(weekStart, weekEnd);
+    void fetchEvents(weekStart, weekEnd);
   }, [weekStart, weekEnd, fetchEvents]);
 
   const planByDay = useMemo(() => {

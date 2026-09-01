@@ -324,7 +324,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
   // Fetch events when week changes
   useEffect(() => {
-    fetchEvents(weekStart, weekEnd);
+    void fetchEvents(weekStart, weekEnd);
   }, [weekStart, weekEnd, fetchEvents]);
 
   // Group events by day (using stored timezone for correct day assignment)
@@ -366,7 +366,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       }
     }
     return map;
-  }, [timedEvents, weekDays]);
+  }, [timedEvents, weekDays, timezone]);
 
   const planByDay = useMemo(() => {
     const map = new Map<string, PlanBlock[]>();
@@ -563,7 +563,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         height: pos.height,
       });
     },
-    [dragEvent, startHour, endHour]
+    [dragEvent, startHour, endHour, timezone]
   );
 
   const handleDragEnd = useCallback(

@@ -49,7 +49,7 @@ export function MomentsQuickLogFab() {
                 key={type}
                 type={type}
                 onTap={() => {
-                  logging.logQuick(type);
+                  void logging.logQuick(type);
                   setOpen(false);
                 }}
                 onLongPress={() => {

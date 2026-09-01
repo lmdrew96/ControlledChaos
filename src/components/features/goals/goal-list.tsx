@@ -33,7 +33,7 @@ export function GoalList() {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchGoals();
+    void fetchGoals();
   }, [fetchGoals]);
 
   if (isLoading) {

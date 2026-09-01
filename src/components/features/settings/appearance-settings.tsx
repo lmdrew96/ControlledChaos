@@ -1,10 +1,11 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import { Sun, Moon, Monitor, PartyPopper, BarChart3, Rows3, Rows4 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CelebrationLevel } from "@/types";
+import { useIsMounted } from "@/hooks/use-is-mounted";
+import { useStoredPreference } from "@/hooks/use-stored-preference";
 
 const themeOptions = [
   { value: "light", label: "Light", icon: Sun },
@@ -45,35 +46,19 @@ const densityOptions: Array<{
 
 export function AppearanceSettings() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [celebrationLevel, setCelebrationLevel] = useState<CelebrationLevel>("full");
-  const [momentumStyle, setMomentumStyle] = useState<"motivational" | "neutral">("neutral");
-  const [density, setDensity] = useState<Density>("relaxed");
-
-  useEffect(() => {
-    setMounted(true);
-    // Read from localStorage (synced from settings save)
-    const stored = localStorage.getItem("cc-celebration-level") as CelebrationLevel | null;
-    if (stored) setCelebrationLevel(stored);
-    const storedMomentum = localStorage.getItem("cc-momentum-style") as "motivational" | "neutral" | null;
-    if (storedMomentum) setMomentumStyle(storedMomentum);
-    const storedDensity = localStorage.getItem("cc-density") as Density | null;
-    if (storedDensity) setDensity(storedDensity);
-  }, []);
-
-  function updateCelebration(level: CelebrationLevel) {
-    setCelebrationLevel(level);
-    localStorage.setItem("cc-celebration-level", level);
-  }
-
-  function updateMomentum(style: "motivational" | "neutral") {
-    setMomentumStyle(style);
-    localStorage.setItem("cc-momentum-style", style);
-  }
+  const mounted = useIsMounted();
+  const [celebrationLevel, updateCelebration] = useStoredPreference<CelebrationLevel>(
+    "cc-celebration-level",
+    "full"
+  );
+  const [momentumStyle, updateMomentum] = useStoredPreference<"motivational" | "neutral">(
+    "cc-momentum-style",
+    "neutral"
+  );
+  const [density, setDensity] = useStoredPreference<Density>("cc-density", "relaxed");
 
   function updateDensity(d: Density) {
     setDensity(d);
-    localStorage.setItem("cc-density", d);
     // Apply/remove the class on the document element so CSS can respond globally
     document.documentElement.classList.toggle("density-compact", d === "compact");
   }

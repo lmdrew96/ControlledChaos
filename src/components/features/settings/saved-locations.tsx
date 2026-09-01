@@ -76,7 +76,7 @@ export function SavedLocations() {
   }, []);
 
   useEffect(() => {
-    fetchLocations();
+    void fetchLocations();
   }, [fetchLocations]);
 
   function resetForm() {
@@ -179,7 +179,7 @@ export function SavedLocations() {
       toast.success(editingId ? "Location updated!" : "Location added!");
       setDialogOpen(false);
       resetForm();
-      fetchLocations();
+      void fetchLocations();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to save location"
@@ -196,7 +196,7 @@ export function SavedLocations() {
       if (!res.ok) throw new Error("Failed to delete");
 
       toast.success("Location removed");
-      fetchLocations();
+      void fetchLocations();
     } catch {
       toast.error("Failed to delete location");
     } finally {

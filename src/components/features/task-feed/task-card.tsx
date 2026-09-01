@@ -349,7 +349,7 @@ export function TaskCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              handleAction(isCompleted ? "undo" : "complete");
+              void handleAction(isCompleted ? "undo" : "complete");
             }}
             disabled={isUpdating}
             aria-label={isCompleted ? `Mark "${task.title}" incomplete` : `Complete "${task.title}"`}

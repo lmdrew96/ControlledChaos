@@ -91,7 +91,7 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
     start.setDate(start.getDate() - 1);
     const end = new Date(gridEnd);
     end.setDate(end.getDate() + 1);
-    fetchEvents(start, end);
+    void fetchEvents(start, end);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth]);
 

@@ -117,7 +117,7 @@ export function TimeAnchor() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   function toggleCollapsed() {

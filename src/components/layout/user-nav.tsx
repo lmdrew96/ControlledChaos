@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { User, Sun, Moon, Sparkles } from "lucide-react";
@@ -8,15 +8,14 @@ import {
   WhatsNewDialog,
   useHasNewChangelog,
 } from "@/components/features/changelog/whats-new-dialog";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export function UserNav() {
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const { resolvedTheme, setTheme } = useTheme();
   const { hasNew, markSeen } = useHasNewChangelog();
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsMounted();
 
   if (!hasClerk) {
     return (

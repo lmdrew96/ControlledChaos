@@ -9,18 +9,23 @@ import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
 import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
 import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export default function DashboardPage() {
-  const [momentumExpanded, setMomentumExpanded] = useState(false);
+  // Old /momentum bookmarks/links redirect here with this hash — start expanded
+  // instead of leaving the visitor at a collapsed header. Gated on hydration
+  // because the server can't see the fragment.
+  const mounted = useIsMounted();
+  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null);
+  const momentumExpanded =
+    expandedOverride ?? (mounted && window.location.hash === "#momentum-panel");
+  const setMomentumExpanded = setExpandedOverride;
   // Bumped after a plan is committed; used as a key so TimeAnchor and the task
   // feed re-read rather than showing yesterday's picture of today.
   const [planVersion, setPlanVersion] = useState(0);
 
-  // Old /momentum bookmarks/links redirect here with this hash — auto-expand
-  // and scroll to it instead of leaving the visitor at a collapsed header.
   useEffect(() => {
     if (window.location.hash !== "#momentum-panel") return;
-    setMomentumExpanded(true);
     document
       .getElementById("momentum-panel")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });

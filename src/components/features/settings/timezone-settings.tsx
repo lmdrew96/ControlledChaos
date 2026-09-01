@@ -127,7 +127,7 @@ export function TimezoneSettings() {
         setIsLoading(false);
       }
     }
-    load();
+    void load();
   }, []);
 
   async function handleSave() {

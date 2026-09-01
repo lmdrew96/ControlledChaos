@@ -82,7 +82,7 @@ export function DumpInput({ category, onSaved }: DumpInputProps) {
     // Cmd/Ctrl + Enter to submit
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      handleSubmit();
+      void handleSubmit();
     }
   }
 

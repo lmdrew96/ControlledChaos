@@ -78,7 +78,7 @@ export function CommuteTimes() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   const getMinutes = (fromId: string, toId: string): number | "" => {
