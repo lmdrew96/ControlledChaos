@@ -65,6 +65,12 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - Re-synced every 15 min via `/api/cron/calendar-sync`
 - **No Google Calendar integration** — do not add `googleapis` or GCal OAuth without explicit request
 
+### Client Settings
+- All client-side reads of `/api/settings` go through `src/lib/settings-cache.ts` — one shared fetch behind `useTimezone()` and `useCalendarSettings()`
+- **Any new settings save must call `invalidateSettings()`**, or the rest of the session keeps serving pre-save values until a full reload
+- **Anything whose LAYOUT depends on a setting must gate on `useCalendarSettings().isLoaded`** rather than rendering from defaults and correcting. The calendar used to paint a default grid and rebuild it, which read as "a different calendar loaded" (fixed v2.33.1)
+- Note `/api/settings` resolves `calendarStartHour` as `calendarStartHour ?? wakeTime ?? 7` — the AI scheduling window and the calendar's visual range are coupled, so a change to one can move the other
+
 ### Changelog
 - Auto-generated at build time via `scripts/generate-changelog.ts`
 - `prebuild` script runs it automatically
