@@ -5,6 +5,20 @@ import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, for
 import { expandRecurrence } from "./expand-recurrence.js";
 
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
+/**
+ * Normalize an optional, nullable datetime param for the update field maps.
+ *
+ * Returns `undefined` when the caller omitted the field (leave the column
+ * alone) and `null` when the caller explicitly passed null or "" (write SQL
+ * NULL). The two cases have to stay distinguishable, or a time can be set but
+ * never cleared.
+ */
+function timeField(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return new Date(value).toISOString();
+}
+
 function todayInTz(tz: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
@@ -118,6 +132,7 @@ Args:
   - category: school, work, personal, errands, or health.
   - deadline: HARD wall, imposed from outside (an instructor, an employer, Canvas). ISO 8601 UTC.
   - target_date: SOFT target the user set for THEMSELVES, usually to leave buffer. ISO 8601 UTC.
+  - scheduled_for: When the user plans to START working on it. A "when", not a "by when". ISO 8601 UTC.
   - location_tags: Array of location tags like ["home", "campus"].
 
 ## deadline vs target_date — pick deliberately
@@ -128,6 +143,8 @@ These are independent: either, both, or neither may be set. Never derive one fro
 - Use **target_date** when the user chose the date for themselves ("I want this done by Wednesday even though it's due Friday"). Missing it has NO external consequence and it is theirs to move.
 - If the user says a date is self-imposed, believe them and use target_date.
 - If you are unsure which one a date is, ASK. Filing a self-imposed date as a deadline manufactures urgency the user never agreed to — that is the exact failure this field exists to prevent.
+
+**scheduled_for** is a third, independent thing: the block of time the user intends to sit down and work. Use it when planning a schedule ("work on this Tuesday at 2"). It is never a due date, and setting it does not imply anything is due.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -141,6 +158,7 @@ Returns: The created task with its ID.`,
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
         deadline: z.string().optional().describe("HARD deadline imposed from outside, as an ISO 8601 UTC string (e.g. 2026-04-11T18:00:00Z). Not for self-imposed dates."),
         target_date: z.string().optional().describe("SOFT self-imposed target, as an ISO 8601 UTC string. Missing it has no external consequence."),
+        scheduled_for: z.string().optional().describe("When the user plans to START working, as an ISO 8601 UTC string. A planned start, never a due date."),
         location_tags: z.array(z.string()).optional().describe("Location tags"),
       },
       annotations: {
@@ -154,8 +172,8 @@ Returns: The created task with its ID.`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, location_tags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           userId,
@@ -167,6 +185,7 @@ Returns: The created task with its ID.`,
           params.category ?? null,
           params.deadline ? new Date(params.deadline).toISOString() : null,
           params.target_date ? new Date(params.target_date).toISOString() : null,
+          params.scheduled_for ? new Date(params.scheduled_for).toISOString() : null,
           params.location_tags?.length ? JSON.stringify(params.location_tags) : null,
         ]
       );
@@ -200,6 +219,8 @@ They mean different things and are never interchangeable:
 
 Never describe a target_date as "due", and never apply deadline urgency to one. Moving a user's self-imposed target is a normal edit; moving a deadline usually means the user is telling you the stored data is wrong.
 
+To CLEAR any of the three, pass null (not an empty string, not a zero date). Clearing scheduled_for takes the task off the calendar without touching when it is due. Clearing deadline says nothing external is driving the task any more. Omit a field entirely to leave it alone.
+
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
 Returns: The updated task.`,
@@ -212,9 +233,9 @@ Returns: The updated task.`,
         energy_level: z.enum(["low", "medium", "high"]).optional().describe("New energy level"),
         estimated_minutes: z.number().int().min(1).max(480).optional().describe("New estimate"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
-        deadline: z.string().optional().describe("New HARD deadline, imposed from outside (ISO 8601 UTC)"),
-        target_date: z.string().optional().describe("New SOFT self-imposed target (ISO 8601 UTC)"),
-        scheduled_for: z.string().optional().describe("When the user plans to START — not a due date (ISO 8601 UTC)"),
+        deadline: z.string().nullable().optional().describe("New HARD deadline, imposed from outside (ISO 8601 UTC). Pass null to clear it."),
+        target_date: z.string().nullable().optional().describe("New SOFT self-imposed target (ISO 8601 UTC). Pass null to clear it."),
+        scheduled_for: z.string().nullable().optional().describe("When the user plans to START — not a due date (ISO 8601 UTC). Pass null to take the task off the schedule."),
         location_tags: z.array(z.string()).optional().describe("New location tags"),
       },
       annotations: {
@@ -239,9 +260,12 @@ Returns: The updated task.`,
         ["energy_level", "energy_level", params.energy_level],
         ["estimated_minutes", "estimated_minutes", params.estimated_minutes],
         ["category", "category", params.category],
-        ["deadline", "deadline", params.deadline ? new Date(params.deadline).toISOString() : undefined],
-        ["target_date", "target_date", params.target_date ? new Date(params.target_date).toISOString() : undefined],
-        ["scheduled_for", "scheduled_for", params.scheduled_for ? new Date(params.scheduled_for).toISOString() : undefined],
+        // timeField distinguishes "not provided" (skip) from an explicit null
+        // (write SQL NULL). The old `x ? ... : undefined` collapsed both, so a
+        // time could be set but never unset.
+        ["deadline", "deadline", timeField(params.deadline)],
+        ["target_date", "target_date", timeField(params.target_date)],
+        ["scheduled_for", "scheduled_for", timeField(params.scheduled_for)],
         ["location_tags", "location_tags", params.location_tags ? JSON.stringify(params.location_tags) : undefined],
       ];
 
@@ -407,20 +431,24 @@ Returns: Confirmation with the dump ID.`,
       title: "List Calendar Events",
       description: `List calendar events from ControlledChaos within a date range.
 
+Also returns PLANNED WORK BLOCKS — tasks whose scheduled_for falls in the range. Those are intentions, not commitments: the user meant to start that task then. They still occupy real time, so read them before planning anything new or you will double-book the user against their own plan.
+
 Args:
   - start_date (required): Start of range (ISO 8601 in UTC, e.g. "2026-03-21T04:00:00Z" for midnight ET).
   - end_date (required): End of range (ISO 8601 in UTC).
-  - source: Filter by source (canvas, google, controlledchaos).
-  - category: Filter by category (school, work, personal, errands, health).
+  - source: Filter by source (canvas, google, controlledchaos). Also excludes planned work blocks, which have no source.
+  - category: Filter by category (school, work, personal, errands, health). Applies to both events and planned blocks.
+  - include_planned: Set false to get calendar events only. Defaults to true.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
-Returns: Markdown-formatted list of events with times displayed in the user's timezone.`,
+Returns: Markdown list of events, then a Planned Work section, with times in the user's timezone.`,
       inputSchema: {
         start_date: z.string().describe("Start date (ISO 8601 UTC, e.g. 2026-03-21T04:00:00Z)"),
         end_date: z.string().describe("End date (ISO 8601 UTC)"),
         source: z.enum(["canvas", "google", "controlledchaos"]).optional().describe("Filter by event source"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Filter by category"),
+        include_planned: z.boolean().optional().describe("Include planned work blocks (tasks with a scheduled_for in range). Default true."),
       },
       annotations: {
         readOnlyHint: true,
@@ -451,13 +479,69 @@ Returns: Markdown-formatted list of events with times displayed in the user's ti
       const query = `SELECT * FROM calendar_events WHERE ${conditions.join(" AND ")} ORDER BY start_time`;
       const rows = await sql(query, values);
 
-      if (rows.length === 0) {
-        return { content: [{ type: "text" as const, text: "No calendar events found in that range." }] };
+      // Planned work blocks. A scheduling model that can write scheduled_for
+      // but can't read it back will happily plan two things into one slot —
+      // which is exactly the overlap users end up staring at.
+      let planned: Record<string, unknown>[] = [];
+      if (params.include_planned !== false && !params.source) {
+        const planValues: unknown[] = [
+          userId,
+          new Date(params.start_date).toISOString(),
+          new Date(params.end_date).toISOString(),
+        ];
+        let planCategory = "";
+        if (params.category) {
+          planValues.push(params.category);
+          planCategory = ` AND category = $4`;
+        }
+        planned = await sql(
+          `SELECT id, title, scheduled_for, estimated_minutes, status, category, deadline, target_date
+           FROM tasks
+           WHERE user_id = $1
+             AND deleted_at IS NULL
+             AND status IN ('pending', 'in_progress')
+             AND scheduled_for IS NOT NULL
+             AND scheduled_for >= $2
+             AND scheduled_for <= $3${planCategory}
+           ORDER BY scheduled_for`,
+          planValues
+        );
       }
 
-      const text = `## Calendar Events (${rows.length} found)\n\n` +
-        rows.map((r, i) => `### ${i + 1}. ${formatEvent(r, tz)}`).join("\n\n---\n\n");
-      return { content: [{ type: "text" as const, text }] };
+      if (rows.length === 0 && planned.length === 0) {
+        return { content: [{ type: "text" as const, text: "No calendar events or planned work in that range." }] };
+      }
+
+      const sections: string[] = [];
+
+      if (rows.length > 0) {
+        sections.push(
+          `## Calendar Events (${rows.length} found)\n\n` +
+            rows.map((r, i) => `### ${i + 1}. ${formatEvent(r, tz)}`).join("\n\n---\n\n")
+        );
+      }
+
+      if (planned.length > 0) {
+        sections.push(
+          `## Planned Work (${planned.length} found)\n` +
+            `_Task blocks the user planned to start. Intentions, not commitments — but they occupy the time._\n\n` +
+            planned
+              .map((t) => {
+                const mins = (t.estimated_minutes as number | null) ?? null;
+                const bits = [
+                  `- **${t.title}** — ${fmtLocal(t.scheduled_for, tz)}`,
+                  mins ? ` (${mins} min)` : "",
+                  `\n  Task ID: \`${t.id}\` · status: ${t.status}`,
+                  t.deadline ? `\n  Deadline (HARD): ${fmtLocal(t.deadline, tz)}` : "",
+                  t.target_date ? `\n  Target (SOFT): ${fmtLocal(t.target_date, tz)}` : "",
+                ];
+                return bits.join("");
+              })
+              .join("\n\n")
+        );
+      }
+
+      return { content: [{ type: "text" as const, text: sections.join("\n\n") }] };
     }
   );
 
@@ -762,7 +846,7 @@ Args:
   - goal_id (required): UUID of the goal to update.
   - title: New title.
   - description: New description.
-  - target_date: New target date (ISO 8601 UTC).
+  - target_date: New target date (ISO 8601 UTC). Pass null to clear it.
   - status: New status (active, completed, paused).
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
@@ -772,7 +856,7 @@ Returns: The updated goal.`,
         goal_id: z.string().uuid().describe("Goal ID to update"),
         title: z.string().min(1).max(500).optional().describe("New title"),
         description: z.string().max(2000).optional().describe("New description"),
-        target_date: z.string().optional().describe("New target date (ISO 8601 UTC)"),
+        target_date: z.string().nullable().optional().describe("New target date (ISO 8601 UTC). Pass null to clear it."),
         status: z.enum(["active", "completed", "paused"]).optional().describe("New status"),
       },
       annotations: {
@@ -792,7 +876,7 @@ Returns: The updated goal.`,
       const fields: Array<[string, unknown]> = [
         ["title", params.title],
         ["description", params.description],
-        ["target_date", params.target_date ? new Date(params.target_date).toISOString() : undefined],
+        ["target_date", timeField(params.target_date)],
         ["status", params.status],
       ];
 
