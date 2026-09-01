@@ -4,6 +4,7 @@ import { updateTask, deleteTask, logTaskActivity } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { parseTaskUpdate } from "@/lib/db/task-update-fields";
 
 export async function PATCH(
   request: Request,
@@ -16,7 +17,15 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
+
+    // Parse through an explicit allowlist before anything touches the DB —
+    // the raw body used to reach .set() directly, which made deletedAt and the
+    // Canvas origin pointers client-writable.
+    const parsed = parseTaskUpdate(await request.json());
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const body = parsed.data;
 
     // Handle completion — set completedAt timestamp
     if (body.status === "completed" && !body.completedAt) {
@@ -46,16 +55,8 @@ export async function PATCH(
       }
     }
 
-    // Convert deadline string to Date (or null) for Drizzle
-    if (body.deadline !== undefined) {
-      body.deadline = body.deadline ? new Date(body.deadline) : null;
-    }
-
-    // Same for the soft target date
-    if (body.targetDate !== undefined) {
-      body.targetDate = body.targetDate ? new Date(body.targetDate) : null;
-    }
-
+    // deadline / targetDate / scheduledFor already arrive as Dates — the
+    // allowlist parser coerces them.
     const updated = await updateTask(id, userId, body);
 
     if (!updated) {
