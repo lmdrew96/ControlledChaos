@@ -69,8 +69,19 @@ export function formatTask(task: Record<string, unknown>, tz?: string): string {
   if (task.description) parts.push(`Description: ${task.description}`);
   if (task.category) parts.push(`Category: ${task.category}`);
   if (task.estimated_minutes) parts.push(`Estimated: ${task.estimated_minutes} min`);
-  if (task.deadline) parts.push(`Deadline: ${fmtLocal(task.deadline, tz)}`);
-  if (task.scheduled_for) parts.push(`Scheduled: ${fmtLocal(task.scheduled_for, tz)}`);
+  // The three times are labelled distinctly on purpose. A calling model that
+  // can't tell a hard wall from a self-imposed buffer will speak about both
+  // with deadline urgency, which is the failure the target_date field exists
+  // to prevent.
+  if (task.deadline) {
+    parts.push(`Deadline (HARD — externally imposed): ${fmtLocal(task.deadline, tz)}`);
+  }
+  if (task.target_date) {
+    parts.push(`Target (SOFT — self-imposed, never "due"): ${fmtLocal(task.target_date, tz)}`);
+  }
+  if (task.scheduled_for) {
+    parts.push(`Planned start (not a due date): ${fmtLocal(task.scheduled_for, tz)}`);
+  }
   if (task.location_tags) {
     try {
       const tags = Array.isArray(task.location_tags)

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone } from "./db.js";
-import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal } from "./helpers.js";
 import { expandRecurrence } from "./expand-recurrence.js";
 
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
@@ -116,8 +116,18 @@ Args:
   - energy_level: low, medium (default), or high.
   - estimated_minutes: Estimated time in minutes.
   - category: school, work, personal, errands, or health.
-  - deadline: ISO 8601 date/datetime string in UTC (append Z or +00:00).
+  - deadline: HARD wall, imposed from outside (an instructor, an employer, Canvas). ISO 8601 UTC.
+  - target_date: SOFT target the user set for THEMSELVES, usually to leave buffer. ISO 8601 UTC.
   - location_tags: Array of location tags like ["home", "campus"].
+
+## deadline vs target_date — pick deliberately
+
+These are independent: either, both, or neither may be set. Never derive one from the other.
+
+- Use **deadline** ONLY when something outside the user imposes the date and missing it has real external consequences.
+- Use **target_date** when the user chose the date for themselves ("I want this done by Wednesday even though it's due Friday"). Missing it has NO external consequence and it is theirs to move.
+- If the user says a date is self-imposed, believe them and use target_date.
+- If you are unsure which one a date is, ASK. Filing a self-imposed date as a deadline manufactures urgency the user never agreed to — that is the exact failure this field exists to prevent.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -129,7 +139,8 @@ Returns: The created task with its ID.`,
         energy_level: z.enum(["low", "medium", "high"]).default("medium").describe("Energy required"),
         estimated_minutes: z.number().int().min(1).max(480).optional().describe("Estimated minutes"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
-        deadline: z.string().optional().describe("Deadline as ISO 8601 UTC string (e.g. 2026-04-11T18:00:00Z)"),
+        deadline: z.string().optional().describe("HARD deadline imposed from outside, as an ISO 8601 UTC string (e.g. 2026-04-11T18:00:00Z). Not for self-imposed dates."),
+        target_date: z.string().optional().describe("SOFT self-imposed target, as an ISO 8601 UTC string. Missing it has no external consequence."),
         location_tags: z.array(z.string()).optional().describe("Location tags"),
       },
       annotations: {
@@ -143,8 +154,8 @@ Returns: The created task with its ID.`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, location_tags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, location_tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           userId,
@@ -155,6 +166,7 @@ Returns: The created task with its ID.`,
           params.estimated_minutes ?? null,
           params.category ?? null,
           params.deadline ? new Date(params.deadline).toISOString() : null,
+          params.target_date ? new Date(params.target_date).toISOString() : null,
           params.location_tags?.length ? JSON.stringify(params.location_tags) : null,
         ]
       );
@@ -176,7 +188,17 @@ Returns: The created task with its ID.`,
 
 Args:
   - task_id (required): UUID of the task to update.
-  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, scheduled_for, location_tags: Fields to update.
+  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags: Fields to update.
+
+## The three times a task can carry
+
+They mean different things and are never interchangeable:
+
+- **deadline** — a HARD wall imposed by the outside world. Missing it has real consequences; neither you nor the user can move it.
+- **target_date** — a SOFT target the user set for THEMSELVES. Missing it has no external consequence and moving it is a legitimate choice, not a failure.
+- **scheduled_for** — when the user planned to START working. It is not a due date of any kind.
+
+Never describe a target_date as "due", and never apply deadline urgency to one. Moving a user's self-imposed target is a normal edit; moving a deadline usually means the user is telling you the stored data is wrong.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -190,8 +212,9 @@ Returns: The updated task.`,
         energy_level: z.enum(["low", "medium", "high"]).optional().describe("New energy level"),
         estimated_minutes: z.number().int().min(1).max(480).optional().describe("New estimate"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
-        deadline: z.string().optional().describe("New deadline (ISO 8601 UTC)"),
-        scheduled_for: z.string().optional().describe("Scheduled datetime (ISO 8601 UTC)"),
+        deadline: z.string().optional().describe("New HARD deadline, imposed from outside (ISO 8601 UTC)"),
+        target_date: z.string().optional().describe("New SOFT self-imposed target (ISO 8601 UTC)"),
+        scheduled_for: z.string().optional().describe("When the user plans to START — not a due date (ISO 8601 UTC)"),
         location_tags: z.array(z.string()).optional().describe("New location tags"),
       },
       annotations: {
@@ -217,6 +240,7 @@ Returns: The updated task.`,
         ["estimated_minutes", "estimated_minutes", params.estimated_minutes],
         ["category", "category", params.category],
         ["deadline", "deadline", params.deadline ? new Date(params.deadline).toISOString() : undefined],
+        ["target_date", "target_date", params.target_date ? new Date(params.target_date).toISOString() : undefined],
         ["scheduled_for", "scheduled_for", params.scheduled_for ? new Date(params.scheduled_for).toISOString() : undefined],
         ["location_tags", "location_tags", params.location_tags ? JSON.stringify(params.location_tags) : undefined],
       ];
@@ -2151,9 +2175,11 @@ Returns: The updated (now inactive) microtask.`,
       description: `Return up to 5 candidate next tasks plus current context (energy, calendar, today's progress) so the calling AI can recommend "what to do right now."
 
 Tasks are ranked by:
-  1. Has a deadline (deadlined tasks first)
+  1. Has a HARD deadline (deadlined tasks first)
   2. Deadline ascending
   3. Priority (urgent > important > normal > someday)
+
+Soft self-imposed targets are shown on each candidate but are deliberately NOT ranked on — a self-imposed date should inform your recommendation, not outrank an external one. Weigh it yourself; don't speak about it as a deadline.
 
 Optional filters narrow the candidate pool before ranking.
 
@@ -2287,9 +2313,13 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
       title: "Get Active Crisis",
       description: `Return the user's active crisis plan if one is in progress, or report none.
 
-A crisis plan is "active" when its completed_at is null. Use this to detect when the user is in damage-control mode on a tight deadline so you can adjust tone, scope, and recommendations accordingly.
+A crisis plan is "active" when it is incomplete AND either its hard deadline is still in the future, or it has no hard deadline and was created in the last 24 hours. This mirrors the app exactly — a plan the app has already dropped will not be reported here.
 
-Returns: Markdown with task name, deadline, panic level, summary, and progress (current step / total). Empty-state when no active crisis.`,
+A rescue plan may have NO hard deadline: the user asked for help getting through something they set for themselves. Such a plan is still real work worth supporting, but it is NOT an external emergency. Do not manufacture deadline urgency for it.
+
+Use this to detect when the user is in damage-control mode so you can adjust tone, scope, and recommendations accordingly.
+
+Returns: Markdown with task name, deadline (or an explicit "no hard deadline"), soft target, panic level, summary, and progress (current step / total). Empty-state when no active crisis.`,
       inputSchema: {},
       annotations: {
         readOnlyHint: true,
@@ -2302,10 +2332,18 @@ Returns: Markdown with task name, deadline, panic level, summary, and progress (
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `SELECT id, task_name, deadline, panic_level, panic_label, summary,
+        // Mirrors activePlanCondition() in src/lib/db/queries/crisis.ts. The
+        // 24h bound exists so a deadline-less plan doesn't stay "active"
+        // forever; without it this tool reported plans the app had dropped.
+        `SELECT id, task_name, deadline, target_date, panic_level, panic_label, summary,
                 tasks, current_task_index, completion_pct, source, created_at
          FROM crisis_plans
-         WHERE user_id = $1 AND completed_at IS NULL
+         WHERE user_id = $1
+           AND completed_at IS NULL
+           AND (
+             deadline > NOW()
+             OR (deadline IS NULL AND created_at > NOW() - INTERVAL '24 hours')
+           )
          ORDER BY created_at DESC
          LIMIT 1`,
         [userId]
@@ -2329,7 +2367,15 @@ Returns: Markdown with task name, deadline, panic level, summary, and progress (
       const lines: string[] = [
         `## Active Crisis: ${c.task_name}`,
         `ID: \`${c.id}\``,
-        `Deadline: ${fmtTimeLocal(c.deadline, tz)}`,
+        // An empty "Deadline: " is worse than useless to a calling model — it
+        // can't tell "none" from "field missing", and guessing in the urgent
+        // direction is the exact behavior the rescue-session fix targeted.
+        c.deadline
+          ? `Deadline (HARD): ${fmtLocal(c.deadline, tz)}`
+          : `Deadline: none — this is self-imposed work, not an external emergency`,
+        ...(c.target_date
+          ? [`Target (SOFT, self-imposed): ${fmtLocal(c.target_date, tz)}`]
+          : []),
         `Panic level: **${c.panic_level}** (${c.panic_label})`,
         `Progress: ${currentIdx}/${totalSteps} steps · ${c.completion_pct ?? 0}% task complete`,
         `Source: ${c.source ?? "manual"}`,
