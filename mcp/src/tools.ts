@@ -448,7 +448,14 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
         end_date: z.string().describe("End date (ISO 8601 UTC)"),
         source: z.enum(["canvas", "google", "controlledchaos"]).optional().describe("Filter by event source"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Filter by category"),
-        include_planned: z.boolean().optional().describe("Include planned work blocks (tasks with a scheduled_for in range). Default true."),
+        // Some MCP clients serialize booleans as strings; a strict z.boolean()
+        // rejects "false" outright. Note z.coerce.boolean() is NOT usable here
+        // — it treats the non-empty string "false" as true.
+        include_planned: z
+          .union([z.boolean(), z.enum(["true", "false"])])
+          .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+          .optional()
+          .describe("Include planned work blocks (tasks with a scheduled_for in range). Default true."),
       },
       annotations: {
         readOnlyHint: true,
