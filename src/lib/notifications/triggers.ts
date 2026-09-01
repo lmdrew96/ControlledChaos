@@ -37,6 +37,16 @@ interface DeadlineReminder {
   sourceEventId: string | null;
 }
 
+/** A gentle heads-up about a SOFT self-imposed target. Never deadline-toned. */
+export interface TargetReminder {
+  taskId: string;
+  taskTitle: string;
+  intervalMinutes: number;
+  targetDate: Date;
+  taskDescription: string | null;
+  sourceEventId: string | null;
+}
+
 export interface EventReminder {
   eventId: string;
   eventTitle: string;
@@ -160,6 +170,51 @@ export async function getDeadlineReminders(
   }
 
   reminders.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  return reminders;
+}
+
+/**
+ * Gentle reminders for SOFT self-imposed targets.
+ *
+ * A target has no external consequence — missing it is a legitimate choice, not
+ * a failure. So this is a separate schedule from deadlines (one heads-up a day
+ * out by default, not the 1440/60/10 ladder) and it never escalates.
+ *
+ * `taskIdsWithFiringDeadline` suppresses a target on a task whose HARD deadline
+ * is already firing in this same tick. Two alerts about one task, one urgent
+ * and one gentle, is contradictory noise — the deadline is the one that matters.
+ */
+export async function getTargetReminders(
+  userId: string,
+  prefs: NotificationPrefs | null | undefined,
+  taskIdsWithFiringDeadline: Set<string> = new Set()
+): Promise<TargetReminder[]> {
+  const intervals = getReminderIntervals(prefs, "target");
+  if (intervals.length === 0) return [];
+
+  const tasks = await getPendingTasks(userId);
+  const now = Date.now();
+  const reminders: TargetReminder[] = [];
+
+  for (const task of tasks) {
+    if (!task.targetDate) continue;
+    if (taskIdsWithFiringDeadline.has(task.id)) continue;
+
+    const diff = new Date(task.targetDate).getTime() - now;
+    const interval = pickIntervalForDiff(diff, intervals);
+    if (interval === null) continue;
+
+    reminders.push({
+      taskId: task.id,
+      taskTitle: task.title,
+      intervalMinutes: interval,
+      targetDate: task.targetDate,
+      taskDescription: task.description ?? null,
+      sourceEventId: task.sourceEventId ?? null,
+    });
+  }
+
+  reminders.sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
   return reminders;
 }
 
@@ -396,6 +451,7 @@ type ClusteredWith = { alsoHappening?: string[] };
 
 export type PushNotificationContext =
   | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number } & ClusteredWith)
+  | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number } & ClusteredWith)
   | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number } & ClusteredWith)
   | ({ type: "scheduled"; taskTitle: string } & ClusteredWith)
   | ({ type: "scheduled_missed"; taskTitle: string } & ClusteredWith)
@@ -424,6 +480,7 @@ export function formatReminderInterval(minutes: number): string {
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_reminder: "Heads up — a deadline is coming up.",
+  target_reminder: "No rush — you'd wanted this one done around now.",
   event_reminder: "Heads up — an event is coming up.",
   scheduled: "You planned this. Past-you had your back.",
   scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",

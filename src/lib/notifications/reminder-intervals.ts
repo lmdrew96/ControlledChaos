@@ -1,11 +1,12 @@
 import {
   DEFAULT_DEADLINE_REMINDER_INTERVALS,
   DEFAULT_EVENT_REMINDER_INTERVALS,
+  DEFAULT_TARGET_REMINDER_INTERVALS,
   type NotificationPrefs,
 } from "@/types";
 
 /** Which kind of reminder a schedule applies to. */
-export type ReminderKind = "deadline" | "event";
+export type ReminderKind = "deadline" | "event" | "target";
 
 /**
  * Pure — no DB, no server deps — so the settings UI and the push cron resolve
@@ -26,7 +27,8 @@ export function sortIntervalsDesc(list: number[]): number[] {
 /**
  * Resolve a user's reminder intervals for one kind of reminder.
  *
- * Deadlines and events are configured separately, but a single shared
+ * Targets resolve from their own list only (see below). Deadlines and events
+ * are configured separately, but a single shared
  * `reminderIntervals` list predates the split, so resolution walks three
  * levels and stops at the first one the user actually set:
  *
@@ -43,6 +45,18 @@ export function getReminderIntervals(
   prefs: Partial<NotificationPrefs> | null | undefined,
   kind: ReminderKind
 ): number[] {
+  if (kind === "target") {
+    // Targets deliberately skip the legacy `reminderIntervals` fallback. That
+    // list predates soft targets, so honouring it here would opt every existing
+    // account into a notification type they never agreed to — and inherit the
+    // deadline ladder while doing it.
+    return sortIntervalsDesc(
+      Array.isArray(prefs?.targetReminderIntervals)
+        ? prefs.targetReminderIntervals
+        : DEFAULT_TARGET_REMINDER_INTERVALS
+    );
+  }
+
   const specific =
     kind === "deadline"
       ? prefs?.deadlineReminderIntervals

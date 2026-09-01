@@ -518,6 +518,7 @@ You'll receive a notification type and context. Write ONE short push notificatio
 ## Types and intent
 - deadline_reminder: Task deadline is approaching. The "Time until deadline" tells you how far out. Scale the urgency to match: many hours out = low-key heads-up; under an hour = warm but direct; under 15 min = short and punchy (1 sentence max).
 - event_reminder: Calendar event is approaching. The "Time until event" tells you how far out. Scale the urgency the same way. This is a simple "event is coming" — not a "you need to leave" alert (that's time_to_leave_*).
+- target_reminder: A SOFT target the user set for THEMSELVES is approaching. This is NOT a deadline and must never sound like one. Missing it has zero external consequence. Do NOT say "due", "deadline", "overdue", or "running out of time". Do NOT create urgency, and never scale up as the time gets closer. Say something like "you'd wanted this done by X" or "your own target for this is coming up — no pressure if it moves." Moving the target is a legitimate choice, not a failure. One calm sentence.
 - scheduled: User planned this themselves — light callback to that.
 - scheduled_missed: Planned start time passed. Direct re-entry cue; offer immediate restart.
 - idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.

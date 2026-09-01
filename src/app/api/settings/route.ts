@@ -125,6 +125,7 @@ export async function PATCH(request: Request) {
         const reminderIntervals = cleanIntervals(prefs.reminderIntervals);
         const deadlineReminderIntervals = cleanIntervals(prefs.deadlineReminderIntervals);
         const eventReminderIntervals = cleanIntervals(prefs.eventReminderIntervals);
+        const targetReminderIntervals = cleanIntervals(prefs.targetReminderIntervals);
 
         data.notificationPrefs = {
           ...prefs,
@@ -136,6 +137,7 @@ export async function PATCH(request: Request) {
           ...(reminderIntervals !== undefined ? { reminderIntervals } : {}),
           ...(deadlineReminderIntervals !== undefined ? { deadlineReminderIntervals } : {}),
           ...(eventReminderIntervals !== undefined ? { eventReminderIntervals } : {}),
+          ...(targetReminderIntervals !== undefined ? { targetReminderIntervals } : {}),
         };
       }
     }

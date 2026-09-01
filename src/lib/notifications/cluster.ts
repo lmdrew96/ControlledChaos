@@ -22,6 +22,7 @@
 /** Where an alert came from. Also the tie-break order for picking a primary. */
 export type AlertKind =
   | "deadline"
+  | "target"
   | "scheduled"
   | "scheduled_missed"
   | "event";
@@ -34,9 +35,13 @@ export type AlertKind =
  */
 const KIND_RANK: Record<AlertKind, number> = {
   deadline: 0,
-  scheduled: 1,
-  scheduled_missed: 2,
-  event: 3,
+  // A soft target ranks below a hard deadline on purpose: when both land in one
+  // cluster, the deadline must be the voice, or a real due date gets described
+  // in the gentle register reserved for a date the user set for themselves.
+  target: 1,
+  scheduled: 2,
+  scheduled_missed: 3,
+  event: 4,
 };
 
 export interface ClusterableAlert {

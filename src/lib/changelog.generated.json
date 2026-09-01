@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Teach notifications and emails the hard/soft/planned model"
+      },
+      {
+        "type": "added",
         "text": "Close two MCP lifecycle gaps, decline the third"
       },
       {

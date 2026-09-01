@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_DEADLINE_REMINDER_INTERVALS,
   DEFAULT_EVENT_REMINDER_INTERVALS,
+  DEFAULT_TARGET_REMINDER_INTERVALS,
   type DailyCheckInTime,
   type NotificationAssertiveness,
   type NotificationPrefs,
@@ -34,6 +35,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   momentumStyle: "neutral",
   deadlineReminderIntervals: DEFAULT_DEADLINE_REMINDER_INTERVALS,
   eventReminderIntervals: DEFAULT_EVENT_REMINDER_INTERVALS,
+  targetReminderIntervals: DEFAULT_TARGET_REMINDER_INTERVALS,
   dailyCheckInEnabled: true,
   dailyCheckInTime: "morning",
 };
@@ -98,6 +100,7 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
   // will fire — kind-specific list, then the legacy shared list, then default.
   const deadlineIntervals = getReminderIntervals(raw, "deadline");
   const eventIntervals = getReminderIntervals(raw, "event");
+  const targetIntervals = getReminderIntervals(raw, "target");
   const checkInTime: DailyCheckInTime =
     raw?.dailyCheckInTime === "morning" ||
     raw?.dailyCheckInTime === "afternoon" ||
@@ -117,6 +120,7 @@ function normalizePrefs(raw: Partial<NotificationPrefs> | null | undefined): Not
     mutedFriendIds: raw?.mutedFriendIds ?? [],
     deadlineReminderIntervals: deadlineIntervals,
     eventReminderIntervals: eventIntervals,
+    targetReminderIntervals: targetIntervals,
     dailyCheckInEnabled:
       typeof raw?.dailyCheckInEnabled === "boolean" ? raw.dailyCheckInEnabled : true,
     dailyCheckInTime: checkInTime,
@@ -586,9 +590,9 @@ export function NotificationSettings() {
           Reminder Times
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">
-          Deadlines and events are set separately &mdash; you might want a day&rsquo;s
-          warning on an essay but only ten minutes before a class. Remove every entry
-          from a list to turn that kind off.
+          Each kind is set separately &mdash; you might want a day&rsquo;s warning on an
+          essay but only ten minutes before a class. Remove every entry from a list to
+          turn that kind off.
         </p>
         <ReminderIntervalEditor
           label="Task deadlines"
@@ -601,6 +605,12 @@ export function NotificationSettings() {
           hint="Before an event starts. Classes, appointments, shifts."
           intervals={prefs.eventReminderIntervals ?? []}
           onChange={(next) => update({ eventReminderIntervals: next })}
+        />
+        <ReminderIntervalEditor
+          label="Your own targets"
+          hint="Before a date you set for yourself. These stay gentle — nothing you set for yourself is treated like a deadline, and these never override quiet hours or your daily cap."
+          intervals={prefs.targetReminderIntervals ?? []}
+          onChange={(next) => update({ targetReminderIntervals: next })}
         />
       </div>
 

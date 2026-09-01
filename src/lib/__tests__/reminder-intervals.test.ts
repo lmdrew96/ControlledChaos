@@ -3,6 +3,7 @@ import { getReminderIntervals } from "@/lib/notifications/reminder-intervals";
 import {
   DEFAULT_DEADLINE_REMINDER_INTERVALS,
   DEFAULT_EVENT_REMINDER_INTERVALS,
+  DEFAULT_TARGET_REMINDER_INTERVALS,
   type NotificationPrefs,
 } from "@/types";
 
@@ -97,5 +98,44 @@ describe("getReminderIntervals — defaults and normalization", () => {
       deadlineReminderIntervals: [60, 1440, 60, -5, 0, 10.7, NaN],
     });
     expect(getReminderIntervals(p, "deadline")).toEqual([1440, 60, 10]);
+  });
+});
+
+describe("getReminderIntervals — soft targets", () => {
+  const prefs = (over: Partial<NotificationPrefs>) => over as NotificationPrefs;
+
+  it("defaults to a single gentle heads-up, not the deadline ladder", () => {
+    expect(getReminderIntervals(null, "target")).toEqual(DEFAULT_TARGET_REMINDER_INTERVALS);
+    expect(getReminderIntervals(null, "target")).not.toEqual(
+      DEFAULT_DEADLINE_REMINDER_INTERVALS
+    );
+  });
+
+  it("IGNORES the legacy shared reminderIntervals list", () => {
+    // The legacy list predates soft targets. Honouring it here would opt every
+    // existing account into a notification type they never agreed to.
+    const p = prefs({ reminderIntervals: [1440, 60, 10] });
+    expect(getReminderIntervals(p, "target")).toEqual(DEFAULT_TARGET_REMINDER_INTERVALS);
+    // ...while deadlines still inherit it, unchanged.
+    expect(getReminderIntervals(p, "deadline")).toEqual([1440, 60, 10]);
+  });
+
+  it("does not inherit a custom deadline schedule", () => {
+    const p = prefs({ deadlineReminderIntervals: [2880, 120] });
+    expect(getReminderIntervals(p, "target")).toEqual(DEFAULT_TARGET_REMINDER_INTERVALS);
+  });
+
+  it("honors an explicit empty list as opting out", () => {
+    expect(getReminderIntervals(prefs({ targetReminderIntervals: [] }), "target")).toEqual([]);
+  });
+
+  it("uses the user's own target schedule when set", () => {
+    const p = prefs({ targetReminderIntervals: [2880, 1440] });
+    expect(getReminderIntervals(p, "target")).toEqual([2880, 1440]);
+  });
+
+  it("sorts descending, dedupes and drops junk like the other kinds", () => {
+    const p = prefs({ targetReminderIntervals: [1440, 2880, 1440, -5, 0, 60.9, NaN] });
+    expect(getReminderIntervals(p, "target")).toEqual([2880, 1440, 60]);
   });
 });

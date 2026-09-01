@@ -274,6 +274,12 @@ export interface NotificationPrefs {
   deadlineReminderIntervals?: number[];
   /** Minutes before a calendar event to fire a reminder. Empty array = opted out. */
   eventReminderIntervals?: number[];
+  /**
+   * Minutes before a SOFT self-imposed target to fire a gentle reminder.
+   * Empty array = opted out. Deliberately separate from the deadline schedule:
+   * a target has no external consequence, so last-minute pings are noise.
+   */
+  targetReminderIntervals?: number[];
   /** Whether to send a once-daily idle check-in. If undefined, derived from assertivenessMode. */
   dailyCheckInEnabled?: boolean;
   /** Which time window the daily check-in fires in. If undefined, defaults to "morning". */
@@ -284,6 +290,12 @@ export interface NotificationPrefs {
 // the split changes nobody's behavior; adjust either list on its own.
 export const DEFAULT_DEADLINE_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 export const DEFAULT_EVENT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
+/**
+ * Soft targets get ONE gentle heads-up, a day out — not the deadline ladder.
+ * A 10-minute warning before a date you set for yourself, with days of slack
+ * behind it, is exactly the cry-wolf pattern that makes real alarms ignorable.
+ */
+export const DEFAULT_TARGET_REMINDER_INTERVALS: number[] = [1440];
 
 export interface PersonalityPrefs {
   /** 0 = strict, 1 = balanced, 2 = supportive */

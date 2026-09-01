@@ -14,6 +14,7 @@ import { isQuietHours } from "@/lib/notifications/quiet-hours";
 import { todayInTimezone } from "@/lib/timezone";
 import {
   getDeadlineReminders,
+  getTargetReminders,
   getEventReminders,
   getDailyPushCap,
   getAssertivenessMode,
@@ -111,6 +112,13 @@ function buildClusterContext(
       return {
         type: "event_reminder",
         eventTitle: primary.title,
+        minutesUntil: primary.intervalMinutes ?? 0,
+        alsoHappening,
+      };
+    case "target":
+      return {
+        type: "target_reminder",
+        taskTitle: primary.title,
         minutesUntil: primary.intervalMinutes ?? 0,
         alsoHappening,
       };
@@ -245,6 +253,36 @@ async function processUser(user: PushUser): Promise<number> {
     });
   }
 
+  // Targets are gathered AFTER deadlines so a task whose hard deadline is
+  // firing this tick doesn't also get a gentle "you'd wanted this done" ping.
+  const taskIdsWithFiringDeadline = new Set(
+    candidates.flatMap((c) => (c.kind === "deadline" && c.taskId ? [c.taskId] : []))
+  );
+
+  for (const r of await getTargetReminders(
+    userId,
+    notificationPrefs,
+    taskIdsWithFiringDeadline
+  )) {
+    candidates.push({
+      kind: "target",
+      dedupKey: `target-${r.taskId}-${r.intervalMinutes}-${r.targetDate.toISOString()}`,
+      dedupScope: "ever",
+      at: r.targetDate,
+      title: r.taskTitle,
+      courseCode: extractCourseCode(r.taskTitle, r.taskDescription),
+      sourceEventId: r.sourceEventId,
+      intervalMinutes: r.intervalMinutes,
+      // Always normal, never high, whatever the interval. A self-imposed date
+      // with slack behind it never earns the urgent lane or a quiet-hours pass.
+      priority: "normal",
+      bypassQuietHours: false,
+      url: `/tasks?taskId=${r.taskId}`,
+      taskId: r.taskId,
+      actions: TASK_ACTIONS,
+    });
+  }
+
   for (const r of await getEventReminders(userId, notificationPrefs)) {
     candidates.push({
       kind: "event",
@@ -321,8 +359,14 @@ async function processUser(user: PushUser): Promise<number> {
     const members = [primary, ...absorbed];
     const priority = members.some((m) => m.priority === "high") ? "high" : "normal";
     const bypassQuietHours = members.some((m) => m.bypassQuietHours);
+    // Soft targets are excluded from the always-send lane regardless of how
+    // short an interval the user configured. A date someone set for themselves,
+    // with slack behind it, must never be able to punch through the daily cap.
     const urgent = members.some(
-      (m) => m.intervalMinutes !== undefined && m.intervalMinutes <= ALWAYS_SEND_MINUTES
+      (m) =>
+        m.kind !== "target" &&
+        m.intervalMinutes !== undefined &&
+        m.intervalMinutes <= ALWAYS_SEND_MINUTES
     );
 
     if (!canSend(priority, bypassQuietHours, urgent)) continue;
