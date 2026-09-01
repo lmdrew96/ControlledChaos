@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop plan blocks landing on top of each other"
+      },
+      {
+        "type": "added",
         "text": "Sort by soonest of the three task times, not just the deadline"
       },
       {

@@ -207,7 +207,34 @@ export function TaskCard({
         const scheduledDate = new Date(data.scheduledFor);
         const timeStr = formatForDisplay(scheduledDate, timezone, DISPLAY_DATETIME);
         const reasoning = data.block.reasoning ?? "";
-        toast.success(`Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`);
+
+        if (data.moved && data.previousScheduledFor) {
+          // A planned start the user set by hand is a real decision. Say what
+          // was replaced and offer it back, rather than quietly overwriting it.
+          const previous = data.previousScheduledFor as string;
+          const fromStr = formatForDisplay(new Date(previous), timezone, DISPLAY_DATETIME);
+          toast.success(`Moved from ${fromStr} to ${timeStr}`, {
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                try {
+                  const undo = await fetch(`/api/tasks/${task.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ scheduledFor: previous }),
+                  });
+                  if (!undo.ok) throw new Error("Undo failed");
+                  toast.success(`Back to ${fromStr}`);
+                  onUpdate();
+                } catch {
+                  toast.error("Couldn't undo — set it by hand in the task.");
+                }
+              },
+            },
+          });
+        } else {
+          toast.success(`Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`);
+        }
         onUpdate();
       }
     } catch (error) {

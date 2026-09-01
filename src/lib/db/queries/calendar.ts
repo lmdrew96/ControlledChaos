@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { calendarEvents, userSettings } from "../schema";
-import { eq, and, gt, lte, notInArray, sql } from "drizzle-orm";
+import { eq, and, gt, lte, like, notInArray, sql } from "drizzle-orm";
 import { getUserSettings } from "./users";
 
 // ============================================================
@@ -137,6 +137,27 @@ export async function deleteStaleCalendarEvents(
         eq(calendarEvents.userId, userId),
         eq(calendarEvents.source, source),
         notInArray(calendarEvents.externalId, currentExternalIds)
+      )
+    )
+    .returning();
+}
+
+/**
+ * Remove the calendar events a task's auto-scheduler previously materialized.
+ *
+ * `/api/tasks/[id]/schedule` writes an event keyed `cc-{taskId}-{startTime}`,
+ * so the key changes every time the task is rescheduled and the upsert can
+ * never replace the old row. Without this, each re-run leaves a ghost event at
+ * the previous time sitting next to the new one on the calendar.
+ */
+export async function deleteTaskScheduleEvents(userId: string, taskId: string) {
+  return db
+    .delete(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.userId, userId),
+        eq(calendarEvents.source, "controlledchaos"),
+        like(calendarEvents.externalId, `cc-${taskId}-%`)
       )
     )
     .returning();

@@ -7,6 +7,7 @@ import {
   getUserSettings,
   getCalendarEventsByDateRange,
   getScheduledTasksInRange,
+  deleteTaskScheduleEvents,
   upsertCalendarEvent,
   updateTask,
 } from "@/lib/db/queries";
@@ -147,6 +148,11 @@ export async function POST(_req: Request, context: RouteContext) {
       });
     }
 
+    // Clear any event a previous run left behind. The externalId embeds the
+    // start time, so rescheduling mints a NEW key and the upsert below can't
+    // replace the old row — it would linger as a ghost at the former time.
+    await deleteTaskScheduleEvents(userId, task.id);
+
     // Create calendar event
     await upsertCalendarEvent({
       userId,
@@ -160,15 +166,26 @@ export async function POST(_req: Request, context: RouteContext) {
       isAllDay: false,
     });
 
+    // A hand-set "Planned for" is a real choice the user made, and free-block
+    // starts always land on a wake-hour or event boundary — so re-running this
+    // reliably rounds 11:30 down to 11:00. Report the move rather than
+    // discarding the old value in silence; the client offers an undo.
+    const previousScheduledFor = task.scheduledFor?.toISOString() ?? null;
+
     // Update task.scheduledFor
     await updateTask(task.id, userId, {
       scheduledFor: new Date(block.startTime),
     });
 
+    const moved =
+      previousScheduledFor !== null && previousScheduledFor !== block.startTime;
+
     return NextResponse.json({
       block: { ...block, taskTitle: task.title },
       scheduledFor: block.startTime,
-      message: "Task scheduled.",
+      previousScheduledFor,
+      moved,
+      message: moved ? "Task rescheduled." : "Task scheduled.",
     });
   } catch (error) {
     console.error("[API] POST /api/tasks/[id]/schedule error:", error);
