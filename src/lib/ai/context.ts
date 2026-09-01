@@ -97,7 +97,8 @@ export interface AIContext {
   // Crises
   activeCrises: Array<{
     taskName: string;
-    deadline: string;
+    /** null when the plan has no hard deadline. */
+    deadline: string | null;
     panicLevel: string;
     progressPct: number;
   }>;
@@ -272,7 +273,7 @@ export async function buildAIContext(
       totalTasks > 0 ? Math.round((c.currentTaskIndex / totalTasks) * 100) : 0;
     return {
       taskName: c.taskName,
-      deadline: c.deadline.toISOString(),
+      deadline: c.deadline?.toISOString() ?? null,
       panicLevel: c.panicLevel,
       progressPct,
     };
@@ -428,7 +429,11 @@ export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
     lines.push("\n### Active Crisis Plans");
     for (const c of ctx.activeCrises) {
       lines.push(
-        `- "${c.taskName}" — ${c.panicLevel} (${c.progressPct}% done, deadline: ${formatForDisplay(new Date(c.deadline), ctx.timezone, DISPLAY_DATE)})`
+        `- "${c.taskName}" — ${c.panicLevel} (${c.progressPct}% done, ${
+          c.deadline
+            ? `hard deadline: ${formatForDisplay(new Date(c.deadline), ctx.timezone, DISPLAY_DATE)}`
+            : "no hard deadline — self-imposed only"
+        })`
       );
     }
   }

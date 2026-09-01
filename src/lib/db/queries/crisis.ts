@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { crisisDetections, crisisMessages, crisisPlans, userSettings } from "../schema";
-import { eq, and, asc, desc, gt, lt, isNull, sql } from "drizzle-orm";
+import { eq, and, asc, desc, gt, lt, isNull, or, sql } from "drizzle-orm";
 import type { CrisisDetectionTier, CrisisTask } from "@/types";
 
 // ============================================================
@@ -9,7 +9,8 @@ import type { CrisisDetectionTier, CrisisTask } from "@/types";
 export async function createCrisisPlan(params: {
   userId: string;
   taskName: string;
-  deadline: Date;
+  deadline: Date | null;
+  targetDate?: Date | null;
   completionPct: number;
   panicLevel: string;
   panicLabel: string;
@@ -24,6 +25,7 @@ export async function createCrisisPlan(params: {
       userId: params.userId,
       taskName: params.taskName,
       deadline: params.deadline,
+      targetDate: params.targetDate ?? null,
       completionPct: params.completionPct,
       panicLevel: params.panicLevel,
       panicLabel: params.panicLabel,
@@ -36,37 +38,74 @@ export async function createCrisisPlan(params: {
   return plan;
 }
 
+/**
+ * A plan is active while it is incomplete AND still relevant.
+ *
+ * "Still relevant" used to mean only `deadline > now`. Now that a plan can have
+ * no hard deadline at all (the user told us the date was self-imposed), that
+ * test would silently drop those plans out of existence — so a deadline-less
+ * plan stays active for a bounded window after creation instead.
+ */
+const DEADLINELESS_PLAN_TTL_MS = 24 * 60 * 60 * 1000;
+
+function activePlanCondition(userId: string, now: Date) {
+  const cutoff = new Date(now.getTime() - DEADLINELESS_PLAN_TTL_MS);
+  return and(
+    eq(crisisPlans.userId, userId),
+    sql`${crisisPlans.completedAt} IS NULL`,
+    or(
+      gt(crisisPlans.deadline, now),
+      and(isNull(crisisPlans.deadline), gt(crisisPlans.createdAt, cutoff))
+    )
+  );
+}
+
 export async function getActiveCrisisPlan(userId: string) {
   const now = new Date();
   const [plan] = await db
     .select()
     .from(crisisPlans)
-    .where(
-      and(
-        eq(crisisPlans.userId, userId),
-        sql`${crisisPlans.completedAt} IS NULL`,
-        gt(crisisPlans.deadline, now)
-      )
-    )
+    .where(activePlanCondition(userId, now))
     .orderBy(desc(crisisPlans.createdAt))
     .limit(1);
   return plan ?? null;
 }
 
-/** Returns ALL active (incomplete, not past deadline) crisis plans, soonest deadline first. */
+/** All active crisis plans, soonest hard deadline first (deadline-less last). */
 export async function getActiveCrisisPlans(userId: string) {
   const now = new Date();
   return db
     .select()
     .from(crisisPlans)
-    .where(
-      and(
-        eq(crisisPlans.userId, userId),
-        sql`${crisisPlans.completedAt} IS NULL`,
-        gt(crisisPlans.deadline, now)
-      )
-    )
-    .orderBy(crisisPlans.deadline); // soonest deadline first — most urgent at top
+    .where(activePlanCondition(userId, now))
+    // NULLS LAST: a plan with no hard deadline is by definition not the most
+    // urgent thing on the list.
+    .orderBy(sql`${crisisPlans.deadline} ASC NULLS LAST`);
+}
+
+/**
+ * Apply a correction the user stated in chat.
+ *
+ * This is the write-back the rescue assistant was missing. Without it a
+ * correction lived only in the transcript, while the system prompt kept being
+ * rebuilt from the stale row every turn — so the assistant re-derived the same
+ * panic no matter how many times it was told otherwise.
+ */
+export async function updateCrisisPlanDeadlines(
+  planId: string,
+  userId: string,
+  deadlines: { deadline: Date | null; targetDate: Date | null }
+) {
+  const [updated] = await db
+    .update(crisisPlans)
+    .set({
+      deadline: deadlines.deadline,
+      targetDate: deadlines.targetDate,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(crisisPlans.id, planId), eq(crisisPlans.userId, userId)))
+    .returning();
+  return updated ?? null;
 }
 
 

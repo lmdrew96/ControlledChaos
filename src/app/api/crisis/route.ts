@@ -262,7 +262,9 @@ export async function POST(request: Request) {
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME),
+        deadline: c.deadline
+          ? formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME)
+          : "no hard deadline (self-imposed only)",
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
@@ -334,16 +336,23 @@ export async function PUT(request: Request) {
     }
 
     const now = new Date();
-    const deadlineDate = new Date(plan.deadline);
-    const minutesUntilDeadline = Math.max(
-      0,
-      Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
-    );
+    // A plan with no hard deadline has no countdown at all. Coercing null to a
+    // date here would produce "0 minutes left" — maximum urgency for work that
+    // has none, which is the exact failure this whole change exists to remove.
+    const deadlineDate = plan.deadline ? new Date(plan.deadline) : null;
+    const minutesUntilDeadline = deadlineDate
+      ? Math.max(0, Math.round((deadlineDate.getTime() - now.getTime()) / 60000))
+      : null;
+    // Calendar lookups and sleep math still need an end bound. With no hard
+    // deadline we look one day out — enough to plan against, without implying
+    // a deadline that doesn't exist.
+    const planningHorizonEnd =
+      deadlineDate ?? new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, savedLocs, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
-      getCalendarEventsByDateRange(userId, now, deadlineDate),
+      getCalendarEventsByDateRange(userId, now, planningHorizonEnd),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
       getUserLocation(userId),
@@ -355,7 +364,7 @@ export async function PUT(request: Request) {
     const timezone = user?.timezone ?? "America/New_York";
     const wakeTime = (settings?.wakeTime as number) ?? 7;
     const sleepTime = (settings?.sleepTime as number) ?? 22;
-    const sleepMinutesBlocked = getSleepMinutesBlocked(now, deadlineDate, sleepTime, wakeTime, timezone);
+    const sleepMinutesBlocked = getSleepMinutesBlocked(now, planningHorizonEnd, sleepTime, wakeTime, timezone);
 
     // Calculate current progress based on task index
     const totalTasks = (plan.tasks as unknown[]).length;
@@ -380,7 +389,9 @@ export async function PUT(request: Request) {
 
     const result = await getCrisisPlan({
       taskName: plan.taskName,
-      deadline: formatForDisplay(deadlineDate, timezone, DISPLAY_DATETIME),
+      deadline: deadlineDate
+        ? formatForDisplay(deadlineDate, timezone, DISPLAY_DATETIME)
+        : "No hard deadline — self-imposed only",
       completionPct: effectiveCompletion,
       currentTime,
       minutesUntilDeadline,
@@ -389,7 +400,9 @@ export async function PUT(request: Request) {
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
-        deadline: formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME),
+        deadline: c.deadline
+          ? formatForDisplay(new Date(c.deadline), timezone, DISPLAY_DATETIME)
+          : "no hard deadline (self-imposed only)",
         panicLevel: c.panicLevel,
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),

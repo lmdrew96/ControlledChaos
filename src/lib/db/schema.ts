@@ -345,7 +345,13 @@ export const crisisPlans = pgTable(
       .references(() => users.id)
       .notNull(),
     taskName: text("task_name").notNull(),
-    deadline: timestamp("deadline").notNull(),
+    // HARD wall — externally imposed. NULLABLE: a rescue plan must be able to
+    // represent "there is no real deadline", or the assistant has no concept
+    // the user's own words can map onto and ends up arguing with them.
+    deadline: timestamp("deadline"),
+    // SOFT aim — a deadline the user set for themselves. Same hard/soft split
+    // as tasks.deadline / tasks.targetDate.
+    targetDate: timestamp("target_date"),
     completionPct: integer("completion_pct").notNull(),
     panicLevel: text("panic_level").notNull(), // fine | tight | damage-control
     panicLabel: text("panic_label").notNull(),

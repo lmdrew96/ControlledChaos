@@ -12,7 +12,8 @@ export interface CrisisParams {
   deadline: string;
   completionPct: number;
   currentTime: string;
-  minutesUntilDeadline: number;
+  /** null when there is no hard deadline — do not coerce to 0, that reads as maximum urgency. */
+  minutesUntilDeadline: number | null;
   sleepSchedule?: { wakeTime: number; sleepTime: number; sleepMinutesBlocked: number };
   upcomingEvents: Array<{ title: string; startTime: string; endTime: string; durationMinutes: number }>;
   existingPendingTaskCount: number;
@@ -60,7 +61,12 @@ function buildUserPrompt(params: CrisisParams): string {
   const totalEventMinutes = params.upcomingEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
   const sleepMinutes = params.sleepSchedule?.sleepMinutesBlocked ?? 0;
   const totalBlockedMinutes = totalEventMinutes + sleepMinutes;
-  const availableMinutes = Math.max(0, params.minutesUntilDeadline - totalBlockedMinutes);
+  // With no hard deadline there is no countdown to subtract from — the concept
+  // of "minutes available before it's too late" simply doesn't apply.
+  const availableMinutes =
+    params.minutesUntilDeadline === null
+      ? null
+      : Math.max(0, params.minutesUntilDeadline - totalBlockedMinutes);
 
   const fmtHour = (h: number) => {
     const period = h >= 12 ? "PM" : "AM";
@@ -72,7 +78,10 @@ function buildUserPrompt(params: CrisisParams): string {
     ? `\nUser's sleep schedule: ${fmtHour(params.sleepSchedule.sleepTime)} – ${fmtHour(params.sleepSchedule.wakeTime)} (${(sleepMinutes / 60).toFixed(1)}h blocked for sleep between now and deadline)`
     : "";
 
-  const timeBudgetLine = `\nTime budget: ${params.minutesUntilDeadline} min total – ${totalEventMinutes} min events – ${sleepMinutes} min sleep = ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h) of actual work time`;
+  const timeBudgetLine =
+    availableMinutes === null
+      ? "\nTime budget: not bounded by a deadline — pace this by the user's energy, not by a countdown."
+      : `\nTime budget: ${params.minutesUntilDeadline} min total – ${totalEventMinutes} min events – ${sleepMinutes} min sleep = ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h) of actual work time`;
 
   const crisesText =
     params.activeCrises && params.activeCrises.length > 0
@@ -97,7 +106,9 @@ function buildUserPrompt(params: CrisisParams): string {
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}
 Current time: ${params.currentTime}
-Minutes until deadline: ${params.minutesUntilDeadline}
+${params.minutesUntilDeadline === null
+  ? "Minutes until deadline: N/A — there is NO hard deadline on this work. Do not manufacture urgency and do not suggest contacting anyone about it."
+  : `Minutes until deadline: ${params.minutesUntilDeadline}`}
 Already completed: ~${params.completionPct}%
 Other pending tasks (context): ${params.existingPendingTaskCount}${locationLine}
 

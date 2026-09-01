@@ -64,7 +64,19 @@ type ContentBlocks = Anthropic.MessageCreateParams["messages"][0]["content"];
 interface AICallParams {
   system: string;
   /** Plain text string OR an array of content blocks for multimodal input. */
-  user: string | ContentBlocks;
+  user?: string | ContentBlocks;
+  /**
+   * Full conversation as real message turns. Prefer this over `user` for any
+   * multi-turn chat: flattening a transcript into one user-role string strips
+   * the role attribution the model relies on to tell what the USER actually
+   * said from what it said back, which is how a stated correction ends up
+   * outranked by a stale system-prompt fact.
+   *
+   * Takes precedence over `user` when both are set.
+   */
+  messages?: Anthropic.MessageParam[];
+  /** Tool definitions. Inspect `stopReason`/`content` on the result to handle calls. */
+  tools?: Anthropic.Tool[];
   maxTokens?: number;
 }
 
@@ -73,6 +85,24 @@ export interface AICallResult {
   inputTokens: number;
   outputTokens: number;
   durationMs: number;
+  /** Full content blocks — needed to read tool_use blocks and to echo the turn back. */
+  content: Anthropic.ContentBlock[];
+  stopReason: Anthropic.Message["stop_reason"];
+}
+
+/** Build the messages array from either shape, preferring real turns. */
+function resolveMessages(params: AICallParams): Anthropic.MessageParam[] {
+  if (params.messages?.length) return params.messages;
+  return [{ role: "user", content: params.user ?? "" }];
+}
+
+/** Concatenate every text block — a tool-using turn can emit text alongside the call. */
+function extractText(content: Anthropic.ContentBlock[]): string {
+  return content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
 }
 
 // --- Haiku (fast, cheap — parsing, scheduling, chunking) ---
@@ -87,23 +117,24 @@ export async function callHaiku(
       model: MODEL_HAIKU,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,
-      messages: [{ role: "user", content: params.user }],
+      messages: resolveMessages(params),
+      ...(params.tools?.length ? { tools: params.tools } : {}),
     })
   );
 
   const durationMs = Date.now() - start;
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
 
   console.log(
     `[AI] Haiku call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
   );
 
   return {
-    text,
+    text: extractText(response.content),
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     durationMs,
+    content: response.content,
+    stopReason: response.stop_reason,
   };
 }
 
@@ -119,22 +150,23 @@ export async function callSonnet(
       model: MODEL_SONNET,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,
-      messages: [{ role: "user", content: params.user }],
+      messages: resolveMessages(params),
+      ...(params.tools?.length ? { tools: params.tools } : {}),
     })
   );
 
   const durationMs = Date.now() - start;
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
 
   console.log(
     `[AI] Sonnet call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
   );
 
   return {
-    text,
+    text: extractText(response.content),
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     durationMs,
+    content: response.content,
+    stopReason: response.stop_reason,
   };
 }

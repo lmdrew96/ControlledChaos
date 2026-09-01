@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Plan my day proposes today, and plans stop being calendar events"
+      },
+      {
+        "type": "added",
         "text": "Stop deadline reminders from overriding quiet hours"
       },
       {

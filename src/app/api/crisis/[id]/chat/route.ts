@@ -1,19 +1,30 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import type Anthropic from "@anthropic-ai/sdk";
 import { callHaiku, AIUnavailableError } from "@/lib/ai";
-import { buildCrisisChatSystemPrompt, buildPersonalityBlock } from "@/lib/ai/prompts";
+import { buildCrisisChatSystemPrompt, buildPersonalityBlock, formatCurrentDateTime } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
 import {
   getCrisisPlanById,
   getCrisisMessages,
   createCrisisMessage,
   getUserSettings,
+  getUser,
+  updateCrisisPlanDeadlines,
 } from "@/lib/db/queries";
+import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
+import {
+  CORRECT_PLAN_FACTS_TOOL,
+  resolveCorrection,
+} from "@/lib/ai/crisis-correction";
 import type { CrisisTask, PersonalityPrefs } from "@/types";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
+
+/** Conversation turns kept in context. Older turns fall off the front. */
+const HISTORY_TURNS = 20;
 
 /**
  * GET /api/crisis/[id]/chat
@@ -28,7 +39,6 @@ export async function GET(_req: Request, context: RouteContext) {
 
     const { id } = await context.params;
 
-    // Verify plan ownership
     const plan = await getCrisisPlanById(id, userId);
     if (!plan) {
       return NextResponse.json({ error: "Plan not found" }, { status: 404 });
@@ -52,8 +62,8 @@ export async function GET(_req: Request, context: RouteContext) {
 
 /**
  * POST /api/crisis/[id]/chat
- * Send a message in crisis chat. Returns AI response.
- * Body: { message: string }
+ * Send a message in crisis chat. Returns the AI response, and applies any
+ * deadline correction the user stated.
  */
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -74,12 +84,12 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Message too long (max 2000 chars)" }, { status: 400 });
     }
 
-    // Fetch plan, chat history, settings, and AI context in parallel
-    const [plan, existingMessages, settings, aiCtx] = await Promise.all([
+    const [plan, existingMessages, settings, user, aiCtx] = await Promise.all([
       getCrisisPlanById(id, userId),
       getCrisisMessages(id, userId),
       getUserSettings(userId),
-      buildAIContext(userId, { skipCrises: true }), // we already have the plan
+      getUser(userId),
+      buildAIContext(userId, { skipCrises: true }),
     ]);
 
     if (!plan) {
@@ -90,7 +100,8 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "This crisis plan is already completed" }, { status: 400 });
     }
 
-    // Save user message
+    const timezone = user?.timezone ?? "America/New_York";
+
     const userMsg = await createCrisisMessage({
       crisisPlanId: id,
       userId,
@@ -98,35 +109,55 @@ export async function POST(request: Request, context: RouteContext) {
       content: message.trim(),
     });
 
-    // Build conversation history for the AI (last 20 messages to control token usage)
-    const recentMessages = existingMessages.slice(-20);
-    const conversationHistory = recentMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-    // Add the new user message
-    conversationHistory.push({ role: "user", content: message.trim() });
+    // Real message turns, not a flattened transcript. Role attribution is what
+    // lets the model tell what the USER said from what it said back — flattening
+    // it into one user-role blob is why stated corrections kept losing to the
+    // system prompt.
+    const history: Anthropic.MessageParam[] = existingMessages
+      .slice(-HISTORY_TURNS)
+      .map((m) => ({
+        role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: m.content,
+      }));
+    history.push({ role: "user", content: message.trim() });
 
-    // Build system prompt with personality
     const personalityPrefs = (settings?.personalityPrefs as PersonalityPrefs | null) ?? null;
-    const personalityBlock = buildPersonalityBlock(personalityPrefs);
-    const systemPrompt = buildCrisisChatSystemPrompt(personalityBlock);
+    const systemPrompt = buildCrisisChatSystemPrompt(buildPersonalityBlock(personalityPrefs));
 
-    // Build crisis context for the AI
-    const tasks = plan.tasks as CrisisTask[];
-    const currentTask = tasks[plan.currentTaskIndex] ?? null;
-    const completedCount = plan.currentTaskIndex;
+    const buildCrisisContext = (
+      deadline: Date | null,
+      targetDate: Date | null
+    ): string => {
+      const tasks = plan.tasks as CrisisTask[];
+      const currentTask = tasks[plan.currentTaskIndex] ?? null;
 
-    const minutesUntilDeadline = Math.max(
-      0,
-      Math.round((new Date(plan.deadline).getTime() - Date.now()) / 60000)
-    );
+      // Hard and soft are stated separately and labeled. Merging them is what
+      // let the assistant call a self-imposed date "due" and argue about it.
+      const deadlineLines: string[] = [];
+      if (deadline) {
+        const mins = Math.max(0, Math.round((deadline.getTime() - Date.now()) / 60000));
+        deadlineLines.push(
+          `- HARD deadline (externally imposed): ${formatForDisplay(deadline, timezone, DISPLAY_DATETIME)} — ${mins} minutes away`
+        );
+      } else {
+        deadlineLines.push(
+          "- HARD deadline: NONE. There is no external deadline on this work. Do not invent urgency, and never suggest contacting anyone about it."
+        );
+      }
+      if (targetDate) {
+        deadlineLines.push(
+          `- SELF-IMPOSED target (the user's own, fully moveable): ${formatForDisplay(targetDate, timezone, DISPLAY_DATETIME)}`
+        );
+      }
 
-    const crisisContext = `## Active Crisis Plan
+      return `## Current Date and Time
+${formatCurrentDateTime(timezone)}
+
+## Active Crisis Plan
 - Task: "${plan.taskName}"
-- Deadline: ${minutesUntilDeadline} minutes away
+${deadlineLines.join("\n")}
 - Panic level: ${plan.panicLevel} (${plan.panicLabel})
-- Progress: ${completedCount}/${tasks.length} steps done
+- Progress: ${plan.currentTaskIndex}/${tasks.length} steps done
 
 ${currentTask ? `## Current Step (#${plan.currentTaskIndex + 1})
 - Title: ${currentTask.title}
@@ -138,17 +169,75 @@ ${currentTask ? `## Current Step (#${plan.currentTaskIndex + 1})
 ${tasks.slice(plan.currentTaskIndex + 1).map((t, i) => `${plan.currentTaskIndex + 2 + i}. ${t.title} (${t.estimatedMinutes} min)`).join("\n") || "None — this is the last step!"}
 
 ${aiCtx.formatted}`;
+    };
 
-    // Call AI with full conversation
-    const result = await callHaiku({
-      system: `${systemPrompt}\n\n${crisisContext}`,
-      user: conversationHistory.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n"),
-      maxTokens: 512,
+    const first = await callHaiku({
+      system: `${systemPrompt}\n\n${buildCrisisContext(plan.deadline, plan.targetDate)}`,
+      messages: history,
+      tools: [CORRECT_PLAN_FACTS_TOOL],
+      maxTokens: 700,
     });
 
-    const aiResponse = result.text.trim();
+    let aiResponse = first.text;
+    let correctionApplied: string | null = null;
 
-    // Save AI response
+    const toolUse = first.content.find(
+      (b): b is Anthropic.ToolUseBlock =>
+        b.type === "tool_use" && b.name === "correct_plan_facts"
+    );
+
+    if (toolUse) {
+      const correction = resolveCorrection(toolUse.input, timezone);
+
+      if (correction.apply) {
+        const updated = await updateCrisisPlanDeadlines(id, userId, {
+          deadline: correction.deadline,
+          targetDate: correction.targetDate,
+        });
+        if (updated) {
+          correctionApplied = correction.summary;
+          console.log(`[Crisis] Plan ${id} corrected: ${correctionApplied}`);
+        }
+      } else {
+        console.warn(
+          `[Crisis] Plan ${id}: correct_plan_facts rejected (${correction.reason}); plan left unchanged.`
+        );
+      }
+
+      // Continue the turn with the tool result so the reply reflects the
+      // corrected world. Rebuilt context, not the stale row.
+      const followUp = await callHaiku({
+        system: `${systemPrompt}\n\n${buildCrisisContext(
+          correction.apply ? correction.deadline : plan.deadline,
+          correction.apply ? correction.targetDate : plan.targetDate
+        )}`,
+        messages: [
+          ...history,
+          { role: "assistant", content: first.content },
+          {
+            role: "user",
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: toolUse.id,
+                content: correction.apply
+                  ? "Saved. The plan now reflects this. Reply to the user acknowledging it briefly and recalibrating the urgency — do not re-state the old deadline."
+                  : "Could not save — the date was unclear. Ask the user for the specific date and time, without pressuring them.",
+              },
+            ],
+          },
+        ],
+        tools: [CORRECT_PLAN_FACTS_TOOL],
+        maxTokens: 700,
+      });
+
+      if (followUp.text) aiResponse = followUp.text;
+    }
+
+    if (!aiResponse) {
+      aiResponse = "I'm here — what do you need?";
+    }
+
     const assistantMsg = await createCrisisMessage({
       crisisPlanId: id,
       userId,
@@ -169,6 +258,8 @@ ${aiCtx.formatted}`;
         content: aiResponse,
         createdAt: assistantMsg.createdAt.toISOString(),
       },
+      /** Set when the assistant recorded a deadline correction this turn. */
+      correctionApplied,
     });
   } catch (error) {
     console.error("[API] POST /api/crisis/[id]/chat error:", error);
