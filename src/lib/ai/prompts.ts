@@ -162,8 +162,6 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 { "tasks": [...], "events": [...], "summary": "Brief summary including tasks created, events detected, and any duplicates skipped" }`;
 }
 
-// Static fallback for consumers without user context
-export const BRAIN_DUMP_SYSTEM_PROMPT = buildBrainDumpSystemPrompt(null);
 
 export const VOICE_DUMP_ADDENDUM = `
 
@@ -257,10 +255,6 @@ BFF+Unfiltered reasoning example: "That waiver is due in 2 damn days — just ge
 Be decisive. One clear recommendation. The user's ADHD brain needs a single answer, not a menu.`;
 }
 
-// Static export for places that don't have user context (fallback)
-export const TASK_RECOMMENDATION_SYSTEM_PROMPT = buildTaskRecommendationPrompt(
-  buildPersonalityBlock(null)
-);
 
 // ============================================================
 // SCHEDULING (BATCH)
@@ -322,8 +316,6 @@ Respond ONLY with valid JSON (no markdown, no code blocks):
 { "blocks": [{ "taskId": "exact-uuid-from-list", "startTime": "ISO8601Z", "endTime": "ISO8601Z", "reasoning": "One sentence explaining why this time" }] }`;
 }
 
-// Static fallback
-export const SCHEDULING_SYSTEM_PROMPT = buildSchedulingSystemPrompt(null);
 
 // ============================================================
 // SCHEDULING (SINGLE TASK)
@@ -387,8 +379,6 @@ or
 { "block": null, "reasoning": "Specific reason every block was too short" }`;
 }
 
-// Static fallback
-export const SINGLE_TASK_SCHEDULING_PROMPT = buildSingleTaskSchedulingPrompt(null);
 
 
 // ============================================================

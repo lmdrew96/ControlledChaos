@@ -3,6 +3,10 @@
     "weekOf": "2026-08-31",
     "items": [
       {
+        "type": "fixed",
+        "text": "Palette settings links landing at the top of the page"
+      },
+      {
         "type": "added",
         "text": "Two-tier crisis escalation — a runway instead of a cliff"
       },

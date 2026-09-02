@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Clock, Loader2, Route, Car, Footprints, Bike } from "lucide-react";
 import { toast } from "sonner";
+import { MAX_COMMUTE_ESTIMATE_PAIRS } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -236,27 +237,46 @@ export function CommuteTimes() {
     setEstimatingAll(true);
 
     try {
-      const res = await fetch("/api/locations/commute-times/estimate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pairs: estimatable.map(({ from, to }) => ({
-            fromLat: parseFloat(from.latitude!),
-            fromLng: parseFloat(from.longitude!),
-            toLat: parseFloat(to.latitude!),
-            toLng: parseFloat(to.longitude!),
-          })),
-          mode: travelMode,
-        }),
-      });
-
-      if (!res.ok) {
-        toast.error("Failed to estimate commute times");
-        return;
+      // Pairs grow as N(N-1)/2, so seven saved locations already produce 21 —
+      // past the server's per-request cap. Batch instead of sending them all,
+      // and run the batches in series so we never point more than one batch's
+      // worth of route lookups at the public OSRM server at a time.
+      const batches: Array<typeof estimatable> = [];
+      for (let i = 0; i < estimatable.length; i += MAX_COMMUTE_ESTIMATE_PAIRS) {
+        batches.push(estimatable.slice(i, i + MAX_COMMUTE_ESTIMATE_PAIRS));
       }
 
-      const data = await res.json();
-      const estimates: EstimateResult[] = data.estimates ?? [];
+      const estimates: EstimateResult[] = [];
+
+      for (const batch of batches) {
+        const res = await fetch("/api/locations/commute-times/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pairs: batch.map(({ from, to }) => ({
+              fromLat: parseFloat(from.latitude!),
+              fromLng: parseFloat(from.longitude!),
+              toLat: parseFloat(to.latitude!),
+              toLng: parseFloat(to.longitude!),
+            })),
+            mode: travelMode,
+          }),
+        });
+
+        if (!res.ok) {
+          // Surface what the server actually said. A bare "failed" is how the
+          // 20-pair cap stayed invisible in the first place.
+          const detail = await res
+            .json()
+            .then((d: { error?: string }) => d.error)
+            .catch(() => null);
+          toast.error(detail ?? "Failed to estimate commute times");
+          return;
+        }
+
+        const data = await res.json();
+        estimates.push(...((data.estimates ?? []) as EstimateResult[]));
+      }
 
       let savedCount = 0;
 

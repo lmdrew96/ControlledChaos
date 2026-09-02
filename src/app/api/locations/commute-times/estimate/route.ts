@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { MAX_COMMUTE_ESTIMATE_PAIRS } from "@/types";
 
 type TravelMode = "driving" | "walking" | "cycling";
 
@@ -117,9 +118,34 @@ export async function POST(request: Request) {
       );
     }
 
-    if (pairs.length > 20) {
+    if (pairs.length > MAX_COMMUTE_ESTIMATE_PAIRS) {
       return NextResponse.json(
-        { error: "Maximum 20 pairs per request" },
+        { error: `Maximum ${MAX_COMMUTE_ESTIMATE_PAIRS} pairs per request` },
+        { status: 400 }
+      );
+    }
+
+    // Coordinates are interpolated straight into the outbound OSRM URL, so
+    // check them here. Without this a NaN (a location saved with an
+    // unparseable lat/lng) produced a malformed request and came back as a
+    // per-pair "Route not found", which reads like the route genuinely doesn't
+    // exist rather than like bad input.
+    const badPair = pairs.findIndex(
+      (p) =>
+        !Number.isFinite(p.fromLat) ||
+        !Number.isFinite(p.fromLng) ||
+        !Number.isFinite(p.toLat) ||
+        !Number.isFinite(p.toLng) ||
+        Math.abs(p.fromLat) > 90 ||
+        Math.abs(p.toLat) > 90 ||
+        Math.abs(p.fromLng) > 180 ||
+        Math.abs(p.toLng) > 180
+    );
+    if (badPair !== -1) {
+      return NextResponse.json(
+        {
+          error: `Pair ${badPair + 1} has invalid coordinates. Check the latitude and longitude on those saved locations.`,
+        },
         { status: 400 }
       );
     }

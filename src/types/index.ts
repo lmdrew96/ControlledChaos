@@ -288,6 +288,16 @@ export interface NotificationPrefs {
 
 // Deadlines and events are now tuned independently. They start identical so
 // the split changes nobody's behavior; adjust either list on its own.
+/**
+ * Coordinate pairs accepted by /api/locations/commute-times/estimate in one
+ * request. Each pair is a separate route lookup against the public OSRM demo
+ * server, so this bounds how much we ask of it at once.
+ *
+ * Saved locations produce N(N-1)/2 pairs, which crosses 20 at just SEVEN
+ * locations — so any caller estimating every pair must batch.
+ */
+export const MAX_COMMUTE_ESTIMATE_PAIRS = 20;
+
 export const DEFAULT_DEADLINE_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 export const DEFAULT_EVENT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 /**
