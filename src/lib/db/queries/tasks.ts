@@ -8,6 +8,21 @@ import { deleteTaskScheduleEvents } from "./calendar";
 // ============================================================
 // Tasks
 // ============================================================
+
+/**
+ * Task statuses whose plan block still belongs on the calendar.
+ *
+ * A plan is an intention for work still ahead of you. Once a task is completed
+ * or cancelled it stops being one — the calendar drops it, and the Daily Recap
+ * is where a timeline of finished work lives. getScheduledTasksInRange filters
+ * on this, and updateTask uses it to know when a task has left the calendar and
+ * its materialized cc- event needs clearing.
+ */
+export const PLANNED_ON_CALENDAR_STATUSES = [
+  "pending",
+  "in_progress",
+  "snoozed",
+] as const;
 export async function createTask(
   userId: string,
   params: {
@@ -160,8 +175,17 @@ export async function updateTask(
   // MCP. Gated on the key actually being present, so the many calls that touch
   // status or title alone never pay for it.
   //
+  // Completing or cancelling a task takes it off the calendar too. The plan
+  // block itself vanishes on its own (getScheduledTasksInRange filters by
+  // status), but a cc- event the auto-scheduler materialized is a standalone
+  // calendar row — without this it stays put, so a finished task kept sitting
+  // on the calendar all day.
+  const leftTheCalendar =
+    data.status !== undefined &&
+    !(PLANNED_ON_CALENDAR_STATUSES as readonly string[]).includes(data.status);
+
   // Callers that create a replacement event must upsert it AFTER this runs.
-  if (updated && "scheduledFor" in data) {
+  if (updated && ("scheduledFor" in data || leftTheCalendar)) {
     await deleteTaskScheduleEvents(userId, taskId).catch((err) =>
       console.error("[DB] Failed to clear stale schedule events:", err)
     );
@@ -348,7 +372,7 @@ export async function getScheduledTasksInRange(
       and(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
-        inArray(tasks.status, ["pending", "in_progress", "snoozed"]),
+        inArray(tasks.status, [...PLANNED_ON_CALENDAR_STATUSES]),
         gte(tasks.scheduledFor, start),
         lt(tasks.scheduledFor, end)
       )
