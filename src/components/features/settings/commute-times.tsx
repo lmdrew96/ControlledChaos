@@ -225,12 +225,25 @@ export function CommuteTimes() {
     pairs: Array<{ from: SavedLocation; to: SavedLocation }>
   ) => {
     // Filter to pairs that have coordinates
-    const estimatable = pairs.filter(
+    const withCoords = pairs.filter(
       ({ from, to }) => hasCoordinates(from) && hasCoordinates(to)
     );
 
-    if (estimatable.length === 0) {
+    if (withCoords.length === 0) {
       toast.error("No locations have coordinates set");
+      return;
+    }
+
+    // Only fill in the blanks. Two reasons: re-running is then nearly free
+    // instead of re-requesting every pair, and — the bigger one — a time you
+    // typed in by hand is a better number than a routing estimate. This used to
+    // overwrite them all without asking.
+    const estimatable = withCoords.filter(
+      ({ from, to }) => getMinutes(from.id, to.id) === ""
+    );
+
+    if (estimatable.length === 0) {
+      toast.success("Every pair already has a time. Use ↻ on a row to redo one.");
       return;
     }
 
@@ -392,13 +405,14 @@ export function CommuteTimes() {
               onClick={() => handleEstimateAll(pairs)}
               disabled={estimatingAll || estimatingPair !== null}
               className="text-xs gap-1.5"
+              title="Fills in pairs that don't have a time yet. Times you've entered are left alone — use ↻ on a row to redo one."
             >
               {estimatingAll ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Route className="h-3.5 w-3.5" />
               )}
-              Estimate All
+              Estimate Missing
             </Button>
           </div>
         )}
