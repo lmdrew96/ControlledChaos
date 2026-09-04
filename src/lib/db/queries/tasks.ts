@@ -3,6 +3,7 @@ import { taskActivity, tasks } from "../schema";
 import { eq, and, asc, desc, ne, gte, lt, or, inArray, isNull, sql } from "drizzle-orm";
 import type { ParsedTask } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
+import { deleteTaskScheduleEvents } from "./calendar";
 
 // ============================================================
 // Tasks
@@ -148,6 +149,24 @@ export async function updateTask(
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
     .returning();
 
+  // Whenever the plan moves, retire the calendar event the previous plan
+  // materialized. `/api/tasks/[id]/schedule` keys its event `cc-{taskId}-
+  // {startTime}`, so a new start mints a new externalId and the upsert can
+  // never replace the old row — it lingers as a ghost at the former time.
+  //
+  // This lives here rather than in the PATCH route because every writer of
+  // scheduledFor funnels through updateTask: the detail modal's "Planned for",
+  // the week-view plan-block drag, the auto-scheduler, and cc_update_task over
+  // MCP. Gated on the key actually being present, so the many calls that touch
+  // status or title alone never pay for it.
+  //
+  // Callers that create a replacement event must upsert it AFTER this runs.
+  if (updated && "scheduledFor" in data) {
+    await deleteTaskScheduleEvents(userId, taskId).catch((err) =>
+      console.error("[DB] Failed to clear stale schedule events:", err)
+    );
+  }
+
   return updated;
 }
 
@@ -207,6 +226,15 @@ export async function deleteTask(taskId: string, userId: string) {
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
     .returning();
+
+  // The task is gone from every list, but its materialized plan block is a
+  // standalone calendar row — without this it stays on the calendar pointing
+  // at a task the user can no longer open.
+  if (deleted) {
+    await deleteTaskScheduleEvents(userId, taskId).catch((err) =>
+      console.error("[DB] Failed to clear schedule events on delete:", err)
+    );
+  }
 
   return deleted;
 }
