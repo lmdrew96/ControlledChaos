@@ -167,6 +167,39 @@ export async function reorderTasks(
   });
 }
 
+/**
+ * Soft-delete the auto-generated tasks belonging to a set of Canvas events.
+ *
+ * Deselecting a course in settings stops its events from syncing, and
+ * deleteStaleCalendarEvents clears the calendar rows — but the tasks the sync
+ * already created from those events had nothing cleaning them up, so a
+ * deselected course kept a dozen assignments sitting in the task list forever.
+ *
+ * Scoped tightly on purpose: only tasks still pending and not already deleted.
+ * Completed work stays in the record (the Daily Recap reads it), and a task the
+ * user deleted by hand is left alone so re-selecting the course doesn't
+ * resurrect it.
+ */
+export async function deleteTasksBySourceEventIds(
+  userId: string,
+  sourceEventIds: string[]
+) {
+  if (sourceEventIds.length === 0) return [];
+
+  return db
+    .update(tasks)
+    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        inArray(tasks.sourceEventId, sourceEventIds),
+        ne(tasks.status, "completed"),
+        isNull(tasks.deletedAt)
+      )
+    )
+    .returning();
+}
+
 export async function deleteTask(taskId: string, userId: string) {
   // Soft delete — set deletedAt instead of removing the row
   const [deleted] = await db

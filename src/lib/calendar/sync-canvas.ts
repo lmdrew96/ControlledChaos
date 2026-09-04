@@ -5,6 +5,7 @@ import {
   createTask,
   findTaskBySourceEventId,
   updateTask,
+  deleteTasksBySourceEventIds,
 } from "@/lib/db/queries";
 import {
   toUTC,
@@ -158,6 +159,10 @@ export async function syncCanvasCalendar(
   let tasksCreated = 0;
   let tasksRefreshed = 0;
   const currentExternalIds: string[] = [];
+  // Events skipped because their course is deselected. Their calendar rows are
+  // handled by deleteStaleCalendarEvents (they never enter currentExternalIds),
+  // but the tasks a previous sync generated from them need clearing too.
+  const deselectedEventIds: string[] = [];
 
   for (const event of events) {
     const uid = event.uid;
@@ -172,6 +177,7 @@ export async function syncCanvasCalendar(
     // (not adding it to currentExternalIds) means deleteStaleCalendarEvents
     // below cleans up any events for a course the user just deselected.
     if (selectedCourses !== null && courseCode !== null && !selectedCourses.includes(courseCode)) {
+      deselectedEventIds.push(uid);
       continue;
     }
 
@@ -306,8 +312,16 @@ export async function syncCanvasCalendar(
     currentExternalIds
   );
 
+  // Retire the tasks a previous sync generated for courses since deselected.
+  // Without this, turning a course off removed its calendar events but left its
+  // assignments in the task list with nothing to clean them up.
+  const tasksRemoved = await deleteTasksBySourceEventIds(
+    userId,
+    deselectedEventIds
+  );
+
   console.log(
-    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted, ${tasksCreated} tasks created, ${tasksRefreshed} tasks refreshed`
+    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted, ${tasksCreated} tasks created, ${tasksRefreshed} tasks refreshed, ${tasksRemoved.length} tasks removed`
   );
 
   return {

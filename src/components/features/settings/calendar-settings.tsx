@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Calendar,
   Clock,
@@ -301,7 +301,10 @@ export function CalendarSettings() {
     }
   }
 
-  async function handleLoadCourses() {
+  // `silent` suppresses the error toast for the automatic mount-time load —
+  // a failed background fetch shouldn't nag; the manual button stays available
+  // as the fallback because coursesLoaded is still false.
+  const handleLoadCourses = useCallback(async (silent = false) => {
     setIsLoadingCourses(true);
     try {
       const res = await fetch("/api/calendar/canvas-courses");
@@ -310,11 +313,24 @@ export function CalendarSettings() {
       setCanvasCourses(data.courses ?? []);
       setCoursesLoaded(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load courses");
+      if (!silent) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to load courses"
+        );
+      }
     } finally {
       setIsLoadingCourses(false);
     }
-  }
+  }, []);
+
+  // Pull the course list as soon as we know a Canvas feed is connected.
+  // Without this, canvasCourses stayed [] until the user pressed "Choose
+  // courses", so a saved selection of 4 rendered as "Syncing 4 of 0 courses"
+  // with no checkboxes — the selection looked lost when it was only invisible.
+  useEffect(() => {
+    if (isLoading || !hasUrl || coursesLoaded) return;
+    void handleLoadCourses(true);
+  }, [isLoading, hasUrl, coursesLoaded, handleLoadCourses]);
 
   async function handleToggleCourse(course: string, checked: boolean) {
     const previous = selectedCourses;
@@ -334,6 +350,7 @@ export function CalendarSettings() {
         body: JSON.stringify({ canvasSelectedCourses: toSave }),
       });
       if (!res.ok) throw new Error("Failed to save");
+      invalidateSettings();
     } catch {
       setSelectedCourses(previous);
       toast.error("Failed to update course selection");
@@ -614,12 +631,16 @@ export function CalendarSettings() {
                 <p className="text-xs text-muted-foreground">
                   {selectedCourses === null
                     ? "Syncing all courses from your Canvas feed."
-                    : `Syncing ${selectedCourses.length} of ${canvasCourses.length} courses.`}
+                    : canvasCourses.length > 0
+                      ? `Syncing ${selectedCourses.length} of ${canvasCourses.length} courses.`
+                      : `Syncing ${selectedCourses.length} selected ${
+                          selectedCourses.length === 1 ? "course" : "courses"
+                        }.`}
                 </p>
               </div>
               {!coursesLoaded && (
                 <Button
-                  onClick={handleLoadCourses}
+                  onClick={() => void handleLoadCourses()}
                   disabled={isLoadingCourses}
                   variant="outline"
                   size="sm"
