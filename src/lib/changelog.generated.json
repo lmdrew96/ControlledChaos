@@ -3,6 +3,30 @@
     "weekOf": "2026-08-31",
     "items": [
       {
+        "type": "added",
+        "text": "Resolve commute estimates with one OSRM matrix call instead of N(N-1)/2"
+      },
+      {
+        "type": "added",
+        "text": "Take completed tasks off the calendar"
+      },
+      {
+        "type": "added",
+        "text": "Clear the ghost cc- calendar event on every scheduledFor change"
+      },
+      {
+        "type": "added",
+        "text": "Make Canvas course selection stick, and clear tasks from deselected courses"
+      },
+      {
+        "type": "added",
+        "text": "Treat 11:59pm Canvas deadlines as tasks, never calendar events"
+      },
+      {
+        "type": "fixed",
+        "text": "Commute \"Estimate all\" 400ing once you have 7+ locations"
+      },
+      {
         "type": "fixed",
         "text": "Palette settings links landing at the top of the page"
       },

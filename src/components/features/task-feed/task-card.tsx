@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { formatForDisplay, DISPLAY_DATETIME, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
+import { taskBadgeColor, categoryLabel } from "@/lib/calendar/colors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +55,11 @@ export function TaskCard({
   onClick?: () => void;
 }) {
   const timezone = useTimezone();
+  // Category colours are the user's configured calendar colours, so a task
+  // reads as the same colour here as its events do on the calendar. Shares
+  // the settings cache with useTimezone above — no extra fetch per card.
+  const { settings: calendarSettings } = useCalendarSettings();
+  const taskCategoryLabel = categoryLabel(task.category);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isChunking, setIsChunking] = useState(false);
@@ -505,6 +512,29 @@ export function TaskCard({
                 >
                   <PlayCircle className="h-3 w-3" />
                   In Progress
+                </Badge>
+              )}
+
+              {/* Category chip. Filled, where priority is outlined, so the two
+                  read as different kinds of thing at a glance rather than
+                  competing as two same-weight badges. The colour comes from the
+                  user's configured calendar colours, so a school task is the
+                  same colour here as its events are on the calendar.
+
+                  The label is always present alongside the colour — colour is
+                  not a signal every user receives, and a tooltip is not a
+                  substitute for visible text. Uncategorized tasks get no chip
+                  at all: a chip that says nothing is pure noise on a screen
+                  this busy. */}
+              {taskCategoryLabel && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "border-transparent",
+                    taskBadgeColor(task.category, calendarSettings.calendarColors)
+                  )}
+                >
+                  {taskCategoryLabel}
                 </Badge>
               )}
 

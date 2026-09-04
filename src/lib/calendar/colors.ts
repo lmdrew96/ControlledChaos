@@ -87,8 +87,10 @@ export const TASK_BADGE_CLASSES: Record<CalendarColorKey, string> = {
   yellow: "bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-200",
 };
 
-function resolveColor(category: EventCategory | null | undefined, colors: CalendarColors): CalendarColorKey {
-  if (category && category in colors) return colors[category];
+function resolveColor(category: string | null | undefined, colors: CalendarColors): CalendarColorKey {
+  if (category && category in colors) {
+    return colors[category as EventCategory];
+  }
   return colors.personal; // fallback for events with no category
 }
 
@@ -116,9 +118,22 @@ export function categoryHex(
   return COLOR_HEX[c];
 }
 
+/**
+ * Human-readable name for a category, or null when there isn't one.
+ *
+ * Pairs with taskBadgeColor: anywhere a category is shown as colour, it must
+ * also be shown as text. Colour alone is not a signal every user receives.
+ */
+export function categoryLabel(
+  category: string | null | undefined
+): string | null {
+  if (!category) return null;
+  return EVENT_CATEGORIES.find((c) => c.key === category)?.label ?? null;
+}
+
 /** Get task badge classes for a category, respecting user color prefs */
 export function taskBadgeColor(
-  category: EventCategory | null | undefined,
+  category: string | null | undefined,
   colors?: CalendarColors | null
 ): string {
   const c = resolveColor(category, colors ?? DEFAULT_CALENDAR_COLORS);
