@@ -16,6 +16,7 @@ import { parseCanvasTitle } from "@/lib/calendar/assessments";
 import {
   toEndOfDayLocal,
   classifyCanvasEvent,
+  isEndOfDayDeadline,
   shouldSyncAsCalendarEvent,
   type CanvasTaskKind,
 } from "@/lib/calendar/canvas-helpers";
@@ -177,7 +178,7 @@ export async function syncCanvasCalendar(
     // Classify BEFORE deciding anything else. This drives both whether the
     // event lands on the calendar and what kind of task it generates, so it
     // must not depend on the auto-add-tasks setting.
-    const taskKind = classifyCanvasEvent(uid, title);
+    let taskKind = classifyCanvasEvent(uid, title);
 
     let startDate =
       event.start instanceof Date ? event.start : new Date(event.start);
@@ -198,6 +199,17 @@ export async function syncCanvasCalendar(
       startDate = toEndOfDayLocal(startDate, timezone);
       endDate = new Date(startDate);
       isAllDay = false;
+    }
+
+    // An 11:59 PM due time means the work happens on your own time, whatever
+    // Canvas calls it. Take-home quizzes and exams are graded coursework, not
+    // a room you sit in — so downgrade them to plain assignments once the due
+    // time is known. Two things follow from that in one move: nothing lands on
+    // the calendar (where a 11:59 PM card renders off the bottom of the grid),
+    // and the task is the work itself, due when it's due, instead of a "Prep:"
+    // task pinned to 10 PM the night before.
+    if (taskKind === "assessment" && isEndOfDayDeadline(startDate, timezone)) {
+      taskKind = "assignment";
     }
 
     // Assignments and homework are tasks, never calendar events. Leaving the

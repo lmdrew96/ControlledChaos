@@ -3,6 +3,7 @@ import {
   toEndOfDayLocal,
   isAssignmentEvent,
   classifyCanvasEvent,
+  isEndOfDayDeadline,
   shouldSyncAsCalendarEvent,
 } from "@/lib/calendar/canvas-helpers";
 
@@ -175,6 +176,48 @@ describe("shouldSyncAsCalendarEvent — assignments are tasks only", () => {
       const kind = classifyCanvasEvent(PLAIN_UID, title);
       expect(kind).toBeNull();
       expect(shouldSyncAsCalendarEvent(kind)).toBe(true);
+    }
+  });
+});
+
+describe("isEndOfDayDeadline — 11:59 PM is a due time, not an appointment", () => {
+  const ET = "America/New_York";
+
+  it("is true at 11:59 PM local", () => {
+    // 2026-09-15 23:59 EDT = 2026-09-16 03:59 UTC
+    expect(isEndOfDayDeadline(new Date("2026-09-16T03:59:00Z"), ET)).toBe(true);
+  });
+
+  it("is true for the :55–:58 rounding window", () => {
+    expect(isEndOfDayDeadline(new Date("2026-09-16T03:55:00Z"), ET)).toBe(true);
+    expect(isEndOfDayDeadline(new Date("2026-09-16T03:58:00Z"), ET)).toBe(true);
+  });
+
+  it("is false earlier in the 11 PM hour", () => {
+    expect(isEndOfDayDeadline(new Date("2026-09-16T03:00:00Z"), ET)).toBe(false);
+    expect(isEndOfDayDeadline(new Date("2026-09-16T03:54:00Z"), ET)).toBe(false);
+  });
+
+  it("is false for a real sit-down exam slot", () => {
+    // 2026-09-15 10:00 EDT — a room you show up to
+    expect(isEndOfDayDeadline(new Date("2026-09-15T14:00:00Z"), ET)).toBe(false);
+  });
+
+  it("is false at midnight, the first minute of the NEXT day", () => {
+    expect(isEndOfDayDeadline(new Date("2026-09-16T04:00:00Z"), ET)).toBe(false);
+  });
+
+  it("reads the wall clock in the user's timezone, not UTC", () => {
+    // Same instant: 11:59 PM Pacific, but 2:59 AM Eastern the next day.
+    const instant = new Date("2026-09-16T06:59:00Z");
+    expect(isEndOfDayDeadline(instant, "America/Los_Angeles")).toBe(true);
+    expect(isEndOfDayDeadline(instant, ET)).toBe(false);
+  });
+
+  it("agrees with toEndOfDayLocal, which is what produces these times", () => {
+    const allDay = new Date("2026-09-15T00:00:00Z");
+    for (const tz of [ET, "America/Los_Angeles", "America/Chicago"]) {
+      expect(isEndOfDayDeadline(toEndOfDayLocal(allDay, tz), tz)).toBe(true);
     }
   });
 });

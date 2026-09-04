@@ -86,3 +86,37 @@ export function classifyCanvasEvent(
 export function shouldSyncAsCalendarEvent(kind: CanvasTaskKind): boolean {
   return kind !== "assignment";
 }
+
+/**
+ * Local wall-clock hour and minute for a Date in the given timezone.
+ * One Intl pass — getHourInTimezone() would need a second one for the minute.
+ */
+function getLocalHourMinute(
+  date: Date,
+  timezone: string
+): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const hour =
+    Number(parts.find((p) => p.type === "hour")!.value) % 24;
+  const minute = Number(parts.find((p) => p.type === "minute")!.value);
+  return { hour, minute };
+}
+
+/**
+ * True if a Canvas due time is an end-of-day deadline (11:55–11:59 PM local).
+ *
+ * Canvas stamps coursework due dates at 11:59 PM local. That's a submission
+ * cutoff, not a time you have to be somewhere — and the calendar grid tops out
+ * at midnight, so an event card starting at 11:59 PM renders off the bottom
+ * with no way to scroll to it. The window reaches back to :55 to absorb feeds
+ * that round the minute.
+ */
+export function isEndOfDayDeadline(date: Date, timezone: string): boolean {
+  const { hour, minute } = getLocalHourMinute(date, timezone);
+  return hour === 23 && minute >= 55;
+}
