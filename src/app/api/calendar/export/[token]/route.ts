@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserIdByCalendarToken, getCalendarEventsByDateRange } from "@/lib/db/queries";
+import {
+  getUserIdByCalendarToken,
+  getCalendarEventsByDateRange,
+  getScheduledTasksInRange,
+} from "@/lib/db/queries";
+import { planBlockEnd } from "@/lib/calendar/plan-blocks";
 
 interface RouteContext {
   params: Promise<{ token: string }>;
@@ -53,7 +58,15 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     const end = new Date();
     end.setDate(end.getDate() + 180);
 
-    const events = await getCalendarEventsByDateRange(userId, start, end);
+    // Planned work is exported alongside real events. It lives as
+    // task.scheduledFor, not as a calendar row — the scheduler used to
+    // materialize a cc- event and that is how planned work used to reach a
+    // subscribed calendar. It no longer does, so without this the feed would
+    // silently stop showing anything you'd planned.
+    const [events, scheduledTasks] = await Promise.all([
+      getCalendarEventsByDateRange(userId, start, end),
+      getScheduledTasksInRange(userId, start, end),
+    ]);
 
     const lines: string[] = [
       "BEGIN:VCALENDAR",
@@ -102,6 +115,26 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         lines.push(foldLine(`LOCATION:${escapeIcalText(event.location)}`));
       }
 
+      lines.push("END:VEVENT");
+    }
+
+    for (const task of scheduledTasks) {
+      if (!task.scheduledFor) continue;
+
+      const blockStart = task.scheduledFor;
+      const blockEnd = planBlockEnd(blockStart, task.estimatedMinutes);
+
+      lines.push("BEGIN:VEVENT");
+      // Distinct UID namespace from calendar rows, so a plan block and an event
+      // can never collide on id in the subscriber's calendar.
+      lines.push(`UID:plan-${task.id}@controlledchaos`);
+      lines.push(`DTSTAMP:${formatIcalDate(new Date().toISOString(), false)}`);
+      lines.push(`DTSTART:${formatIcalDate(blockStart.toISOString(), false)}`);
+      lines.push(`DTEND:${formatIcalDate(blockEnd.toISOString(), false)}`);
+      lines.push(foldLine(`SUMMARY:${escapeIcalText(task.title)}`));
+      if (task.description) {
+        lines.push(foldLine(`DESCRIPTION:${escapeIcalText(task.description)}`));
+      }
       lines.push("END:VEVENT");
     }
 

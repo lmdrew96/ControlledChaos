@@ -7,7 +7,6 @@ import {
   getUserSettings,
   getCalendarEventsByDateRange,
   getScheduledTasksInRange,
-  upsertCalendarEvent,
   updateTask,
 } from "@/lib/db/queries";
 import { planBlocksAsBusyIntervals } from "@/lib/calendar/plan-blocks";
@@ -153,26 +152,18 @@ export async function POST(_req: Request, context: RouteContext) {
     // discarding the old value in silence; the client offers an undo.
     const previousScheduledFor = task.scheduledFor?.toISOString() ?? null;
 
-    // Write the plan FIRST. updateTask now clears whatever event a previous run
-    // materialized — the externalId embeds the start time, so rescheduling
-    // mints a new key the upsert can't replace, and the old row would linger as
-    // a ghost. That ordering is load-bearing: creating the event before this
-    // call would have the cleanup delete the row we just wrote.
+    // The plan lives on the task, and nowhere else.
+    //
+    // This route used to ALSO materialize a `cc-{taskId}-{startTime}` calendar
+    // event. That made every auto-scheduled task render twice — once as a plan
+    // block derived from scheduledFor, once as the event — and made it count
+    // twice in every busy-interval calculation, including this route's own.
+    // "Plan my day" never wrote a calendar row, so this was the odd path out.
+    //
+    // updateTask also clears any cc- row a previous version of this route left
+    // behind, so re-scheduling a task drains the legacy data as it goes.
     await updateTask(task.id, userId, {
       scheduledFor: new Date(block.startTime),
-    });
-
-    // Create calendar event
-    await upsertCalendarEvent({
-      userId,
-      source: "controlledchaos",
-      externalId: `cc-${task.id}-${block.startTime}`,
-      title: task.title,
-      description: block.reasoning,
-      startTime: new Date(block.startTime),
-      endTime: new Date(block.endTime),
-      location: null,
-      isAllDay: false,
     });
 
     const moved =

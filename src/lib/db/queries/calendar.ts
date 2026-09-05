@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { calendarEvents, userSettings } from "../schema";
-import { eq, and, gt, lte, like, notInArray, sql } from "drizzle-orm";
+import { eq, and, gt, lte, like, notLike, notInArray, sql } from "drizzle-orm";
 import { getUserSettings } from "./users";
 
 // ============================================================
@@ -100,6 +100,17 @@ export async function getCalendarEventsByDateRange(
   // Include events that overlap with the range:
   // - events starting within the range, OR
   // - events that started before `start` but haven't ended yet (currently happening)
+  //
+  // `cc-` rows are excluded. The scheduler used to materialize a calendar event
+  // alongside task.scheduledFor, so an auto-scheduled task appeared twice — as
+  // a plan block AND as an event — and counted twice in every busy calculation
+  // built from this query. Nothing writes those rows any more, but existing
+  // ones are still in the table; filtering here retires them everywhere at once
+  // without a destructive migration against live data. Nothing is lost: they
+  // only ever duplicated a plan block the task still carries.
+  //
+  // Safe to match on the prefix — user-authored events are keyed `manual-` and
+  // `dump-`, and Canvas rows carry Canvas UIDs.
   return db
     .select()
     .from(calendarEvents)
@@ -107,7 +118,8 @@ export async function getCalendarEventsByDateRange(
       and(
         eq(calendarEvents.userId, userId),
         lte(calendarEvents.startTime, end),
-        gt(calendarEvents.endTime, start)
+        gt(calendarEvents.endTime, start),
+        notLike(calendarEvents.externalId, "cc-%")
       )
     )
     .orderBy(calendarEvents.startTime);

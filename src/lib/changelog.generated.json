@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Colour-code task cards by category"
+      },
+      {
+        "type": "added",
         "text": "Resolve commute estimates with one OSRM matrix call instead of N(N-1)/2"
       },
       {
