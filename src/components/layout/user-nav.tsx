@@ -1,20 +1,24 @@
 "use client";
 
-import { useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { User, Sun, Moon, Sparkles } from "lucide-react";
-import {
-  WhatsNewDialog,
-  useHasNewChangelog,
-} from "@/components/features/changelog/whats-new-dialog";
+import { useHasNewChangelog } from "@/components/features/changelog/whats-new-dialog";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 
-export function UserNav() {
+/**
+ * `onOpenWhatsNew` is a callback rather than local state on purpose. This
+ * component is rendered inside the mobile "More" Sheet, and Clerk's menu is
+ * portaled outside that Sheet's DOM — so clicking a Clerk menu item counts as a
+ * pointer-down outside the Sheet and dismisses it. A dialog owned here would be
+ * a React child of the Sheet and unmount along with it, which is exactly how it
+ * used to open and then disappear a beat later. The dialog lives in AppShell so
+ * its lifetime is independent of the Sheet's.
+ */
+export function UserNav({ onOpenWhatsNew }: { onOpenWhatsNew: () => void }) {
   const hasClerk = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const { resolvedTheme, setTheme } = useTheme();
   const { hasNew, markSeen } = useHasNewChangelog();
-  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const mounted = useIsMounted();
 
   if (!hasClerk) {
@@ -54,7 +58,7 @@ export function UserNav() {
               label={hasNew ? "What's new ·" : "What's new"}
               labelIcon={<Sparkles className="h-4 w-4" />}
               onClick={() => {
-                setWhatsNewOpen(true);
+                onOpenWhatsNew();
                 markSeen();
               }}
             />
@@ -67,8 +71,6 @@ export function UserNav() {
           />
         )}
       </div>
-
-      <WhatsNewDialog open={whatsNewOpen} onOpenChange={setWhatsNewOpen} />
     </>
   );
 }

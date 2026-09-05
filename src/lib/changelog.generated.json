@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop materializing cc- calendar events — one block per planned task"
+      },
+      {
+        "type": "added",
         "text": "Colour-code task cards by category"
       },
       {

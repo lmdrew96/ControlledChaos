@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { UserNav } from "@/components/layout/user-nav";
+import { WhatsNewDialog } from "@/components/features/changelog/whats-new-dialog";
 import { Logo } from "@/components/ui/logo";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ShortcutsDialog } from "@/components/features/shortcuts/shortcuts-dialog";
@@ -86,6 +87,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Hosted here rather than on the dashboard so the command palette can reach
   // it from any page. The dashboard still renders its own trigger button.
   const [showPlanner, setShowPlanner] = useState(false);
+  // Owned here, not in UserNav. UserNav is rendered inside the mobile "More"
+  // Sheet, and Clerk's menu is portaled outside that Sheet's DOM — so pressing
+  // a Clerk menu item reads as a pointer-down OUTSIDE the Sheet and dismisses
+  // it. Anything owned by UserNav unmounts with the Sheet a moment later, which
+  // is what made this dialog open and then vanish. Hoisting the state above
+  // both navs decouples the dialog's lifetime from the Sheet's.
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const toggleShortcuts = useCallback(() => setShowShortcuts((v) => !v), []);
   const togglePalette = useCallback(() => setShowPalette((v) => !v), []);
   const openCreateTask = useCallback(() => setShowCreateTask(true), []);
@@ -229,7 +237,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-col border-t border-border p-4 gap-3">
           <div className="flex items-center justify-between">
-            <UserNav />
+            <UserNav onOpenWhatsNew={() => setShowWhatsNew(true)} />
             <div className="flex items-center gap-1">
               <NotificationBell />
             </div>
@@ -317,7 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="grid grid-cols-2 gap-3 px-4 pt-3">
               <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
-                <UserNav />
+                <UserNav onOpenWhatsNew={() => setShowWhatsNew(true)} />
                 <span className="text-xs text-muted-foreground">Account</span>
               </div>
               <div className="flex flex-col items-center gap-1 rounded-lg border border-border px-2 py-2">
@@ -355,6 +363,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onPlanCommitted={() => router.refresh()}
       />
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <WhatsNewDialog open={showWhatsNew} onOpenChange={setShowWhatsNew} />
       <CreateTaskModal
         open={showCreateTask}
         onClose={() => setShowCreateTask(false)}
