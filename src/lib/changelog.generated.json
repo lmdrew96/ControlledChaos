@@ -3,6 +3,10 @@
     "weekOf": "2026-08-31",
     "items": [
       {
+        "type": "fixed",
+        "text": "What's New opening then immediately closing below the md breakpoint"
+      },
+      {
         "type": "added",
         "text": "Stop materializing cc- calendar events — one block per planned task"
       },

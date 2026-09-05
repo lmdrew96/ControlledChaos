@@ -204,12 +204,17 @@ export function TaskCard({
 
   async function handleFindTimeAction() {
     setIsScheduling(true);
+    // Same as chunking: the menu's spinner disappears with the menu, so the
+    // pending state moves to a toast that survives it.
+    const toastId = toast.loading("Looking for a free slot…");
     try {
       const res = await fetch(`/api/tasks/${task.id}/schedule`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Scheduling failed");
       if (!data.block) {
-        toast.info(data.message ?? "No free time found in the next 3 days.");
+        toast.info(data.message ?? "No free time found in the next 3 days.", {
+          id: toastId,
+        });
       } else {
         const scheduledDate = new Date(data.scheduledFor);
         const timeStr = formatForDisplay(scheduledDate, timezone, DISPLAY_DATETIME);
@@ -221,6 +226,7 @@ export function TaskCard({
           const previous = data.previousScheduledFor as string;
           const fromStr = formatForDisplay(new Date(previous), timezone, DISPLAY_DATETIME);
           toast.success(`Moved from ${fromStr} to ${timeStr}`, {
+            id: toastId,
             action: {
               label: "Undo",
               onClick: async () => {
@@ -240,13 +246,16 @@ export function TaskCard({
             },
           });
         } else {
-          toast.success(`Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`);
+          toast.success(
+            `Scheduled for ${timeStr}${reasoning ? ` — ${reasoning}` : ""}`,
+            { id: toastId }
+          );
         }
         onUpdate();
       }
     } catch (error) {
       console.error("Find time failed:", error);
-      toast.error("Couldn't find a time. Try again.");
+      toast.error("Couldn't find a time. Try again.", { id: toastId });
     } finally {
       setIsScheduling(false);
     }
@@ -254,14 +263,20 @@ export function TaskCard({
 
   async function handleChunkAction() {
     setIsChunking(true);
+    // The menu closes on select, and its spinner goes with it — so the
+    // "working on it" signal has to live somewhere that outlives the menu.
+    const toastId = toast.loading("Chunking this into steps…");
     try {
       const res = await fetch(`/api/tasks/${task.id}/chunk`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Chunk failed");
-      toast.success(`Chunked into ${data.steps.length} steps`);
+      toast.success(`Chunked into ${data.steps.length} steps`, { id: toastId });
       onUpdate();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't chunk this. Try again.");
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't chunk this. Try again.",
+        { id: toastId }
+      );
     } finally {
       setIsChunking(false);
     }
@@ -431,10 +446,7 @@ export function TaskCard({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        void handleToggleInProgress();
-                      }}
+                      onSelect={() => void handleToggleInProgress()}
                       disabled={isUpdating}
                     >
                       {isUpdating ? (
@@ -448,10 +460,7 @@ export function TaskCard({
                     </DropdownMenuItem>
                     {!hasSteps && (
                       <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          void handleChunkAction();
-                        }}
+                        onSelect={() => void handleChunkAction()}
                         disabled={isChunking || isUpdating}
                       >
                         {isChunking ? (
@@ -463,10 +472,7 @@ export function TaskCard({
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        void handleFindTimeAction();
-                      }}
+                      onSelect={() => void handleFindTimeAction()}
                       disabled={isScheduling || isUpdating}
                     >
                       {isScheduling ? (
@@ -479,10 +485,7 @@ export function TaskCard({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setConfirmDelete(true);
-                      }}
+                      onSelect={() => setConfirmDelete(true)}
                       disabled={isUpdating}
                     >
                       <Trash2 className="h-4 w-4" />
