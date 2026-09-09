@@ -20,6 +20,7 @@ import {
   createNotification,
   getUserLocation,
   isLocationStale,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
@@ -135,9 +136,15 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   );
 
   // Work they planned to start today. Their plan, not a due date.
-  const plannedToday = pending
-    .filter((t) => t.scheduledFor && t.scheduledFor >= todayStart && t.scheduledFor < todayEnd)
-    .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime());
+  //
+  // Read from SESSIONS so a task planned for two sittings today appears twice,
+  // at both times. Filtering `pending` by scheduledFor only ever showed the
+  // earliest, so the digest quietly under-reported the day.
+  const plannedToday = await getScheduledSessionsInRange(
+    userId,
+    todayStart,
+    todayEnd
+  );
 
   // Fetch crises and recent activity for holistic context
   const [activeCrises, recentActivity] = await Promise.all([
@@ -168,7 +175,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
     `SOFT self-imposed targets this week (NOT due — never call these "due"): ${targetsThisWeek.map((t) => `${t.title}, they aimed for ${formatDate(t.targetDate!, timezone)}`).join(", ") || "None"}`,
-    `Planned to start today (their own plan, not a deadline): ${plannedToday.map((t) => `${formatTime(t.scheduledFor!, timezone)} ${t.title}`).join(", ") || "None"}`,
+    `Planned to start today (their own plan, not a deadline): ${plannedToday.map((t) => `${formatTime(t.scheduledFor, timezone)} ${t.title}`).join(", ") || "None"}`,
     activeCrises.length > 0
       ? `Active crises: ${activeCrises.map((c) => `"${c.taskName}" (${c.panicLevel})`).join(", ")}`
       : null,
@@ -302,9 +309,12 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000);
 
   // Work already planned for tomorrow — their plan, not a due date.
-  const plannedTomorrow = pending
-    .filter((t) => t.scheduledFor && t.scheduledFor >= tomorrowStart && t.scheduledFor < tomorrowEnd)
-    .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime());
+  // Session-based, same as the morning digest's plannedToday.
+  const plannedTomorrow = await getScheduledSessionsInRange(
+    userId,
+    tomorrowStart,
+    tomorrowEnd
+  );
   const tomorrowEvents = sortEventsForDisplay(
     await getCalendarEventsByDateRange(userId, tomorrowStart, tomorrowEnd)
   );
@@ -340,7 +350,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
         : "Nothing urgent"
     }`,
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
-    `Already planned for tomorrow (their own plan, not deadlines): ${plannedTomorrow.map((t) => `${formatTime(t.scheduledFor!, timezone)} ${t.title}`).join(", ") || "Nothing planned yet"}`,
+    `Already planned for tomorrow (their own plan, not deadlines): ${plannedTomorrow.map((t) => `${formatTime(t.scheduledFor, timezone)} ${t.title}`).join(", ") || "Nothing planned yet"}`,
     activeCrises.length > 0
       ? `Active crises: ${activeCrises.map((c) => `"${c.taskName}" (${c.panicLevel})`).join(", ")}`
       : null,

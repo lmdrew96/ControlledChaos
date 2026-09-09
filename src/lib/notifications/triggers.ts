@@ -8,6 +8,7 @@ import {
   getSavedLocations,
   getCommuteTimes,
   isLocationStale,
+  getSessionsStartingBetween,
 } from "@/lib/db/queries";
 import {
   startOfDayInTimezone,
@@ -82,6 +83,8 @@ function pickIntervalForDiff(diffMs: number, intervalsDesc: number[]): number | 
 
 interface ScheduledAlert {
   taskId: string;
+  /** Identifies the SITTING, so two sessions of one task dedup separately. */
+  sessionId: string;
   taskTitle: string;
   scheduledFor: Date;
   taskDescription: string | null;
@@ -90,6 +93,7 @@ interface ScheduledAlert {
 
 interface MissedScheduledAlert {
   taskId: string;
+  sessionId: string;
   taskTitle: string;
   scheduledFor: Date;
   taskDescription: string | null;
@@ -285,29 +289,24 @@ export async function getEventReminders(
 export async function getScheduledTaskAlerts(
   userId: string
 ): Promise<ScheduledAlert[]> {
-  const tasks = await getPendingTasks(userId);
-  const now = Date.now();
-  const alerts: ScheduledAlert[] = [];
+  // Reads SESSIONS, not the task's mirrored scheduledFor. A task planned
+  // across several sittings needs a nudge at each one — under the old
+  // task-level read, only the earliest ever fired.
+  const now = new Date();
+  const sessions = await getSessionsStartingBetween(
+    userId,
+    now,
+    new Date(now.getTime() + 15 * 60 * 1000)
+  );
 
-  for (const task of tasks) {
-    if (!task.scheduledFor) continue;
-
-    const scheduledMs = new Date(task.scheduledFor).getTime();
-    const diff = scheduledMs - now;
-
-    // Alert if scheduled within the next 15 minutes (and not past)
-    if (diff > 0 && diff <= 15 * 60 * 1000) {
-      alerts.push({
-        taskId: task.id,
-        taskTitle: task.title,
-        scheduledFor: task.scheduledFor,
-        taskDescription: task.description ?? null,
-        sourceEventId: task.sourceEventId ?? null,
-      });
-    }
-  }
-
-  return alerts;
+  return sessions.map((s) => ({
+    taskId: s.taskId,
+    sessionId: s.sessionId,
+    taskTitle: s.taskTitle,
+    scheduledFor: s.scheduledFor,
+    taskDescription: s.taskDescription ?? null,
+    sourceEventId: s.sourceEventId ?? null,
+  }));
 }
 
 /**
@@ -317,28 +316,23 @@ export async function getScheduledTaskAlerts(
 export async function getMissedScheduledTaskAlerts(
   userId: string
 ): Promise<MissedScheduledAlert[]> {
-  const tasks = await getPendingTasks(userId);
-  const now = Date.now();
-  const alerts: MissedScheduledAlert[] = [];
+  // Per session, same as getScheduledTaskAlerts: a sitting you skipped is a
+  // sitting you skipped, whether or not it was the first one.
+  const now = new Date();
+  const sessions = await getSessionsStartingBetween(
+    userId,
+    new Date(now.getTime() - 120 * 60 * 1000),
+    new Date(now.getTime() - 20 * 60 * 1000)
+  );
 
-  for (const task of tasks) {
-    if (!task.scheduledFor) continue;
-
-    const scheduledMs = new Date(task.scheduledFor).getTime();
-    const overdueMs = now - scheduledMs;
-
-    if (overdueMs >= 20 * 60 * 1000 && overdueMs <= 120 * 60 * 1000) {
-      alerts.push({
-        taskId: task.id,
-        taskTitle: task.title,
-        scheduledFor: task.scheduledFor,
-        taskDescription: task.description ?? null,
-        sourceEventId: task.sourceEventId ?? null,
-      });
-    }
-  }
-
-  return alerts;
+  return sessions.map((s) => ({
+    taskId: s.taskId,
+    sessionId: s.sessionId,
+    taskTitle: s.taskTitle,
+    scheduledFor: s.scheduledFor,
+    taskDescription: s.taskDescription ?? null,
+    sourceEventId: s.sourceEventId ?? null,
+  }));
 }
 
 /**

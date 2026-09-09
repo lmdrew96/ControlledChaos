@@ -625,16 +625,22 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       const isPlan = dragTarget.kind === "plan";
 
       try {
-        // A plan block lives as `scheduledFor` on its task, not as a calendar
-        // event, so it writes back through the task route. No conflict check
-        // here on purpose: dragging one somewhere is an explicit request, and
-        // the user is allowed to overlap their own plan if they mean to.
+        // A plan block is a row in task_sessions, not a calendar event, so it
+        // writes back through the sessions route. Moving the SESSION rather
+        // than the task matters once a task has more than one sitting —
+        // PATCHing the task would have replaced the whole plan with this one
+        // block. No conflict check here on purpose: dragging one somewhere is
+        // an explicit request, and the user is allowed to overlap their own
+        // plan if they mean to.
         const res = isPlan
-          ? await fetch(`/api/tasks/${dragTarget.block.taskId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ scheduledFor: newStart.toISOString() }),
-            })
+          ? await fetch(
+              `/api/tasks/${dragTarget.block.taskId}/sessions/${dragTarget.block.sessionId}`,
+              {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ startsAt: newStart.toISOString() }),
+              }
+            )
           : await fetch(`/api/calendar/events/${dragTarget.event.id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
@@ -995,17 +1001,20 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                       // Two blocks planned into the same slot used to render
                       // stacked on top of each other, unreadable and with no way
                       // to tell there were two. Same column layout as events.
+                      // Keyed by SESSION: a task planned for two sittings the
+                      // same day is two blocks, and keying by task id would
+                      // collapse them into one layout slot.
                       const planLayout = layoutOverlappingEvents(
-                        dayPlan.map((b) => ({ ...b, id: b.taskId }))
+                        dayPlan.map((b) => ({ ...b, id: b.sessionId }))
                       );
                       return dayPlan.map((block) => {
                         const pos = eventPosition(block, startHour, timezone);
-                        const overlap = planLayout.get(block.taskId);
+                        const overlap = planLayout.get(block.sessionId);
                         const planCols = overlap?.totalColumns ?? 1;
                         const planWidth = 100 / planCols;
                         const planLeft = (overlap?.column ?? 0) * planWidth;
                         return (
-                          <Tooltip key={block.taskId} delayDuration={TOOLTIP_DELAY_MS}>
+                          <Tooltip key={block.sessionId} delayDuration={TOOLTIP_DELAY_MS}>
                             <TooltipTrigger asChild>
                               {/* Focusable so the tooltip is reachable by keyboard,
                                   not just by hover. It is not actionable — a plan
@@ -1029,7 +1038,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                     ? "cursor-grab touch-none active:cursor-grabbing"
                                     : "cursor-default",
                                   dragTarget?.kind === "plan" &&
-                                    dragTarget.block.taskId === block.taskId &&
+                                    dragTarget.block.sessionId === block.sessionId &&
                                     "opacity-40"
                                 )}
                                 style={{

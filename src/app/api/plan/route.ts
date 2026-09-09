@@ -2,8 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
   getUser,
-  getScheduledTasksInRange,
-  clearScheduledInRange,
+  getScheduledSessionsInRange,
+  clearSessionsInRange,
 } from "@/lib/db/queries";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { planBlockEnd, planBlockMinutes } from "@/lib/calendar/plan-blocks";
@@ -25,7 +25,7 @@ export async function GET() {
     }
 
     const { start, end } = await todayBounds(userId);
-    const scheduled = await getScheduledTasksInRange(userId, start, end);
+    const scheduled = await getScheduledSessionsInRange(userId, start, end);
 
     return NextResponse.json({
       blocks: scheduled.map((t) => ({
@@ -58,7 +58,7 @@ export async function DELETE() {
     }
 
     const { start, end } = await todayBounds(userId);
-    const cleared = await clearScheduledInRange(userId, start, end);
+    const cleared = await clearSessionsInRange(userId, start, end);
 
     return NextResponse.json({ cleared });
   } catch (error) {

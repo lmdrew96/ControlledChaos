@@ -1,6 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { updateTask, deleteTask, logTaskActivity } from "@/lib/db/queries";
+import {
+  updateTask,
+  deleteTask,
+  logTaskActivity,
+  setPrimaryTaskSession,
+  clearTaskSessions,
+} from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -55,9 +61,34 @@ export async function PATCH(
       }
     }
 
-    // deadline / targetDate / scheduledFor already arrive as Dates — the
-    // allowlist parser coerces them.
-    const updated = await updateTask(id, userId, body);
+    // `scheduledFor` is a DERIVED mirror of the earliest task_sessions row, so
+    // it must never be written through updateTask — that would desync the two
+    // until the next session mutation silently overwrote it. The field stays
+    // in the PATCH contract because it is the natural way to say "plan this
+    // for X" (and the MCP server and older clients use it); it is just routed
+    // to the session layer instead, which recomputes the mirror itself.
+    //
+    // Setting it moves the task's FIRST sitting and leaves any others alone —
+    // editing "Planned for" on a task with three sittings should nudge the
+    // first, not delete the plan and start over. Clearing it removes the plan
+    // entirely, which is what the field's hint promises. Additional sittings
+    // are added through /api/tasks/[id]/sessions.
+    const { scheduledFor, ...rest } = body as typeof body & {
+      scheduledFor?: Date | null;
+    };
+    const isPlanChange = "scheduledFor" in body;
+
+    if (isPlanChange) {
+      if (scheduledFor) {
+        await setPrimaryTaskSession(id, userId, scheduledFor);
+      } else {
+        await clearTaskSessions(id, userId);
+      }
+    }
+
+    // deadline / targetDate already arrive as Dates — the allowlist parser
+    // coerces them.
+    const updated = await updateTask(id, userId, rest);
 
     if (!updated) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });

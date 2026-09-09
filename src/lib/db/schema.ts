@@ -152,7 +152,12 @@ export const tasks = pgTable(
     // SOFT aim — self-imposed buffer ("done by Wed even though it's due Fri").
     // Independent of deadline: either, both, or neither may be set. Never auto-derived.
     targetDate: timestamp("target_date"),
-    // Planned work START (a "when", not a "by when"). Set by Plan-my-day.
+    // DERIVED — the earliest task_sessions.starts_at for this task, or null.
+    //
+    // Planned work START (a "when", not a "by when"). task_sessions is the
+    // source of truth now that a task can be planned across several sittings;
+    // this is a read cache for the many surfaces that only need "when next".
+    // Only syncTaskScheduledFor() writes it. Never set it directly.
     scheduledFor: timestamp("scheduled_for"),
     completedAt: timestamp("completed_at"),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
@@ -180,6 +185,44 @@ export const tasks = pgTable(
 
 // ============================================================
 // Calendar Events (Canvas iCal + ControlledChaos-created)
+// ============================================================
+// Task work sessions — the planned blocks for a task
+//
+// A task can be worked in more than one sitting, so the plan is a LIST of
+// sessions rather than a single `tasks.scheduled_for`. This table is the
+// source of truth for planned work.
+//
+// `tasks.scheduled_for` still exists and is maintained as a DERIVED MIRROR of
+// the earliest session (see syncTaskScheduledFor). It is a read cache for the
+// many surfaces that only need "when is this next planned" — never write it
+// directly, or the two will drift.
+// ============================================================
+export const taskSessions = pgTable(
+  "task_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .references(() => tasks.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    startsAt: timestamp("starts_at").notNull(),
+    /**
+     * This session's length. NULL means "use the task's estimatedMinutes",
+     * which is the old single-block behaviour. Set explicitly when a task is
+     * split across sittings, since three 40-minute sessions is not the same
+     * statement as one 120-minute estimate.
+     */
+    minutes: integer("minutes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_task_sessions_user_start").on(table.userId, table.startsAt),
+    index("idx_task_sessions_task").on(table.taskId),
+  ]
+);
+
 // ============================================================
 export const calendarEvents = pgTable(
   "calendar_events",

@@ -37,6 +37,12 @@ import {
 } from "./task-config";
 import { OptionalDateTimeField } from "./optional-datetime-field";
 
+interface TaskSessionView {
+  id: string;
+  startsAt: string;
+  minutes: number | null;
+}
+
 interface TaskDetailModalProps {
   task: Task | null;
   onClose: () => void;
@@ -56,6 +62,18 @@ interface FormState {
   scheduledFor: string;
   status: string;
   goalId: string;
+}
+
+/** "Thu, Sep 11 at 2:00 PM" — enough to place a sitting without a calendar. */
+function formatSessionLabel(isoString: string, timezone: string): string {
+  return new Date(isoString).toLocaleString("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function toDatetimeLocal(isoString: string, timezone: string): string {
@@ -113,6 +131,11 @@ export function TaskDetailModal({
   const [localStepIndex, setLocalStepIndex] = useState(0);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
+  // Every planned sitting for this task. The first one is what the "Planned
+  // for" field above edits; the rest are the extra sittings listed below it.
+  const [sessions, setSessions] = useState<TaskSessionView[]>([]);
+  const [newSessionAt, setNewSessionAt] = useState("");
+  const [isAddingSession, setIsAddingSession] = useState(false);
 
   // Fetch user's saved locations and goals
   useEffect(() => {
@@ -126,15 +149,76 @@ export function TaskDetailModal({
       .catch(() => {});
   }, []);
 
+  const loadSessions = useCallback(async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/sessions`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setSessions(data.sessions ?? []);
+    } catch {
+      // A failed load just means no extra sittings are listed; the primary
+      // "Planned for" field still works off the task itself.
+    }
+  }, []);
+
   // Reset form and step index when task changes
   useEffect(() => {
     if (task) {
       setForm(formFromTask(task, timezone));
       setLocalStepIndex(task.currentStepIndex ?? 0);
+      setNewSessionAt("");
+      void loadSessions(task.id);
     }
     // timezone is a dep: useTimezone starts on the browser zone and re-renders
     // with the stored one, and the datetime-local strings are built from it.
-  }, [task, timezone]);
+  }, [task, timezone, loadSessions]);
+
+  // The earliest sitting IS the "Planned for" field, so listing it again below
+  // would show the same block twice with two different controls.
+  const extraSessions = sessions.slice(1);
+
+  const handleAddSession = useCallback(async () => {
+    if (!task || !newSessionAt) return;
+    setIsAddingSession(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startsAt: toUTC(newSessionAt, timezone) }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Couldn't add that session");
+      }
+      setNewSessionAt("");
+      await loadSessions(task.id);
+      onUpdate?.();
+      toast.success("Session added");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't add that session");
+    } finally {
+      setIsAddingSession(false);
+    }
+  }, [task, newSessionAt, timezone, loadSessions, onUpdate]);
+
+  const handleRemoveSession = useCallback(
+    async (sessionId: string) => {
+      if (!task) return;
+      try {
+        const res = await fetch(
+          `/api/tasks/${task.id}/sessions/${sessionId}`,
+          { method: "DELETE" }
+        );
+        if (!res.ok) throw new Error();
+        await loadSessions(task.id);
+        onUpdate?.();
+        toast.success("Session removed");
+      } catch {
+        toast.error("Couldn't remove that session");
+      }
+    },
+    [task, loadSessions, onUpdate]
+  );
 
   const handleStepDone = useCallback(async () => {
     if (!task?.progressSteps) return;
@@ -545,6 +629,78 @@ export function TaskDetailModal({
             onChange={(v) => updateField("scheduledFor", v)}
             hint="When you plan to start. This is the block that shows on your calendar — clearing it takes the task off the schedule."
           />
+
+          {/* Extra sittings. Big tasks rarely happen in one go, and forcing the
+              whole thing onto a single "Planned for" made the calendar lie
+              about how the work was actually going to happen. The first
+              sitting stays the field above; these are the ones after it. */}
+          {form.scheduledFor && (
+            <div className="space-y-2 rounded-lg border border-border/70 p-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-sm">Other sittings</Label>
+              </div>
+
+              {extraSessions.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {extraSessions.map((session) => (
+                    <li
+                      key={session.id}
+                      className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2.5 py-1.5"
+                    >
+                      <span className="text-sm">
+                        {formatSessionLabel(session.startsAt, timezone)}
+                        {session.minutes ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            &middot; {session.minutes} min
+                          </span>
+                        ) : null}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveSession(session.id)}
+                        aria-label={`Remove the sitting on ${formatSessionLabel(session.startsAt, timezone)}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Just the one block so far. Add another if this needs more than
+                  one sitting.
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="datetime-local"
+                  value={newSessionAt}
+                  onChange={(e) => setNewSessionAt(e.target.value)}
+                  className="flex-1"
+                  aria-label="Start of another sitting"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddSession}
+                  disabled={!newSessionAt || isAddingSession}
+                  className="shrink-0"
+                >
+                  {isAddingSession ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Add sitting"
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Goal */}
           {goals.length > 0 && (

@@ -7,7 +7,7 @@ import {
   getLastCalendarSync,
   createManualCalendarEvent,
   updateCalendarEvent,
-  getScheduledTasksInRange,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import {
   isPlanBlockCurrent,
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     const [events, scheduled] = await Promise.all([
       getCalendarEventsByDateRange(userId, startDate, endDate),
-      getScheduledTasksInRange(userId, startDate, endDate),
+      getScheduledSessionsInRange(userId, startDate, endDate),
     ]);
 
     // Plan blocks ride along with events so the calendar renders both from one
@@ -88,15 +88,22 @@ export async function GET(request: NextRequest) {
     // being shown instead of piling up as a record of what didn't happen.
     const planBlocks = scheduled
       .filter((t) => t.scheduledFor && isPlanBlockCurrent(t.scheduledFor, tz))
-      .map((t) => ({
-        taskId: t.id,
-        title: t.title,
-        startTime: (t.scheduledFor as Date).toISOString(),
-        endTime: planBlockEnd(t.scheduledFor as Date, t.estimatedMinutes).toISOString(),
-        minutes: planBlockMinutes(t.estimatedMinutes),
-        status: t.status,
-        category: t.category,
-      }));
+      .map((t) => {
+        // A task can be planned across several sittings, so the SESSION is the
+        // block's identity. taskId still rides along — the views use it to
+        // open the task — but it is no longer unique among blocks.
+        const minutes = planBlockMinutes(t.sessionMinutes ?? t.estimatedMinutes);
+        return {
+          sessionId: t.sessionId,
+          taskId: t.id,
+          title: t.title,
+          startTime: (t.scheduledFor as Date).toISOString(),
+          endTime: planBlockEnd(t.scheduledFor as Date, minutes).toISOString(),
+          minutes,
+          status: t.status,
+          category: t.category,
+        };
+      });
 
     return NextResponse.json({ events, planBlocks });
   } catch (error) {

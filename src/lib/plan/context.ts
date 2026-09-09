@@ -3,7 +3,7 @@ import {
   getUserSettings,
   getPendingTasks,
   getCalendarEventsByDateRange,
-  getScheduledTasksInRange,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import { buildAIContext } from "@/lib/ai/context";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
@@ -115,7 +115,7 @@ export async function buildPlanningContext(
   if (window) {
     const [events, scheduled] = await Promise.all([
       getCalendarEventsByDateRange(userId, window.start, window.end),
-      getScheduledTasksInRange(userId, window.start, window.end),
+      getScheduledSessionsInRange(userId, window.start, window.end),
     ]);
 
     alreadyPlannedIds = new Set(scheduled.map((t) => t.id));

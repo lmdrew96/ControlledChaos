@@ -481,7 +481,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                   <ul className="space-y-1.5">
                     {dayItems.map((item) =>
                       item.kind === "plan" ? (
-                        <li key={`plan-${item.plan.taskId}`}>
+                        <li key={`plan-${item.plan.sessionId}`}>
                           <div
                             className={cn(
                               "w-full rounded-lg border-2 border-dashed px-3 py-2.5 text-left",

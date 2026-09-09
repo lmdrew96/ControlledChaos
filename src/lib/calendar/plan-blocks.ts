@@ -1,4 +1,4 @@
-import type { CalendarEvent, Task } from "@/types";
+import type { CalendarEvent } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
 
 /**
@@ -11,6 +11,36 @@ export const DEFAULT_PLAN_BLOCK_MINUTES = 30;
 
 export function planBlockMinutes(estimatedMinutes: number | null): number {
   return estimatedMinutes ?? DEFAULT_PLAN_BLOCK_MINUTES;
+}
+
+/**
+ * One planned sitting. A task can have several, so `sessionId` — not the task
+ * id — is what makes a block unique.
+ *
+ * `sessionMinutes` is that sitting's own length; null means it tracks the
+ * task's estimate, which is what a single-block plan has always done. Three
+ * 40-minute sessions is a different statement from one 120-minute estimate,
+ * so the two are stored separately.
+ */
+export interface PlanBlockSource {
+  /** The TASK id. Shared by every session of the same task. */
+  id: string;
+  title: string;
+  scheduledFor: string | Date | null;
+  estimatedMinutes: number | null;
+  /** Unique per sitting. Falls back to the task id for single-block callers. */
+  sessionId?: string;
+  sessionMinutes?: number | null;
+}
+
+/** How long this particular sitting runs. */
+function blockMinutes(t: PlanBlockSource): number {
+  return planBlockMinutes(t.sessionMinutes ?? t.estimatedMinutes);
+}
+
+/** Stable, unique identity for one sitting. */
+function blockKey(t: PlanBlockSource): string {
+  return t.sessionId ?? t.id;
 }
 
 export function planBlockEnd(
@@ -55,23 +85,25 @@ export function todayPlanningWindow(
  * they are never persisted to the calendar_events table.
  */
 export function planBlocksAsBusyIntervals(
-  scheduledTasks: Array<
-    Pick<Task, "id" | "title" | "scheduledFor" | "estimatedMinutes">
-  >
+  scheduledTasks: PlanBlockSource[]
 ): CalendarEvent[] {
   return scheduledTasks
     .filter((t) => t.scheduledFor)
     .map((t) => {
       const start = new Date(t.scheduledFor as string);
       return {
-        id: `plan-${t.id}`,
+        // Keyed by SESSION — two sittings of one task are two blocks, and a
+        // shared id would collide as a React key and as a busy interval.
+        id: `plan-${blockKey(t)}`,
         userId: "",
         source: "controlledchaos" as const,
+        // The task id still rides here, so a task can recognise its own block
+        // (see eventsAsBusyIntervals below, and findConflict's ignoreTaskId).
         externalId: `plan-${t.id}`,
         title: t.title,
         description: null,
         startTime: start.toISOString(),
-        endTime: planBlockEnd(start, t.estimatedMinutes).toISOString(),
+        endTime: planBlockEnd(start, blockMinutes(t)).toISOString(),
         location: null,
         category: null,
         isAllDay: false,
@@ -119,9 +151,7 @@ export function eventsAsBusyIntervals(events: EventLike[]): BusyInterval[] {
 
 /** Committed plan blocks as busy intervals, tagged with their task id. */
 export function planBlocksAsBusy(
-  scheduledTasks: Array<
-    Pick<Task, "id" | "title" | "scheduledFor" | "estimatedMinutes">
-  >
+  scheduledTasks: PlanBlockSource[]
 ): BusyInterval[] {
   return scheduledTasks
     .filter((t) => t.scheduledFor)
@@ -129,7 +159,7 @@ export function planBlocksAsBusy(
       const start = new Date(t.scheduledFor as string);
       return {
         startMs: start.getTime(),
-        endMs: planBlockEnd(start, t.estimatedMinutes).getTime(),
+        endMs: planBlockEnd(start, blockMinutes(t)).getTime(),
         label: t.title,
         taskId: t.id,
       };

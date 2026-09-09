@@ -6,6 +6,7 @@ export * from "./brain-dumps";
 export * from "./moments";
 export * from "./recap";
 export * from "./tasks";
+export * from "./sessions";
 export * from "./goals";
 export * from "./momentum";
 export * from "./calendar";

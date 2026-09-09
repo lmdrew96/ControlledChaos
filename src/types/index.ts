@@ -393,6 +393,11 @@ export interface PlanProposal {
 
 /** A committed plan block, as the calendar renders it. */
 export interface PlanBlock {
+  /**
+   * Identity of this SITTING. A task can be planned across several, so taskId
+   * is not unique among blocks — use this for keys and for drag targets.
+   */
+  sessionId: string;
   taskId: string;
   title: string;
   startTime: string;

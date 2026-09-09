@@ -6,8 +6,8 @@ import {
   getUser,
   getUserSettings,
   getCalendarEventsByDateRange,
-  getScheduledTasksInRange,
-  updateTask,
+  getScheduledSessionsInRange,
+  replaceTaskSessions,
 } from "@/lib/db/queries";
 import { planBlocksAsBusyIntervals } from "@/lib/calendar/plan-blocks";
 import { db } from "@/lib/db";
@@ -70,7 +70,7 @@ export async function POST(_req: Request, context: RouteContext) {
     // and will happily drop this task on top of one.
     const [existingEvents, scheduledTasks] = await Promise.all([
       getCalendarEventsByDateRange(userId, now, windowEnd),
-      getScheduledTasksInRange(userId, now, windowEnd),
+      getScheduledSessionsInRange(userId, now, windowEnd),
     ]);
 
     const serializedEvents = existingEvents.map((e) => ({
@@ -123,6 +123,8 @@ export async function POST(_req: Request, context: RouteContext) {
           title: t.title,
           scheduledFor: t.scheduledFor?.toISOString() ?? null,
           estimatedMinutes: t.estimatedMinutes,
+          sessionId: t.sessionId,
+          sessionMinutes: t.sessionMinutes,
         }))
     );
 
@@ -152,19 +154,18 @@ export async function POST(_req: Request, context: RouteContext) {
     // discarding the old value in silence; the client offers an undo.
     const previousScheduledFor = task.scheduledFor?.toISOString() ?? null;
 
-    // The plan lives on the task, and nowhere else.
+    // The plan lives in task_sessions, and nowhere else.
     //
     // This route used to ALSO materialize a `cc-{taskId}-{startTime}` calendar
     // event. That made every auto-scheduled task render twice — once as a plan
-    // block derived from scheduledFor, once as the event — and made it count
-    // twice in every busy-interval calculation, including this route's own.
-    // "Plan my day" never wrote a calendar row, so this was the odd path out.
+    // block, once as the event — and made it count twice in every
+    // busy-interval calculation, including this route's own. "Plan my day"
+    // never wrote a calendar row, so this was the odd path out.
     //
-    // updateTask also clears any cc- row a previous version of this route left
-    // behind, so re-scheduling a task drains the legacy data as it goes.
-    await updateTask(task.id, userId, {
-      scheduledFor: new Date(block.startTime),
-    });
+    // REPLACE, not add: "Find me a time" MOVES the plan, which is what the
+    // "Moved from X to Y" response below has always promised. Adding a second
+    // sitting is a separate, explicit action.
+    await replaceTaskSessions(task.id, userId, new Date(block.startTime));
 
     const moved =
       previousScheduledFor !== null && previousScheduledFor !== block.startTime;

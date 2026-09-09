@@ -3,6 +3,14 @@
     "weekOf": "2026-09-07",
     "items": [
       {
+        "type": "added",
+        "text": "Migration 0013 — normalize all-day END times, which 0012 missed"
+      },
+      {
+        "type": "added",
+        "text": "Rescue session UX pass — stop inventing emergencies, stop trapping people"
+      },
+      {
         "type": "fixed",
         "text": "Category slugs and counters leaking into momentum copy"
       },

@@ -4,6 +4,35 @@ import { sql, getUserId, getUserTimezone, getUserSettings } from "./db.js";
 import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal } from "./helpers.js";
 import { expandRecurrence } from "./expand-recurrence.js";
 
+/**
+ * Keep task_sessions in step with a scheduled_for this server just wrote.
+ *
+ * The app treats task_sessions as the source of truth for planned work and
+ * tasks.scheduled_for as a derived mirror of the earliest sitting. This server
+ * writes the column directly with raw SQL, so it has to write the session too
+ * — otherwise the next time the app recomputes the mirror it would find no
+ * sessions and clear the plan.
+ *
+ * Single-sitting semantics: a scheduled_for is one timestamp, so setting it
+ * replaces whatever was planned. Multi-sitting plans are made in the app.
+ */
+async function syncPlannedSession(
+  userId: string,
+  taskId: string,
+  startsAt: Date | null
+): Promise<void> {
+  await sql(`DELETE FROM task_sessions WHERE task_id = $1 AND user_id = $2`, [
+    taskId,
+    userId,
+  ]);
+  if (startsAt) {
+    await sql(
+      `INSERT INTO task_sessions (task_id, user_id, starts_at) VALUES ($1, $2, $3)`,
+      [taskId, userId, startsAt.toISOString()]
+    );
+  }
+}
+
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
 /**
  * Normalize an optional, nullable datetime param for the update field maps.
@@ -190,6 +219,14 @@ Returns: The created task with its ID.`,
         ]
       );
 
+      // Planned work lives in task_sessions; tasks.scheduled_for is a derived
+      // mirror of the earliest one. Write both — the app reconciles a bare
+      // scheduled_for at read time, but leaving the session missing means this
+      // plan would vanish the next time the app recomputes the mirror.
+      if (params.scheduled_for) {
+        await syncPlannedSession(userId, String(rows[0].id), new Date(params.scheduled_for));
+      }
+
       return {
         content: [{ type: "text" as const, text: `✅ Task created!\n\n${formatTask(rows[0], tz)}` }],
       };
@@ -292,6 +329,16 @@ Returns: The updated task.`,
 
       if (rows.length === 0) {
         return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
+      }
+
+      // Keep task_sessions in step with the column we just wrote. Passing null
+      // clears the plan; passing a time replaces it with a single sitting.
+      if (params.scheduled_for !== undefined) {
+        await syncPlannedSession(
+          userId,
+          params.task_id,
+          params.scheduled_for ? new Date(params.scheduled_for) : null
+        );
       }
 
       return { content: [{ type: "text" as const, text: `✅ Task updated!\n\n${formatTask(rows[0], tz)}` }] };
@@ -501,15 +548,39 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
           planValues.push(params.category);
           planCategory = ` AND category = $4`;
         }
+        // Reads task_sessions, so a task planned across several sittings shows
+        // up at each one. Reading tasks.scheduled_for (the derived mirror of
+        // the EARLIEST sitting) would report a two-block plan as one block and
+        // leave the later slot looking free.
+        //
+        // The UNION picks up plans written straight to scheduled_for with no
+        // session behind them, which is what an older build of this server
+        // left behind.
         planned = await sql(
-          `SELECT id, title, scheduled_for, estimated_minutes, status, category, deadline, target_date
-           FROM tasks
-           WHERE user_id = $1
-             AND deleted_at IS NULL
-             AND status IN ('pending', 'in_progress')
-             AND scheduled_for IS NOT NULL
-             AND scheduled_for >= $2
-             AND scheduled_for <= $3${planCategory}
+          `SELECT t.id, t.title, s.starts_at AS scheduled_for,
+                  COALESCE(s.minutes, t.estimated_minutes) AS estimated_minutes,
+                  t.status, t.category, t.deadline, t.target_date
+           FROM task_sessions s
+           JOIN tasks t ON t.id = s.task_id
+           WHERE s.user_id = $1
+             AND t.deleted_at IS NULL
+             AND t.status IN ('pending', 'in_progress')
+             AND s.starts_at >= $2
+             AND s.starts_at <= $3${planCategory.replace("category", "t.category")}
+           UNION ALL
+           SELECT t.id, t.title, t.scheduled_for,
+                  t.estimated_minutes, t.status, t.category, t.deadline, t.target_date
+           FROM tasks t
+           WHERE t.user_id = $1
+             AND t.deleted_at IS NULL
+             AND t.status IN ('pending', 'in_progress')
+             AND t.scheduled_for IS NOT NULL
+             AND t.scheduled_for >= $2
+             AND t.scheduled_for <= $3${planCategory.replace("category", "t.category")}
+             AND NOT EXISTS (
+               SELECT 1 FROM task_sessions s2
+               WHERE s2.task_id = t.id AND s2.starts_at = t.scheduled_for
+             )
            ORDER BY scheduled_for`,
           planValues
         );

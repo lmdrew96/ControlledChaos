@@ -12,6 +12,7 @@ import {
   getCalendarEventsByDateRange,
   getRecentTaskActivity,
   getActiveCrisisPlans,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
@@ -128,13 +129,15 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
 
   // Work the user planned to START today. Not a due date of any kind — but it
   // is time they have claimed, and copy that ignores it reads as oblivious.
-  const plannedToday = pendingTasks
-    .filter((t) => {
-      if (!t.scheduledFor) return false;
-      const at = new Date(t.scheduledFor);
-      return at >= startOfDayInTimezone(now, timezone) && at <= endOfDay;
-    })
-    .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime());
+  //
+  // Read from SESSIONS: a task planned for two sittings today is two entries,
+  // because "3pm and again at 8pm" is what the user actually committed to.
+  // Filtering pendingTasks by scheduledFor only ever surfaced the earliest.
+  const plannedToday = await getScheduledSessionsInRange(
+    userId,
+    startOfDayInTimezone(now, timezone),
+    endOfDay
+  );
 
   // Format events for AI consumption
   const formattedEvents = todayEvents.map((e) => ({
@@ -187,9 +190,20 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
 
   if (plannedToday.length > 0) {
     lines.push(`Planned to work on today (their own plan, not deadlines):`);
+    // Count sittings per task so the model can say "the second of two blocks"
+    // rather than repeating a title as though it were two separate jobs.
+    const sittings = new Map<string, number>();
     for (const t of plannedToday) {
+      sittings.set(t.id, (sittings.get(t.id) ?? 0) + 1);
+    }
+    const seen = new Map<string, number>();
+    for (const t of plannedToday) {
+      const total = sittings.get(t.id) ?? 1;
+      const nth = (seen.get(t.id) ?? 0) + 1;
+      seen.set(t.id, nth);
+      const which = total > 1 ? ` (sitting ${nth} of ${total})` : "";
       lines.push(
-        `  - ${formatForDisplay(new Date(t.scheduledFor!), timezone, DISPLAY_TIME)}: ${t.title}`
+        `  - ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_TIME)}: ${t.title}${which}`
       );
     }
   }

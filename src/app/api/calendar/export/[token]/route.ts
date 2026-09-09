@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getUserIdByCalendarToken,
   getCalendarEventsByDateRange,
-  getScheduledTasksInRange,
+  getScheduledSessionsInRange,
   getUser,
 } from "@/lib/db/queries";
 import { toDateKeyInTimezone } from "@/lib/timezone";
@@ -75,7 +75,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     // silently stop showing anything you'd planned.
     const [events, scheduledTasks] = await Promise.all([
       getCalendarEventsByDateRange(userId, start, end),
-      getScheduledTasksInRange(userId, start, end),
+      getScheduledSessionsInRange(userId, start, end),
     ]);
 
     const lines: string[] = [
