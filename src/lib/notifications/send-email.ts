@@ -99,7 +99,9 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   // Today's events
   const todayStart = startOfDayInTimezone(now, timezone);
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-  const events = await getCalendarEventsByDateRange(userId, todayStart, todayEnd);
+  const events = sortEventsForDisplay(
+    await getCalendarEventsByDateRange(userId, todayStart, todayEnd)
+  );
 
   // Pending tasks, soonest claim on attention first — whichever of the hard
   // deadline, soft target or planned start lands first — then by priority.
@@ -157,7 +159,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
     locationName ? `User's last known location: ${locationName}` : null,
-    `Today's events: ${events.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") || "None"}`,
+    `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
     `SOFT self-imposed targets this week (NOT due — never call these "due"): ${targetsThisWeek.map((t) => `${t.title}, they aimed for ${formatDate(t.targetDate!, timezone)}`).join(", ") || "None"}`,
@@ -182,7 +184,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
       aiNote,
       todayEvents: events.map((e) => ({
         title: e.title,
-        time: formatTime(e.startTime, timezone),
+        time: eventTimeLabel(e, timezone),
       })),
       topTasks: topTasks.map((t) => ({
         title: t.title,
@@ -298,10 +300,8 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const plannedTomorrow = pending
     .filter((t) => t.scheduledFor && t.scheduledFor >= tomorrowStart && t.scheduledFor < tomorrowEnd)
     .sort((a, b) => a.scheduledFor!.getTime() - b.scheduledFor!.getTime());
-  const tomorrowEvents = await getCalendarEventsByDateRange(
-    userId,
-    tomorrowStart,
-    tomorrowEnd
+  const tomorrowEvents = sortEventsForDisplay(
+    await getCalendarEventsByDateRange(userId, tomorrowStart, tomorrowEnd)
   );
 
   // Fetch crises and recent activity for holistic context
@@ -334,7 +334,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
         ? `${tomorrowPriority.title} (${tomorrowPriority.priority})${describeTaskTimes(tomorrowPriority, timezone)}`
         : "Nothing urgent"
     }`,
-    `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${formatTime(e.startTime, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
+    `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,
     `Already planned for tomorrow (their own plan, not deadlines): ${plannedTomorrow.map((t) => `${formatTime(t.scheduledFor!, timezone)} ${t.title}`).join(", ") || "Nothing planned yet"}`,
     activeCrises.length > 0
       ? `Active crises: ${activeCrises.map((c) => `"${c.taskName}" (${c.panicLevel})`).join(", ")}`
@@ -398,6 +398,34 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 }
 
 // --- Helpers ---
+
+/**
+ * Order a day's events for display: all-day events first, then timed ones in
+ * chronological order.
+ *
+ * An all-day event is stored at midnight but does not happen at midnight, so
+ * sorting it by `startTime` alongside timed events puts it in a position it
+ * hasn't earned and labels it "12:00 AM". Every other surface in the app
+ * already groups them ahead of the timed list — agenda-view and week-view both
+ * do — and the digests are the last place that didn't.
+ */
+function sortEventsForDisplay<T extends { startTime: Date; isAllDay: boolean | null }>(
+  events: T[]
+): T[] {
+  return [...events].sort((a, b) => {
+    if (a.isAllDay && !b.isAllDay) return -1;
+    if (!a.isAllDay && b.isAllDay) return 1;
+    return a.startTime.getTime() - b.startTime.getTime();
+  });
+}
+
+/** "All day" for an all-day event, otherwise its local start time. */
+function eventTimeLabel(
+  event: { startTime: Date; isAllDay: boolean | null },
+  timezone: string
+): string {
+  return event.isAllDay ? "All day" : formatTime(event.startTime, timezone);
+}
 
 
 function formatTime(dateStr: Date | string, timezone: string): string {

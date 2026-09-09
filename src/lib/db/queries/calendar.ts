@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { calendarEvents, userSettings } from "../schema";
-import { eq, and, gt, lte, like, notLike, notInArray, sql } from "drizzle-orm";
+import { eq, and, gt, lt, lte, like, notLike, notInArray, sql } from "drizzle-orm";
 import { getUserSettings } from "./users";
 
 // ============================================================
@@ -101,6 +101,14 @@ export async function getCalendarEventsByDateRange(
   // - events starting within the range, OR
   // - events that started before `start` but haven't ended yet (currently happening)
   //
+  // The range is HALF-OPEN: [start, end). Every caller builds `end` as an
+  // exclusive boundary — a day range is `todayStart + 24h`, i.e. the NEXT day's
+  // midnight. This used to be `lte`, which admitted an event starting exactly
+  // at `end`. Harmless for timed events, but all-day events are stored at
+  // exactly midnight, so tomorrow's all-day instance always leaked into today's
+  // range — the duplicate row in the morning brief, sorted to the bottom
+  // because its start is a day later than the real one.
+  //
   // `cc-` rows are excluded. The scheduler used to materialize a calendar event
   // alongside task.scheduledFor, so an auto-scheduled task appeared twice — as
   // a plan block AND as an event — and counted twice in every busy calculation
@@ -117,7 +125,7 @@ export async function getCalendarEventsByDateRange(
     .where(
       and(
         eq(calendarEvents.userId, userId),
-        lte(calendarEvents.startTime, end),
+        lt(calendarEvents.startTime, end),
         gt(calendarEvents.endTime, start),
         notLike(calendarEvents.externalId, "cc-%")
       )
