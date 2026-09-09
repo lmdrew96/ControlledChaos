@@ -6,7 +6,7 @@ import {
   formatCurrentDateTime,
 } from "./prompts";
 import { extractJSON, validateISODate, trimIncompleteTail } from "./validate";
-import { toUTC } from "@/lib/timezone";
+import { allDayRange, toDateKeyInTimezone, toUTC } from "@/lib/timezone";
 import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask, PersonalityPrefs } from "@/types";
 
 export interface BrainDumpContext {
@@ -188,13 +188,23 @@ export async function parseBrainDump(
         validateISODate(rawEnd) ||
         new Date(new Date(startTime).getTime() + 3600000).toISOString();
 
+      const isAllDay = evt.isAllDay ?? false;
+
+      // All-day events get the canonical range regardless of what the model
+      // emitted for times — local midnight to exclusive next local midnight.
+      // Without this the AI path invented its own end (usually an hour later),
+      // making a third representation of "all day" in the same table.
+      const allDay = isAllDay
+        ? allDayRange(toDateKeyInTimezone(new Date(startTime), timezone), timezone)
+        : null;
+
       const result: ParsedCalendarEvent = {
         title: evt.title || "Untitled Event",
         description: evt.description || undefined,
         location: evt.location || undefined,
-        startTime,
-        endTime,
-        isAllDay: evt.isAllDay ?? false,
+        startTime: allDay?.startISO ?? startTime,
+        endTime: allDay?.endISO ?? endTime,
+        isAllDay,
       };
 
       if (evt.recurrence && evt.recurrence.type) {

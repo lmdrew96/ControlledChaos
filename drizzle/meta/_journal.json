@@ -85,6 +85,13 @@
       "when": 1788240222299,
       "tag": "0011_stiff_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788991400000,
+      "tag": "0012_all_day_local_midnight",
+      "breakpoints": true
     }
   ]
 }

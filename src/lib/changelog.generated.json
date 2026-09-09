@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop every AI call site from silently shipping a truncated response"
+      },
+      {
+        "type": "added",
         "text": "Describe reminders by real time remaining, not the reminder band"
       },
       {

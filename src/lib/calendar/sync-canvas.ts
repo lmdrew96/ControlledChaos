@@ -7,12 +7,7 @@ import {
   updateTask,
   deleteTasksBySourceEventIds,
 } from "@/lib/db/queries";
-import {
-  toUTC,
-  getCalendarParts,
-  formatForDisplay,
-  DISPLAY_DATETIME,
-} from "@/lib/timezone";
+import { DISPLAY_DATETIME, allDayRange, formatForDisplay, getCalendarParts, toUTC } from "@/lib/timezone";
 import { parseCanvasTitle } from "@/lib/calendar/assessments";
 import {
   toEndOfDayLocal,
@@ -205,6 +200,17 @@ export async function syncCanvasCalendar(
       startDate = toEndOfDayLocal(startDate, timezone);
       endDate = new Date(startDate);
       isAllDay = false;
+    } else if (isAllDay) {
+      // A genuine all-day entry (holiday, break). node-ical hands back
+      // VALUE=DATE entries as UTC midnight, which is not local midnight for
+      // anyone off UTC — the row would sit in the previous day's range. Snap
+      // it onto the same local-midnight/exclusive-next-midnight convention
+      // used everywhere else. The UTC calendar date IS the intended date here,
+      // since that is exactly what the DATE value encoded.
+      const dateKey = startDate.toISOString().slice(0, 10);
+      const { startISO, endISO } = allDayRange(dateKey, timezone);
+      startDate = new Date(startISO);
+      endDate = new Date(endISO);
     }
 
     // An 11:59 PM due time means the work happens on your own time, whatever

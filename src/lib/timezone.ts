@@ -203,6 +203,54 @@ export function toUTC(localIso: string, timezone: string): string {
 }
 
 /**
+ * Shift a "YYYY-MM-DD" date key by whole days, staying in date-key space.
+ *
+ * Deliberately calendar arithmetic rather than instant arithmetic: adding
+ * 24h to a Date crosses DST wrong twice a year, but "the day after
+ * 2026-11-01" is 2026-11-02 regardless of what the clocks did.
+ */
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1, d + days));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * The canonical stored range for an all-day event on `dateKey` in `timezone`.
+ *
+ * ONE convention, used by creation, editing, Canvas sync, iCal export and
+ * every range query: start is the instant of LOCAL midnight on the day, end
+ * is the instant of local midnight on the NEXT day, exclusive.
+ *
+ * This matters because it is the same representation every range boundary
+ * already uses (startOfDayInTimezone). All-day rows used to be written as a
+ * naive "YYYY-MM-DDT00:00:00" string and parsed by `new Date()` in whatever
+ * timezone the RUNTIME happened to be in — local on a dev machine, UTC on
+ * Vercel. In production that put every all-day event 4-5 hours before local
+ * midnight, i.e. inside the PREVIOUS day's range.
+ *
+ * The exclusive end also matches iCal's DTEND convention for VALUE=DATE, so
+ * the export no longer has to invent a day.
+ */
+export function allDayRange(
+  dateKey: string,
+  timezone: string
+): { startISO: string; endISO: string } {
+  return {
+    startISO: toUTC(`${dateKey}T00:00:00`, timezone),
+    endISO: toUTC(`${addDaysToDateKey(dateKey, 1)}T00:00:00`, timezone),
+  };
+}
+
+/**
+ * The "YYYY-MM-DD" calendar day a given instant falls on, in `timezone`.
+ */
+export function toDateKeyInTimezone(date: Date, timezone: string): string {
+  const { year, month, day } = toUserLocal(date, timezone);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
  * Decompose a UTC Date into calendar fields in the user's timezone.
  */
 export function toUserLocal(

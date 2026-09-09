@@ -3,24 +3,30 @@ import {
   getUserIdByCalendarToken,
   getCalendarEventsByDateRange,
   getScheduledTasksInRange,
+  getUser,
 } from "@/lib/db/queries";
+import { toDateKeyInTimezone } from "@/lib/timezone";
 import { planBlockEnd } from "@/lib/calendar/plan-blocks";
 
 interface RouteContext {
   params: Promise<{ token: string }>;
 }
 
-function formatIcalDate(isoString: string, isAllDay: boolean): string {
-  const d = new Date(isoString);
-  if (isAllDay) {
-    // DATE format: YYYYMMDD
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    return `${y}${m}${day}`;
-  }
-  // DATETIME format: YYYYMMDDTHHmmssZ
-  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+/** DATETIME format: YYYYMMDDTHHmmssZ */
+function formatIcalDateTime(isoString: string): string {
+  return new Date(isoString).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+/**
+ * DATE format: YYYYMMDD, resolved in the USER's timezone.
+ *
+ * All-day rows are stored as the instant of local midnight, so reading their
+ * UTC calendar date gives the wrong day for anyone at a positive UTC offset
+ * (local midnight in Tokyo is 15:00 UTC the previous day). Which calendar day
+ * an all-day event belongs to is a local-time question, so ask it locally.
+ */
+function formatIcalDate(isoString: string, timezone: string): string {
+  return toDateKeyInTimezone(new Date(isoString), timezone).replace(/-/g, "");
 }
 
 function escapeIcalText(value: string): string {
@@ -52,6 +58,10 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       return new NextResponse("Not found", { status: 404 });
     }
 
+    // Needed to resolve which calendar day an all-day event falls on.
+    const user = await getUser(userId);
+    const timezone = user?.timezone ?? "America/New_York";
+
     // Rolling window: 60 days back, 180 days forward
     const start = new Date();
     start.setDate(start.getDate() - 60);
@@ -79,24 +89,21 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
     for (const event of events) {
       const isAllDay = event.isAllDay ?? false;
-      const dtStart = formatIcalDate(event.startTime.toISOString(), isAllDay);
 
-      // For all-day events, DTEND must be exclusive (day after the last day)
-      let dtEnd: string;
-      if (isAllDay) {
-        const endDate = new Date(event.endTime);
-        // If start and end are the same day, push end to next day
-        if (dtStart === formatIcalDate(event.endTime.toISOString(), true)) {
-          endDate.setUTCDate(endDate.getUTCDate() + 1);
-        }
-        dtEnd = formatIcalDate(endDate.toISOString(), true);
-      } else {
-        dtEnd = formatIcalDate(event.endTime.toISOString(), false);
-      }
+      // DTEND for VALUE=DATE is exclusive, and all-day rows are now STORED
+      // with an exclusive next-local-midnight end — the same convention. So
+      // the end date formats directly; this used to have to guess and push the
+      // end forward a day whenever start and end landed on the same one.
+      const dtStart = isAllDay
+        ? formatIcalDate(event.startTime.toISOString(), timezone)
+        : formatIcalDateTime(event.startTime.toISOString());
+      const dtEnd = isAllDay
+        ? formatIcalDate(event.endTime.toISOString(), timezone)
+        : formatIcalDateTime(event.endTime.toISOString());
 
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${event.id}@controlledchaos`);
-      lines.push(`DTSTAMP:${formatIcalDate(new Date().toISOString(), false)}`);
+      lines.push(`DTSTAMP:${formatIcalDateTime(new Date().toISOString())}`);
 
       if (isAllDay) {
         lines.push(`DTSTART;VALUE=DATE:${dtStart}`);
@@ -128,9 +135,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       // Distinct UID namespace from calendar rows, so a plan block and an event
       // can never collide on id in the subscriber's calendar.
       lines.push(`UID:plan-${task.id}@controlledchaos`);
-      lines.push(`DTSTAMP:${formatIcalDate(new Date().toISOString(), false)}`);
-      lines.push(`DTSTART:${formatIcalDate(blockStart.toISOString(), false)}`);
-      lines.push(`DTEND:${formatIcalDate(blockEnd.toISOString(), false)}`);
+      lines.push(`DTSTAMP:${formatIcalDateTime(new Date().toISOString())}`);
+      lines.push(`DTSTART:${formatIcalDateTime(blockStart.toISOString())}`);
+      lines.push(`DTEND:${formatIcalDateTime(blockEnd.toISOString())}`);
       lines.push(foldLine(`SUMMARY:${escapeIcalText(task.title)}`));
       if (task.description) {
         lines.push(foldLine(`DESCRIPTION:${escapeIcalText(task.description)}`));

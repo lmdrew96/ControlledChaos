@@ -23,7 +23,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
-import { toUTC } from "@/lib/timezone";
+import { allDayRange, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import type { EventCategory } from "@/types";
 
@@ -135,12 +135,16 @@ export function CreateEventDialog({
     // Build UTC ISO timestamps from the user's APP timezone setting, not the
     // browser's. edit-event-dialog already used toUTC — creating an event in
     // one frame and editing it in the other shifted it by the offset delta.
-    const startISO = isAllDay
-      ? `${date}T00:00:00`
-      : toUTC(`${date}T${startTime}:00`, timezone);
-    const endISO = isAllDay
-      ? `${date}T23:59:59`
-      : toUTC(`${date}T${endTime}:00`, timezone);
+    // All-day events go through the SAME timezone conversion timed ones do.
+    // They used to be sent as naive "YYYY-MM-DDT00:00:00" strings, which the
+    // API parsed with `new Date()` in the server's timezone — UTC on Vercel —
+    // landing them hours before local midnight, i.e. in the previous day.
+    const { startISO, endISO } = isAllDay
+      ? allDayRange(date, timezone)
+      : {
+          startISO: toUTC(`${date}T${startTime}:00`, timezone),
+          endISO: toUTC(`${date}T${endTime}:00`, timezone),
+        };
 
     if (new Date(endISO) <= new Date(startISO) && !isAllDay) {
       setError("End time must be after start time");

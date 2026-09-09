@@ -23,7 +23,7 @@ import {
 import { toast } from "sonner";
 import { EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import type { CalendarEvent, EventCategory } from "@/types";
-import { toUserLocal, toUTC } from "@/lib/timezone";
+import { allDayRange, toUTC, toUserLocal } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { SourceBackBadge } from "@/components/shared/source-back-badge";
 
@@ -147,7 +147,14 @@ export function EditEventDialog({
         category: form.category,
       };
 
-      if (!form.isAllDay) {
+      if (form.isAllDay) {
+        // Previously the all-day branch sent NO timestamps at all, so flipping
+        // an existing timed event to all-day kept its old start/end and only
+        // flipped the flag. Write the canonical local-midnight range instead.
+        const { startISO, endISO } = allDayRange(form.date, timezone);
+        payload.startTime = startISO;
+        payload.endTime = endISO;
+      } else {
         payload.startTime = buildIso(form.date, form.startTime, timezone);
         payload.endTime = buildIso(form.date, form.endTime, timezone);
       }
