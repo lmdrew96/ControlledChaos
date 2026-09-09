@@ -85,6 +85,10 @@ type Candidate = ClusterableAlert & {
   dedupScope: "ever" | "today";
   /** Minutes until the thing happens; absent for scheduled-start alerts. */
   intervalMinutes?: number;
+  /** The alerting task is already underway — don't tell them to start it. */
+  inProgress?: boolean;
+  /** Where the event is, for event alerts. */
+  location?: string | null;
   url: string;
   taskId?: string;
   actions: PushAction[];
@@ -118,6 +122,7 @@ function buildClusterContext(
         taskTitle: primary.title,
         minutesUntil,
         at: primary.at,
+        inProgress: primary.inProgress,
         alsoHappening,
       };
     case "event":
@@ -126,6 +131,7 @@ function buildClusterContext(
         eventTitle: primary.title,
         minutesUntil,
         at: primary.at,
+        location: primary.location,
         alsoHappening,
       };
     case "target":
@@ -134,6 +140,7 @@ function buildClusterContext(
         taskTitle: primary.title,
         minutesUntil,
         at: primary.at,
+        inProgress: primary.inProgress,
         alsoHappening,
       };
     case "scheduled":
@@ -255,6 +262,7 @@ async function processUser(user: PushUser): Promise<number> {
       courseCode: extractCourseCode(r.taskTitle, r.taskDescription),
       sourceEventId: r.sourceEventId,
       intervalMinutes: r.intervalMinutes,
+      inProgress: r.taskStatus === "in_progress",
       priority: r.intervalMinutes <= 60 ? "high" : "normal",
       // Quiet hours are the user's explicit instruction and the settings screen
       // promises them unconditionally. A near deadline does NOT earn an override:
@@ -287,6 +295,7 @@ async function processUser(user: PushUser): Promise<number> {
       courseCode: extractCourseCode(r.taskTitle, r.taskDescription),
       sourceEventId: r.sourceEventId,
       intervalMinutes: r.intervalMinutes,
+      inProgress: r.taskStatus === "in_progress",
       // Always normal, never high, whatever the interval. A self-imposed date
       // with slack behind it never earns the urgent lane or a quiet-hours pass.
       priority: "normal",
@@ -307,6 +316,7 @@ async function processUser(user: PushUser): Promise<number> {
       courseCode: extractCourseCode(r.eventTitle, r.location),
       externalId: r.externalId,
       intervalMinutes: r.intervalMinutes,
+      location: r.location,
       priority: r.intervalMinutes <= 60 ? "high" : "normal",
       // See the deadline reminder above — proximity never overrides quiet hours.
       bypassQuietHours: false,

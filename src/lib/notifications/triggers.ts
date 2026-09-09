@@ -36,6 +36,8 @@ interface DeadlineReminder {
   taskId: string;
   taskTitle: string;
   intervalMinutes: number;
+  /** pending | in_progress | snoozed — a reminder to "start" already-started work reads as oblivious. */
+  taskStatus: string;
   deadline: Date;
   /** Auto-generated tasks lead their description with the course code. */
   taskDescription: string | null;
@@ -48,6 +50,7 @@ export interface TargetReminder {
   taskId: string;
   taskTitle: string;
   intervalMinutes: number;
+  taskStatus: string;
   targetDate: Date;
   taskDescription: string | null;
   sourceEventId: string | null;
@@ -169,6 +172,7 @@ export async function getDeadlineReminders(
       taskId: task.id,
       taskTitle: task.title,
       intervalMinutes: interval,
+      taskStatus: task.status,
       deadline: task.deadline,
       taskDescription: task.description ?? null,
       sourceEventId: task.sourceEventId ?? null,
@@ -214,6 +218,7 @@ export async function getTargetReminders(
       taskId: task.id,
       taskTitle: task.title,
       intervalMinutes: interval,
+      taskStatus: task.status,
       targetDate: task.targetDate,
       taskDescription: task.description ?? null,
       sourceEventId: task.sourceEventId ?? null,
@@ -456,9 +461,9 @@ export async function hasEverBeenNotified(
 type ClusteredWith = { alsoHappening?: string[] };
 
 export type PushNotificationContext =
-  | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
-  | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
-  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
+  | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
+  | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
+  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date; location?: string | null } & ClusteredWith)
   | ({ type: "scheduled"; taskTitle: string } & ClusteredWith)
   | ({ type: "scheduled_missed"; taskTitle: string } & ClusteredWith)
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
@@ -528,13 +533,19 @@ export async function generatePushMessage(
   let userMsg: string;
   if (ctx.type === "deadline_reminder") {
     userMsg = `Type: deadline_reminder\nTask: "${ctx.taskTitle}"\nDeadline (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until deadline: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+    if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
   } else if (ctx.type === "event_reminder") {
     userMsg = `Type: event_reminder\nEvent: "${ctx.eventTitle}"\nStarts (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until event: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+    // The event's own location was already loaded for the time-to-leave match
+    // but never reached the writer, so "your class starts in 10" could never
+    // say where.
+    if (ctx.location) userMsg += `\nLocation: "${ctx.location}"`;
   } else if (ctx.type === "target_reminder") {
     // Deliberately no "time until" line: targets must never scale urgency with
     // proximity. The absolute time is included so the model can say "you'd
     // wanted this done by <time>" instead of inventing one.
     userMsg = `Type: target_reminder\nTask: "${ctx.taskTitle}"\nTarget (user's local time): ${formatForAI(ctx.at, timezone)}`;
+    if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
   } else if (ctx.type === "idle_checkin") {
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`

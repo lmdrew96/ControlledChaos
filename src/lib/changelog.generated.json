@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Give the AI context snapshot the task/event detail its consumers need"
+      },
+      {
+        "type": "added",
         "text": "One storage convention for all-day events — local midnight, exclusive end"
       },
       {
