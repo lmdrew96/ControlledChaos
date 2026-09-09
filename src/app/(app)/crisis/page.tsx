@@ -26,7 +26,9 @@ import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, CrisisDetectionS
 interface ActivePlanData {
   id: string;
   taskName: string;
-  deadline: string;
+  /** Nullable: crisis_plans.deadline is, and a plan may have only a soft target. */
+  deadline: string | null;
+  targetDate: string | null;
   panicLevel: PanicLevel;
   panicLabel: string;
   plan: CrisisPlan & { currentTaskIndex: number };
@@ -58,11 +60,15 @@ function panicColor(level: PanicLevel) {
   return "text-emerald-500 border-emerald-500/40 bg-emerald-500/5";
 }
 
-function formatDeadline(isoString: string, timezone: string) {
+function formatDeadline(isoString: string | null, timezone: string) {
+  if (!isoString) return "No hard deadline";
   return formatForDisplay(new Date(isoString), timezone, DISPLAY_DATETIME);
 }
 
-function timeLeftLabel(isoString: string): string {
+function timeLeftLabel(isoString: string | null): string {
+  // `new Date(null)` is the epoch, so a plan with no hard deadline used to
+  // render as "Past due" — the app inventing an emergency that doesn't exist.
+  if (!isoString) return "No deadline";
   const ms = new Date(isoString).getTime() - Date.now();
   if (ms <= 0) return "Past due";
   const h = Math.floor(ms / 3_600_000);
@@ -115,7 +121,8 @@ export default function CrisisPage() {
         (p: {
           id: string;
           taskName: string;
-          deadline: string | Date;
+          deadline: string | Date | null;
+          targetDate?: string | Date | null;
           panicLevel: PanicLevel;
           panicLabel: string;
           summary: string;
@@ -124,7 +131,8 @@ export default function CrisisPage() {
         }) => ({
           id: p.id,
           taskName: p.taskName,
-          deadline: new Date(p.deadline).toISOString(),
+          deadline: p.deadline ? new Date(p.deadline).toISOString() : null,
+          targetDate: p.targetDate ? new Date(p.targetDate).toISOString() : null,
           panicLevel: p.panicLevel,
           panicLabel: p.panicLabel,
           plan: {
@@ -148,7 +156,8 @@ export default function CrisisPage() {
         (p: {
           id: string;
           taskName: string;
-          deadline: string | Date;
+          deadline: string | Date | null;
+          targetDate?: string | Date | null;
           panicLevel: PanicLevel;
           panicLabel: string;
           summary: string;
@@ -158,7 +167,8 @@ export default function CrisisPage() {
         }) => ({
           id: p.id,
           taskName: p.taskName,
-          deadline: new Date(p.deadline).toISOString(),
+          deadline: p.deadline ? new Date(p.deadline).toISOString() : null,
+          targetDate: p.targetDate ? new Date(p.targetDate).toISOString() : null,
           panicLevel: p.panicLevel,
           panicLabel: p.panicLabel,
           plan: {
@@ -225,7 +235,8 @@ export default function CrisisPage() {
       const newPlan: ActivePlanData = {
         id: body.id,
         taskName: data.taskName,
-        deadline: new Date(data.deadline).toISOString(),
+        deadline: data.deadline ? new Date(data.deadline).toISOString() : null,
+        targetDate: body.targetDate ? new Date(body.targetDate).toISOString() : null,
         panicLevel: body.plan.panicLevel,
         panicLabel: body.plan.panicLabel,
         plan: { ...body.plan, currentTaskIndex: body.plan.currentTaskIndex ?? 0 },
@@ -332,7 +343,10 @@ export default function CrisisPage() {
       const newPlan: ActivePlanData = {
         id: body.id,
         taskName: strategyState.taskName,
-        deadline: new Date(strategyState.deadline).toISOString(),
+        deadline: strategyState.deadline
+          ? new Date(strategyState.deadline).toISOString()
+          : null,
+        targetDate: body.targetDate ? new Date(body.targetDate).toISOString() : null,
         panicLevel: body.plan.panicLevel,
         panicLabel: body.plan.panicLabel,
         plan: { ...body.plan, currentTaskIndex: body.plan.currentTaskIndex ?? 0 },
@@ -412,27 +426,31 @@ export default function CrisisPage() {
   if (phase === "active" && activePlan) {
     return (
       <div className="space-y-4">
-        {/* Back to dashboard — only show if there are other active plans */}
-        {plans.length > 1 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-muted-foreground"
-            onClick={() => {
-              setActivePlan(null);
-              setPhase("dashboard");
-            }}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            All sessions
-          </Button>
-        )}
+        {/* Always present. This used to be gated on `plans.length > 1`, which
+            meant that with exactly one session — the common case — the war room
+            had no visible exit at all. Being unable to step out of a crisis
+            screen without hitting browser Back is the last thing someone
+            already overwhelmed needs. Leaving does not discard anything; the
+            plan and its progress are saved server-side. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground"
+          onClick={() => {
+            setActivePlan(null);
+            setPhase("dashboard");
+          }}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {plans.length > 1 ? "All sessions" : "Step away for now"}
+        </Button>
         <div className="max-w-xl">
           <CrisisWarRoom
             plan={activePlan.plan}
             planId={activePlan.id}
             taskName={activePlan.taskName}
             deadline={activePlan.deadline}
+            targetDate={activePlan.targetDate}
             onComplete={handleWarRoomComplete}
             onReassess={(newPlan) => {
               const updated: ActivePlanData = {

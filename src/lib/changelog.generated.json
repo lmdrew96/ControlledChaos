@@ -3,6 +3,10 @@
     "weekOf": "2026-09-07",
     "items": [
       {
+        "type": "fixed",
+        "text": "Category slugs and counters leaking into momentum copy"
+      },
+      {
         "type": "added",
         "text": "Pass task state and event location to the notification writer"
       },

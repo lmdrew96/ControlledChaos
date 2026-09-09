@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { fireTaskConfetti } from "@/lib/utils/confetti";
-import confetti from "canvas-confetti";
-import { RotateCw, Loader2 } from "lucide-react";
+import { fireTaskConfetti, fireStepConfetti } from "@/lib/utils/confetti";
+import { RotateCw, Loader2, SkipForward } from "lucide-react";
 import { CrisisChatPanel } from "./crisis-chat-panel";
 import type { CrisisPlan } from "@/types";
 
@@ -16,10 +15,22 @@ interface Props {
   plan: CrisisPlan & { currentTaskIndex?: number };
   planId: string;
   taskName: string;
-  deadline: string;
+  /**
+   * The HARD deadline, or null when there isn't one. crisis_plans.deadline is
+   * nullable by design, and this used to be typed as a plain string — a plan
+   * with no deadline arrived as `new Date(null)`, i.e. the epoch, and rendered
+   * as a red "0m" countdown. The app was inventing an emergency out of a
+   * self-imposed target.
+   */
+  deadline: string | null;
+  /** The SOFT self-imposed target, shown when there is no hard deadline. */
+  targetDate?: string | null;
   onComplete: () => void;
   onReassess?: (newPlan: CrisisPlan & { currentTaskIndex: number }) => void;
 }
+
+/** Below this, seconds are shown and the clock ticks every second. */
+const SECONDS_VISIBLE_MS = 5 * 60 * 1000;
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "0m";
@@ -29,6 +40,10 @@ function formatCountdown(ms: number): string {
   const seconds = totalSeconds % 60;
 
   if (hours > 0) return `${hours}h ${minutes}m`;
+  // Seconds only appear at the very end. A digit flickering once a second for
+  // an hour is pressure, not information, and this screen is already being
+  // read by someone under stress.
+  if (ms >= SECONDS_VISIBLE_MS) return `${minutes}m`;
   if (minutes > 0) return `${minutes}m ${seconds}s`;
   return `${seconds}s`;
 }
@@ -57,6 +72,7 @@ export function CrisisWarRoom({
   planId,
   taskName,
   deadline,
+  targetDate,
   onComplete,
   onReassess,
 }: Props) {
@@ -66,20 +82,29 @@ export function CrisisWarRoom({
   );
   const [isStuck, setIsStuck] = useState(false);
   const [isReassessing, setIsReassessing] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(
-    new Date(deadline).getTime() - Date.now()
+  const [reassessError, setReassessError] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(() =>
+    deadline ? new Date(deadline).getTime() - Date.now() : null
   );
 
-  // Live countdown
+  const isFinalStretch = timeLeft !== null && timeLeft < SECONDS_VISIBLE_MS;
+
+  // Live countdown — only when there is an actual hard deadline to count to.
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(new Date(deadline).getTime() - Date.now());
-    }, 1000);
+    if (!deadline) {
+      setTimeLeft(null);
+      return;
+    }
+    const tick = () => setTimeLeft(new Date(deadline).getTime() - Date.now());
+    tick();
+    // Once a second only in the last few minutes; once every 30s before that.
+    const interval = setInterval(tick, isFinalStretch ? 1000 : 30_000);
     return () => clearInterval(interval);
-  }, [deadline]);
+  }, [deadline, isFinalStretch]);
 
   const handleReassess = useCallback(async () => {
     setIsReassessing(true);
+    setReassessError(null);
     try {
       const res = await fetch("/api/crisis", {
         method: "PUT",
@@ -94,7 +119,9 @@ export function CrisisWarRoom({
       setIsStuck(false);
       onReassess?.(newPlan);
     } catch {
-      // Silently fail — the old plan is still valid
+      // A button that does nothing, with no explanation, is the worst thing to
+      // hand someone mid-crisis. Say what happened and that nothing was lost.
+      setReassessError("Couldn't re-check the plan just now. Your current plan is still here.");
     } finally {
       setIsReassessing(false);
     }
@@ -116,21 +143,25 @@ export function CrisisWarRoom({
       await patchProgress(planId, { completed: true });
       onComplete();
     } else {
-      // Mini-burst per step — just enough dopamine
-      void confetti({
-        particleCount: 60,
-        spread: 80,
-        startVelocity: 45,
-        origin: { x: 0.5, y: 0.6 },
-        colors: ["#6bcb77", "#4d96ff", "#ffd93d", "#c77dff"],
-        zIndex: 9999,
-      });
+      // Mini-burst per step — just enough dopamine. Goes through the shared
+      // helper so it respects the celebration level and reduced-motion; the
+      // raw call this replaces ignored both.
+      fireStepConfetti();
       const next = currentTaskIndex + 1;
       setCurrentTaskIndex(next);
       setIsStuck(false);
       await patchProgress(planId, { currentTaskIndex: next });
     }
   }, [currentTaskIndex, currentPlan.tasks.length, planId, onComplete]);
+
+  const handleSkipTask = useCallback(async () => {
+    // No confetti, no "completed" flag — this is not an achievement, and
+    // dressing it up as one would be the app misreading the moment.
+    const next = currentTaskIndex + 1;
+    setCurrentTaskIndex(next);
+    setIsStuck(false);
+    await patchProgress(planId, { currentTaskIndex: next });
+  }, [currentTaskIndex, planId]);
 
   if (!currentTask) {
     // AI returned zero actionable tasks (e.g. a genuinely zero-time-left
@@ -191,19 +222,50 @@ export function CrisisWarRoom({
       {/* Summary */}
       <p className="text-sm text-muted-foreground">{currentPlan.summary}</p>
 
+      {reassessError && (
+        <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
+          {reassessError}
+        </p>
+      )}
+
       {/* Countdown + Progress */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground">Time left</p>
-            <p
-              className={cn(
-                "text-2xl font-bold tabular-nums",
-                timeLeft < 30 * 60 * 1000 && "text-destructive"
-              )}
-            >
-              {formatCountdown(timeLeft)}
-            </p>
+            {timeLeft !== null ? (
+              <>
+                <p className="text-xs text-muted-foreground">Time left</p>
+                <p
+                  className={cn(
+                    "text-2xl font-bold tabular-nums",
+                    timeLeft < 30 * 60 * 1000 && "text-destructive"
+                  )}
+                >
+                  {formatCountdown(timeLeft)}
+                </p>
+              </>
+            ) : targetDate ? (
+              <>
+                <p className="text-xs text-muted-foreground">Your own target</p>
+                <p className="text-base font-semibold leading-tight">
+                  {new Date(targetDate).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Yours to move
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">No hard deadline</p>
+                <p className="text-base font-semibold leading-tight">
+                  Work at your pace
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -260,6 +322,21 @@ export function CrisisWarRoom({
           {isStuck ? "Hide hint" : "Stuck — help me"}
         </Button>
       </div>
+
+      {/* Move on without having done it. The only way past a step used to be
+          "Done", so a user who skipped one had to tell the app they'd finished
+          work they hadn't — the app was asking them to lie to keep going. */}
+      {nextTask && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={handleSkipTask}
+        >
+          <SkipForward className="h-3.5 w-3.5" />
+          Skip this one — I&apos;m not doing it right now
+        </Button>
+      )}
 
       {/* Stuck hint */}
       {isStuck && (

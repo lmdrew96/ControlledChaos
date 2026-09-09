@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, CheckCircle2 } from "lucide-react";
 import type { CrisisMessage } from "@/types";
 
 interface Props {
@@ -20,6 +20,11 @@ export function CrisisChatPanel({ planId, questions }: Props) {
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  // The assistant can write a corrected deadline back to the plan. That write
+  // was completely invisible — the reply might mention it, or might not, and
+  // nothing in the UI confirmed the data actually changed.
+  const [correction, setCorrection] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -64,6 +69,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
 
       setIsSending(true);
       setInput("");
+      setSendError(null);
 
       // Optimistic user message
       const tempUserMsg: CrisisMessage = {
@@ -91,10 +97,14 @@ export function CrisisChatPanel({ planId, questions }: Props) {
           data.userMessage,
           data.assistantMessage,
         ]);
+        if (data.correctionApplied) setCorrection(data.correctionApplied);
       } catch {
         // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
         setInput(text); // Restore input
+        // Silently dropping the message left the user staring at a chat that
+        // had swallowed what they typed with no explanation.
+        setSendError("That didn't send. Your message is back in the box — try again.");
       } finally {
         setIsSending(false);
       }
@@ -216,6 +226,24 @@ export function CrisisChatPanel({ planId, questions }: Props) {
             <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
+          )}
+
+          {correction && (
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-xs"
+            >
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+              <span>
+                <span className="font-medium">Plan updated:</span> {correction}
+              </span>
+            </div>
+          )}
+
+          {sendError && (
+            <p role="status" className="text-xs text-amber-600 dark:text-amber-500">
+              {sendError}
+            </p>
           )}
 
           <div ref={messagesEndRef} />

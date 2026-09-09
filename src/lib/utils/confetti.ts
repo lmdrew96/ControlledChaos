@@ -19,6 +19,41 @@ function getCelebrationLevel(): CelebrationLevel {
 }
 
 /**
+ * The small per-step celebration, for finishing one step of something longer.
+ *
+ * Exists so callers stop reaching for `confetti()` directly. The rescue war
+ * room fired a raw burst on every completed step, which meant it ignored both
+ * the user's celebration setting AND prefers-reduced-motion — someone who had
+ * explicitly turned celebrations off still got confetti, repeatedly, during a
+ * deadline crisis.
+ */
+export function fireStepConfetti() {
+  const level = getCelebrationLevel();
+  if (level === "none") return;
+
+  if (level === "subtle" || prefersReducedMotion()) {
+    void confetti({
+      colors: COLORS,
+      zIndex: 9999,
+      particleCount: 15,
+      spread: 45,
+      startVelocity: 18,
+      origin: { x: 0.5, y: 0.6 },
+    });
+    return;
+  }
+
+  void confetti({
+    colors: COLORS,
+    zIndex: 9999,
+    particleCount: 60,
+    spread: 80,
+    startVelocity: 45,
+    origin: { x: 0.5, y: 0.6 },
+  });
+}
+
+/**
  * Full-window confetti DETONATION. ~2,000 particles from every direction —
  * center, all four corners, top shower, AND bottom-up rockets. No escape.
  *
