@@ -2,7 +2,7 @@ import { db } from "../index";
 import { tasks } from "../schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import type { CalendarColors } from "@/types";
-import { DEFAULT_CALENDAR_COLORS } from "@/lib/calendar/colors";
+import { DEFAULT_CALENDAR_COLORS, categoryLabel } from "@/lib/calendar/colors";
 import { startOfDayInTimezone, todayInTimezone, startOfWeekInTimezone } from "@/lib/timezone";
 import { getUserSettings } from "./users";
 
@@ -45,6 +45,30 @@ export type MarinationBuckets = {
   marinating: number; // 7–30 days
   aging: number; // 30+ days
 };
+
+/**
+ * A category as it reads inside a sentence, not as a database value.
+ *
+ * `categoryLabel` gives a standalone chip label ("Errands"). This gives the
+ * form that survives being embedded in prose: "All your errands, done early".
+ */
+function categoryPhrase(category: string): string {
+  const phrases: Record<string, string> = {
+    school: "schoolwork",
+    work: "work tasks",
+    personal: "personal tasks",
+    errands: "errands",
+    health: "health tasks",
+  };
+  return phrases[category] ?? `${category} tasks`;
+}
+
+/** "A", "A and B", "A, B and C" — an English list, not a join(", "). */
+function joinNaturally(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
 
 export async function getMomentumStats(
   userId: string,
@@ -325,6 +349,11 @@ export async function getMomentumStats(
     (settingsResult?.calendarColors as CalendarColors | null) ?? DEFAULT_CALENDAR_COLORS;
 
   // === Wins computation ===
+  //
+  // These strings are read by a person looking at their week, so they have to
+  // sound like a sentence someone would say. Category KEYS ("errands",
+  // "school") are database values, not English — dropping one into
+  // "All ${category} tasks done early" produced "All errands tasks done early".
   const wins: Array<{ icon: string; title: string; subtitle: string }> = [];
 
   // 1. New personal best
@@ -334,8 +363,8 @@ export async function getMomentumStats(
     if (newPB && wins.length < 3) {
       wins.push({
         icon: "\u26A1",
-        title: `New personal best: ${biggestDay.count} in a day`,
-        subtitle: "Your biggest day yet!",
+        title: "New personal best",
+        subtitle: `${biggestDay.count} ${biggestDay.count === 1 ? "task" : "tasks"} in a single day`,
       });
     }
   }
@@ -352,11 +381,14 @@ export async function getMomentumStats(
   // 3. All deadline tasks met for a category
   for (const dr of deadlineRows.rows) {
     if (wins.length >= 3) break;
-    if (Number(dr.met) === Number(dr.total) && Number(dr.total) > 0 && dr.category) {
+    const total = Number(dr.total);
+    // Two or more, so the phrasing can stay plural. "All your errands, done
+    // early" about a single errand is a strange thing to say to someone.
+    if (Number(dr.met) === total && total > 1 && dr.category) {
       wins.push({
         icon: "\uD83C\uDFAF",
-        title: `All ${dr.category} tasks done early`,
-        subtitle: "Ahead of every deadline",
+        title: `All your ${categoryPhrase(String(dr.category))}, done early`,
+        subtitle: `All ${total} beat their deadlines`,
       });
     }
   }
@@ -374,12 +406,18 @@ export async function getMomentumStats(
   if (wins.length < 3) {
     // Check daily category spread — need per-day category counts from heatmap or raw data
     // Approximate: check if byCategory has 3+ categories this week
-    const categoriesWithCompletions = byCategory.filter((c) => c.count > 0).length;
-    if (categoriesWithCompletions >= 3) {
+    const activeCategories = byCategory.filter((c) => c.count > 0);
+    if (activeCategories.length >= 3) {
+      // Naming the actual areas beats counting them. Nobody thinks of their
+      // week as "3 categories".
+      const named = activeCategories
+        .map((c) => categoryLabel(String(c.category)))
+        .filter((label): label is string => Boolean(label));
       wins.push({
         icon: "\uD83C\uDF08",
-        title: `Tackled ${categoriesWithCompletions} categories this week`,
-        subtitle: "Nice variety",
+        title: "A bit of everything this week",
+        subtitle:
+          named.length > 0 ? `${joinNaturally(named)} all moved` : "Nice spread of work",
       });
     }
   }

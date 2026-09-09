@@ -50,7 +50,9 @@ function generateMarinationSentence(
       return "Most tasks finish within a week. Everything active is still fresh.";
     }
     if (activeOld > 0) {
-      return `**${activeOld}** tasks have been sitting a while — that's normal for how you work.`;
+      return activeOld === 1
+        ? `**1** task has been sitting a while — that's normal for how you work.`
+        : `**${activeOld}** tasks have been sitting a while — that's normal for how you work.`;
     }
   }
 

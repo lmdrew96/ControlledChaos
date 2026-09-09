@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Pass task state and event location to the notification writer"
+      },
+      {
+        "type": "added",
         "text": "Give the AI context snapshot the task/event detail its consumers need"
       },
       {
