@@ -24,6 +24,25 @@ export class AIUnavailableError extends Error {
   }
 }
 
+/**
+ * The model hit its max_tokens wall, so the response is cut off wherever the
+ * token boundary happened to fall — mid-sentence, mid-word, or mid-JSON.
+ *
+ * Raised only for callers that opt in with `requireComplete`. Prose callers
+ * generally should NOT: a slightly short sentence repaired by
+ * trimIncompleteTail is better than no message at all. Structured callers
+ * should, because truncated JSON is unparseable garbage and failing loudly
+ * beats a SyntaxError from deep inside a parse helper.
+ */
+export class AIResponseTruncatedError extends Error {
+  constructor(label: string, outputTokens: number) {
+    super(
+      `The AI response was cut off at its length limit (${label}, ${outputTokens} tokens). Try again.`
+    );
+    this.name = "AIResponseTruncatedError";
+  }
+}
+
 export async function callWithRetry<T>(fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
     try {
@@ -78,6 +97,17 @@ interface AICallParams {
   /** Tool definitions. Inspect `stopReason`/`content` on the result to handle calls. */
   tools?: Anthropic.Tool[];
   maxTokens?: number;
+  /**
+   * Short name for the calling feature ("parse-dump", "push-message", ...).
+   * Only used to make the shared logs attributable — without it a max_tokens
+   * warning in production names a model but not the feature that hit it.
+   */
+  label?: string;
+  /**
+   * Treat a max_tokens stop as an error rather than a result. See
+   * AIResponseTruncatedError for when to use this.
+   */
+  requireComplete?: boolean;
 }
 
 export interface AICallResult {
@@ -105,16 +135,21 @@ function extractText(content: Anthropic.ContentBlock[]): string {
     .trim();
 }
 
-// --- Haiku (fast, cheap — parsing, scheduling, chunking) ---
+// --- Shared implementation ---
+//
+// Haiku and Sonnet differ only by model id, so they share one body. Keeping
+// them separate let the stop_reason handling below drift between the two.
 
-export async function callHaiku(
+async function callModel(
+  model: string,
+  modelName: string,
   params: AICallParams
 ): Promise<AICallResult> {
   const start = Date.now();
 
   const response = await callWithRetry(() =>
     anthropic.messages.create({
-      model: MODEL_HAIKU,
+      model,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,
       messages: resolveMessages(params),
@@ -123,13 +158,40 @@ export async function callHaiku(
   );
 
   const durationMs = Date.now() - start;
+  const site = params.label ? ` (${params.label})` : "";
 
   console.log(
-    `[AI] Haiku call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
+    `[AI] ${modelName} call${site}: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
   );
 
+  // Every caller used to have to remember to check this, and exactly one did.
+  // Warn centrally so a truncation is never silent, wherever it happens.
+  if (response.stop_reason === "max_tokens") {
+    console.warn(
+      `[AI] ${modelName}${site} hit max_tokens (${response.usage.output_tokens} out) — response is cut off`
+    );
+    if (params.requireComplete) {
+      throw new AIResponseTruncatedError(
+        params.label ?? modelName,
+        response.usage.output_tokens
+      );
+    }
+  }
+
+  const text = extractText(response.content);
+
+  // An empty text result is indistinguishable downstream from "the model had
+  // nothing to say", so surface it here rather than letting "" flow onward.
+  // A tool-use turn legitimately carries no text.
+  const usedTool = response.content.some((b) => b.type === "tool_use");
+  if (text.length === 0 && !usedTool) {
+    console.warn(
+      `[AI] ${modelName}${site} returned no text (stop_reason=${response.stop_reason}, ${response.usage.output_tokens} out)`
+    );
+  }
+
   return {
-    text: extractText(response.content),
+    text,
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     durationMs,
@@ -138,35 +200,14 @@ export async function callHaiku(
   };
 }
 
+// --- Haiku (fast, cheap — parsing, scheduling, chunking) ---
+
+export async function callHaiku(params: AICallParams): Promise<AICallResult> {
+  return callModel(MODEL_HAIKU, "Haiku", params);
+}
+
 // --- Sonnet (personality, sass — notifications, digests, crisis) ---
 
-export async function callSonnet(
-  params: AICallParams
-): Promise<AICallResult> {
-  const start = Date.now();
-
-  const response = await callWithRetry(() =>
-    anthropic.messages.create({
-      model: MODEL_SONNET,
-      max_tokens: params.maxTokens ?? 2048,
-      system: params.system,
-      messages: resolveMessages(params),
-      ...(params.tools?.length ? { tools: params.tools } : {}),
-    })
-  );
-
-  const durationMs = Date.now() - start;
-
-  console.log(
-    `[AI] Sonnet call: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out / ${durationMs}ms`
-  );
-
-  return {
-    text: extractText(response.content),
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    durationMs,
-    content: response.content,
-    stopReason: response.stop_reason,
-  };
+export async function callSonnet(params: AICallParams): Promise<AICallResult> {
+  return callModel(MODEL_SONNET, "Sonnet", params);
 }

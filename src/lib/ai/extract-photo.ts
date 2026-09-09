@@ -25,5 +25,9 @@ export async function extractTextFromPhoto(
       },
     ],
     maxTokens: 4096,
+    label: "photo-ocr",
+    // Deliberately NOT requireComplete. A partial transcription is still
+    // useful, and it lands in an editable brain-dump field the user reviews
+    // before anything is created from it. The route flags the cut instead.
   });
 }

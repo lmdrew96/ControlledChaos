@@ -37,6 +37,10 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState("");
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  // The transcription hit the model's length limit and stops partway through
+  // the image. Not an error — the text is usable — but the user has to know
+  // it's partial, or they'll assume the whole photo was read.
+  const [textTruncated, setTextTruncated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -98,6 +102,15 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
       const data = await response.json();
       setExtractedText(data.extractedText);
       setMediaUrl(data.mediaUrl);
+      setTextTruncated(Boolean(data.truncated));
+
+      if (data.truncated) {
+        // Partial transcription. Auto-parsing here would quietly turn half a
+        // page into tasks and drop the rest with nothing to show for it, so
+        // stop at review and let the user fill in what's missing.
+        setStage("reviewing");
+        return;
+      }
 
       // Auto-parse immediately
       await parseExtractedText(data.extractedText, data.mediaUrl);
@@ -160,6 +173,7 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
     setStage("ready");
     setPreview(null);
     setExtractedText("");
+    setTextTruncated(false);
     setMediaUrl(null);
     setError(null);
     if (cameraInputRef.current) cameraInputRef.current.value = "";
@@ -326,6 +340,14 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
           placeholder="Extracted text will appear here..."
           className="min-h-[200px] resize-none border-border bg-card text-base leading-relaxed focus-visible:ring-1"
         />
+
+        {textTruncated && (
+          <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+            This photo had more text than fits in one read, so the transcription
+            stops partway through. Add anything that&apos;s missing before
+            continuing.
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">

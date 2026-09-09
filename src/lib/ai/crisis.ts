@@ -167,6 +167,8 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
           { type: "text" as const, text: userPromptText },
         ],
         maxTokens: 4096,
+        label: "crisis-plan-multimodal",
+        requireComplete: true,
       });
       responseText = result.text;
     } else {
@@ -175,6 +177,8 @@ export async function getCrisisPlan(params: CrisisParams): Promise<CrisisResult>
         system: CRISIS_SYSTEM_PROMPT,
         user: userPromptText,
         maxTokens: 4096,
+        label: "crisis-plan",
+        requireComplete: true,
       });
       responseText = result.text;
     }

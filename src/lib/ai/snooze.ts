@@ -75,6 +75,10 @@ Examples of good reason strings:
       system: "You are a smart snooze timer. Pick the optimal snooze duration based on the task context and the user's current situation. Respond with only valid JSON.",
       user: prompt,
       maxTokens: 80,
+      label: "snooze",
+      // Caught below and turned into the deterministic fallback — this just
+      // makes the log say "cut off" instead of a bare JSON SyntaxError.
+      requireComplete: true,
     });
 
     const parsed = JSON.parse(result.text) as { snoozeMinutes: unknown; reason: unknown };

@@ -89,6 +89,11 @@ export async function POST(request: Request) {
       extractedText: extraction.text,
       mediaUrl,
       extractionDurationMs: extraction.durationMs,
+      // The transcription ran into the model's length limit, so it stops
+      // partway through the image. The text is still returned — it lands in an
+      // editable field — but the client needs to be able to say it's partial
+      // rather than let the user assume the whole photo was read.
+      truncated: extraction.stopReason === "max_tokens",
     });
   } catch (error) {
     console.error("[API] POST /api/dump/photo/extract error:", error);

@@ -18,7 +18,7 @@ import {
 } from "@/lib/timezone";
 import { callHaiku } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
-import { enforceWordLimit } from "@/lib/ai/validate";
+import { enforceWordLimit, trimIncompleteTail } from "@/lib/ai/validate";
 import { getReminderIntervals } from "@/lib/notifications/reminder-intervals";
 
 export {
@@ -583,10 +583,17 @@ export async function generatePushMessage(
     const { text } = await callHaiku({
       system: buildPushNotificationPrompt(prefs, timezone, mode),
       user: userMsg,
-      maxTokens: 60,
+      // Headroom, not a target. The 35-word cap below is what actually bounds
+      // the message; this only has to be loose enough that the model reaches a
+      // natural end rather than being guillotined mid-word. At the old 60 a
+      // full-length 35-word message was routinely cut.
+      maxTokens: 120,
+      label: "push-message",
     });
 
-    const cleaned = text.trim().replace(/^["']|["']$/g, "");
+    // A max_tokens stop lands wherever the token boundary fell, including
+    // mid-word — and enforceWordLimit assumes whole words. Repair first.
+    const cleaned = trimIncompleteTail(text.trim().replace(/^["']|["']$/g, ""));
     return enforceWordLimit(cleaned, 35) || PUSH_FALLBACKS[ctx.type];
   } catch (error) {
     console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
@@ -636,10 +643,12 @@ export async function generateNudgeMessage(
     const { text } = await callHaiku({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: userMsg,
-      maxTokens: 80,
+      // See generatePushMessage — headroom so the word cap does the trimming.
+      maxTokens: 120,
+      label: "nudge-message",
     });
 
-    const cleaned = text.trim().replace(/^["']|["']$/g, "");
+    const cleaned = trimIncompleteTail(text.trim().replace(/^["']|["']$/g, ""));
     const wordLimit = tier === 3 ? 10 : 40;
     return enforceWordLimit(cleaned, wordLimit) || NUDGE_FALLBACKS[tier];
   } catch (error) {

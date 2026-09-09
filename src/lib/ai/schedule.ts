@@ -227,6 +227,8 @@ export async function generateSchedule(
     system: buildSchedulingSystemPrompt(input.personalityPrefs ?? null),
     user: userPrompt,
     maxTokens: 2048,
+    label: "schedule-day",
+    requireComplete: true,
   });
 
   let parsed: { blocks: ScheduledBlock[] };
@@ -360,6 +362,8 @@ Find the best time for this task using urgency + energy matching.${input.aiConte
     system: buildSingleTaskSchedulingPrompt(input.personalityPrefs ?? null),
     user: userPrompt,
     maxTokens: 512,
+    label: "schedule-task",
+    requireComplete: true,
   });
 
   let parsed: { block: { startTime: string; endTime: string; reasoning: string } | null };

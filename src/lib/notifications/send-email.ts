@@ -49,7 +49,12 @@ async function generateDigestNote(
 ): Promise<string | null> {
   let result;
   try {
-    result = await callSonnet({ system, user: context, maxTokens: 512 });
+    result = await callSonnet({
+      system,
+      user: context,
+      maxTokens: 512,
+      label: `digest-${label}`,
+    });
   } catch (err) {
     console.error(`[Email] ${label} AI note generation failed:`, err);
     return null;

@@ -209,6 +209,8 @@ export async function getTaskRecommendation(
     system: systemPrompt,
     user: userPrompt,
     maxTokens: 1024,
+    label: "recommend",
+    requireComplete: true,
   });
 
   // Log scratchpad reasoning if present (useful for debugging recommendation quality)

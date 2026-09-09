@@ -16,6 +16,7 @@ import {
 } from "@/lib/calendar/plan-blocks";
 import { expandRecurrence } from "@/lib/calendar/expand-recurrence";
 import { callHaiku } from "@/lib/ai";
+import { trimIncompleteTail } from "@/lib/ai/validate";
 import { AUTO_NOTE_EVENT_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
 import { formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
@@ -221,8 +222,11 @@ export async function POST(request: Request) {
           system: AUTO_NOTE_EVENT_SYSTEM_PROMPT,
           user: userPrompt,
           maxTokens: 150,
+          label: "auto-note-event",
         });
-        const note = text.trim();
+        // Saved as the event description and shown verbatim, so a max_tokens
+        // cut would ship a half-word to the user.
+        const note = trimIncompleteTail(text.trim());
         if (note && note !== "SKIP") {
           // Apply the note to all instances in the series
           await Promise.all(

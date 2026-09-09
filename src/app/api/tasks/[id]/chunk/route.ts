@@ -62,6 +62,8 @@ export async function POST(_req: Request, context: RouteContext) {
       system: TASK_CHUNKING_PROMPT,
       user: lines,
       maxTokens: 1024,
+      label: "chunk-task",
+      requireComplete: true,
     });
 
     let parsed: { steps: ProgressStep[] };

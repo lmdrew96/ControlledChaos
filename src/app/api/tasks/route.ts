@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { getTasksByUser, createTask, updateTask } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
+import { trimIncompleteTail } from "@/lib/ai/validate";
 import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
 import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
           system: AUTO_NOTE_TASK_SYSTEM_PROMPT,
           user: userPrompt,
           maxTokens: 200,
+          label: "auto-note-task",
         });
         const raw = text.trim();
 
@@ -89,8 +91,11 @@ export async function POST(request: NextRequest) {
         const estMatch = raw.match(/EST:\s*(\d+)/);
         const aiEstimate = estMatch ? Math.max(5, parseInt(estMatch[1], 10)) : null;
 
-        // Strip EST line from the note text
-        const note = raw.replace(/\n?EST:\s*\d+\s*$/, "").trim();
+        // Strip EST line from the note text, then repair a max_tokens cut —
+        // this string is saved as the task description and shown verbatim.
+        const note = trimIncompleteTail(
+          raw.replace(/\n?EST:\s*\d+\s*$/, "").trim()
+        );
 
         const updates: Record<string, unknown> = {};
         if (note && note !== "SKIP") {

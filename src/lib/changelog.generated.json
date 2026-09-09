@@ -3,6 +3,10 @@
     "weekOf": "2026-09-07",
     "items": [
       {
+        "type": "added",
+        "text": "Describe reminders by real time remaining, not the reminder band"
+      },
+      {
         "type": "fixed",
         "text": "All-day events duplicating and mis-sorting in digest emails"
       },

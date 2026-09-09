@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { callHaiku, AIUnavailableError } from "@/lib/ai";
+import { trimIncompleteTail } from "@/lib/ai/validate";
 import { buildCrisisChatSystemPrompt, buildPersonalityBlock, formatCurrentDateTime } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
 import {
@@ -176,6 +177,7 @@ ${aiCtx.formatted}`;
       messages: history,
       tools: [CORRECT_PLAN_FACTS_TOOL],
       maxTokens: 700,
+      label: "crisis-chat",
     });
 
     let aiResponse = first.text;
@@ -229,10 +231,15 @@ ${aiCtx.formatted}`;
         ],
         tools: [CORRECT_PLAN_FACTS_TOOL],
         maxTokens: 700,
+        label: "crisis-chat-followup",
       });
 
       if (followUp.text) aiResponse = followUp.text;
     }
+
+    // Repair a max_tokens cut before this is persisted and rendered — someone
+    // in a deadline crisis should not be handed a reply that stops mid-word.
+    aiResponse = trimIncompleteTail(aiResponse);
 
     if (!aiResponse) {
       aiResponse = "I'm here — what do you need?";

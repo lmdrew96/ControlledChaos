@@ -5,7 +5,7 @@ import {
   PHOTO_DUMP_ADDENDUM,
   formatCurrentDateTime,
 } from "./prompts";
-import { extractJSON, validateISODate } from "./validate";
+import { extractJSON, validateISODate, trimIncompleteTail } from "./validate";
 import { toUTC } from "@/lib/timezone";
 import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask, PersonalityPrefs } from "@/types";
 
@@ -88,6 +88,10 @@ export async function parseBrainDump(
     system,
     user: userMessage,
     maxTokens: 4096,
+    label: "parse-dump",
+    // Truncated JSON is garbage, and a brain dump that silently parses to
+    // nothing is indistinguishable from one the model found nothing in.
+    requireComplete: true,
   });
 
   let parsed: { tasks: ParsedTask[]; events?: ParsedCalendarEvent[]; summary: string };
@@ -254,9 +258,11 @@ export async function summarizeJunkJournal(
     system,
     user: content,
     maxTokens: 200,
+    label: "journal-summary",
   });
 
-  const summary = result.text.trim().slice(0, 240);
+  // Prose, so repair rather than reject — a slightly shorter summary beats none.
+  const summary = trimIncompleteTail(result.text).slice(0, 240);
   return summary || "Journal entry";
 }
 
