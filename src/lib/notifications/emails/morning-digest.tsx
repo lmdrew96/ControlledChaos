@@ -13,7 +13,8 @@ import { EmailFonts, EmailHeader, emailStyles, priorityDot } from "./brand";
 
 interface MorningDigestProps {
   userName: string;
-  aiNote: string;
+  /** Null when generation failed — render the static fallback instead. */
+  aiNote: string | null;
   todayEvents: Array<{ title: string; time: string }>;
   topTasks: Array<{
     title: string;
@@ -52,9 +53,17 @@ export function MorningDigestEmail({
               Good morning, {userName || "friend"}!
             </Heading>
 
-            <Section style={emailStyles.aiSection}>
-              <Text style={emailStyles.aiText}>{aiNote}</Text>
-            </Section>
+            {aiNote ? (
+              <Section style={emailStyles.aiSection}>
+                <Text style={emailStyles.aiText}>{aiNote}</Text>
+              </Section>
+            ) : (
+              <Section>
+                <Text style={emailStyles.gentleNote}>
+                  Here&apos;s what today looks like. Start wherever feels easiest.
+                </Text>
+              </Section>
+            )}
 
             {todayEvents.length > 0 && (
               <Section>

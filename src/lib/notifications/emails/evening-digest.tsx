@@ -13,7 +13,8 @@ import { EmailFonts, EmailHeader, emailStyles } from "./brand";
 
 interface EveningDigestProps {
   userName: string;
-  aiNote: string;
+  /** Null when generation failed — the static copy below carries the email. */
+  aiNote: string | null;
   completedTasks: Array<{ title: string }>;
   tomorrowPriority: {
     title: string;
@@ -45,9 +46,11 @@ export function EveningDigestEmail({
               Evening wrap-up, {userName || "friend"}
             </Heading>
 
-            <Section style={emailStyles.aiSection}>
-              <Text style={emailStyles.aiText}>{aiNote}</Text>
-            </Section>
+            {aiNote && (
+              <Section style={emailStyles.aiSection}>
+                <Text style={emailStyles.aiText}>{aiNote}</Text>
+              </Section>
+            )}
 
             {completedTasks.length > 0 && (
               <Section>

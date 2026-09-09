@@ -7,7 +7,7 @@ import {
   buildEveningDigestPrompt,
   formatCurrentDateTime,
 } from "@/lib/ai/prompts";
-import { enforceWordLimit } from "@/lib/ai/validate";
+import { enforceWordLimit, trimIncompleteTail } from "@/lib/ai/validate";
 import { compareBySoonestTime } from "@/lib/tasks/task-times";
 import {
   getUser,
@@ -33,6 +33,48 @@ function getResend() {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://controlledchaos.adhdesigns.dev";
 const FROM_EMAIL = process.env.EMAIL_FROM ?? "ControlledChaos <nae@adhdesigns.dev>";
+
+/**
+ * Generate a digest's AI note, or null when there isn't a usable one.
+ *
+ * The digest must still send without it, so every failure path here returns
+ * null rather than throwing — but none of them return silently. Callers render
+ * a static fallback in place of a null note; they must never render an empty
+ * string, which draws the callout box with nothing in it.
+ */
+async function generateDigestNote(
+  label: string,
+  system: string,
+  context: string
+): Promise<string | null> {
+  let result;
+  try {
+    result = await callSonnet({ system, user: context, maxTokens: 512 });
+  } catch (err) {
+    console.error(`[Email] ${label} AI note generation failed:`, err);
+    return null;
+  }
+
+  if (result.stopReason === "max_tokens") {
+    console.warn(
+      `[Email] ${label} AI note hit max_tokens (${result.outputTokens} out) — repairing cut tail`
+    );
+  }
+
+  // A max_tokens stop lands wherever the token boundary fell, including
+  // mid-word. Repair before the word limit, which assumes whole words.
+  const repaired = trimIncompleteTail(result.text);
+  const note = enforceWordLimit(repaired, 80).trim();
+
+  if (note.length === 0) {
+    console.error(
+      `[Email] ${label} AI note came back empty (stop_reason=${result.stopReason}, ${result.outputTokens} out tokens) — falling back to static copy`
+    );
+    return null;
+  }
+
+  return note;
+}
 
 /**
  * Send the morning digest email for a user.
@@ -128,13 +170,11 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     .filter(Boolean)
     .join("\n");
 
-  const aiResult = await callSonnet({
-    system: buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
-    user: context,
-    maxTokens: 256,
-  });
-
-  const aiNote = enforceWordLimit(aiResult.text, 80);
+  const aiNote = await generateDigestNote(
+    "Morning digest",
+    buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
+    context
+  );
 
   const html = await render(
     MorningDigestEmail({
@@ -304,13 +344,11 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     .filter(Boolean)
     .join("\n");
 
-  const aiResult = await callSonnet({
-    system: buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
-    user: context,
-    maxTokens: 256,
-  });
-
-  const aiNote = enforceWordLimit(aiResult.text, 80);
+  const aiNote = await generateDigestNote(
+    "Evening digest",
+    buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
+    context
+  );
 
   const html = await render(
     EveningDigestEmail({

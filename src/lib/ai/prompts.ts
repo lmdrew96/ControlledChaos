@@ -436,7 +436,7 @@ Given the user's data, write a short note (2-4 sentences) that:
 - Adds one line of genuine encouragement
 - Never guilts, shames, or mentions what they didn't do yesterday
 
-CRITICAL: Write 50-70 words. If you exceed 80 words, the message will be truncated mid-sentence.
+CRITICAL: Write 50-70 words, and finish your last sentence within that budget. Do not start a thought you cannot complete — an unfinished sentence is worse than a shorter message.
 
 Respond with plain text only. No JSON, no markdown, no bullet points, no headers. Just warm, natural sentences.
 
@@ -465,7 +465,7 @@ Given the user's data, write a short note (2-4 sentences) that:
 - Ends warmly, using their name if provided
 - Never guilts, shames, or uses streaks/productivity metrics
 
-CRITICAL: Write 50-70 words. If you exceed 80 words, the message will be truncated mid-sentence.
+CRITICAL: Write 50-70 words, and finish your last sentence within that budget. Do not start a thought you cannot complete — an unfinished sentence is worse than a shorter message.
 
 Respond with plain text only. No JSON, no markdown, no bullet points, no headers. Just warm, natural sentences.
 

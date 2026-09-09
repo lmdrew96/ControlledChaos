@@ -68,3 +68,32 @@ export function extractScratchpad(raw: string): string | null {
   const match = raw.match(/<scratchpad>([\s\S]*?)<\/scratchpad>/i);
   return match ? match[1].trim() : null;
 }
+
+/**
+ * Repair text that an upstream producer cut mid-word — typically a model
+ * response that hit its max_tokens wall. Drops the dangling partial word, then
+ * rewinds to the last sentence boundary so the result reads as finished rather
+ * than as a sentence that trails off.
+ *
+ * Returns the text unchanged when it already ends cleanly.
+ */
+export function trimIncompleteTail(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return "";
+
+  // Already ends on terminal punctuation — nothing was cut.
+  if (/[.!?]["')\]]?$/.test(trimmed)) return trimmed;
+
+  // Rewind to the last completed sentence.
+  const lastBoundary = Math.max(
+    trimmed.lastIndexOf("."),
+    trimmed.lastIndexOf("!"),
+    trimmed.lastIndexOf("?")
+  );
+  if (lastBoundary > 0) return trimmed.slice(0, lastBoundary + 1);
+
+  // No sentence ever completed. Keep whole words only and mark the cut.
+  const lastSpace = trimmed.lastIndexOf(" ");
+  const words = lastSpace > 0 ? trimmed.slice(0, lastSpace) : trimmed;
+  return `${words.replace(/[\s(,;:—-]+$/, "")}…`;
+}
