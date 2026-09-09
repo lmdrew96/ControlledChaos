@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "One storage convention for all-day events — local midnight, exclusive end"
+      },
+      {
+        "type": "added",
         "text": "Stop every AI call site from silently shipping a truncated response"
       },
       {

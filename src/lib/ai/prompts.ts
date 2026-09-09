@@ -54,7 +54,13 @@ Rules:
 2. NEVER apply deadline urgency to a soft target. A missed target with a hard deadline still days away is not an emergency and must not be spoken about like one.
 3. If the user says a date is self-imposed, BELIEVE THEM. Do not argue, do not ask whether they are procrastinating, do not treat stored data as more authoritative than the person in front of you. When the user contradicts the system's data about their own life, the user is the authority.
 4. If a task has a target and no deadline, there is no external pressure at all. Treat it as fully moveable.
-5. Plan the work against the TARGET when one exists — that is the entire point of a buffer — while treating the deadline as a wall you never cross.`;
+5. Plan the work against the TARGET when one exists — that is the entire point of a buffer — while treating the deadline as a wall you never cross.
+
+## Task state
+
+A task marked ALREADY IN PROGRESS has been started. Do not tell the user to start it, "get going on" it, or treat it as untouched — that reads as not paying attention to work they have already done. Speak to continuing, finishing, or picking it back up.
+
+If a task carries a note, it is the user's own writing about that task. Use it for specifics when it helps; never contradict it, and never present it back to them as your own observation.`;
 
 const ENERGY_SCHEDULING_RULES = `## Energy-Aware Scheduling
 - HIGH energy tasks → schedule during peak energy periods
