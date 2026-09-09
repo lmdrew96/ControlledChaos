@@ -92,6 +92,13 @@
       "when": 1788991400000,
       "tag": "0012_all_day_local_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788992600000,
+      "tag": "0013_all_day_exclusive_end",
+      "breakpoints": true
     }
   ]
 }
