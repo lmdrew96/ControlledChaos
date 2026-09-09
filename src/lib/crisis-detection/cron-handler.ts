@@ -134,6 +134,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       {
         type: "target_reminder",
         taskTitle: result.involvedTaskNames.join(" and "),
+        at: result.firstDeadline,
         minutesUntil: Math.max(
           0,
           Math.round((result.firstDeadline.getTime() - now.getTime()) / 60_000)

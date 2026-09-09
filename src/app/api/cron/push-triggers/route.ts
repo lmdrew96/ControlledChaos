@@ -100,26 +100,40 @@ function buildClusterContext(
   absorbed: Candidate[]
 ): PushNotificationContext {
   const alsoHappening = absorbed.map((a) => a.title);
+  // Time remaining must be measured from the clock, NOT read off
+  // `intervalMinutes`. That field is the reminder BAND the alert matched
+  // (1440/60/10) — a label used for dedup keys and priority gating — so
+  // anything between 1 and 24 hours out carries `1440` and used to be
+  // described to the model as "1 day", i.e. "tomorrow". Quiet hours made it
+  // worst: an alert that became eligible at 22:00 and was held until 07:00
+  // still announced a 2-hours-away deadline as tomorrow.
+  const minutesUntil = Math.max(
+    0,
+    Math.round((primary.at.getTime() - Date.now()) / 60000)
+  );
   switch (primary.kind) {
     case "deadline":
       return {
         type: "deadline_reminder",
         taskTitle: primary.title,
-        minutesUntil: primary.intervalMinutes ?? 0,
+        minutesUntil,
+        at: primary.at,
         alsoHappening,
       };
     case "event":
       return {
         type: "event_reminder",
         eventTitle: primary.title,
-        minutesUntil: primary.intervalMinutes ?? 0,
+        minutesUntil,
+        at: primary.at,
         alsoHappening,
       };
     case "target":
       return {
         type: "target_reminder",
         taskTitle: primary.title,
-        minutesUntil: primary.intervalMinutes ?? 0,
+        minutesUntil,
+        at: primary.at,
         alsoHappening,
       };
     case "scheduled":

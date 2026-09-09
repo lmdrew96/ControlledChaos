@@ -9,7 +9,13 @@ import {
   getCommuteTimes,
   isLocationStale,
 } from "@/lib/db/queries";
-import { startOfDayInTimezone, getHourInTimezone } from "@/lib/timezone";
+import {
+  startOfDayInTimezone,
+  getHourInTimezone,
+  formatForAI,
+  formatForDisplay,
+  DISPLAY_TIME,
+} from "@/lib/timezone";
 import { callHaiku } from "@/lib/ai";
 import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
 import { enforceWordLimit } from "@/lib/ai/validate";
@@ -450,9 +456,9 @@ export async function hasEverBeenNotified(
 type ClusteredWith = { alsoHappening?: string[] };
 
 export type PushNotificationContext =
-  | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number } & ClusteredWith)
-  | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number } & ClusteredWith)
-  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number } & ClusteredWith)
+  | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
+  | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
+  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date } & ClusteredWith)
   | ({ type: "scheduled"; taskTitle: string } & ClusteredWith)
   | ({ type: "scheduled_missed"; taskTitle: string } & ClusteredWith)
   | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
@@ -464,18 +470,28 @@ export type PushNotificationContext =
   | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
 
 /**
- * Human-readable label for an interval (e.g. 1440 → "1 day", 90 → "90 minutes").
+ * Human-readable label for a duration in minutes (e.g. 1440 → "1 day",
+ * 127 → "2 hours 7 minutes").
+ *
+ * This used to assume its input was always one of the configured reminder
+ * BANDS (1440/60/10), so it only handled exact day/hour multiples. It now
+ * receives real time-remaining, which is an arbitrary number of minutes.
  */
 export function formatReminderInterval(minutes: number): string {
-  if (minutes % (60 * 24) === 0) {
-    const days = minutes / (60 * 24);
-    return days === 1 ? "1 day" : `${days} days`;
-  }
-  if (minutes % 60 === 0) {
-    const hours = minutes / 60;
-    return hours === 1 ? "1 hour" : `${hours} hours`;
-  }
-  return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  const total = Math.max(0, Math.round(minutes));
+  if (total < 1) return "less than a minute";
+
+  const days = Math.floor(total / (60 * 24));
+  const hours = Math.floor((total % (60 * 24)) / 60);
+  const mins = total % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(days === 1 ? "1 day" : `${days} days`);
+  if (hours > 0) parts.push(hours === 1 ? "1 hour" : `${hours} hours`);
+  // Minutes are noise next to a multi-day span — "2 days 7 minutes" helps nobody.
+  if (mins > 0 && days === 0) parts.push(mins === 1 ? "1 minute" : `${mins} minutes`);
+
+  return parts.join(" ");
 }
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
@@ -511,9 +527,14 @@ export async function generatePushMessage(
 ): Promise<string> {
   let userMsg: string;
   if (ctx.type === "deadline_reminder") {
-    userMsg = `Type: deadline_reminder\nTask: "${ctx.taskTitle}"\nTime until deadline: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+    userMsg = `Type: deadline_reminder\nTask: "${ctx.taskTitle}"\nDeadline (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until deadline: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
   } else if (ctx.type === "event_reminder") {
-    userMsg = `Type: event_reminder\nEvent: "${ctx.eventTitle}"\nTime until event: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+    userMsg = `Type: event_reminder\nEvent: "${ctx.eventTitle}"\nStarts (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until event: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
+  } else if (ctx.type === "target_reminder") {
+    // Deliberately no "time until" line: targets must never scale urgency with
+    // proximity. The absolute time is included so the model can say "you'd
+    // wanted this done by <time>" instead of inventing one.
+    userMsg = `Type: target_reminder\nTask: "${ctx.taskTitle}"\nTarget (user's local time): ${formatForAI(ctx.at, timezone)}`;
   } else if (ctx.type === "idle_checkin") {
     userMsg = ctx.topTaskTitle
       ? `Type: idle_checkin\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
@@ -574,6 +595,9 @@ export async function generatePushMessage(
     }
     if (ctx.type === "event_reminder") {
       return `${ctx.eventTitle} starts in ${formatReminderInterval(ctx.minutesUntil)}.`;
+    }
+    if (ctx.type === "target_reminder") {
+      return `You'd wanted "${ctx.taskTitle}" done by ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)}.`;
     }
     if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
       const fallback = PUSH_FALLBACKS[ctx.type];

@@ -1,7 +1,24 @@
 [
   {
+    "weekOf": "2026-09-07",
+    "items": [
+      {
+        "type": "fixed",
+        "text": "All-day events duplicating and mis-sorting in digest emails"
+      },
+      {
+        "type": "fixed",
+        "text": "AI blurb rendering empty or mid-word in digest emails"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-08-31",
     "items": [
+      {
+        "type": "added",
+        "text": "Close the task actions menu after selecting an item"
+      },
       {
         "type": "fixed",
         "text": "What's New opening then immediately closing below the md breakpoint"
