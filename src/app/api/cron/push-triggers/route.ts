@@ -32,7 +32,8 @@ import {
   getInactivityNudgeTier,
   generateNudgeMessage,
   generatePushMessage,
-  getTopPendingTaskTitle,
+  getTopPendingTask,
+  type AlertingTaskDetail,
   type PushNotificationContext,
 } from "@/lib/notifications/triggers";
 import {
@@ -89,10 +90,19 @@ type Candidate = ClusterableAlert & {
   inProgress?: boolean;
   /** Where the event is, for event alerts. */
   location?: string | null;
+  /** Size and stakes of the task, for scheduled-start alerts. */
+  taskDetail?: AlertingTaskDetail;
   url: string;
   taskId?: string;
   actions: PushAction[];
 };
+
+const pickTaskDetail = (a: AlertingTaskDetail): AlertingTaskDetail => ({
+  estimatedMinutes: a.estimatedMinutes,
+  sessionMinutes: a.sessionMinutes,
+  deadline: a.deadline,
+  targetDate: a.targetDate,
+});
 
 /**
  * Build the AI context for a cluster: the primary alert's own shape, plus the
@@ -144,9 +154,15 @@ function buildClusterContext(
         alsoHappening,
       };
     case "scheduled":
-      return { type: "scheduled", taskTitle: primary.title, alsoHappening };
     case "scheduled_missed":
-      return { type: "scheduled_missed", taskTitle: primary.title, alsoHappening };
+      return {
+        type: primary.kind,
+        taskTitle: primary.title,
+        at: primary.at,
+        inProgress: primary.inProgress,
+        ...primary.taskDetail,
+        alsoHappening,
+      };
   }
 }
 
@@ -334,6 +350,8 @@ async function processUser(user: PushUser): Promise<number> {
       title: a.taskTitle,
       courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
       sourceEventId: a.sourceEventId,
+      inProgress: a.taskStatus === "in_progress",
+      taskDetail: pickTaskDetail(a),
       priority: "normal",
       bypassQuietHours: false,
       url: `/tasks?taskId=${a.taskId}`,
@@ -352,6 +370,8 @@ async function processUser(user: PushUser): Promise<number> {
         title: a.taskTitle,
         courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
         sourceEventId: a.sourceEventId,
+        inProgress: a.taskStatus === "in_progress",
+        taskDetail: pickTaskDetail(a),
         priority: "normal",
         bypassQuietHours: false,
         url: `/tasks?taskId=${a.taskId}`,
@@ -477,7 +497,7 @@ async function processUser(user: PushUser): Promise<number> {
       console.log(`[Push][CheckIn] skip user=${userId} reason=outside_window_or_not_due window=${checkInConfig.window}`);
     } else {
       const locName = await getLocationName();
-      const topTask = await getTopPendingTaskTitle(userId, locName);
+      const topTask = await getTopPendingTask(userId, locName);
       const messageType =
         checkInConfig.window === "morning"
           ? "idle_checkin"
@@ -485,7 +505,7 @@ async function processUser(user: PushUser): Promise<number> {
             ? "idle_checkin_afternoon"
             : "idle_checkin_evening";
       const message = await generatePushMessage(
-        { type: messageType, topTaskTitle: topTask, activityLevel: status.activityLevel },
+        { type: messageType, topTask, activityLevel: status.activityLevel },
         personalityPrefs,
         timezone,
         mode,

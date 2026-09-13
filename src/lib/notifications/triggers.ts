@@ -81,23 +81,48 @@ function pickIntervalForDiff(diffMs: number, intervalsDesc: number[]): number | 
   return null;
 }
 
-interface ScheduledAlert {
+/**
+ * What the writer needs to make ONE specific task concrete: how big it is and
+ * why it matters now. Deliberately not the whole task — the user snapshot
+ * already rides along on every push, so this only identifies the alerting task.
+ */
+export interface AlertingTaskDetail {
+  estimatedMinutes?: number | null;
+  /** Length of this particular sitting, for tasks planned across several. */
+  sessionMinutes?: number | null;
+  deadline?: Date | null;
+  targetDate?: Date | null;
+}
+
+interface ScheduledAlert extends AlertingTaskDetail {
   taskId: string;
   /** Identifies the SITTING, so two sessions of one task dedup separately. */
   sessionId: string;
   taskTitle: string;
+  taskStatus: string;
   scheduledFor: Date;
   taskDescription: string | null;
   sourceEventId: string | null;
 }
 
-interface MissedScheduledAlert {
-  taskId: string;
-  sessionId: string;
-  taskTitle: string;
-  scheduledFor: Date;
-  taskDescription: string | null;
-  sourceEventId: string | null;
+type MissedScheduledAlert = ScheduledAlert;
+
+function toScheduledAlert(
+  s: Awaited<ReturnType<typeof getSessionsStartingBetween>>[number]
+): ScheduledAlert {
+  return {
+    taskId: s.taskId,
+    sessionId: s.sessionId,
+    taskTitle: s.taskTitle,
+    taskStatus: s.taskStatus,
+    scheduledFor: s.scheduledFor,
+    taskDescription: s.taskDescription ?? null,
+    sourceEventId: s.sourceEventId ?? null,
+    estimatedMinutes: s.estimatedMinutes,
+    sessionMinutes: s.sessionMinutes,
+    deadline: s.deadline,
+    targetDate: s.targetDate,
+  };
 }
 
 const NOTIFICATION_CAPS: Record<NotificationAssertiveness, number> = {
@@ -299,14 +324,7 @@ export async function getScheduledTaskAlerts(
     new Date(now.getTime() + 15 * 60 * 1000)
   );
 
-  return sessions.map((s) => ({
-    taskId: s.taskId,
-    sessionId: s.sessionId,
-    taskTitle: s.taskTitle,
-    scheduledFor: s.scheduledFor,
-    taskDescription: s.taskDescription ?? null,
-    sourceEventId: s.sourceEventId ?? null,
-  }));
+  return sessions.map(toScheduledAlert);
 }
 
 /**
@@ -325,14 +343,7 @@ export async function getMissedScheduledTaskAlerts(
     new Date(now.getTime() - 20 * 60 * 1000)
   );
 
-  return sessions.map((s) => ({
-    taskId: s.taskId,
-    sessionId: s.sessionId,
-    taskTitle: s.taskTitle,
-    scheduledFor: s.scheduledFor,
-    taskDescription: s.taskDescription ?? null,
-    sourceEventId: s.sourceEventId ?? null,
-  }));
+  return sessions.map(toScheduledAlert);
 }
 
 /**
@@ -458,11 +469,11 @@ export type PushNotificationContext =
   | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
   | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
   | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date; location?: string | null } & ClusteredWith)
-  | ({ type: "scheduled"; taskTitle: string } & ClusteredWith)
-  | ({ type: "scheduled_missed"; taskTitle: string } & ClusteredWith)
-  | { type: "idle_checkin"; topTaskTitle?: string; activityLevel: "active" | "idle" }
-  | { type: "idle_checkin_afternoon"; topTaskTitle?: string; activityLevel: "active" | "idle" }
-  | { type: "idle_checkin_evening"; topTaskTitle?: string; activityLevel: "active" | "idle" }
+  | ({ type: "scheduled"; taskTitle: string; at: Date; inProgress?: boolean } & AlertingTaskDetail & ClusteredWith)
+  | ({ type: "scheduled_missed"; taskTitle: string; at: Date; inProgress?: boolean } & AlertingTaskDetail & ClusteredWith)
+  | { type: "idle_checkin"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
+  | { type: "idle_checkin_afternoon"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
+  | { type: "idle_checkin_evening"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "time_to_leave_soon"; eventTitle: string; minutesUntilLeave: number; destination: string; commuteMinutes: number }
   | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number }
   | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
@@ -540,18 +551,20 @@ export async function generatePushMessage(
     // wanted this done by <time>" instead of inventing one.
     userMsg = `Type: target_reminder\nTask: "${ctx.taskTitle}"\nTarget (user's local time): ${formatForAI(ctx.at, timezone)}`;
     if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
-  } else if (ctx.type === "idle_checkin") {
-    userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin\nActivity: ${ctx.activityLevel}`;
-  } else if (ctx.type === "idle_checkin_afternoon") {
-    userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin_afternoon\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin_afternoon\nActivity: ${ctx.activityLevel}`;
-  } else if (ctx.type === "idle_checkin_evening") {
-    userMsg = ctx.topTaskTitle
-      ? `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}\nTop pending task: "${ctx.topTaskTitle}"`
-      : `Type: idle_checkin_evening\nActivity: ${ctx.activityLevel}`;
+  } else if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
+    // These used to carry only the title, so "time for X" couldn't say how
+    // big a bite it was or why it mattered now — the activation-hump detail.
+    userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"\nPlanned start (user's local time): ${formatForAI(ctx.at, timezone)}${describeTaskDetail(ctx, timezone)}`;
+    if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
+  } else if (
+    ctx.type === "idle_checkin" ||
+    ctx.type === "idle_checkin_afternoon" ||
+    ctx.type === "idle_checkin_evening"
+  ) {
+    userMsg = `Type: ${ctx.type}\nActivity: ${ctx.activityLevel}`;
+    if (ctx.topTask) {
+      userMsg += `\nTop pending task: "${ctx.topTask.title}"${describeTaskDetail(ctx.topTask, timezone)}`;
+    }
   } else if (ctx.type === "time_to_leave_soon") {
     userMsg = `Type: time_to_leave_soon\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nMinutes until you need to leave: ${ctx.minutesUntilLeave}\nCommute time: ${ctx.commuteMinutes} min`;
   } else if (ctx.type === "time_to_leave_now") {
@@ -563,7 +576,10 @@ export async function generatePushMessage(
     const names = ctx.taskNames.join(" and ");
     userMsg = `Type: crisis_worsened\nConflicting tasks: ${names}\nNew crisis ratio: ${ctx.newRatio.toFixed(2)} (higher = worse)`;
   } else {
-    userMsg = `Type: ${ctx.type}\nTask: "${"taskTitle" in ctx ? ctx.taskTitle : ""}"`;
+    // Every context type has its own branch above; a new type that forgets
+    // one fails to compile here instead of sending a title-only prompt.
+    const unhandled: never = ctx;
+    throw new Error(`Unhandled push context: ${JSON.stringify(unhandled)}`);
   }
 
   // Fold in the rest of the cluster so the model writes one message for the
@@ -604,6 +620,28 @@ export async function generatePushMessage(
     console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
     return buildPushFallback(ctx, timezone);
   }
+}
+
+/**
+ * Extra writer-prompt lines for the one task an alert is about. Hard deadline
+ * and soft target are labeled apart so HARD_SOFT_TIME_RULES can tell them apart.
+ */
+function describeTaskDetail(d: AlertingTaskDetail, timezone: string): string {
+  const lines: string[] = [];
+  // A sitting equal to the whole estimate is a single-sitting task — say it once.
+  if (d.sessionMinutes && d.sessionMinutes !== d.estimatedMinutes) {
+    lines.push(`This sitting: ${formatReminderInterval(d.sessionMinutes)}`);
+  }
+  if (d.estimatedMinutes) {
+    lines.push(`Estimated time for the whole task: ${formatReminderInterval(d.estimatedMinutes)}`);
+  }
+  if (d.deadline) {
+    lines.push(`Hard deadline (user's local time): ${formatForAI(d.deadline, timezone)}`);
+  }
+  if (d.targetDate) {
+    lines.push(`Soft self-set target (user's local time): ${formatForAI(d.targetDate, timezone)}`);
+  }
+  return lines.map((l) => `\n${l}`).join("");
 }
 
 /**
@@ -672,29 +710,40 @@ export async function generateNudgeMessage(
   }
 }
 
+/** The one task a check-in surfaces, with just enough detail to make it concrete. */
+export interface TopPendingTask extends AlertingTaskDetail {
+  title: string;
+}
+
 /**
- * Returns the title of the top pending task to surface in idle check-ins.
+ * Returns the top pending task to surface in idle check-ins.
  * getPendingTasks already sorts deadline-first (nearest deadline → no deadline → newest).
  *
  * When the user's current location is known, prefer a task tagged for that
  * location (still respecting deadline ordering within matched tasks).
  */
-export async function getTopPendingTaskTitle(
+export async function getTopPendingTask(
   userId: string,
   locationName?: string
-): Promise<string | undefined> {
+): Promise<TopPendingTask | undefined> {
   const pending = await getPendingTasks(userId);
 
-  if (locationName) {
-    const locationTask = pending.find((t) =>
-      t.locationTags?.some(
-        (tag) => tag.toLowerCase() === locationName.toLowerCase()
+  const locationTask = locationName
+    ? pending.find((t) =>
+        t.locationTags?.some(
+          (tag) => tag.toLowerCase() === locationName.toLowerCase()
+        )
       )
-    );
-    if (locationTask) return locationTask.title;
-  }
+    : undefined;
+  const task = locationTask ?? pending[0];
+  if (!task) return undefined;
 
-  return pending[0]?.title;
+  return {
+    title: task.title,
+    estimatedMinutes: task.estimatedMinutes ?? null,
+    deadline: task.deadline ?? null,
+    targetDate: task.targetDate ?? null,
+  };
 }
 
 /**

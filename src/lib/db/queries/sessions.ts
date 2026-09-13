@@ -491,10 +491,13 @@ export async function getSessionsStartingBetween(
       taskId: tasks.id,
       taskTitle: tasks.title,
       taskDescription: tasks.description,
+      taskStatus: tasks.status,
       sourceEventId: tasks.sourceEventId,
       scheduledFor: taskSessions.startsAt,
       estimatedMinutes: tasks.estimatedMinutes,
       sessionMinutes: taskSessions.minutes,
+      deadline: tasks.deadline,
+      targetDate: tasks.targetDate,
     })
     .from(taskSessions)
     .innerJoin(tasks, eq(tasks.id, taskSessions.taskId))
