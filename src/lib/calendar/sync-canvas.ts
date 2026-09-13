@@ -14,6 +14,9 @@ import {
   classifyCanvasEvent,
   isEndOfDayDeadline,
   shouldSyncAsCalendarEvent,
+  findOverriddenBaseKeys,
+  isShadowedBaseAssignment,
+  isGeneratedCanvasDescription,
   type CanvasTaskKind,
 } from "@/lib/calendar/canvas-helpers";
 import type { CalendarSyncResult } from "@/types";
@@ -159,12 +162,22 @@ export async function syncCanvasCalendar(
   // but the tasks a previous sync generated from them need clearing too.
   const deselectedEventIds: string[] = [];
 
+  // Base assignments that also arrive as a group/section override. See
+  // findOverriddenBaseKeys — without this, one assignment became two tasks.
+  const overriddenBaseKeys = findOverriddenBaseKeys(
+    events.flatMap((e) =>
+      e.uid ? [{ uid: e.uid, title: paramValue(e.summary) ?? "" }] : []
+    )
+  );
+
   for (const event of events) {
     const uid = event.uid;
     if (!uid) continue;
 
     const title = paramValue(event.summary) ?? "Untitled Event";
     const { courseCode } = parseCanvasTitle(title);
+
+    if (isShadowedBaseAssignment(uid, title, overriddenBaseKeys)) continue;
 
     // Selective course import: a non-null selectedCourses list means "only
     // sync these courses". Events without a recognizable course tag always
@@ -283,21 +296,41 @@ export async function syncCanvasCalendar(
               sourceEventId: uid,
             });
             tasksCreated++;
-          } else if (
-            existing.status !== "completed" &&
-            !existing.deletedAt &&
-            typeof existing.description === "string" &&
-            existing.description.startsWith(LEGACY_AUTO_PREP_DESC_PREFIX)
-          ) {
-            // Retrofit old auto-generated tasks to the cleaner title/description.
-            // Guarded to tasks that are still pending AND still carry the exact
-            // legacy marker — so we never overwrite a title/description a user
-            // has since edited or completed.
-            await updateTask(existing.id, userId, {
-              title: taskTitle,
-              description: taskDescription,
-            });
-            tasksRefreshed++;
+          } else if (existing.status !== "completed" && !existing.deletedAt) {
+            const updates: Parameters<typeof updateTask>[2] = {};
+
+            // Canvas owns the due date, so a moved deadline follows it. Nothing
+            // the user owns is touched: priority, energy, estimate, location
+            // tags, soft target, planned start and status all stay as they are.
+            // A prep task whose prep slot has already passed keeps its deadline
+            // rather than jumping to the event time via the fallback above.
+            const canvasDeadline =
+              taskKind === "assessment"
+                ? computePrepDeadline(startDate, timezone)
+                : startDate;
+            const deadlineMoved =
+              canvasDeadline !== null &&
+              existing.deadline?.getTime() !== canvasDeadline.getTime();
+            if (deadlineMoved) updates.deadline = canvasDeadline;
+
+            if (
+              typeof existing.description === "string" &&
+              existing.description.startsWith(LEGACY_AUTO_PREP_DESC_PREFIX)
+            ) {
+              // Retrofit old auto-generated tasks to the cleaner title/description.
+              // Only rows still carrying the exact legacy marker, so a title or
+              // description a user has since edited is never overwritten.
+              updates.title = taskTitle;
+              updates.description = taskDescription;
+            } else if (deadlineMoved && isGeneratedCanvasDescription(existing.description)) {
+              // The generated description states the due date; keep it honest.
+              updates.description = taskDescription;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              await updateTask(existing.id, userId, updates);
+              tasksRefreshed++;
+            }
           }
         }
       } catch (err) {

@@ -5,7 +5,85 @@ import {
   classifyCanvasEvent,
   isEndOfDayDeadline,
   shouldSyncAsCalendarEvent,
+  findOverriddenBaseKeys,
+  isShadowedBaseAssignment,
+  isGeneratedCanvasDescription,
 } from "@/lib/calendar/canvas-helpers";
+
+describe("assignment overrides — one assignment must not become two tasks", () => {
+  // Real shape from Nae's feed (2026-09-09): Canvas emitted the base assignment
+  // AND a group override with a different id, and the sync made two tasks.
+  const BASE_UID = "event-assignment-15109562@canvas.instructure.com";
+  const OVERRIDE_UID = "event-assignment-override-1240874@canvas.instructure.com";
+  const BASE_TITLE = "Write a Team Charter [26F-ARSC121-010]";
+  const OVERRIDE_TITLE = "Write a Team Charter (Mentor Program Group 3) [26F-ARSC121-010]";
+
+  const feed = [
+    { uid: BASE_UID, title: BASE_TITLE },
+    { uid: OVERRIDE_UID, title: OVERRIDE_TITLE },
+  ];
+
+  it("skips the base assignment when its override is in the same feed", () => {
+    const keys = findOverriddenBaseKeys(feed);
+    expect(isShadowedBaseAssignment(BASE_UID, BASE_TITLE, keys)).toBe(true);
+  });
+
+  it("keeps the override itself — it carries the student's real due date", () => {
+    const keys = findOverriddenBaseKeys(feed);
+    expect(isShadowedBaseAssignment(OVERRIDE_UID, OVERRIDE_TITLE, keys)).toBe(false);
+  });
+
+  it("keeps a base assignment with no override", () => {
+    const keys = findOverriddenBaseKeys(feed);
+    expect(
+      isShadowedBaseAssignment(
+        "event-assignment-777@canvas.instructure.com",
+        "Reflection Journal [26F-ARSC121-010]",
+        keys
+      )
+    ).toBe(false);
+  });
+
+  it("does not pair across courses", () => {
+    const keys = findOverriddenBaseKeys(feed);
+    expect(
+      isShadowedBaseAssignment(BASE_UID, "Write a Team Charter [26F-ENGL110-020]", keys)
+    ).toBe(false);
+  });
+
+  it("ignores an override with no parenthetical suffix rather than guessing", () => {
+    const keys = findOverriddenBaseKeys([
+      { uid: BASE_UID, title: BASE_TITLE },
+      { uid: OVERRIDE_UID, title: BASE_TITLE },
+    ]);
+    expect(keys.size).toBe(0);
+    expect(isShadowedBaseAssignment(BASE_UID, BASE_TITLE, keys)).toBe(false);
+  });
+
+  it("leaves two distinct base assignments alone even with near-identical titles", () => {
+    // The LATN101 pair: two real Canvas assignments, no override involved.
+    const keys = findOverriddenBaseKeys([
+      { uid: "event-assignment-15064334@canvas.instructure.com", title: "HW: 1st & 2nd Declensions [26F-LATN101-011]" },
+      { uid: "event-assignment-15064398@canvas.instructure.com", title: "HW: Nouns (1st & 2nd Declensions) [26F-LATN101-011]" },
+    ]);
+    expect(keys.size).toBe(0);
+  });
+});
+
+describe("isGeneratedCanvasDescription — only refresh copy the sync wrote", () => {
+  it("matches what buildCanvasTaskFields produces", () => {
+    expect(isGeneratedCanvasDescription("LATN101 · Due Wed, Sep 23, 1:50 PM")).toBe(true);
+    expect(isGeneratedCanvasDescription("ENGL204 Quiz · Due Fri, Oct 2, 11:59 PM")).toBe(true);
+    expect(isGeneratedCanvasDescription("Due Wed, Sep 23, 1:50 PM")).toBe(true);
+  });
+
+  it("never matches something a person wrote or edited", () => {
+    expect(isGeneratedCanvasDescription("LATN101 · Due Wed, Sep 23\nask Dr. R about ch. 4")).toBe(false);
+    expect(isGeneratedCanvasDescription("Remember to bring the textbook")).toBe(false);
+    expect(isGeneratedCanvasDescription("")).toBe(false);
+    expect(isGeneratedCanvasDescription(null)).toBe(false);
+  });
+});
 
 describe("toEndOfDayLocal — Canvas all-day assignment regression", () => {
   // node-ical parses VALUE=DATE entries to midnight UTC of that calendar day.

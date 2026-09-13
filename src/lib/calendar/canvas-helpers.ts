@@ -1,4 +1,5 @@
 import { toUTC } from "@/lib/timezone";
+import { parseCanvasTitle } from "@/lib/calendar/assessments";
 
 /**
  * Rewrite an all-day date to 23:59:00 in the user's local timezone.
@@ -67,6 +68,70 @@ export function classifyCanvasEvent(
     return "assessment";
   }
   return "assignment";
+}
+
+// ============================================================
+// Assignment overrides
+// ============================================================
+
+/** event-assignment-override-1240874@… — a per-group/section copy of an assignment. */
+export function isAssignmentOverrideUid(uid: string): boolean {
+  return uid.includes("assignment-override");
+}
+
+/** event-assignment-15109562@… — the course-wide assignment itself. */
+function isBaseAssignmentUid(uid: string): boolean {
+  return uid.includes("event-assignment-") && !isAssignmentOverrideUid(uid);
+}
+
+// Canvas appends the group or section name: "Write a Team Charter (Mentor Program Group 3)".
+const OVERRIDE_SUFFIX_RE = /\s*\([^()]*\)\s*$/;
+
+function baseKey(courseCode: string | null, cleanTitle: string): string {
+  return `${courseCode ?? ""}::${cleanTitle.trim().toLowerCase()}`;
+}
+
+/**
+ * Keys of base assignments that also appear as an override in the same feed.
+ *
+ * Canvas emits BOTH the base assignment and an assignment-override event for
+ * a student the override applies to (a group or section with its own dates).
+ * The two UIDs share no id, so UID matching can't pair them and the sync made
+ * two tasks for one piece of work. The override carries this student's actual
+ * due date, so it wins and the base event is skipped.
+ */
+export function findOverriddenBaseKeys(
+  events: Array<{ uid: string; title: string }>
+): Set<string> {
+  const keys = new Set<string>();
+  for (const { uid, title } of events) {
+    if (!isAssignmentOverrideUid(uid)) continue;
+    const { cleanTitle, courseCode } = parseCanvasTitle(title);
+    const stripped = cleanTitle.replace(OVERRIDE_SUFFIX_RE, "");
+    // No suffix means we can't tell which base it shadows — don't guess.
+    if (stripped === cleanTitle) continue;
+    keys.add(baseKey(courseCode, stripped));
+  }
+  return keys;
+}
+
+/** True if this is a base assignment shadowed by an override in the same feed. */
+export function isShadowedBaseAssignment(
+  uid: string,
+  title: string,
+  overriddenBaseKeys: Set<string>
+): boolean {
+  if (!isBaseAssignmentUid(uid)) return false;
+  const { cleanTitle, courseCode } = parseCanvasTitle(title);
+  return overriddenBaseKeys.has(baseKey(courseCode, cleanTitle));
+}
+
+// The description buildCanvasTaskFields writes: "LATN101 · Due Wed, Sep 23, 1:50 PM".
+// Anything else was written or edited by a person and is never overwritten.
+const GENERATED_DESCRIPTION_RE = /^(?:[^·\n]+ · )*Due [^·\n]+$/;
+
+export function isGeneratedCanvasDescription(description: string | null): boolean {
+  return typeof description === "string" && GENERATED_DESCRIPTION_RE.test(description);
 }
 
 /**
