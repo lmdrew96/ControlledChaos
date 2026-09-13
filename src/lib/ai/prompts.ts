@@ -759,7 +759,7 @@ Help them get unstuck, answer questions about the current task, adjust the plan 
 ${HARD_SOFT_TIME_RULES}
 
 ## Output
-Plain text only. No JSON, no markdown headers. Just talk to them like a calm, focused friend.`;
+No JSON. Talk to them like a calm, focused friend. Replies render as markdown, so a short numbered list of next steps or **bold** on the one thing to do first is fine whenever it makes the next move easier to act on.`;
 }
 
 // ============================================================
