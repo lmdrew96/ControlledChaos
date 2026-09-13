@@ -599,23 +599,33 @@ export async function generatePushMessage(
     // A max_tokens stop lands wherever the token boundary fell, including
     // mid-word — and enforceWordLimit assumes whole words. Repair first.
     const cleaned = trimIncompleteTail(text.trim().replace(/^["']|["']$/g, ""));
-    return enforceWordLimit(cleaned, 35) || PUSH_FALLBACKS[ctx.type];
+    return enforceWordLimit(cleaned, 35) || buildPushFallback(ctx, timezone);
   } catch (error) {
     console.error(`[Push] Haiku call failed for ${ctx.type}, using fallback:`, error);
-    if (ctx.type === "deadline_reminder") {
+    return buildPushFallback(ctx, timezone);
+  }
+}
+
+/**
+ * Fallback copy that NAMES the task or event when there is one. The push
+ * arrives titled only "ControlledChaos", so a bare "this" has no referent.
+ * Used both when the AI call throws and when it returns nothing usable —
+ * the empty-result path used to send the unnamed generic string.
+ */
+function buildPushFallback(ctx: PushNotificationContext, timezone: string): string {
+  switch (ctx.type) {
+    case "deadline_reminder":
       return `${ctx.taskTitle} is due in ${formatReminderInterval(ctx.minutesUntil)}.`;
-    }
-    if (ctx.type === "event_reminder") {
+    case "event_reminder":
       return `${ctx.eventTitle} starts in ${formatReminderInterval(ctx.minutesUntil)}.`;
-    }
-    if (ctx.type === "target_reminder") {
-      return `You'd wanted "${ctx.taskTitle}" done by ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)}.`;
-    }
-    if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
-      const fallback = PUSH_FALLBACKS[ctx.type];
-      return fallback.replace("You planned this", `Time for ${ctx.taskTitle}`);
-    }
-    return PUSH_FALLBACKS[ctx.type];
+    case "target_reminder":
+      return `No rush — you'd wanted "${ctx.taskTitle}" done by ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)}.`;
+    case "scheduled":
+      return `Time for ${ctx.taskTitle}. Past-you had your back.`;
+    case "scheduled_missed":
+      return `Your planned start for ${ctx.taskTitle} slipped. Pick it back up now or snooze with intent.`;
+    default:
+      return PUSH_FALLBACKS[ctx.type];
   }
 }
 
