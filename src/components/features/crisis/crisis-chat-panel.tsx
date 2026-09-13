@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Markdown } from "@/components/ui/markdown";
 import { cn } from "@/lib/utils";
 import { MessageCircle, X, Send, Loader2, CheckCircle2 } from "lucide-react";
 import type { CrisisMessage } from "@/types";
@@ -218,7 +219,9 @@ export function CrisisChatPanel({ planId, questions }: Props) {
                   : "bg-muted"
               )}
             >
-              {msg.content}
+              {/* Assistant replies are AI-written and may carry markdown even
+                  though the prompt asks for plain text — render, don't trust. */}
+              {msg.role === "user" ? msg.content : <Markdown>{msg.content}</Markdown>}
             </div>
           ))}
 

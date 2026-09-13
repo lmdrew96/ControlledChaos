@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Markdown } from "@/components/ui/markdown";
 import type { MomentumStats } from "@/lib/db/queries";
 
 type HeatmapEntry = MomentumStats["hourlyHeatmap"][number];
@@ -237,15 +238,9 @@ export function CircadianSignature({
         </div>
 
         {sentence && (
-          <p
-            className="mt-4 text-[13px] text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: sentence.replace(
-                /\*\*(.*?)\*\*/g,
-                '<strong class="text-foreground">$1</strong>'
-              ),
-            }}
-          />
+          <p className="mt-4 text-[13px] text-muted-foreground">
+            <Markdown inline>{sentence}</Markdown>
+          </p>
         )}
       </CardContent>
     </Card>

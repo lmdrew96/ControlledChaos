@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Dialog,
   DialogContent,
@@ -649,7 +650,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
 
                 {selectedEvent.description && (
                   <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                    {selectedEvent.description}
+                    <Markdown>{selectedEvent.description}</Markdown>
                   </div>
                 )}
 

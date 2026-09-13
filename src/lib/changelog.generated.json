@@ -4,6 +4,26 @@
     "items": [
       {
         "type": "added",
+        "text": "One shared sanitizing markdown renderer"
+      },
+      {
+        "type": "added",
+        "text": "Give planned-start and check-in pushes the task's size and stakes"
+      },
+      {
+        "type": "added",
+        "text": "Make push notifications name the task instead of \"this\""
+      },
+      {
+        "type": "added",
+        "text": "Keep recurring series on wall-clock time across DST"
+      },
+      {
+        "type": "added",
+        "text": "Plan a task across multiple sittings (task_sessions)"
+      },
+      {
+        "type": "added",
         "text": "Migration 0013 — normalize all-day END times, which 0012 missed"
       },
       {

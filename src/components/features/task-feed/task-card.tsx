@@ -24,6 +24,7 @@ import { taskBadgeColor, categoryLabel } from "@/lib/calendar/colors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/ui/markdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -497,7 +498,8 @@ export function TaskCard({
             </div>
 
             {task.description && (
-              <p className="text-sm text-muted-foreground">{task.description}</p>
+              // Often an AI-written auto-note, so it may carry markdown.
+              <Markdown className="text-sm text-muted-foreground">{task.description}</Markdown>
             )}
 
             {/* Metadata row — priority + time estimate, then the temporal group.
