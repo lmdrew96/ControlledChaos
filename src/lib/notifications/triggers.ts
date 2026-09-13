@@ -99,7 +99,6 @@ interface ScheduledAlert extends AlertingTaskDetail {
   /** Identifies the SITTING, so two sessions of one task dedup separately. */
   sessionId: string;
   taskTitle: string;
-  taskStatus: string;
   scheduledFor: Date;
   taskDescription: string | null;
   sourceEventId: string | null;
@@ -114,7 +113,6 @@ function toScheduledAlert(
     taskId: s.taskId,
     sessionId: s.sessionId,
     taskTitle: s.taskTitle,
-    taskStatus: s.taskStatus,
     scheduledFor: s.scheduledFor,
     taskDescription: s.taskDescription ?? null,
     sourceEventId: s.sourceEventId ?? null,
@@ -469,8 +467,10 @@ export type PushNotificationContext =
   | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
   | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
   | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date; location?: string | null } & ClusteredWith)
-  | ({ type: "scheduled"; taskTitle: string; at: Date; inProgress?: boolean } & AlertingTaskDetail & ClusteredWith)
-  | ({ type: "scheduled_missed"; taskTitle: string; at: Date; inProgress?: boolean } & AlertingTaskDetail & ClusteredWith)
+  // No inProgress here: getSessionsStartingBetween excludes in-progress tasks,
+  // so a "time to start" push never fires for work that's already underway.
+  | ({ type: "scheduled"; taskTitle: string; at: Date } & AlertingTaskDetail & ClusteredWith)
+  | ({ type: "scheduled_missed"; taskTitle: string; at: Date } & AlertingTaskDetail & ClusteredWith)
   | { type: "idle_checkin"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
@@ -555,7 +555,6 @@ export async function generatePushMessage(
     // These used to carry only the title, so "time for X" couldn't say how
     // big a bite it was or why it mattered now — the activation-hump detail.
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"\nPlanned start (user's local time): ${formatForAI(ctx.at, timezone)}${describeTaskDetail(ctx, timezone)}`;
-    if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
   } else if (
     ctx.type === "idle_checkin" ||
     ctx.type === "idle_checkin_afternoon" ||

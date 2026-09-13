@@ -159,7 +159,6 @@ function buildClusterContext(
         type: primary.kind,
         taskTitle: primary.title,
         at: primary.at,
-        inProgress: primary.inProgress,
         ...primary.taskDetail,
         alsoHappening,
       };
@@ -350,7 +349,6 @@ async function processUser(user: PushUser): Promise<number> {
       title: a.taskTitle,
       courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
       sourceEventId: a.sourceEventId,
-      inProgress: a.taskStatus === "in_progress",
       taskDetail: pickTaskDetail(a),
       priority: "normal",
       bypassQuietHours: false,
@@ -370,7 +368,6 @@ async function processUser(user: PushUser): Promise<number> {
         title: a.taskTitle,
         courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
         sourceEventId: a.sourceEventId,
-        inProgress: a.taskStatus === "in_progress",
         taskDetail: pickTaskDetail(a),
         priority: "normal",
         bypassQuietHours: false,

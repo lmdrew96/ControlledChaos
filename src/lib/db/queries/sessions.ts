@@ -491,7 +491,6 @@ export async function getSessionsStartingBetween(
       taskId: tasks.id,
       taskTitle: tasks.title,
       taskDescription: tasks.description,
-      taskStatus: tasks.status,
       sourceEventId: tasks.sourceEventId,
       scheduledFor: taskSessions.startsAt,
       estimatedMinutes: tasks.estimatedMinutes,
@@ -506,6 +505,7 @@ export async function getSessionsStartingBetween(
         eq(taskSessions.userId, userId),
         isNull(tasks.deletedAt),
         ne(tasks.status, "completed"),
+        ne(tasks.status, "in_progress"),
         gte(taskSessions.startsAt, start),
         lt(taskSessions.startsAt, end)
       )
