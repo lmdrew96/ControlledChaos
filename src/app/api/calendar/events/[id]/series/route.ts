@@ -5,7 +5,9 @@ import {
   deleteCalendarEventsBySeries,
   updateCalendarEventSeries,
   updateCalendarEvent,
+  getUser,
 } from "@/lib/db/queries";
+import { toDateKeyInTimezone, toUserLocal, toUTC } from "@/lib/timezone";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -77,23 +79,30 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       const durationMs =
         newStart && newEnd ? newEnd.getTime() - newStart.getTime() : null;
 
+      // Keep each instance's own LOCAL date and swap in the new LOCAL time.
+      // setHours ran in server UTC, which moved post-DST instances by an hour.
+      const user = await getUser(userId);
+      const tz = user?.timezone ?? "America/New_York";
+      const withLocalTime = (existing: Date, source: Date): Date => {
+        const { hour, minute } = toUserLocal(source, tz);
+        const dateKey = toDateKeyInTimezone(existing, tz);
+        const hh = String(hour).padStart(2, "0");
+        const mm = String(minute).padStart(2, "0");
+        return new Date(toUTC(`${dateKey}T${hh}:${mm}:00`, tz));
+      };
+
       for (const e of seriesEvents) {
         const updateData: { startTime?: Date; endTime?: Date } = {};
 
         if (newStart) {
-          const existing = new Date(e.startTime);
-          const updated = new Date(existing);
-          updated.setHours(newStart.getHours(), newStart.getMinutes(), 0, 0);
+          const updated = withLocalTime(new Date(e.startTime), newStart);
           updateData.startTime = updated;
 
           if (durationMs !== null) {
             updateData.endTime = new Date(updated.getTime() + durationMs);
           }
         } else if (newEnd) {
-          const existing = new Date(e.endTime);
-          const updated = new Date(existing);
-          updated.setHours(newEnd.getHours(), newEnd.getMinutes(), 0, 0);
-          updateData.endTime = updated;
+          updateData.endTime = withLocalTime(new Date(e.endTime), newEnd);
         }
 
         await updateCalendarEvent(e.id, userId, updateData);

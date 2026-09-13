@@ -144,7 +144,12 @@ export async function POST(request: Request) {
       }> = [];
 
       for (const parsedEvent of result.events) {
-        const instances = expandRecurrence(parsedEvent);
+        // Expand in the user's zone so the series keeps its wall-clock time
+        // across DST — without timeZone the expander runs in server UTC.
+        const instances = expandRecurrence({
+          ...parsedEvent,
+          recurrence: parsedEvent.recurrence && { ...parsedEvent.recurrence, timeZone: timezone },
+        });
         const seriesId = instances.length > 1 ? crypto.randomUUID() : null;
         for (const instance of instances) {
           expandedEvents.push({ ...instance, seriesId });

@@ -170,7 +170,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Expand recurrence into individual instances
+    // Expand recurrence into individual instances, in the user's zone so a
+    // series keeps its wall-clock time across DST (server-local is UTC).
+    const user = recurrence ? await getUser(userId) : null;
     const instances = expandRecurrence({
       title: title.trim(),
       description: description || null,
@@ -178,7 +180,10 @@ export async function POST(request: Request) {
       startTime,
       endTime,
       isAllDay,
-      recurrence,
+      recurrence: recurrence && {
+        ...recurrence,
+        timeZone: user?.timezone ?? "America/New_York",
+      },
     });
 
     const seriesId =

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone, getUserSettings } from "./db.js";
 import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal } from "./helpers.js";
-import { expandRecurrence } from "./expand-recurrence.js";
+import { expandRecurrence, getZonedParts, zonedToUtc } from "./expand-recurrence.js";
 
 /**
  * Keep task_sessions in step with a scheduled_for this server just wrote.
@@ -1142,22 +1142,24 @@ Returns: The updated event, or a summary if scope is "all".`,
         const newEnd = params.end_time ? new Date(params.end_time) : null;
         const durationMs = newStart && newEnd ? newEnd.getTime() - newStart.getTime() : null;
 
+        // Keep each instance's own LOCAL date and swap in the new LOCAL time.
+        // setHours ran in server UTC, which moved post-DST instances by an hour.
+        const withLocalTime = (existing: Date, source: Date): Date => {
+          const src = getZonedParts(source, tz);
+          const ex = getZonedParts(existing, tz);
+          return zonedToUtc(ex.year, ex.month, ex.day, src.hour, src.minute, 0, tz);
+        };
+
         updatedRows = [];
         for (const row of seriesRows) {
           let newRowStart: Date | undefined;
           let newRowEnd: Date | undefined;
 
           if (newStart) {
-            const existingStart = new Date(row.start_time as string);
-            const updated = new Date(existingStart);
-            updated.setHours(newStart.getHours(), newStart.getMinutes(), 0, 0);
-            newRowStart = updated;
-            if (durationMs !== null) newRowEnd = new Date(updated.getTime() + durationMs);
+            newRowStart = withLocalTime(new Date(row.start_time as string), newStart);
+            if (durationMs !== null) newRowEnd = new Date(newRowStart.getTime() + durationMs);
           } else if (newEnd) {
-            const existingEnd = new Date(row.end_time as string);
-            const updated = new Date(existingEnd);
-            updated.setHours(newEnd.getHours(), newEnd.getMinutes(), 0, 0);
-            newRowEnd = updated;
+            newRowEnd = withLocalTime(new Date(row.end_time as string), newEnd);
           }
 
           const rowClauses: string[] = ["synced_at = NOW()"];

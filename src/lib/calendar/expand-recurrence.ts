@@ -138,7 +138,13 @@ export function expandRecurrence(input: RecurrenceInput): ExpandedEvent[] {
 
     const pushInstance = (y: number, m: number, d: number) => {
       const startInstant = zonedToUtc(y, m, d, startZoned.hour, startZoned.minute, startZoned.second, timeZone);
-      events.push({ ...base, startTime: startInstant, endTime: new Date(startInstant.getTime() + durationMs) });
+      // All-day instances end at the NEXT local midnight (exclusive), not start
+      // + a fixed 24h — DST transition days are 23 or 25 hours long.
+      const next = addCalendarDays(y, m, d, 1);
+      const endInstant = isAllDay
+        ? zonedToUtc(next.year, next.month, next.day, 0, 0, 0, timeZone)
+        : new Date(startInstant.getTime() + durationMs);
+      events.push({ ...base, startTime: startInstant, endTime: endInstant });
     };
 
     if (type === "daily") {

@@ -56,7 +56,7 @@ function resolveDateKey(value: string, timeZone?: string): string {
   return timeZone ? zonedDateKey(d, timeZone) : toDateKey(d);
 }
 
-function getZonedParts(date: Date, timeZone: string) {
+export function getZonedParts(date: Date, timeZone: string) {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hour12: false,
@@ -84,7 +84,7 @@ function getZonedParts(date: Date, timeZone: string) {
 // Single-pass correction: correct for daytime class/event times, not validated
 // for wall-clock times that fall within the DST transition window itself (e.g.
 // 1-3am on the fall-back date), where the zoned time is ambiguous or skipped.
-function zonedToUtc(
+export function zonedToUtc(
   year: number,
   month: number,
   day: number,
@@ -143,7 +143,13 @@ export function expandRecurrence(input: RecurrenceInput): ExpandedEvent[] {
 
     const pushInstance = (y: number, m: number, d: number) => {
       const startInstant = zonedToUtc(y, m, d, startZoned.hour, startZoned.minute, startZoned.second, timeZone);
-      events.push({ ...base, startTime: startInstant, endTime: new Date(startInstant.getTime() + durationMs) });
+      // All-day instances end at the NEXT local midnight (exclusive), not start
+      // + a fixed 24h — DST transition days are 23 or 25 hours long.
+      const next = addCalendarDays(y, m, d, 1);
+      const endInstant = isAllDay
+        ? zonedToUtc(next.year, next.month, next.day, 0, 0, 0, timeZone)
+        : new Date(startInstant.getTime() + durationMs);
+      events.push({ ...base, startTime: startInstant, endTime: endInstant });
     };
 
     if (type === "daily") {

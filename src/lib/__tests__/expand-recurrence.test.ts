@@ -123,6 +123,34 @@ describe("expandRecurrence", () => {
       expect(utcHours.size).toBeGreaterThan(1);
     });
 
+    it("keeps all-day instances on local midnight with an exclusive next-midnight end across fall-back", () => {
+      const result = expandRecurrence({
+        title: "All-day",
+        startTime: "2026-10-26T04:00:00Z", // Mon Oct 26, local midnight EDT
+        endTime: "2026-10-27T04:00:00Z",
+        isAllDay: true,
+        recurrence: {
+          type: "daily",
+          endDate: "2026-11-03",
+          timeZone: "America/New_York",
+        },
+      });
+
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      for (const e of result) {
+        expect(fmt.format(e.startTime)).toBe("00:00");
+        expect(fmt.format(e.endTime)).toBe("00:00");
+      }
+      // Nov 1 2026 is 25 hours long in New York.
+      const nov1 = result.find((e) => e.startTime.toISOString() === "2026-11-01T04:00:00.000Z");
+      expect(nov1?.endTime.toISOString()).toBe("2026-11-02T05:00:00.000Z");
+    });
+
     it("resolves a bare YYYY-MM-DD end_date/exception using the given timezone, not server-local", () => {
       const result = expandRecurrence({
         title: "Class",
