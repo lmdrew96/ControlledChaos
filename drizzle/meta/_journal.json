@@ -113,6 +113,13 @@
       "when": 1789326554000,
       "tag": "0015_series_wall_clock_dst",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789336420236,
+      "tag": "0016_series_modal_anchor",
+      "breakpoints": true
     }
   ]
 }
