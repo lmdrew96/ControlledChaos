@@ -1,5 +1,14 @@
 [
   {
+    "weekOf": "2026-09-14",
+    "items": [
+      {
+        "type": "added",
+        "text": "Drop orphaned package-lock.json, pin pnpm as package manager"
+      }
+    ]
+  },
+  {
     "weekOf": "2026-09-07",
     "items": [
       {

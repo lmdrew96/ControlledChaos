@@ -3,3 +3,5 @@ dist/
 .env
 .env.local
 .vercel
+# pnpm is the package manager — keep stray npm installs from committing a second lockfile
+package-lock.json

@@ -93,13 +93,13 @@ Junk-journal entries — longer-form reflective writing, separate from task brai
 
 ```bash
 cd mcp
-npm install
+pnpm install
 ```
 
 ### 2. Build
 
 ```bash
-npm run build
+pnpm build
 ```
 
 ### 3. Environment Variables
@@ -160,7 +160,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 Start the server in HTTP mode:
 
 ```bash
-DATABASE_URL=your-url CC_USER_ID=your-id TRANSPORT=http npm start
+DATABASE_URL=your-url CC_USER_ID=your-id TRANSPORT=http pnpm start
 ```
 
 Then connect at `http://localhost:3100/mcp` in Claude.ai's MCP settings.
@@ -180,10 +180,10 @@ Once connected, just talk naturally to Claude:
 
 ```bash
 # Watch mode for development
-npm run dev
+pnpm dev
 
 # Run in HTTP mode for testing
-npm run start:http
+pnpm start:http
 ```
 
 ## Architecture
