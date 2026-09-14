@@ -4,6 +4,22 @@
     "items": [
       {
         "type": "added",
+        "text": "Let crisis chat use markdown now that it renders"
+      },
+      {
+        "type": "added",
+        "text": "Don't send \"time to start\" pushes for tasks already in progress"
+      },
+      {
+        "type": "added",
+        "text": "Stop Canvas group overrides doubling tasks; follow moved due dates"
+      },
+      {
+        "type": "added",
+        "text": "Migration 0016 — re-anchor series whose first instance is an outlier"
+      },
+      {
+        "type": "added",
         "text": "One shared sanitizing markdown renderer"
       },
       {

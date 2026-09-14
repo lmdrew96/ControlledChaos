@@ -1,7 +1,8 @@
 {
   "name": "controlled-chaos",
-  "version": "2.56.8",
+  "version": "2.56.9",
   "private": true,
+  "packageManager": "pnpm@10.17.0",
   "scripts": {
     "dev": "next dev",
     "prebuild": "npx tsx scripts/generate-changelog.ts && pnpm lint",
