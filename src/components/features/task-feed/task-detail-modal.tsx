@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import confetti from "canvas-confetti";
 import {
@@ -43,6 +43,16 @@ interface TaskSessionView {
   minutes: number | null;
 }
 
+/**
+ * Stand-in id for a plan that lives only in `tasks.scheduled_for`.
+ *
+ * The MCP server writes that column directly and deploys separately, so a task
+ * Coru planned has a block on the calendar but no session row yet. Listing it
+ * as a sitting keeps this modal honest about what the calendar is drawing; its
+ * edits route through the task PATCH, which turns it into a real session.
+ */
+const LEGACY_SESSION_ID = "legacy";
+
 interface TaskDetailModalProps {
   task: Task | null;
   onClose: () => void;
@@ -59,7 +69,6 @@ interface FormState {
   estimatedMinutes: string;
   deadline: string;
   targetDate: string;
-  scheduledFor: string;
   status: string;
   goalId: string;
 }
@@ -92,9 +101,6 @@ function formFromTask(task: Task, timezone: string): FormState {
     locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
-    scheduledFor: task.scheduledFor
-      ? toDatetimeLocal(task.scheduledFor, timezone)
-      : "",
     targetDate: task.targetDate
       ? toDatetimeLocal(task.targetDate, timezone)
       : "",
@@ -119,7 +125,6 @@ export function TaskDetailModal({
     estimatedMinutes: "",
     deadline: "",
     targetDate: "",
-    scheduledFor: "",
     status: "pending",
     goalId: "",
   });
@@ -131,11 +136,13 @@ export function TaskDetailModal({
   const [localStepIndex, setLocalStepIndex] = useState(0);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
-  // Every planned sitting for this task. The first one is what the "Planned
-  // for" field above edits; the rest are the extra sittings listed below it.
+  // Every planned sitting for this task. All of them are editable in place —
+  // the plan is a list, so no single one of them is privileged.
   const [sessions, setSessions] = useState<TaskSessionView[]>([]);
   const [newSessionAt, setNewSessionAt] = useState("");
   const [isAddingSession, setIsAddingSession] = useState(false);
+  // Which row is mid-write, so it can't be edited twice at once.
+  const [busySessionId, setBusySessionId] = useState<string | null>(null);
 
   // Fetch user's saved locations and goals
   useEffect(() => {
@@ -173,9 +180,17 @@ export function TaskDetailModal({
     // with the stored one, and the datetime-local strings are built from it.
   }, [task, timezone, loadSessions]);
 
-  // The earliest sitting IS the "Planned for" field, so listing it again below
-  // would show the same block twice with two different controls.
-  const extraSessions = sessions.slice(1);
+  // Every sitting gets a row. A task planned only through `tasks.scheduled_for`
+  // has no session row yet, so it is shown as one — see LEGACY_SESSION_ID.
+  const plannedSittings = useMemo<TaskSessionView[]>(() => {
+    if (sessions.length > 0) return sessions;
+    if (task?.scheduledFor) {
+      return [
+        { id: LEGACY_SESSION_ID, startsAt: task.scheduledFor, minutes: null },
+      ];
+    }
+    return [];
+  }, [sessions, task?.scheduledFor]);
 
   const handleAddSession = useCallback(async () => {
     if (!task || !newSessionAt) return;
@@ -193,28 +208,74 @@ export function TaskDetailModal({
       setNewSessionAt("");
       await loadSessions(task.id);
       onUpdate?.();
-      toast.success("Session added");
+      toast.success("Sitting added");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add that session");
+      toast.error(err instanceof Error ? err.message : "Couldn't add that sitting");
     } finally {
       setIsAddingSession(false);
     }
   }, [task, newSessionAt, timezone, loadSessions, onUpdate]);
 
+  /**
+   * Move one sitting. Every row uses this, not just the earliest — a plan whose
+   * later sittings can only be deleted and retyped isn't really editable.
+   */
+  const handleMoveSession = useCallback(
+    async (sessionId: string, localValue: string) => {
+      if (!task || !localValue) return;
+      setBusySessionId(sessionId);
+      try {
+        const startsAt = toUTC(localValue, timezone);
+        const res =
+          sessionId === LEGACY_SESSION_ID
+            ? await fetch(`/api/tasks/${task.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ scheduledFor: startsAt }),
+              })
+            : await fetch(`/api/tasks/${task.id}/sessions/${sessionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ startsAt }),
+              });
+        if (!res.ok) throw new Error();
+        onUpdate?.();
+        toast.success("Sitting moved");
+      } catch {
+        toast.error("Couldn't move that sitting");
+      } finally {
+        // Reload either way: on failure this snaps the row back to the time the
+        // server actually has, rather than leaving a lie in the input.
+        await loadSessions(task.id);
+        setBusySessionId(null);
+      }
+    },
+    [task, timezone, loadSessions, onUpdate]
+  );
+
   const handleRemoveSession = useCallback(
     async (sessionId: string) => {
       if (!task) return;
+      setBusySessionId(sessionId);
       try {
-        const res = await fetch(
-          `/api/tasks/${task.id}/sessions/${sessionId}`,
-          { method: "DELETE" }
-        );
+        const res =
+          sessionId === LEGACY_SESSION_ID
+            ? await fetch(`/api/tasks/${task.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ scheduledFor: null }),
+              })
+            : await fetch(`/api/tasks/${task.id}/sessions/${sessionId}`, {
+                method: "DELETE",
+              });
         if (!res.ok) throw new Error();
-        await loadSessions(task.id);
         onUpdate?.();
-        toast.success("Session removed");
+        toast.success("Sitting removed");
       } catch {
-        toast.error("Couldn't remove that session");
+        toast.error("Couldn't remove that sitting");
+      } finally {
+        await loadSessions(task.id);
+        setBusySessionId(null);
       }
     },
     [task, loadSessions, onUpdate]
@@ -312,10 +373,6 @@ export function TaskDetailModal({
       if (form.targetDate !== original.targetDate)
         payload.targetDate = form.targetDate
           ? toUTC(form.targetDate, timezone)
-          : null;
-      if (form.scheduledFor !== original.scheduledFor)
-        payload.scheduledFor = form.scheduledFor
-          ? toUTC(form.scheduledFor, timezone)
           : null;
       if (form.status !== original.status) payload.status = form.status;
       if (form.goalId !== original.goalId)
@@ -619,88 +676,68 @@ export function TaskDetailModal({
             )}
           </OptionalDateTimeField>
 
-          {/* Planned start — a "when", not a "by when". Set by Plan my day and
-              the auto-schedule button; editable here so two plan blocks landing
-              on the same slot can actually be pulled apart. */}
-          <OptionalDateTimeField
-            id="task-scheduled"
-            label="Planned for"
-            value={form.scheduledFor}
-            onChange={(v) => updateField("scheduledFor", v)}
-            hint="When you plan to start. This is the block that shows on your calendar — clearing it takes the task off the schedule."
-          />
-
-          {/* Extra sittings. Big tasks rarely happen in one go, and forcing the
-              whole thing onto a single "Planned for" made the calendar lie
-              about how the work was actually going to happen. The first
-              sitting stays the field above; these are the ones after it. */}
-          {form.scheduledFor && (
-            <div className="space-y-2 rounded-lg border border-border/70 p-3">
-              <div className="flex items-center gap-2">
-                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                <Label className="text-sm">Other sittings</Label>
-              </div>
-
-              {extraSessions.length > 0 ? (
-                <ul className="space-y-1.5">
-                  {extraSessions.map((session) => (
-                    <li
-                      key={session.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-2.5 py-1.5"
-                    >
-                      <span className="text-sm">
-                        {formatSessionLabel(session.startsAt, timezone)}
-                        {session.minutes ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            &middot; {session.minutes} min
-                          </span>
-                        ) : null}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleRemoveSession(session.id)}
-                        aria-label={`Remove the sitting on ${formatSessionLabel(session.startsAt, timezone)}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Just the one block so far. Add another if this needs more than
-                  one sitting.
-                </p>
-              )}
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  type="datetime-local"
-                  value={newSessionAt}
-                  onChange={(e) => setNewSessionAt(e.target.value)}
-                  className="flex-1"
-                  aria-label="Start of another sitting"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAddSession}
-                  disabled={!newSessionAt || isAddingSession}
-                  className="shrink-0"
-                >
-                  {isAddingSession ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Add sitting"
-                  )}
-                </Button>
-              </div>
+          {/* Planned sittings — the "when", not the "by when". Big tasks rarely
+              happen in one go, so the plan is a LIST: every row here is a real
+              block on the calendar, and every one of them can be moved or
+              dropped. This section used to be gated on the first sitting, which
+              made clearing that one hide the rest of a plan that still existed. */}
+          <div className="space-y-2 rounded-lg border border-border/70 p-3">
+            <div className="flex items-center gap-2">
+              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label className="text-sm">Planned sittings</Label>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              When you plan to work on this. Each sitting is its own block on
+              your calendar, and edits here save as you make them.
+            </p>
+
+            {plannedSittings.length > 0 ? (
+              <ul className="space-y-1.5">
+                {plannedSittings.map((session, i) => (
+                  <SittingRow
+                    // The stored time is part of the key on purpose: a row
+                    // holds a draft, and remounting is how it picks up a time
+                    // that changed under it (a move, a calendar drag, a failed
+                    // write snapping back).
+                    key={`${session.id}:${session.startsAt}`}
+                    index={i}
+                    session={session}
+                    timezone={timezone}
+                    isBusy={busySessionId === session.id}
+                    onMove={(value) => handleMoveSession(session.id, value)}
+                    onRemove={() => handleRemoveSession(session.id)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Nothing planned yet. Add a sitting to put this on your calendar.
+              </p>
+            )}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="datetime-local"
+                value={newSessionAt}
+                onChange={(e) => setNewSessionAt(e.target.value)}
+                className="flex-1"
+                aria-label="Start of another sitting"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddSession}
+                disabled={!newSessionAt || isAddingSession}
+                className="shrink-0"
+              >
+                {isAddingSession ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Add sitting"
+                )}
+              </Button>
+            </div>
+          </div>
 
           {/* Goal */}
           {goals.length > 0 && (
@@ -853,5 +890,90 @@ export function TaskDetailModal({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface SittingRowProps {
+  index: number;
+  session: TaskSessionView;
+  timezone: string;
+  isBusy: boolean;
+  onMove: (localValue: string) => void;
+  onRemove: () => void;
+}
+
+/**
+ * One editable sitting.
+ *
+ * Holds its own draft so nudging a time doesn't fire a write per keystroke —
+ * the move commits on blur or Enter. An emptied input reverts to the stored
+ * time rather than quietly unscheduling the block: dropping a sitting is the
+ * trash button's job, and it should take a deliberate press.
+ */
+function SittingRow({
+  index,
+  session,
+  timezone,
+  isBusy,
+  onMove,
+  onRemove,
+}: SittingRowProps) {
+  const serverValue = toDatetimeLocal(session.startsAt, timezone);
+  // Seeded once per mount. The caller keys this row on the stored time, so a
+  // time that changes under us arrives as a fresh row rather than an effect
+  // racing the draft the user is typing.
+  const [draft, setDraft] = useState(serverValue);
+
+  const label = formatSessionLabel(session.startsAt, timezone);
+
+  function commit() {
+    if (!draft) {
+      setDraft(serverValue);
+      return;
+    }
+    if (draft !== serverValue) onMove(draft);
+  }
+
+  return (
+    <li className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5">
+      <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
+        {index + 1}.
+      </span>
+      <Input
+        type="datetime-local"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+        disabled={isBusy}
+        className="h-8 flex-1 bg-background"
+        aria-label={`Start of the sitting on ${label}`}
+      />
+      {session.minutes ? (
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {session.minutes} min
+        </span>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+        disabled={isBusy}
+        aria-label={`Remove the sitting on ${label}`}
+      >
+        {isBusy ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    </li>
   );
 }

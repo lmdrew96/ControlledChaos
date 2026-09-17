@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Drop orphaned npm lockfile from mcp/, pin pnpm, fix README commands"
+      },
+      {
+        "type": "added",
         "text": "Drop orphaned package-lock.json, pin pnpm as package manager"
       }
     ]

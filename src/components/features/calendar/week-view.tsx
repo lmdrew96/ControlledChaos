@@ -633,23 +633,39 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         // block. No conflict check here on purpose: dragging one somewhere is
         // an explicit request, and the user is allowed to overlap their own
         // plan if they mean to.
-        const res = isPlan
-          ? await fetch(
-              `/api/tasks/${dragTarget.block.taskId}/sessions/${dragTarget.block.sessionId}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ startsAt: newStart.toISOString() }),
-              }
-            )
-          : await fetch(`/api/calendar/events/${dragTarget.event.id}`, {
+        //
+        // The exception is a block with no session row behind it: a plan the
+        // MCP server wrote straight to tasks.scheduled_for, which
+        // getScheduledSessionsInRange surfaces under a synthetic
+        // `legacy-<taskId>` id (see queries/sessions.ts). There is nothing for
+        // the sessions route to find, so that one moves through the task's own
+        // plan field, which mints the real session on the way.
+        let res: Response;
+        if (!isPlan) {
+          res = await fetch(`/api/calendar/events/${dragTarget.event.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              startTime: newStart.toISOString(),
+              endTime: newEnd.toISOString(),
+            }),
+          });
+        } else if (dragTarget.block.sessionId.startsWith("legacy-")) {
+          res = await fetch(`/api/tasks/${dragTarget.block.taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scheduledFor: newStart.toISOString() }),
+          });
+        } else {
+          res = await fetch(
+            `/api/tasks/${dragTarget.block.taskId}/sessions/${dragTarget.block.sessionId}`,
+            {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                startTime: newStart.toISOString(),
-                endTime: newEnd.toISOString(),
-              }),
-            });
+              body: JSON.stringify({ startsAt: newStart.toISOString() }),
+            }
+          );
+        }
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || "Failed to move");
