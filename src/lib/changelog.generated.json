@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Make every planned sitting editable, not just the earliest"
+      },
+      {
+        "type": "added",
         "text": "Drop orphaned npm lockfile from mcp/, pin pnpm, fix README commands"
       },
       {

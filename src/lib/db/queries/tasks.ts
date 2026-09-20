@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { taskActivity, tasks } from "../schema";
-import { eq, and, asc, desc, ne, gte, lt, or, inArray, isNull, sql } from "drizzle-orm";
+import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, isNull, sql } from "drizzle-orm";
 import type { ParsedTask } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { deleteTaskScheduleEvents } from "./calendar";
@@ -142,6 +142,37 @@ export async function getTasksByUser(
     .from(tasks)
     .where(and(...conditions))
     .orderBy(asc(tasks.sortOrder), desc(tasks.createdAt));
+}
+
+/**
+ * Actionable tasks whose hard deadline falls inside [from, to).
+ *
+ * Crisis detection only ever looks at this slice, but used to get there by
+ * pulling every non-cancelled task for the user and filtering in JS — a few
+ * hundred rows serialized and parsed per call to find the handful that matter.
+ * The endpoint re-runs on a timer and on every window focus, so that waste was
+ * paid over and over.
+ */
+export async function getActionableTasksWithDeadlineInRange(
+  userId: string,
+  from: Date,
+  to: Date
+) {
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        inArray(tasks.status, ["pending", "in_progress"]),
+        // Exclusive lower / inclusive upper, matching the JS filter this
+        // replaced (dl > now && dl <= windowEnd) exactly.
+        gt(tasks.deadline, from),
+        lte(tasks.deadline, to)
+      )
+    )
+    .orderBy(asc(tasks.deadline));
 }
 
 export async function updateTask(

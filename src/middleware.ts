@@ -10,6 +10,11 @@ const isPublicRoute = createRouteMatcher([
   "/api/auth(.*)",
   "/api/cron(.*)",
   "/api/calendar/export/(.*)",
+  // Reports the running deploy's commit SHA and nothing else. It has to stay
+  // reachable for a stale tab whose Clerk session already expired — that tab
+  // is precisely the one that needs to be told to reload. Without this entry
+  // auth.protect() 404'd the exact case the route exists to serve.
+  "/api/version",
   "/manifest.json",
 ]);
 

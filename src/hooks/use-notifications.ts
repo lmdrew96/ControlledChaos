@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+// Five minutes, and only while the tab is visible. A 60s poll on a
+// backgrounded tab was the largest single source of Vercel Fluid CPU: every
+// tick paid Clerk edge middleware plus a function invocation to tell a bell
+// nobody was looking at that nothing had changed.
+const POLL_MS = 5 * 60_000;
+
 export interface NotificationItem {
   id: string;
   type: string;
@@ -30,20 +36,25 @@ export function useNotifications() {
     }
   }, []);
 
-  // Fetch on mount + poll every 60 seconds
+  // Fetch on mount, then poll only while the tab is visible.
   useEffect(() => {
     void refresh();
-    const interval = setInterval(refresh, 60_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
 
-  // Refresh immediately when the user returns to this tab
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      void refresh();
     };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+
+    const interval = setInterval(tick, POLL_MS);
+    // Doubles as the "user came back to this tab" refresh: returning fires an
+    // immediate fetch rather than waiting out the interval, which is what
+    // keeps the slower cadence unnoticeable.
+    document.addEventListener("visibilitychange", tick);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [refresh]);
 
   const markAsRead = useCallback(

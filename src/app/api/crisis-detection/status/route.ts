@@ -4,7 +4,7 @@ import {
   getCrisisDetectionTier,
   getActiveDetectionForUser,
   updateCrisisDetection,
-  getTasksByUser,
+  getActionableTasksWithDeadlineInRange,
   getCalendarEventsByDateRange,
   getUserSettings,
   getUser,
@@ -40,27 +40,21 @@ export async function GET() {
       return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
     }
 
-    const [existing, user, settings, allTasks] = await Promise.all([
+    // Actionable tasks with deadlines in the detection window, narrowed in SQL
+    // rather than by pulling every task for the user and filtering in JS.
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + DETECTION_WINDOW_HOURS * 60 * 60 * 1000);
+
+    const [existing, user, settings, tasksWithDeadlines] = await Promise.all([
       getActiveDetectionForUser(userId),
       getUser(userId),
       getUserSettings(userId),
-      getTasksByUser(userId), // Gets all non-cancelled tasks
+      getActionableTasksWithDeadlineInRange(userId, now, windowEnd),
     ]);
 
     const timezone = user?.timezone ?? "America/New_York";
     const wakeTime = settings?.wakeTime ?? 7;
     const sleepTime = settings?.sleepTime ?? 22;
-
-    // Get actionable tasks with deadlines in the detection window
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() + DETECTION_WINDOW_HOURS * 60 * 60 * 1000);
-
-    const tasksWithDeadlines = allTasks.filter((t) => {
-      if (t.status !== "pending" && t.status !== "in_progress") return false;
-      if (!t.deadline) return false;
-      const dl = new Date(t.deadline);
-      return dl > now && dl <= windowEnd;
-    });
 
     let result = null;
 
