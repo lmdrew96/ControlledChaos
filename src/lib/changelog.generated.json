@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Cut Vercel Fluid CPU by ~95% on the background request path"
+      },
+      {
+        "type": "added",
         "text": "Make every planned sitting editable, not just the earliest"
       },
       {

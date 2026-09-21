@@ -26,7 +26,9 @@ import { useEffect, useState } from "react";
  * mid-task destroys unsaved work.
  */
 
-const POLL_MS = 5 * 60_000;
+const POLL_MS = 2 * 60_000;
+/** focus and visibilitychange both fire for one window switch — collapse the pair. */
+const MIN_CHECK_GAP_MS = 5_000;
 const DISMISS_KEY = "cc-update-toast-dismissed";
 
 function isDismissed(): boolean {
@@ -54,10 +56,13 @@ export function useAppVersion(): {
     if (!current || current === "dev") return;
 
     let cancelled = false;
+    let lastCheck = 0;
 
     const check = async () => {
       if (document.visibilityState !== "visible") return;
       if (isDismissed()) return;
+      if (Date.now() - lastCheck < MIN_CHECK_GAP_MS) return;
+      lastCheck = Date.now();
       try {
         const res = await fetch("/api/version", { cache: "no-store" });
         if (!res.ok) return;
@@ -69,18 +74,24 @@ export function useAppVersion(): {
       }
     };
 
-    const onVisibilityChange = () => void check();
+    const runCheck = () => void check();
 
     void check();
-    const id = setInterval(onVisibilityChange, POLL_MS);
-    // The highest-value listener: a tab backgrounded for two days catches the
-    // update the moment it's refocused instead of waiting out the interval.
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    const id = setInterval(runCheck, POLL_MS);
+    // The highest-value listeners: a tab left alone for two days catches the
+    // update the moment it comes back instead of waiting out the interval.
+    document.addEventListener("visibilitychange", runCheck);
+    // visibilitychange does NOT fire when another app takes focus over a
+    // still-visible window — deploy from a terminal, click back to the browser,
+    // and the tab never re-checks. Window focus covers that case; the
+    // MIN_CHECK_GAP_MS guard absorbs the double-fire when both do land.
+    window.addEventListener("focus", runCheck);
 
     return () => {
       cancelled = true;
       clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", runCheck);
+      window.removeEventListener("focus", runCheck);
     };
   }, [updateReady]);
 
