@@ -1,6 +1,6 @@
 {
   "name": "controlled-chaos",
-  "version": "2.58.1",
+  "version": "2.59.0",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {
@@ -15,7 +15,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "cron:check": "npx tsx scripts/sync-qstash-schedules.ts",
+    "cron:sync": "npx tsx scripts/sync-qstash-schedules.ts --apply"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
