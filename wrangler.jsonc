@@ -23,6 +23,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // MUST stay true. Declaring `routes` below flips workers_dev to false on the
+  // next deploy unless it is set explicitly — Cloudflare infers it. That
+  // disabled controlledchaos.lmdrew.workers.dev, which returned 404 with
+  // "error code: 1042", and since the QStash schedules post to that hostname
+  // (see scripts/sync-qstash-schedules.ts) every cron tick died silently:
+  // no nudges, no digests, no calendar sync, and no error anywhere in the app.
+  "workers_dev": true,
   // Declared here because wrangler treats this file as authoritative: a deploy
   // pushes local config over the dashboard's, and a route that only exists in
   // the dashboard gets dropped. Without this entry every deploy warned it was
