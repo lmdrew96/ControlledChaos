@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Render onboarding at request time so the build needs no Clerk key"
+      },
+      {
+        "type": "added",
         "text": "Stop requiring DATABASE_URL at build time"
       },
       {

@@ -11,4 +11,17 @@ import { defineCloudflareConfig } from "@opennextjs/cloudflare";
  *
  * If ISR ever lands here, add r2IncrementalCache and a bucket binding.
  */
-export default defineCloudflareConfig();
+const config = defineCloudflareConfig();
+
+/**
+ * `pnpm build` is now the OpenNext build, so any CI that runs the conventional
+ * build command produces `.open-next/` and the deploy step can find it.
+ * Workers Builds failing with "Could not find compiled Open Next config" is
+ * exactly that: a plain `next build` leaves only `.next/`.
+ *
+ * That makes the inner command explicit. OpenNext otherwise defaults to
+ * `pnpm build`, which would now invoke itself forever.
+ */
+config.buildCommand = "pnpm next:build";
+
+export default config;
