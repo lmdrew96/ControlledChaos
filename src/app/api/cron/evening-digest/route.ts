@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAllUsersWithNotificationPrefs } from "@/lib/db/queries";
-import { sendEveningDigest } from "@/lib/notifications/send-email";
 import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone, hasLocalTimeArrivedToday } from "@/lib/timezone";
 import { verifyCronRequest } from "@/lib/cron-auth";
 
+/**
+ * send-email pulls resend, the @react-email renderer and both email templates.
+ * This route runs on every poll in its window but sends at most once per user
+ * per day, and Fluid Active CPU bills module init on every cold start (~70% of
+ * invocations here), so that graph was the route's largest cost on the ticks
+ * that send nothing. Loaded only once we know we're sending; import() caches.
+ */
 // Vercel Pro: 60s max. Default (10s) silently truncates the per-user digest loop.
 export const maxDuration = 60;
 
@@ -37,6 +43,7 @@ export async function POST(request: Request) {
       const dedupKey = `evening-digest-${todayInTimezone(timezone)}`;
       if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
+      const { sendEveningDigest } = await import("@/lib/notifications/send-email");
       const ok = await sendEveningDigest(userId);
       if (ok) sent++;
     }

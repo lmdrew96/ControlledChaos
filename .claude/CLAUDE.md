@@ -50,9 +50,9 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - `pnpm db:studio` opens Drizzle Studio for visual DB browsing
 
 ### AI Integration
-- All AI calls go through Claude Haiku 4.5 via `@anthropic-ai/sdk`
-- Used for: task parsing from brain dumps, schedule recommendations, crisis support
-- Keep calls cheap — Haiku, not Sonnet. Cache when possible.
+- AI calls go through `@anthropic-ai/sdk`. **Haiku 4.5 is the default** — task parsing from brain dumps, schedule recommendations, push/nudge copy, crisis support. Keep calls cheap and cache when possible.
+- **Digest emails are a deliberate exception and use Sonnet** (`callSonnet` in `src/lib/notifications/send-email.ts`). Nae chose this on purpose: a digest is one long-form call per user per day, where quality is worth the price. Do NOT "optimize" it down to Haiku.
+- `@/lib/ai` is the Anthropic SDK, so importing it at module scope puts the whole SDK in that route's cold-start cost. In cron/background routes, load it lazily at the call site (see `loadAi()` in `src/lib/notifications/triggers.ts`).
 
 ### Push Notifications
 - Uses `web-push` for server-side VAPID notification delivery

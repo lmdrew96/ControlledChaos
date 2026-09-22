@@ -17,8 +17,15 @@ import {
   formatForDisplay,
   DISPLAY_TIME,
 } from "@/lib/timezone";
-import { callHaiku } from "@/lib/ai";
-import { buildInactivityNudgePrompt, buildPushNotificationPrompt } from "@/lib/ai/prompts";
+/**
+ * The Anthropic SDK and the prompt builders load lazily, not at module scope.
+ * Every cron route reaches this module, but only a small fraction of ticks
+ * actually generate copy — and with Fluid Active CPU billing module init on
+ * every cold start (morning-digest is cold ~70% of invocations), the SDK was
+ * being paid for on ticks that never called an LLM. import() caches, so
+ * repeated generations in one invocation load it once.
+ */
+const loadAi = () => Promise.all([import("@/lib/ai"), import("@/lib/ai/prompts")] as const);
 import { enforceWordLimit, trimIncompleteTail } from "@/lib/ai/validate";
 import { getReminderIntervals } from "@/lib/notifications/reminder-intervals";
 
@@ -600,6 +607,7 @@ export async function generatePushMessage(
   }
 
   try {
+    const [{ callHaiku }, { buildPushNotificationPrompt }] = await loadAi();
     const { text } = await callHaiku({
       system: buildPushNotificationPrompt(prefs, timezone, mode),
       user: userMsg,
@@ -692,6 +700,7 @@ export async function generateNudgeMessage(
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
     if (userLocation) userMsg += `\nUser's last known location: "${userLocation}"`;
     if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
+    const [{ callHaiku }, { buildInactivityNudgePrompt }] = await loadAi();
     const { text } = await callHaiku({
       system: buildInactivityNudgePrompt(prefs, timezone, mode),
       user: userMsg,

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Give the QStash cron schedules a source of truth in the repo"
+      },
+      {
+        "type": "added",
         "text": "Catch update checks when the window regains focus"
       }
     ]
