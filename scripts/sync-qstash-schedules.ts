@@ -28,11 +28,21 @@ dotenv.config({ path: ".env.local" });
 const QSTASH_BASE_URL = "https://qstash-us-east-1.upstash.io";
 
 /**
- * The *.vercel.app production domain, not controlledchaos.adhdesigns.dev:
- * the custom domain is proxied through Cloudflare, whose bot protection can
- * challenge third-party callers before the request reaches Vercel.
+ * The workers.dev hostname, not controlledchaos.adhdesigns.dev.
+ *
+ * Same reasoning that kept this on *.vercel.app before the Cloudflare
+ * migration, and it did not go away when the origin became a Worker: the
+ * custom domain sits behind the zone's bot/managed-challenge protection,
+ * which can challenge a third-party caller like QStash before the request
+ * ever reaches the app. A workers.dev hostname is not covered by those zone
+ * rules, so the scheduler gets a clean path in.
+ *
+ * Also note src/lib/cron-auth.ts verifies the QStash signature with
+ * `url: request.url` — the signature is bound to this exact destination.
+ * Changing this constant without running `pnpm cron:sync` silently 401s
+ * every scheduled tick.
  */
-const CRON_ORIGIN = "https://controlledchaos-app.vercel.app";
+const CRON_ORIGIN = "https://controlledchaos.lmdrew.workers.dev";
 
 /** QStash's own default. Restated explicitly because create() replaces all fields. */
 const RETRIES = 3;
@@ -91,11 +101,37 @@ const main = async () => {
   const byDestination = new Map(live.map((s) => [s.destination, s]));
   const known = new Set(SCHEDULES.map(destinationFor));
 
+  /**
+   * Find the live schedule for a route, preferring an exact destination match
+   * but falling back to the route path on a different origin.
+   *
+   * Matching on the full URL alone made an origin change (Vercel -> Workers)
+   * look like "the wanted one is MISSING" plus "the old one is UNEXPECTED".
+   * Applying that creates a second schedule and leaves the first running, so
+   * every digest and push fires twice until someone deletes the old one by
+   * hand. Matching the path instead turns it into an in-place update.
+   */
+  const findLive = (def: ScheduleDef) => {
+    const exact = byDestination.get(destinationFor(def));
+    if (exact) return exact;
+    const suffix = `/api/cron/${def.route}`;
+    const matches = live.filter((s) => {
+      try {
+        return new URL(s.destination).pathname === suffix;
+      } catch {
+        return false;
+      }
+    });
+    // Only safe to adopt when there's exactly one — two means a previous
+    // split-brain that a human should resolve, so report rather than guess.
+    return matches.length === 1 ? matches[0] : undefined;
+  };
+
   let drifted = 0;
 
   for (const def of SCHEDULES) {
     const destination = destinationFor(def);
-    const existing = byDestination.get(destination);
+    const existing = findLive(def);
 
     if (!existing) {
       drifted++;
@@ -113,6 +149,9 @@ const main = async () => {
     }
 
     const diffs: Drift[] = [];
+    if (existing.destination !== destination) {
+      diffs.push({ field: "destination", live: existing.destination, want: destination });
+    }
     if (existing.cron !== def.cron) {
       diffs.push({ field: "cron", live: existing.cron, want: def.cron });
     }
@@ -153,7 +192,8 @@ const main = async () => {
     }
   }
 
-  const extras = live.filter((s) => !known.has(s.destination));
+  const adopted = new Set(SCHEDULES.map((d) => findLive(d)?.scheduleId).filter(Boolean));
+  const extras = live.filter((s) => !known.has(s.destination) && !adopted.has(s.scheduleId));
   for (const extra of extras) {
     drifted++;
     console.log(`  UNEXPECTED  ${extra.destination}  ${extra.cron}  (${extra.scheduleId})`);

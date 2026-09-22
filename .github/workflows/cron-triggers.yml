@@ -11,10 +11,11 @@ name: Cron Triggers (manual)
 # than a QStash signature, which the routes accept as a secondary path for
 # exactly this kind of manual call.
 #
-# Uses the *.vercel.app production domain rather than the custom domain:
-# controlledchaos.adhdesigns.dev is proxied through Cloudflare, whose bot/
-# managed-challenge protection blocks GitHub Actions' shared runner IPs
-# before the request reaches Vercel. The vercel.app domain isn't proxied.
+# Uses the workers.dev hostname rather than the custom domain:
+# controlledchaos.adhdesigns.dev sits behind the zone's bot/managed-challenge
+# protection, which blocks GitHub Actions' shared runner IPs before the
+# request reaches the app. workers.dev isn't covered by those zone rules.
+# (Same reasoning as when this pointed at *.vercel.app pre-migration.)
 #
 # The QStash schedules (cron cadence, destination, method, retries) are
 # defined in scripts/sync-qstash-schedules.ts. That file is the source of
@@ -38,16 +39,16 @@ jobs:
     steps:
       - name: Calendar sync
         run: |
-          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos.lmdrew.workers.dev/api/cron/calendar-sync" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Push triggers
         run: |
-          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos.lmdrew.workers.dev/api/cron/push-triggers" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Morning digest
         run: |
-          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos.lmdrew.workers.dev/api/cron/morning-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
       - name: Evening digest
         run: |
-          curl -fsS -X POST "https://controlledchaos-app.vercel.app/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -fsS -X POST "https://controlledchaos.lmdrew.workers.dev/api/cron/evening-digest" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
