@@ -4,6 +4,14 @@
     "items": [
       {
         "type": "added",
+        "text": "Point the QStash schedules at the Worker, in place"
+      },
+      {
+        "type": "fixed",
+        "text": "The theme script on Workers, and stop building prod from dev env"
+      },
+      {
+        "type": "added",
         "text": "The Cloudflare Workers build target alongside Vercel"
       },
       {
