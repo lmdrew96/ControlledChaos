@@ -9,6 +9,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // OpenNext build output — bundled vendor code, not ours to lint.
+    ".open-next/**",
+    ".wrangler/**",
     "next-env.d.ts",
     // Stray prototype file at repo root — not imported anywhere.
     "chaos-mosaic-v3.jsx",
@@ -19,6 +22,10 @@ const eslintConfig = defineConfig([
     "mcp/**",
   ]),
   {
+    // Must carry the same `files` glob as eslint-config-next's own block:
+    // as of 16.3.x it scopes the react-hooks plugin to that glob, so an
+    // unscoped override can't resolve the rule's plugin and ESLint hard-fails.
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       // React Compiler preview rule. The React 19 canonical SSR-safe pattern
       // for reading browser-only state (localStorage, matchMedia, navigator)

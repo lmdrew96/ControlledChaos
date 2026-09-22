@@ -1,0 +1,5 @@
+# Settings-only file (no `packages:` — mcp/ stays a separate install).
+# pnpm 10 reads build-script approvals from here, not package.json.
+onlyBuiltDependencies:
+  - esbuild
+  - workerd

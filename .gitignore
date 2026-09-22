@@ -47,3 +47,10 @@ next-env.d.ts
 # IDE
 .idea
 .env*
+
+# cloudflare / opennext
+.open-next
+.wrangler
+# local secrets for `wrangler dev` — mirrors .env.local, never committed
+.dev.vars
+cloudflare-env.d.ts

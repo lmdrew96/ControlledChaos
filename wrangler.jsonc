@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "controlledchaos",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  // nodejs_compat is what lets web-push (crypto.createECDH + node:https) and
+  // node-ical (node:fs) run unchanged — verified against workerd before the
+  // migration started, so neither needs a WebCrypto rewrite.
+  //
+  // global_fetch_strictly_public makes fetch() to our own public hostname go
+  // out through the edge instead of looping back inside the Worker. Required
+  // by OpenNext.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // The reason for leaving Vercel: Workers Logs is on the paid plan rather
+  // than gated behind an Observability upsell.
+  "observability": {
+    "enabled": true
+  }
+}

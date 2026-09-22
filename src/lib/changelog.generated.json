@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Keep the Anthropic SDK and email stack out of cron cold starts"
+      },
+      {
+        "type": "added",
         "text": "Give the QStash cron schedules a source of truth in the repo"
       },
       {
