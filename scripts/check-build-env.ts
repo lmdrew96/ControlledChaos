@@ -1,77 +1,55 @@
 /**
- * Fail the build when a NEXT_PUBLIC_* value the app cannot run without is
- * missing from the *build* environment.
+ * Guard against building production against the *development* Clerk instance.
  *
- * These are inlined into the client bundle by `next build`, so a missing one
- * cannot be corrected afterwards by setting a Worker secret — the literal is
- * already baked in (or baked out). Cloudflare Workers secrets are runtime-only
- * and a Workers Builds container cannot read them, so they have to be set as
- * build variables.
+ * next.config.ts supplies public production defaults for the NEXT_PUBLIC_*
+ * values the app cannot boot without, so "missing" is no longer a failure mode
+ * worth checking — the build cannot produce a Clerk-less bundle any more.
  *
- * This exists because a build without NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY once
- * deployed successfully and then 500'd every single request with
- * "@clerk/nextjs: Missing publishableKey" — clerkMiddleware throws on the
- * routing path, so there is no partial degradation, the whole site is down.
- * A failed build is strictly better than that, so this runs in prebuild.
+ * What remains possible is an override with the wrong environment's key. That
+ * has already happened once: a Worker built from .env.local authenticated
+ * against the dev Clerk instance, which has a separate user store, so an
+ * existing fully-onboarded account arrived looking brand new and was offered
+ * onboarding. Nothing was lost, but the deployed app was pointed at the wrong
+ * users entirely, and it was not obvious from the outside.
  *
- * Local `next dev` is unaffected: it reads .env.local directly.
+ * So: only complain when a value is explicitly set AND looks wrong. An unset
+ * value is fine — next.config.ts handles it.
  */
 
-type Requirement = {
-  name: string;
-  why: string;
-  /** Substring the value must contain, when a wrong-environment value is a real risk. */
-  expect?: { contains: string; describe: string };
-};
-
-const REQUIRED: Requirement[] = [
-  {
-    name: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-    why: "clerkMiddleware throws on every request without it — the entire site 500s.",
-    expect: {
-      contains: "pk_live_",
-      describe: "a production Clerk instance (pk_live_)",
-    },
-  },
-  {
-    name: "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
-    why: "Inlined into the client bundle; without it push notifications silently never subscribe.",
-  },
-];
-
-const isProductionBuild = process.env.NODE_ENV === "production";
+const isProductionBuild =
+  process.env.NODE_ENV === "production" ||
+  // Workers Builds and most CI runners set this; local `pnpm build` does not.
+  process.env.CI === "true" ||
+  process.env.CI === "1";
 
 const problems: string[] = [];
 
-for (const req of REQUIRED) {
-  const value = process.env[req.name];
+const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+if (isProductionBuild && clerkKey && clerkKey.startsWith("pk_test_")) {
+  problems.push(
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is a pk_test_ key, which is the Clerk\n" +
+      "      DEVELOPMENT instance. It has its own user store, so production\n" +
+      "      accounts do not exist in it — users arrive looking brand new and\n" +
+      "      get sent through onboarding. Production needs pk_live_."
+  );
+}
 
-  if (!value) {
-    problems.push(`${req.name} is not set.\n      ${req.why}`);
-    continue;
-  }
-
-  // Only enforce the environment shape on real production builds, so a local
-  // `pnpm build` against .env.local (dev Clerk keys) still works.
-  if (isProductionBuild && req.expect && !value.includes(req.expect.contains)) {
-    problems.push(
-      `${req.name} does not look like ${req.expect.describe}.\n` +
-        `      ${req.why}`
-    );
-  }
+const clerkSecret = process.env.CLERK_SECRET_KEY;
+if (isProductionBuild && clerkSecret && clerkSecret.startsWith("sk_test_")) {
+  problems.push(
+    "CLERK_SECRET_KEY is an sk_test_ key — the development instance. It must\n" +
+      "      match the publishable key's environment or session verification\n" +
+      "      fails against the wrong user store."
+  );
 }
 
 if (problems.length > 0) {
-  console.error(
-    "\n  Build stopped: required build-time environment variables are missing.\n"
-  );
+  console.error("\n  Build stopped: wrong Clerk environment for a production build.\n");
   for (const p of problems) console.error(`    - ${p}\n`);
   console.error(
-    "  These are NEXT_PUBLIC_* values, compiled into the browser bundle at\n" +
-      "  build time. Setting them as Cloudflare Worker secrets does not help —\n" +
-      "  secrets are runtime-only and the build container cannot read them.\n\n" +
-      "  Cloudflare: Workers Builds -> Build configuration -> Variables\n" +
-      "  Locally:    .env.local, or .env.production.local for prod values\n"
+    "  Production values live in Cloudflare Worker secrets (runtime) and in\n" +
+      "  next.config.ts (the public build-time defaults). .env.local holds the\n" +
+      "  dev instance and should not be feeding a production build.\n"
   );
   process.exit(1);
 }

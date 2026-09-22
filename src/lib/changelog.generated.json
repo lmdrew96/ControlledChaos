@@ -4,6 +4,18 @@
     "items": [
       {
         "type": "added",
+        "text": "Update the project docs for Cloudflare Workers"
+      },
+      {
+        "type": "added",
+        "text": "Declare the custom domain route in wrangler.jsonc"
+      },
+      {
+        "type": "added",
+        "text": "Fail the build when a required NEXT_PUBLIC_* is missing"
+      },
+      {
+        "type": "added",
         "text": "Make `pnpm build` produce the Worker output"
       },
       {

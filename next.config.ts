@@ -33,10 +33,45 @@ const APP_VERSION =
   process.env.npm_package_version ??
   "dev";
 
+/**
+ * Production defaults for the two NEXT_PUBLIC_* values the app cannot boot
+ * without. Used only when the environment does not already supply them.
+ *
+ * These are PUBLIC. Next compiles every NEXT_PUBLIC_* value into the browser
+ * bundle, so both are already served to every anonymous visitor on every page
+ * load — you can read them out of the deployed HTML with curl. A Clerk
+ * publishable key identifies the instance and authorizes nothing; a VAPID
+ * public key cannot send a notification without its private half. The keys
+ * that actually grant access — CLERK_SECRET_KEY, VAPID_PRIVATE_KEY,
+ * DATABASE_URL and the rest — are Cloudflare Worker secrets and must never
+ * appear in this repo.
+ *
+ * They are defaulted here because they are needed at BUILD time, and Worker
+ * secrets are runtime-only: a Workers Builds container cannot read them. A
+ * build that depended on dashboard configuration produced a Clerk-less bundle
+ * that 500'd every request, because clerkMiddleware throws without a key.
+ * Hardcoding the public half removes that failure mode entirely.
+ *
+ * `??` not `||`, and env-first, so .env.local still wins locally — development
+ * keeps using the dev Clerk instance.
+ */
+const PUBLIC_PROD_DEFAULTS = {
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
+    "pk_live_Y2xlcmsuY29udHJvbGxlZGNoYW9zLmFkaGRlc2lnbnMuZGV2JA",
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+    "BFh19eGyrda6wlLQ0JboKnN3zY0u4QTlw5NM6hDiZMix-l5yVlWJoqJp13b67jAIJ3s-uMpESkt2pWj1GC7d40Y",
+} as const;
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
   env: {
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+      PUBLIC_PROD_DEFAULTS.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+      PUBLIC_PROD_DEFAULTS.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   },
   turbopack: {
     root: path.resolve(__dirname),
