@@ -19,6 +19,14 @@ function ClerkProviderWithTheme({
   return (
     <ClerkProvider
       publishableKey={publishableKey}
+      // Set in code, not via NEXT_PUBLIC_CLERK_* env vars: those are build-time
+      // and were never carried into the Workers build, so Clerk fell back to
+      // "/" — a signed-in user clicking "Sign in" bounced back to the landing
+      // page, which looked like a refresh.
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
       appearance={{
         baseTheme: resolvedTheme === "dark" ? dark : undefined,
         variables: {
