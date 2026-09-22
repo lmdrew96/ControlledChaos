@@ -1,11 +1,11 @@
 {
   "name": "controlled-chaos",
-  "version": "2.60.5",
+  "version": "2.60.6",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npx tsx scripts/generate-changelog.ts && pnpm lint",
+    "prebuild": "npx tsx scripts/check-build-env.ts && npx tsx scripts/generate-changelog.ts && pnpm lint",
     "changelog": "npx tsx scripts/generate-changelog.ts",
     "next:build": "next build",
     "build": "opennextjs-cloudflare build",

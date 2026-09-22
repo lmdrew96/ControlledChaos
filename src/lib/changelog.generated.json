@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Make `pnpm build` produce the Worker output"
+      },
+      {
+        "type": "added",
         "text": "Render onboarding at request time so the build needs no Clerk key"
       },
       {
