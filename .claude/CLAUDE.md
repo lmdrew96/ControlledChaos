@@ -15,7 +15,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 
 | Layer | Technology | Notes |
 |-------|------------|-------|
-| **Framework** | Next.js 16 (App Router) | Vercel deployment |
+| **Framework** | Next.js 16 (App Router) | Cloudflare Workers via `@opennextjs/cloudflare` |
 | **Language** | TypeScript | Strict mode |
 | **Styling** | Tailwind CSS 4 + shadcn/ui + Radix UI | `next-themes` for dark/light |
 | **Database** | Neon Postgres (`@neondatabase/serverless`) | Serverless driver, NOT full `pg` |
@@ -35,7 +35,8 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 
 ## Runtime Constraints
 
-- **Vercel serverless functions** — cold starts, 10s default timeout (can extend to 60s on Pro)
+- **Cloudflare Workers (workerd)** — the limit is CPU time, not wall-clock, so waiting on Neon/Anthropic/Resend is free. `maxDuration` exports are Vercel-era and inert here.
+- **`NEXT_PUBLIC_*` are inlined at build time** — a Worker secret cannot supply one, because secrets are runtime-only and a Workers Builds container cannot read them. They belong in Build configuration → Variables. `scripts/check-build-env.ts` fails the build when a required one is missing.
 - **Neon serverless driver (`neon-http`)** — supports **batched** transactions only via `db.transaction(async (tx) => {...})`. The callback may only contain sequential `tx.update()` / `tx.insert()` / `tx.select()` calls — no external `fetch`/AI calls/timers/conditional awaits between queries. Use this when you need atomic multi-row updates (see `reorderTasks` in `src/lib/db/queries.ts` for the canonical pattern). For interactive transactions (any await on something other than a `tx.*` query), neon-http does NOT support them — fall back to sequential plain queries with manual rollback logic.
 - **No Node.js-specific APIs in edge routes** — if a route uses `export const runtime = 'edge'`, stick to Web APIs only
 
