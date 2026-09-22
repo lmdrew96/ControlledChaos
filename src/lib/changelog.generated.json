@@ -4,6 +4,18 @@
     "items": [
       {
         "type": "added",
+        "text": "Set Clerk sign-in redirects in code so Sign in reaches the dashboard"
+      },
+      {
+        "type": "added",
+        "text": "Keep workers.dev enabled, restoring the cron path"
+      },
+      {
+        "type": "added",
+        "text": "Default the public build-time keys in next.config.ts"
+      },
+      {
+        "type": "added",
         "text": "Update the project docs for Cloudflare Workers"
       },
       {

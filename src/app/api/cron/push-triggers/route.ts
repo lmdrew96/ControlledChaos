@@ -33,6 +33,7 @@ import {
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTask,
+  isSoftTargetTag,
   type AlertingTaskDetail,
   type PushNotificationContext,
 } from "@/lib/notifications/triggers";
@@ -233,21 +234,25 @@ async function processUser(user: PushUser): Promise<number> {
   let normalSentThisTick = 0;
   let highSentThisTick = 0;
 
+  // `countsTowardCap` is false only for soft-target pushes. They still respect
+  // quiet hours and the tick budget, but neither consume nor check the daily
+  // cap (see isSoftTargetTag).
   const canSend = (
     priority: "high" | "normal",
     bypassesQuietHours = false,
-    urgent = false
+    urgent = false,
+    countsTowardCap = true
   ) => {
     if (quietHoursActive && !bypassesQuietHours) return false;
     if (urgent) return true;
     const budget = priority === "high" ? HIGH_PUSH_TICK_BUDGET : NORMAL_PUSH_TICK_BUDGET;
     const usedThisTick = priority === "high" ? highSentThisTick : normalSentThisTick;
     if (usedThisTick >= budget) return false;
-    return sentToday < dailyCap;
+    return !countsTowardCap || sentToday < dailyCap;
   };
 
-  const markSent = (priority: "high" | "normal" = "high") => {
-    sentToday += 1;
+  const markSent = (priority: "high" | "normal" = "high", countsTowardCap = true) => {
+    if (countsTowardCap) sentToday += 1;
     userSent += 1;
     if (priority === "normal") normalSentThisTick += 1;
     else highSentThisTick += 1;
@@ -410,7 +415,12 @@ async function processUser(user: PushUser): Promise<number> {
         m.intervalMinutes <= ALWAYS_SEND_MINUTES
     );
 
-    if (!canSend(priority, bypassQuietHours, urgent)) continue;
+    // Keyed on the primary, not all members, because the primary's dedup key
+    // becomes the push's tag, and the tag is what getPushNotificationsSentToday
+    // reads on later ticks. The two must agree.
+    const countsTowardCap = !isSoftTargetTag(primary.dedupKey);
+
+    if (!canSend(priority, bypassQuietHours, urgent, countsTowardCap)) continue;
 
     const message = await generatePushMessage(
       buildClusterContext(primary, absorbed),
@@ -432,7 +442,7 @@ async function processUser(user: PushUser): Promise<number> {
       bypassQuietHours,
     });
     if (sent) {
-      markSent(priority);
+      markSent(priority, countsTowardCap);
       if (absorbed.length > 0) {
         console.log(
           `[Push][Cluster] user=${userId} merged=${members.length} primary=${primary.kind} absorbed=${absorbed.map((a) => a.kind).join(",")}`

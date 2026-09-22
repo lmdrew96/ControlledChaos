@@ -175,8 +175,24 @@ export async function getPushNotificationsSentToday(userId: string, timezone = "
   const recent = await getRecentNotifications(userId, 100);
   const todayStart = startOfDayInTimezone(new Date(), timezone);
 
-  return recent.filter((n) => n.type === "push" && n.sentAt && new Date(n.sentAt) >= todayStart).length;
+  return recent.filter(
+    (n) =>
+      n.type === "push" &&
+      n.sentAt &&
+      new Date(n.sentAt) >= todayStart &&
+      !isSoftTargetTag((n.content as { tag?: string } | null)?.tag)
+  ).length;
 }
+
+/**
+ * Soft-target reminders ("you'd wanted X done by…") don't count toward the
+ * daily cap. They're self-imposed dates, and they cluster in the early
+ * morning, so counting them spent the budget before the day's real deadlines
+ * and classes arrived. A push's tag is its primary alert's dedup key, and
+ * target keys are `target-…`.
+ */
+export const isSoftTargetTag = (tag: string | undefined): boolean =>
+  tag?.startsWith("target-") ?? false;
 
 /**
  * Check for tasks with upcoming deadlines that need push reminders.
@@ -282,17 +298,18 @@ export async function getEventReminders(
   const maxLookAheadMs = intervals[0] * 60 * 1000;
   const lookAheadEnd = new Date(now.getTime() + maxLookAheadMs);
 
-  const [events, savedLocs] = await Promise.all([
-    getCalendarEventsByDateRange(userId, now, lookAheadEnd),
-    getSavedLocations(userId),
-  ]);
+  const events = await getCalendarEventsByDateRange(userId, now, lookAheadEnd);
 
   const nowMs = now.getTime();
   const reminders: EventReminder[] = [];
 
   for (const event of events) {
     if (event.isAllDay) continue;
-    if (matchEventLocationToSavedLocation(event.location, savedLocs)) continue;
+    // Events at a saved location used to be skipped here on the assumption
+    // that getDepartureAlerts covers them. It often doesn't: it returns nothing
+    // without a commute_times row for the current route or with a stale
+    // location, so those events got no reminder at all. Time-to-leave is now
+    // an extra alert on top of these, not a replacement for them.
 
     const startMs = new Date(event.startTime).getTime();
     const diff = startMs - nowMs;
