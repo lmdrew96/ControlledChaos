@@ -23,6 +23,16 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Declared here because wrangler treats this file as authoritative: a deploy
+  // pushes local config over the dashboard's, and a route that only exists in
+  // the dashboard gets dropped. Without this entry every deploy warned it was
+  // about to detach the custom domain.
+  "routes": [
+    {
+      "pattern": "controlledchaos.adhdesigns.dev",
+      "custom_domain": true
+    }
+  ],
   // The reason for leaving Vercel: Workers Logs is on the paid plan rather
   // than gated behind an Observability upsell.
   "observability": {
