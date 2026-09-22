@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop requiring DATABASE_URL at build time"
+      },
+      {
+        "type": "added",
         "text": "Point the QStash schedules at the Worker, in place"
       },
       {
