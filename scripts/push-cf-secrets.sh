@@ -5,25 +5,55 @@
 #   ./scripts/push-cf-secrets.sh            # dry run — prints key names only
 #   ./scripts/push-cf-secrets.sh --apply    # actually upload
 #
-# Reads .env.local and pipes it to `wrangler secret bulk`. Values are never
-# echoed and never written to disk — the JSON goes straight down a pipe.
+# Reads .env.production.local. Values are never echoed and never written to
+# disk — the JSON goes straight down a pipe to `wrangler secret bulk`.
 #
-# NEXT_PUBLIC_* are deliberately excluded: Next inlines those into the bundle
-# at build time (that is what the prefix means), so they need to be present
-# when `pnpm cf:build` runs, not as Worker secrets. They already are, via
-# .env.local. If a NEXT_PUBLIC_ value looks stale in production, rebuild —
-# uploading it here would not fix it.
+# WHY NOT .env.local:
+# .env.local holds DEVELOPMENT values. ControlledChaos runs a Clerk *dev*
+# instance locally and a *prod* instance in production, and they have separate
+# user stores — so a Worker built from .env.local authenticates against the
+# wrong Clerk instance and every user looks brand new. That shipped once; hence
+# this file. Assume anything can differ between dev and prod, not just Clerk.
 #
-# VERCEL_* are excluded because they are Vercel's, not ours.
+# NEXT_PUBLIC_* are excluded here on purpose: Next inlines them into the bundle
+# at BUILD time, so a secret upload cannot fix them. They come from
+# .env.production.local too, which `next build` reads in preference to
+# .env.local when NODE_ENV=production. That is why the prod publishable key
+# belongs in that file and not just in wrangler secrets.
 #
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-[ -f .env.local ] || { echo "no .env.local here" >&2; exit 1; }
+ENV_FILE=".env.production.local"
 
-# Strip comments/blanks, drop excluded prefixes, unquote values, emit JSON.
+if [ ! -f "$ENV_FILE" ]; then
+  cat >&2 <<MSG
+Missing $ENV_FILE
+
+It must hold the PRODUCTION values (the ones Vercel serves), not the dev ones
+in .env.local. At minimum these differ between the two environments:
+
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY   pk_live_... (dev is pk_test_...)
+  CLERK_SECRET_KEY                    sk_live_... (dev is sk_test_...)
+
+Check every other key too — DATABASE_URL especially.
+
+  vercel env pull $ENV_FILE --environment=production
+
+That file is gitignored by .env*.local. Never commit it.
+MSG
+  exit 1
+fi
+
+# Fail loudly on dev Clerk keys rather than shipping a broken auth config.
+if grep -qE '^(NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_|CLERK_SECRET_KEY=sk_test_)' "$ENV_FILE"; then
+  echo "$ENV_FILE contains pk_test_/sk_test_ Clerk keys — those are the DEV instance." >&2
+  echo "Production needs pk_live_/sk_live_, or users authenticate against an empty user store." >&2
+  exit 1
+fi
+
 JSON=$(
-  grep -vE '^\s*(#|$)' .env.local \
+  grep -vE '^\s*(#|$)' "$ENV_FILE" \
   | grep -vE '^(NEXT_PUBLIC_|VERCEL_)' \
   | python3 -c '
 import json, sys
@@ -36,6 +66,7 @@ print(json.dumps(out))
 '
 )
 
+echo "Source: $ENV_FILE"
 echo "Keys to upload:"
 python3 -c 'import json,sys; [print("  " + k) for k in sorted(json.loads(sys.argv[1]))]' "$JSON"
 

@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "The Cloudflare Workers build target alongside Vercel"
+      },
+      {
+        "type": "added",
         "text": "Keep the Anthropic SDK and email stack out of cron cold starts"
       },
       {

@@ -11,6 +11,14 @@
   // out through the edge instead of looping back inside the Worker. Required
   // by OpenNext.
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Wrangler bundles with esbuild's keepNames by default, which rewrites
+  // `function f(){}` to `function f(){}; __name(f, "f")`. next-themes ships its
+  // pre-paint theme script to the browser via Function.prototype.toString(), so
+  // that rewritten source lands in the HTML while the __name helper stays behind
+  // in the Worker bundle -> "Uncaught ReferenceError: __name is not defined",
+  // and the theme never gets applied. Affects any library that stringifies a
+  // function for the client. Needs wrangler >= 4.13.0.
+  "keep_names": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
