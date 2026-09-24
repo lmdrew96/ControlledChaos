@@ -11,8 +11,6 @@ import { verifyCronRequest } from "@/lib/cron-auth";
  * invocations here), so that graph was the route's largest cost on the ticks
  * that send nothing. Loaded only once we know we're sending; import() caches.
  */
-// Vercel Pro: 60s max. Default (10s) silently truncates the per-user digest loop.
-export const maxDuration = 60;
 
 /**
  * POST /api/cron/morning-digest

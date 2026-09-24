@@ -54,13 +54,10 @@ import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
 import { verifyCronRequest } from "@/lib/cron-auth";
 
-// Vercel Pro: 60s max. Default (10s) silently truncates the per-user loop
-// once the user count grows past ~5–10 push-enabled users.
-export const maxDuration = 60;
-
 // Per-chunk concurrency for the per-user loop. AI message generation is the
-// dominant cost per user; ~10 in-flight is well below typical Anthropic API
-// rate limits while keeping total wall-clock under maxDuration.
+// dominant cost per user; ~10 in-flight stays well below Anthropic rate
+// limits. On Workers the limit is CPU time, not wall-clock, so time spent
+// waiting on Neon/Anthropic is free; concurrency just shortens the tick.
 const USER_CONCURRENCY = 10;
 
 const TASK_ACTIONS = [

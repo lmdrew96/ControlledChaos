@@ -6,8 +6,6 @@ import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
 import { todayInTimezone } from "@/lib/timezone";
 import { verifyCronRequest } from "@/lib/cron-auth";
 
-// Vercel Pro: 60s max. Default (10s) silently truncates the per-user sync loop.
-export const maxDuration = 60;
 
 /**
  * POST /api/cron/calendar-sync

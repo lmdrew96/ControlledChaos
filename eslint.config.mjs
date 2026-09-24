@@ -15,8 +15,6 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Stray prototype file at repo root — not imported anywhere.
     "chaos-mosaic-v3.jsx",
-    // Generated Convex client code.
-    "convex/_generated/**",
     // MCP server has its own tsconfig; let it lint itself separately.
     // Compiled output (dist) should never be linted.
     "mcp/**",
@@ -36,7 +34,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Scope typed-linting to src/ — avoids roping in scripts/ and convex/
+    // Scope typed-linting to src/ — avoids roping in scripts/ and mcp/
     // (which have separate or no tsconfigs) and keeps lint fast.
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
