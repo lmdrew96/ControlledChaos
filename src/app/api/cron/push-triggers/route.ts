@@ -114,7 +114,7 @@ function buildClusterContext(
   primary: Candidate,
   absorbed: Candidate[]
 ): PushNotificationContext {
-  const alsoHappening = absorbed.map((a) => a.title);
+  const alsoHappening = absorbed.map((a) => ({ title: a.title, at: a.at }));
   // Time remaining must be measured from the clock, NOT read off
   // `intervalMinutes`. That field is the reminder BAND the alert matched
   // (1440/60/10) — a label used for dedup keys and priority gating — so

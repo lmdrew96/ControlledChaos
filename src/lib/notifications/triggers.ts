@@ -15,6 +15,8 @@ import {
   getHourInTimezone,
   formatForAI,
   formatForDisplay,
+  formatReminderInterval,
+  describeFromNow,
   DISPLAY_TIME,
 } from "@/lib/timezone";
 /**
@@ -485,7 +487,7 @@ export async function hasEverBeenNotified(
  * situation (see lib/notifications/cluster.ts). The AI writes ONE message
  * covering all of them instead of the user getting a push per row.
  */
-type ClusteredWith = { alsoHappening?: string[] };
+type ClusteredWith = { alsoHappening?: { title: string; at: Date }[] };
 
 export type PushNotificationContext =
   | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
@@ -503,30 +505,9 @@ export type PushNotificationContext =
   | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
   | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
 
-/**
- * Human-readable label for a duration in minutes (e.g. 1440 → "1 day",
- * 127 → "2 hours 7 minutes").
- *
- * This used to assume its input was always one of the configured reminder
- * BANDS (1440/60/10), so it only handled exact day/hour multiples. It now
- * receives real time-remaining, which is an arbitrary number of minutes.
- */
-export function formatReminderInterval(minutes: number): string {
-  const total = Math.max(0, Math.round(minutes));
-  if (total < 1) return "less than a minute";
-
-  const days = Math.floor(total / (60 * 24));
-  const hours = Math.floor((total % (60 * 24)) / 60);
-  const mins = total % 60;
-
-  const parts: string[] = [];
-  if (days > 0) parts.push(days === 1 ? "1 day" : `${days} days`);
-  if (hours > 0) parts.push(hours === 1 ? "1 hour" : `${hours} hours`);
-  // Minutes are noise next to a multi-day span — "2 days 7 minutes" helps nobody.
-  if (mins > 0 && days === 0) parts.push(mins === 1 ? "1 minute" : `${mins} minutes`);
-
-  return parts.join(" ");
-}
+// Lives in lib/timezone so the user snapshot can share it; re-exported for
+// existing callers and tests.
+export { formatReminderInterval };
 
 const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   deadline_reminder: "Heads up — a deadline is coming up.",
@@ -578,7 +559,7 @@ export async function generatePushMessage(
   } else if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
     // These used to carry only the title, so "time for X" couldn't say how
     // big a bite it was or why it mattered now — the activation-hump detail.
-    userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"\nPlanned start (user's local time): ${formatForAI(ctx.at, timezone)}${describeTaskDetail(ctx, timezone)}`;
+    userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"\nPlanned start (user's local time): ${formatForAI(ctx.at, timezone)} (${describeFromNow(ctx.at)})${describeTaskDetail(ctx, timezone)}`;
   } else if (
     ctx.type === "idle_checkin" ||
     ctx.type === "idle_checkin_afternoon" ||
@@ -608,8 +589,14 @@ export async function generatePushMessage(
   // Fold in the rest of the cluster so the model writes one message for the
   // whole situation rather than one per underlying record.
   if ("alsoHappening" in ctx && ctx.alsoHappening?.length) {
+    // Each extra carries its own time and distance. Titles alone left the
+    // model to work out "how long until" from the snapshot, and it attached
+    // one item's gap to another's clock time.
     userMsg += `\nAlso happening in this same window: ${ctx.alsoHappening
-      .map((t) => `"${t}"`)
+      .map(
+        (a) =>
+          `"${a.title}" (${formatForDisplay(a.at, timezone, DISPLAY_TIME)}, ${describeFromNow(a.at)})`
+      )
       .join(", ")}`;
   }
 
@@ -660,7 +647,9 @@ function describeTaskDetail(d: AlertingTaskDetail, timezone: string): string {
     lines.push(`Estimated time for the whole task: ${formatReminderInterval(d.estimatedMinutes)}`);
   }
   if (d.deadline) {
-    lines.push(`Hard deadline (user's local time): ${formatForAI(d.deadline, timezone)}`);
+    lines.push(
+      `Hard deadline (user's local time): ${formatForAI(d.deadline, timezone)} (${describeFromNow(d.deadline)})`
+    );
   }
   if (d.targetDate) {
     lines.push(`Soft self-set target (user's local time): ${formatForAI(d.targetDate, timezone)}`);

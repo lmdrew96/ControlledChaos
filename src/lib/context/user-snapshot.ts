@@ -21,8 +21,10 @@ import {
   allDayRange,
   toDateKeyInTimezone,
   formatForDisplay,
+  describeFromNow,
   DISPLAY_TIME,
   DISPLAY_DATE,
+  DISPLAY_DATETIME,
 } from "@/lib/timezone";
 
 export interface UserSnapshot {
@@ -89,6 +91,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   const currentTime = formatCurrentDateTime(timezone);
 
   const now = new Date();
+  const nowMs = now.getTime();
   // Next LOCAL midnight, as an exclusive upper bound. Adding 86_400_000ms to
   // the start of day is an hour off on both DST days, which let tomorrow's
   // early events leak into "today" every spring.
@@ -146,6 +149,12 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_TIME),
     isAllDay: e.isAllDay ?? false,
     location: e.location ?? null,
+    // Precomputed so the model never subtracts clock times itself — it has
+    // paired one event's gap with another event's time before.
+    fromNow:
+      e.startTime.getTime() > nowMs
+        ? ` (starts ${describeFromNow(e.startTime, nowMs)})`
+        : ` (underway, ends ${describeFromNow(e.endTime, nowMs)})`,
   }));
 
   // Build the formatted text block
@@ -164,7 +173,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
       const times: string[] = [];
       if (t.deadline) {
         times.push(
-          `HARD deadline ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATE)}`
+          `HARD deadline ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATETIME)} (${describeFromNow(new Date(t.deadline), nowMs)})`
         );
       }
       if (t.targetDate) {
@@ -174,7 +183,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
       }
       if (t.scheduledFor) {
         times.push(
-          `planned to start ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_TIME)}`
+          `planned to start ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_DATETIME)} (${describeFromNow(new Date(t.scheduledFor), nowMs)})`
         );
       }
       if (t.estimatedMinutes) times.push(`~${t.estimatedMinutes} min of work`);
@@ -203,7 +212,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
       seen.set(t.id, nth);
       const which = total > 1 ? ` (sitting ${nth} of ${total})` : "";
       lines.push(
-        `  - ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_TIME)}: ${t.title}${which}`
+        `  - ${formatForDisplay(new Date(t.scheduledFor), timezone, DISPLAY_TIME)} (${describeFromNow(new Date(t.scheduledFor), nowMs)}): ${t.title}${which}`
       );
     }
   }
@@ -214,7 +223,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
       // An all-day event has no meaningful clock time. It used to render as
       // "12:00 AM–11:59 PM", which reads to the model as a real 24-hour
       // commitment blocking the entire day.
-      const when = e.isAllDay ? "all day" : `${e.startTime}–${e.endTime}`;
+      const when = e.isAllDay ? "all day" : `${e.startTime}–${e.endTime}${e.fromNow}`;
       const where = e.location ? ` @ ${e.location}` : "";
       lines.push(`  - ${e.title}: ${when}${where}`);
     }

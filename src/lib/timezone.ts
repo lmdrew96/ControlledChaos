@@ -342,3 +342,40 @@ export function formatForDisplay(
 export function formatForAI(date: Date, timezone: string): string {
   return formatForDisplay(date, timezone, DISPLAY_FULL_DATETIME);
 }
+
+/**
+ * Format a span of minutes as words: "1 hour 20 minutes", "2 days".
+ */
+export function formatReminderInterval(minutes: number): string {
+  const total = Math.max(0, Math.round(minutes));
+  if (total < 1) return "less than a minute";
+
+  const days = Math.floor(total / (60 * 24));
+  const hours = Math.floor((total % (60 * 24)) / 60);
+  const mins = total % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(days === 1 ? "1 day" : `${days} days`);
+  if (hours > 0) parts.push(hours === 1 ? "1 hour" : `${hours} hours`);
+  // Minutes are noise next to a multi-day span — "2 days 7 minutes" helps nobody.
+  if (mins > 0 && days === 0) parts.push(mins === 1 ? "1 minute" : `${mins} minutes`);
+
+  return parts.join(" ");
+}
+
+/**
+ * Clock-measured distance from now, for labeling a time in an AI prompt:
+ * "in 20 minutes", "5 minutes ago", "now".
+ *
+ * Every time handed to the model should carry one of these. Left to subtract
+ * clock times itself, the model pairs the right gap with the wrong item — a
+ * 10:10 push once said "20 minutes before your 11:30 meeting" because 10:30
+ * was the next thing on the list.
+ */
+export function describeFromNow(date: Date, nowMs: number = Date.now()): string {
+  const diff = Math.round((date.getTime() - nowMs) / 60000);
+  if (diff === 0) return "now";
+  return diff > 0
+    ? `in ${formatReminderInterval(diff)}`
+    : `${formatReminderInterval(-diff)} ago`;
+}
