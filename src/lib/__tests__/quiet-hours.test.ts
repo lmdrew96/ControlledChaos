@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isQuietHours } from "@/lib/notifications/quiet-hours";
+import { isQuietHours, minutesSinceQuietHoursEnded } from "@/lib/notifications/quiet-hours";
 import type { NotificationPrefs } from "@/types";
 
 /** Only the two quiet-hours fields matter here; the rest are irrelevant. */
@@ -76,5 +76,22 @@ describe("isQuietHours — timezone correctness", () => {
     // 02:00 UTC → 04:00 in Berlin, still inside the window.
     const instant = new Date(Date.UTC(2026, 8, 1, 2, 0));
     expect(isQuietHours(overnight, "Europe/Berlin", instant)).toBe(true);
+  });
+});
+
+describe("minutesSinceQuietHoursEnded", () => {
+  const overnight = prefs("22:00", "07:00");
+
+  it("is null while quiet hours are active", () => {
+    expect(minutesSinceQuietHoursEnded(overnight, TZ, atEastern(6, 59))).toBeNull();
+  });
+
+  it("counts from the end of the window", () => {
+    expect(minutesSinceQuietHoursEnded(overnight, TZ, atEastern(7, 0))).toBe(0);
+    expect(minutesSinceQuietHoursEnded(overnight, TZ, atEastern(9, 30))).toBe(150);
+  });
+
+  it("is null for an empty window", () => {
+    expect(minutesSinceQuietHoursEnded(prefs("07:00", "07:00"), TZ, atEastern(9))).toBeNull();
   });
 });

@@ -32,3 +32,33 @@ export function isQuietHours(
     return currentTime >= start || currentTime < end;
   }
 }
+
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Minutes since the user's quiet hours most recently ended, or null while
+ * quiet hours are active (or when the window is empty, start === end).
+ *
+ * The push cron uses this to send ONE wake-up summary instead of letting
+ * everything that became eligible overnight drip out a push per tick.
+ */
+export function minutesSinceQuietHoursEnded(
+  prefs: NotificationPrefs,
+  timezone: string,
+  now: Date = new Date()
+): number | null {
+  if (prefs.quietHoursStart === prefs.quietHoursEnd) return null;
+  if (isQuietHours(prefs, timezone, now)) return null;
+
+  const current = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(now);
+
+  return (toMinutes(current) - toMinutes(prefs.quietHoursEnd) + 1440) % 1440;
+}

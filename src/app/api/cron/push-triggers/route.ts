@@ -5,13 +5,21 @@ import {
   markSnoozedPushSent,
   getUserLocation,
   isLocationStale,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import {
   sendPushToUser,
   type PushAction,
 } from "@/lib/notifications/send-push";
-import { isQuietHours } from "@/lib/notifications/quiet-hours";
-import { todayInTimezone } from "@/lib/timezone";
+import {
+  isQuietHours,
+  minutesSinceQuietHoursEnded,
+} from "@/lib/notifications/quiet-hours";
+import { todayInTimezone, allDayRange } from "@/lib/timezone";
+import {
+  buildWakeSummaryBody,
+  type WakeSummaryItem,
+} from "@/lib/notifications/wake-summary";
 import {
   getDeadlineReminders,
   getTargetReminders,
@@ -216,9 +224,10 @@ async function processUser(user: PushUser): Promise<number> {
 
   // Per-tick budgets. Without them, every reminder that became eligible during
   // quiet hours fires in the same tick the moment quiet hours end — the
-  // "bombarded at wake time" bug. Budgeted items simply retry next tick, since
+  // "bombarded at wake time" bug. Budgeted items retry next tick, since
   // eligibility windows (the [1440,60,10] reminder bands) stay open far longer
-  // than a few ticks.
+  // than a few ticks. The overnight backlog doesn't go through this at all:
+  // it is folded into the wake-up summary below.
   //
   // High-priority alerts used to skip this AND the daily cap entirely, which
   // is how a single class-plus-homework hour produced an unbounded burst: at
@@ -230,6 +239,10 @@ async function processUser(user: PushUser): Promise<number> {
   // so these bypass both the tick budget and the daily cap. Quiet hours still
   // apply unless the alert separately opts out.
   const ALWAYS_SEND_MINUTES = 15;
+  // How long after quiet hours end the wake-up summary may still go out. Wide
+  // enough to survive a missed tick or two; narrow enough that it never lands
+  // as a "morning" summary in the afternoon.
+  const WAKE_SUMMARY_WINDOW_MINUTES = 180;
 
   let normalSentThisTick = 0;
   let highSentThisTick = 0;
@@ -386,14 +399,80 @@ async function processUser(user: PushUser): Promise<number> {
   // Drop already-notified alerts BEFORE clustering. Filtering afterwards
   // would let a stale member become a cluster's primary and suppress the
   // fresh alerts grouped with it.
-  const notified = candidates.length > 0
+  const todayKey = todayInTimezone(timezone);
+  const wakeSummaryKey = `wake-summary-${todayKey}`;
+  const checkInDedupKey = `idle-checkin-${todayKey}`;
+  const sinceQuietEnd = notificationPrefs
+    ? minutesSinceQuietHoursEnded(notificationPrefs, timezone)
+    : null;
+  const wakeSummaryWindow =
+    sinceQuietEnd !== null && sinceQuietEnd < WAKE_SUMMARY_WINDOW_MINUTES;
+
+  const notified = candidates.length > 0 || wakeSummaryWindow
     ? await getNotifiedDedupKeys(userId, timezone)
     : { ever: new Set<string>(), today: new Set<string>() };
-  const fresh = candidates.filter((c) =>
+  let fresh = candidates.filter((c) =>
     c.dedupScope === "ever"
       ? !notified.ever.has(c.dedupKey)
       : !notified.today.has(c.dedupKey)
   );
+
+  // --- Wake-up summary ---
+  //
+  // Everything that became eligible overnight used to wait out quiet hours
+  // and then drip out one push per tick (6:00, 6:10, 6:20…), because
+  // eligibility windows stay open for hours. Instead, the first tick after
+  // quiet hours folds today's pending reminders into ONE push, built from
+  // data rather than the model, and marks every folded key as notified. The
+  // closer 60/10 bands still fire normally later on.
+  if (wakeSummaryWindow && !notified.today.has(wakeSummaryKey) && canSend("normal")) {
+    const endOfToday = new Date(allDayRange(todayKey, timezone).endISO);
+    const foldable = fresh.filter(
+      (c) =>
+        // Start-now cues are about this exact moment, not the day's shape.
+        c.kind !== "scheduled" &&
+        c.kind !== "scheduled_missed" &&
+        c.at < endOfToday &&
+        !(c.intervalMinutes !== undefined && c.intervalMinutes <= ALWAYS_SEND_MINUTES)
+    );
+    const sittings = await getScheduledSessionsInRange(userId, new Date(), endOfToday);
+    const items: WakeSummaryItem[] = [
+      ...foldable.map((c) => ({
+        at: c.at,
+        title: c.title,
+        kind: c.kind as WakeSummaryItem["kind"],
+      })),
+      ...sittings.map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
+    ];
+
+    const checkIn = resolveDailyCheckInConfig(notificationPrefs);
+    const replacesCheckIn = checkIn.enabled && checkIn.window === "morning";
+    // Only when there's an overnight backlog to replace, or when it stands in
+    // for the morning check-in. Otherwise it would just be one more push.
+    if (items.length > 0 && (foldable.length > 0 || replacesCheckIn)) {
+      const sent = await sendPushToUser(userId, {
+        title: "ControlledChaos",
+        body: buildWakeSummaryBody(items, timezone),
+        url: "/calendar",
+        tag: wakeSummaryKey,
+        dedupKeys: [
+          wakeSummaryKey,
+          ...foldable.map((c) => c.dedupKey),
+          // A morning check-in right after this would be a second "here's
+          // your day" push. The summary is the check-in.
+          ...(replacesCheckIn ? [checkInDedupKey] : []),
+        ],
+        userId,
+        actions: EVENT_ACTIONS,
+      });
+      if (sent) {
+        markSent("normal");
+        const folded = new Set(foldable.map((c) => c.dedupKey));
+        fresh = fresh.filter((c) => !folded.has(c.dedupKey));
+        console.log(`[Push][WakeSummary] user=${userId} items=${items.length} folded=${folded.size}`);
+      }
+    }
+  }
 
   // Soonest first, so the tick budget is spent on the most urgent situation.
   fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -486,7 +565,6 @@ async function processUser(user: PushUser): Promise<number> {
 
   // --- Daily Idle Check-in (at most one per day, in user's chosen window) ---
   const checkInConfig = resolveDailyCheckInConfig(notificationPrefs);
-  const checkInDedupKey = `idle-checkin-${todayInTimezone(timezone)}`;
   if (!checkInConfig.enabled) {
     console.log(`[Push][CheckIn] skip user=${userId} reason=disabled`);
   } else if (!canSend("normal")) {
