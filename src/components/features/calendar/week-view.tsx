@@ -43,6 +43,7 @@ import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
+import { attachAssessmentsToClasses } from "@/lib/calendar/attach-assessments";
 import {
   layoutOverlappingTiles,
   shortTileTitle,
@@ -912,8 +913,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
               {/* Day columns */}
               {weekDays.map((day) => {
-                const dayEvents =
-                  timedByDay.get(dayKey(day, timezone)) ?? [];
+                // A Canvas quiz during its own class rides on the class tile
+                // as a badge rather than splitting the column with it.
+                const { visible: dayEvents, attached: dayAttached } =
+                  attachAssessmentsToClasses(timedByDay.get(dayKey(day, timezone)) ?? []);
                 return (
                   <div
                     key={day.toISOString()}
@@ -1048,7 +1051,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         const tile = overlapLayout.get(event.id) ?? FULL_TILE;
                         // Rendered on the tile itself: a narrow tile hides
                         // everything else, and the badge is the point.
-                        const tileBadges = event.badge ? [event.badge] : [];
+                        const riders = dayAttached.get(event.id) ?? [];
+                        const tileBadges = [
+                          ...(event.badge ? [event.badge] : []),
+                          ...riders.map((r) => r.label),
+                        ];
 
                         const isCC = event.source === "controlledchaos";
                         const isBeingDragged =
@@ -1098,12 +1105,33 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             <>
                             {tileBadges.length > 0 && (
                               <p className="mb-0.5 truncate">
-                                {tileBadges.map((b) => (
+                                {event.badge && (
+                                  <span className="mr-1 inline-block rounded bg-background/70 px-1 text-[10px] font-semibold leading-tight">
+                                    {event.badge}
+                                  </span>
+                                )}
+                                {/* Attached assessments stay their own events:
+                                    the badge opens the quiz, the tile the class. */}
+                                {riders.map((r) => (
                                   <span
-                                    key={b}
-                                    className="mr-1 inline-block rounded bg-background/70 px-1 text-[10px] font-semibold leading-tight"
+                                    key={r.event.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    title={r.event.title}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!isDragging.current) setSelectedEvent(r.event);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSelectedEvent(r.event);
+                                      }
+                                    }}
+                                    className="mr-1 inline-block cursor-pointer rounded bg-background/70 px-1 text-[10px] font-semibold leading-tight underline-offset-2 hover:underline"
                                   >
-                                    {b}
+                                    {r.label}
                                   </span>
                                 ))}
                               </p>
