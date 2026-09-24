@@ -5,9 +5,18 @@ import Anthropic, { APIError } from "@anthropic-ai/sdk";
 export const MODEL_HAIKU = "claude-haiku-4-5-20251001";
 export const MODEL_SONNET = "claude-sonnet-5";
 
-export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let client: Anthropic | null = null;
+
+/**
+ * Built on first use, not on import: the SDK constructor throws when no key
+ * is set, and a module-scope throw turns a runtime secret into a build-time
+ * requirement (see the getDb note in lib/db). A missing key still fails
+ * loudly, at the request that needed it.
+ */
+const getAnthropic = (): Anthropic => {
+  client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return client;
+};
 
 // --- Retry logic for transient Anthropic errors ---
 
@@ -148,7 +157,7 @@ async function callModel(
   const start = Date.now();
 
   const response = await callWithRetry(() =>
-    anthropic.messages.create({
+    getAnthropic().messages.create({
       model,
       max_tokens: params.maxTokens ?? 2048,
       system: params.system,

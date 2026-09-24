@@ -1,4 +1,4 @@
-import webpush from "@/lib/notifications/webpush-client";
+import { getWebPush } from "@/lib/notifications/webpush-client";
 import {
   getPushSubscriptions,
   getUserSettings,
@@ -87,6 +87,7 @@ export async function sendPushToUser(
   });
 
   let sent = false;
+  const webpush = getWebPush();
 
   for (const sub of subscriptions) {
     try {
