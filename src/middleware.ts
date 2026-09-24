@@ -15,6 +15,11 @@ const isPublicRoute = createRouteMatcher([
   // is precisely the one that needs to be told to reload. Without this entry
   // auth.protect() 404'd the exact case the route exists to serve.
   "/api/version",
+  // The VAPID PUBLIC key, already shipped in the client bundle. public/sw.js
+  // fetches it on pushsubscriptionchange to re-subscribe, from a context that
+  // may have no live Clerk session; gated, it 404'd and that device silently
+  // stopped getting push.
+  "/api/notifications/vapid-key",
   "/manifest.json",
 ]);
 
