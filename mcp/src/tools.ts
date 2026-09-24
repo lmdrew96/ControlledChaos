@@ -567,14 +567,22 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
         // left behind.
         planned = await sql(
           `SELECT t.id, t.title, s.starts_at AS scheduled_for,
-                  -- A NULL sitting takes an even share of the estimate across the
-                  -- task's NULL sittings (mirrors resolveSessionMinutes in the
-                  -- app), so two sittings of a 120-min task are 60 each, not 120.
-                  COALESCE(s.minutes, CASE WHEN t.estimated_minutes IS NULL THEN NULL ELSE
-                    GREATEST(15, ROUND(
-                      (t.estimated_minutes - COALESCE((SELECT SUM(x.minutes) FROM task_sessions x WHERE x.task_id = s.task_id), 0))::numeric
-                      / (SELECT COUNT(*) FROM task_sessions x WHERE x.task_id = s.task_id AND x.minutes IS NULL)
-                    ))::int END) AS estimated_minutes,
+                  -- Mirrors resolveSessionMinutes in the app: a logged sitting
+                  -- shows what was done; an explicit length wins; otherwise a
+                  -- NULL sitting takes an even share of (estimate − logged −
+                  -- explicit open lengths), so two sittings of 120 are 60 each.
+                  -- Needs migration 0017 (task_sessions.status/actual_minutes).
+                  CASE
+                    WHEN s.status IS NOT NULL AND s.status <> 'skipped' AND COALESCE(s.actual_minutes, 0) > 0 THEN s.actual_minutes
+                    WHEN s.minutes IS NOT NULL THEN s.minutes
+                    WHEN t.estimated_minutes IS NULL THEN NULL
+                    ELSE GREATEST(15, ROUND(
+                      (t.estimated_minutes
+                        - COALESCE((SELECT SUM(x.actual_minutes) FROM task_sessions x WHERE x.task_id = s.task_id AND x.status IS NOT NULL), 0)
+                        - COALESCE((SELECT SUM(x.minutes) FROM task_sessions x WHERE x.task_id = s.task_id AND x.status IS NULL), 0))::numeric
+                      / NULLIF((SELECT COUNT(*) FROM task_sessions x WHERE x.task_id = s.task_id AND x.status IS NULL AND x.minutes IS NULL), 0)
+                    ))::int
+                  END AS estimated_minutes,
                   t.status, t.category, t.deadline, t.target_date
            FROM task_sessions s
            JOIN tasks t ON t.id = s.task_id

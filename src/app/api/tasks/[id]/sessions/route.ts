@@ -31,6 +31,8 @@ export async function GET(
         startsAt: s.startsAt.toISOString(),
         minutes: s.minutes,
         resolvedMinutes: s.resolvedMinutes,
+        status: s.status ?? null,
+        actualMinutes: s.actualMinutes ?? null,
       })),
     });
   } catch (error) {

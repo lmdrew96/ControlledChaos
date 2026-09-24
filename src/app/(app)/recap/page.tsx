@@ -8,6 +8,7 @@ import { RecapDayNav } from "@/components/features/recap/recap-day-nav";
 import { RecapFilterPills } from "@/components/features/recap/recap-filter-pills";
 import { RecapTimeline } from "@/components/features/recap/recap-timeline";
 import { MomentsRecapWidget } from "@/components/features/moments/moments-recap-widget";
+import { RecapSittings } from "@/components/features/recap/recap-sittings";
 import { useTimezone } from "@/hooks/use-timezone";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -123,6 +124,12 @@ export default function RecapPage() {
       {date === today && (
         <MomentsRecapWidget onLogged={() => setRefreshTick((t) => t + 1)} />
       )}
+
+      <RecapSittings
+        date={date}
+        timezone={timezone}
+        onLogged={() => setRefreshTick((t) => t + 1)}
+      />
 
       <RecapFilterPills
         activeKinds={activeKinds}

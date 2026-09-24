@@ -214,6 +214,17 @@ export const taskSessions = pgTable(
      * by resolveSessionMinutes), so a lone sitting still gets the whole thing.
      */
     minutes: integer("minutes"),
+    /**
+     * How the sitting went, once the user says: done | partial | skipped.
+     * NULL = not answered, which is fine and never nagged about.
+     */
+    status: text("status"),
+    /**
+     * Work actually done in this sitting. Written with the status: done takes
+     * the sitting's length, partial takes what the user reports, skipped 0.
+     * Subtracted from the estimate before the remaining sittings split it.
+     */
+    actualMinutes: integer("actual_minutes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

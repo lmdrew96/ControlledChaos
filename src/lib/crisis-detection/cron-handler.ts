@@ -11,6 +11,7 @@ import {
   updateCrisisDetection,
   resolveStaleDetections,
   getTasksByUser,
+  getLoggedMinutesForTasks,
   getCalendarEventsByDateRange,
   getUserSettings,
   getUser,
@@ -84,13 +85,16 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   });
 
   // Fetch calendar events for the window and recent Moments for augmentation
-  const [calendarRows, recentMomentRows] = await Promise.all([
+  const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
     getCalendarEventsByDateRange(userId, now, windowEnd),
     // 2-hour window is the widest any Moment augmentation rule cares about
     getRecentMoments(userId, 120, [
       "tough_moment",
       "energy_crash",
     ]),
+    // Work already logged in sittings. A task that's half done needs half
+    // its estimate, not all of it, or the collision math cries wolf.
+    getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),
   ]);
 
   // A drift warning stands for the day it was sent. Feeding that back in gives
@@ -107,7 +111,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       title: t.title,
       deadline: t.deadline ? new Date(t.deadline) : null,
       targetDate: t.targetDate ? new Date(t.targetDate) : null,
-      estimatedMinutes: t.estimatedMinutes ?? 0,
+      estimatedMinutes: Math.max(0, (t.estimatedMinutes ?? 0) - (loggedMinutes.get(t.id) ?? 0)),
       status: t.status,
     })),
     calendarEvents: calendarRows.map((e) => ({

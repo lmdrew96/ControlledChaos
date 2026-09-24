@@ -20,6 +20,10 @@ export interface Task {
   nextSessionAt?: string | null;
   /** Most recent sitting that has already ended. */
   passedSessionAt?: string | null;
+  /** That sitting's id, when it's a real session row an outcome can go on. */
+  passedSessionId?: string | null;
+  passedSessionStatus?: "done" | "partial" | "skipped" | null;
+  passedSessionMinutes?: number | null;
   completedAt: string | null;
   sourceDumpId: string | null;
   sourceEventId: string | null;

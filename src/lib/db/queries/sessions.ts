@@ -14,7 +14,12 @@ import {
   sql,
 } from "drizzle-orm";
 import { PLANNED_ON_CALENDAR_STATUSES } from "./tasks";
-import { resolveSessionMinutes, sessionMarkers } from "@/lib/calendar/session-minutes";
+import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
+import {
+  resolveSessionMinutes,
+  sessionMarkers,
+  type SessionOutcome,
+} from "@/lib/calendar/session-minutes";
 
 /**
  * Task work sessions — the planned blocks for a task.
@@ -35,6 +40,9 @@ export interface TaskSession {
   startsAt: Date;
   /** Explicit length. NULL = an even share of the estimate (resolveSessionMinutes). */
   minutes: number | null;
+  /** How it went, once answered. Absent on write paths that don't select it. */
+  status?: SessionOutcome | null;
+  actualMinutes?: number | null;
 }
 
 /**
@@ -70,6 +78,27 @@ export interface TaskSessionWithLength extends TaskSession {
   resolvedMinutes: number | null;
 }
 
+const SESSION_WITH_OUTCOME = {
+  id: taskSessions.id,
+  taskId: taskSessions.taskId,
+  startsAt: taskSessions.startsAt,
+  minutes: taskSessions.minutes,
+  status: taskSessions.status,
+  actualMinutes: taskSessions.actualMinutes,
+};
+
+const OUTCOMES: readonly SessionOutcome[] = ["done", "partial", "skipped"];
+
+/** The column is free text in the DB; narrow it, treating anything else as unanswered. */
+function asOutcomeRow<R extends { status: string | null }>(
+  row: R
+): Omit<R, "status"> & { status: SessionOutcome | null } {
+  const status = OUTCOMES.includes(row.status as SessionOutcome)
+    ? (row.status as SessionOutcome)
+    : null;
+  return { ...row, status };
+}
+
 /** Every session for one task, soonest first. */
 export async function getTaskSessions(
   taskId: string,
@@ -77,12 +106,7 @@ export async function getTaskSessions(
 ): Promise<TaskSessionWithLength[]> {
   const [rows, [task]] = await Promise.all([
     db
-      .select({
-        id: taskSessions.id,
-        taskId: taskSessions.taskId,
-        startsAt: taskSessions.startsAt,
-        minutes: taskSessions.minutes,
-      })
+      .select(SESSION_WITH_OUTCOME)
       .from(taskSessions)
       .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)))
       .orderBy(asc(taskSessions.startsAt)),
@@ -93,8 +117,9 @@ export async function getTaskSessions(
       .limit(1),
   ]);
 
-  const lengths = resolveSessionMinutes(task?.estimatedMinutes ?? null, rows);
-  return rows.map((r) => ({ ...r, resolvedMinutes: lengths.get(r.id) ?? null }));
+  const typed = rows.map(asOutcomeRow);
+  const lengths = resolveSessionMinutes(task?.estimatedMinutes ?? null, typed);
+  return typed.map((r) => ({ ...r, resolvedMinutes: lengths.get(r.id) ?? null }));
 }
 
 /**
@@ -128,19 +153,15 @@ export async function getSessionsForTasks(
   if (taskIds.length === 0) return byTask;
 
   const rows = await db
-    .select({
-      id: taskSessions.id,
-      taskId: taskSessions.taskId,
-      startsAt: taskSessions.startsAt,
-      minutes: taskSessions.minutes,
-    })
+    .select(SESSION_WITH_OUTCOME)
     .from(taskSessions)
     .where(
       and(eq(taskSessions.userId, userId), inArray(taskSessions.taskId, taskIds))
     )
     .orderBy(asc(taskSessions.startsAt));
 
-  for (const row of rows) {
+  for (const raw of rows) {
+    const row = asOutcomeRow(raw);
     const list = byTask.get(row.taskId);
     if (list) list.push(row);
     else byTask.set(row.taskId, [row]);
@@ -167,7 +188,18 @@ export async function withNextSession<
   rows: T[],
   userId: string,
   now: Date = new Date()
-): Promise<Array<T & { nextSessionAt: Date | null; passedSessionAt: Date | null }>> {
+): Promise<
+  Array<
+    T & {
+      nextSessionAt: Date | null;
+      passedSessionAt: Date | null;
+      /** Set for a real session row, so its outcome can be logged. */
+      passedSessionId: string | null;
+      passedSessionStatus: SessionOutcome | null;
+      passedSessionMinutes: number | null;
+    }
+  >
+> {
   const planned = rows.filter((r) => r.scheduledFor);
   const byTask = await getSessionsForTasks(planned.map((r) => r.id), userId);
 
@@ -179,11 +211,19 @@ export async function withNextSession<
         ...r,
         nextSessionAt: past ? null : r.scheduledFor,
         passedSessionAt: past ? r.scheduledFor : null,
+        passedSessionId: null,
+        passedSessionStatus: null,
+        passedSessionMinutes: null,
       };
     }
     const lengths = resolveSessionMinutes(r.estimatedMinutes, list);
-    const { nextAt, passedAt } = sessionMarkers(
-      list.map((s) => ({ startsAt: s.startsAt, minutes: lengths.get(s.id) ?? null })),
+    const { nextAt, passedAt, passed } = sessionMarkers(
+      list.map((s) => ({
+        id: s.id,
+        startsAt: s.startsAt,
+        minutes: lengths.get(s.id) ?? null,
+        status: s.status ?? null,
+      })),
       now
     );
     return {
@@ -191,6 +231,9 @@ export async function withNextSession<
       scheduledFor: nextAt ?? passedAt ?? r.scheduledFor,
       nextSessionAt: nextAt,
       passedSessionAt: passedAt,
+      passedSessionId: passed?.id ?? null,
+      passedSessionStatus: passed?.status ?? null,
+      passedSessionMinutes: passed?.minutes ?? null,
     };
   });
 }
@@ -308,6 +351,89 @@ export async function deleteTaskSession(
   if (!deleted) return false;
   await syncTaskScheduledFor(deleted.taskId, userId);
   return true;
+}
+
+/**
+ * Record how a sitting went, or pass null to clear it.
+ *
+ * done → the sitting's own length counts as work done (resolved as if it
+ * were still open, so marking it doesn't change what it's worth).
+ * partial → `partialMinutes`, what the user says they got through.
+ * skipped → 0; its time rolls into the remaining sittings.
+ *
+ * Returns null when the session doesn't exist or isn't this user's, or when
+ * partial is given no usable minutes.
+ */
+export async function setSessionOutcome(
+  sessionId: string,
+  userId: string,
+  outcome: SessionOutcome | null,
+  partialMinutes?: number
+): Promise<{ taskId: string; status: SessionOutcome | null; actualMinutes: number | null } | null> {
+  const [row] = await db
+    .select({ taskId: taskSessions.taskId })
+    .from(taskSessions)
+    .where(and(eq(taskSessions.id, sessionId), eq(taskSessions.userId, userId)))
+    .limit(1);
+  if (!row) return null;
+
+  let actualMinutes: number | null = null;
+  if (outcome === "partial") {
+    if (partialMinutes === undefined || !Number.isFinite(partialMinutes) || partialMinutes <= 0) {
+      return null;
+    }
+    actualMinutes = Math.round(partialMinutes);
+  } else if (outcome === "skipped") {
+    actualMinutes = 0;
+  } else if (outcome === "done") {
+    const sessions = await getTaskSessions(row.taskId, userId);
+    const [task] = await db
+      .select({ estimatedMinutes: tasks.estimatedMinutes })
+      .from(tasks)
+      .where(and(eq(tasks.id, row.taskId), eq(tasks.userId, userId)))
+      .limit(1);
+    const asIfOpen = sessions.map((s) =>
+      s.id === sessionId ? { ...s, status: null, actualMinutes: null } : s
+    );
+    actualMinutes =
+      resolveSessionMinutes(task?.estimatedMinutes ?? null, asIfOpen).get(sessionId) ??
+      DEFAULT_PLAN_BLOCK_MINUTES;
+  }
+
+  await db
+    .update(taskSessions)
+    .set({ status: outcome, actualMinutes })
+    .where(and(eq(taskSessions.id, sessionId), eq(taskSessions.userId, userId)));
+
+  return { taskId: row.taskId, status: outcome, actualMinutes };
+}
+
+/**
+ * Minutes of work already logged against each task, from sitting outcomes.
+ * Crisis math subtracts this so a half-done task isn't counted at full size.
+ */
+export async function getLoggedMinutesForTasks(
+  taskIds: string[],
+  userId: string
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (taskIds.length === 0) return out;
+  const rows = await db
+    .select({
+      taskId: taskSessions.taskId,
+      logged: sql<number>`coalesce(sum(${taskSessions.actualMinutes}), 0)::int`,
+    })
+    .from(taskSessions)
+    .where(
+      and(
+        eq(taskSessions.userId, userId),
+        inArray(taskSessions.taskId, taskIds),
+        isNotNull(taskSessions.status)
+      )
+    )
+    .groupBy(taskSessions.taskId);
+  for (const r of rows) out.set(r.taskId, Number(r.logged));
+  return out;
 }
 
 /** Drop every session on a task — "unschedule this". */
@@ -475,6 +601,7 @@ async function selectSessionRows(userId: string, start: Date, end: Date) {
     .select({
       sessionId: taskSessions.id,
       sessionMinutes: taskSessions.minutes,
+      sessionStatus: taskSessions.status,
       scheduledFor: taskSessions.startsAt,
       id: tasks.id,
       title: tasks.title,
@@ -567,6 +694,7 @@ async function selectOrphanScheduledTasks(
     scheduledFor: r.scheduledFor as Date,
     sessionId: `legacy-${r.id}`,
     sessionMinutes: null as number | null,
+    sessionStatus: null as string | null,
   }));
 }
 

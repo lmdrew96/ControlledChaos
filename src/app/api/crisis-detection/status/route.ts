@@ -9,6 +9,7 @@ import {
   getUserSettings,
   getUser,
   getRecentMoments,
+  getLoggedMinutesForTasks,
 } from "@/lib/db/queries";
 import { detectCrisis } from "@/lib/crisis-detection";
 import type { CrisisDetectionStatus, MomentType } from "@/types";
@@ -60,9 +61,11 @@ export async function GET() {
 
     if (tasksWithDeadlines.length > 0) {
       // Fetch calendar events for the detection window + recent Moments for augmentation
-      const [calendarRows, recentMomentRows] = await Promise.all([
+      const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
         getCalendarEventsByDateRange(userId, now, windowEnd),
         getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
+        // Same as the cron: logged sitting work comes off the estimate.
+        getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),
       ]);
 
       result = detectCrisis({
@@ -70,7 +73,7 @@ export async function GET() {
           id: t.id,
           title: t.title,
           deadline: new Date(t.deadline!),
-          estimatedMinutes: t.estimatedMinutes ?? 0,
+          estimatedMinutes: Math.max(0, (t.estimatedMinutes ?? 0) - (loggedMinutes.get(t.id) ?? 0)),
           status: t.status,
         })),
         calendarEvents: calendarRows.map((e) => ({

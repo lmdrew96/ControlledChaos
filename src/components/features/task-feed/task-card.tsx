@@ -16,6 +16,7 @@ import {
   PauseCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SessionOutcomePicker } from "@/components/features/task-feed/session-outcome-picker";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import {
   formatForDisplay,
@@ -363,6 +364,14 @@ export function TaskCard({
     toDateKeyInTimezone(new Date(passedSession), timezone) ===
       toDateKeyInTimezone(new Date(), timezone);
 
+  // Only for a sitting that ended TODAY, never a backlog of old ones: the
+  // prompt is a moment's convenience, and unanswered is fine.
+  const canLogPassedSitting =
+    !isCompleted &&
+    passedToday &&
+    Boolean(task.passedSessionId) &&
+    !task.passedSessionStatus;
+
   if (nextSession) {
     const next = formatForDisplay(new Date(nextSession), timezone, DISPLAY_DATETIME);
     temporalChips.push({
@@ -608,6 +617,22 @@ export function TaskCard({
                       <span className="truncate">{label}</span>
                     </span>
                   ))}
+                </div>
+              )}
+
+              {canLogPassedSitting && (
+                <div className="basis-full space-y-1.5 pt-1">
+                  <p className="text-xs text-muted-foreground">
+                    How did the{" "}
+                    {formatForDisplay(new Date(task.passedSessionAt!), timezone, DISPLAY_TIME)}{" "}
+                    sitting go?
+                  </p>
+                  <SessionOutcomePicker
+                    taskId={task.id}
+                    sessionId={task.passedSessionId!}
+                    plannedMinutes={task.passedSessionMinutes}
+                    onLogged={onUpdate}
+                  />
                 </div>
               )}
 

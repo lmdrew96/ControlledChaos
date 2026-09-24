@@ -25,6 +25,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Loader2, Check, Trash2, Undo2, Layers, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { SessionOutcomePicker } from "@/components/features/task-feed/session-outcome-picker";
+import type { SessionOutcome } from "@/lib/calendar/session-minutes";
 import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
@@ -44,6 +46,9 @@ interface TaskSessionView {
   minutes: number | null;
   /** What the sitting actually runs, with the share worked out. */
   resolvedMinutes?: number | null;
+  /** How it went, once logged. */
+  status?: SessionOutcome | null;
+  actualMinutes?: number | null;
 }
 
 /**
@@ -728,13 +733,18 @@ export function TaskDetailModal({
                     // holds a draft, and remounting is how it picks up a time
                     // that changed under it (a move, a calendar drag, a failed
                     // write snapping back).
-                    key={`${session.id}:${session.startsAt}:${session.minutes ?? "auto"}:${session.resolvedMinutes ?? ""}`}
+                    key={`${session.id}:${session.startsAt}:${session.minutes ?? "auto"}:${session.resolvedMinutes ?? ""}:${session.status ?? ""}`}
                     index={i}
                     session={session}
                     timezone={timezone}
                     isBusy={busySessionId === session.id}
                     onMove={(value) => handleMoveSession(session.id, value)}
                     onSetLength={(minutes) => handleSetSessionLength(session, minutes)}
+                    taskId={task.id}
+                    onOutcomeChanged={() => {
+                      void loadSessions(task.id);
+                      onUpdate?.();
+                    }}
                     onRemove={() => handleRemoveSession(session.id)}
                   />
                 ))}
@@ -930,6 +940,8 @@ interface SittingRowProps {
   isBusy: boolean;
   onMove: (localValue: string) => void;
   onSetLength: (minutes: number | null) => void;
+  taskId: string;
+  onOutcomeChanged: () => void;
   onRemove: () => void;
 }
 
@@ -949,6 +961,8 @@ function SittingRow({
   onMove,
   onSetLength,
   onRemove,
+  taskId,
+  onOutcomeChanged,
 }: SittingRowProps) {
   const serverValue = toDatetimeLocal(session.startsAt, timezone);
   // Seeded once per mount. The caller keys this row on the stored time, so a
@@ -960,6 +974,22 @@ function SittingRow({
     session.minutes != null ? String(session.minutes) : ""
   );
   const isLegacy = session.id === LEGACY_SESSION_ID;
+  const hasEnded =
+    new Date(session.startsAt).getTime() + (session.resolvedMinutes ?? 30) * 60_000 <= Date.now();
+
+  async function clearOutcome() {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/sessions/${session.id}/outcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: null }),
+      });
+      if (!res.ok) throw new Error();
+      onOutcomeChanged();
+    } catch {
+      toast.error("Couldn't change that sitting");
+    }
+  }
 
   const label = formatSessionLabel(session.startsAt, timezone);
 
@@ -982,7 +1012,8 @@ function SittingRow({
   }
 
   return (
-    <li className="flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-1.5">
+    <li className="space-y-1.5 rounded-md bg-muted/50 px-2.5 py-1.5">
+      <div className="flex items-center gap-2">
       <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
         {index + 1}.
       </span>
@@ -1040,6 +1071,34 @@ function SittingRow({
           <Trash2 className="h-3.5 w-3.5" />
         )}
       </Button>
+      </div>
+      {!isLegacy && hasEnded && (
+        session.status ? (
+          <p className="flex items-center gap-2 pl-6 text-xs text-muted-foreground">
+            {session.status === "done"
+              ? `Done · ${session.actualMinutes ?? 0} min`
+              : session.status === "partial"
+                ? `Partly · ${session.actualMinutes ?? 0} min`
+                : "Skipped"}
+            <button
+              type="button"
+              onClick={() => void clearOutcome()}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              change
+            </button>
+          </p>
+        ) : (
+          <div className="pl-6">
+            <SessionOutcomePicker
+              taskId={taskId}
+              sessionId={session.id}
+              plannedMinutes={session.resolvedMinutes}
+              onLogged={onOutcomeChanged}
+            />
+          </div>
+        )
+      )}
     </li>
   );
 }
