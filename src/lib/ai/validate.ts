@@ -25,23 +25,35 @@ export function validateISODate(value: string | undefined): string | undefined {
 }
 
 /**
- * Enforce a word limit on AI-generated text.
- * Truncates at the last sentence boundary within the limit.
+ * Enforce a word limit on AI-generated text without ever ending mid-sentence.
+ *
+ * Cuts at the last sentence boundary within the limit when that keeps at
+ * least half of it. Otherwise it finishes the sentence the limit fell inside,
+ * running a little long. This used to chop at the limit and append "...",
+ * so a push stored and shown in the notification menu read "we need to
+ * get..." with no way to see the rest. The model's max_tokens already bounds
+ * how long "a little long" can be.
  */
 export function enforceWordLimit(text: string, maxWords: number): string {
   const words = text.split(/\s+/);
   if (words.length <= maxWords) return text;
 
-  const truncated = words.slice(0, maxWords).join(" ");
-  // Try to cut at the last sentence boundary
-  const lastPeriod = truncated.lastIndexOf(".");
-  const lastExclamation = truncated.lastIndexOf("!");
-  const lastBoundary = Math.max(lastPeriod, lastExclamation);
-
+  // The first maxWords words exactly as written, so offsets line up with
+  // `text` even when the model used newlines or double spaces.
+  const truncated = text.match(new RegExp(`^\\s*(?:\\S+\\s+){${maxWords - 1}}\\S+`))?.[0] ?? text;
+  const lastBoundary = Math.max(
+    truncated.lastIndexOf("."),
+    truncated.lastIndexOf("!"),
+    truncated.lastIndexOf("?")
+  );
   if (lastBoundary > truncated.length * 0.5) {
     return truncated.slice(0, lastBoundary + 1);
   }
-  return truncated + "...";
+
+  // Finish the sentence in progress rather than cut it.
+  const rest = text.slice(truncated.length);
+  const nextEnd = rest.search(/[.!?]/);
+  return nextEnd === -1 ? text : text.slice(0, truncated.length + nextEnd + 1);
 }
 
 /**

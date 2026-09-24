@@ -4,6 +4,62 @@
     "items": [
       {
         "type": "added",
+        "text": "Stop storing pushes that end in \"...\""
+      },
+      {
+        "type": "added",
+        "text": "Drop Convex and Vercel-era leftovers"
+      },
+      {
+        "type": "added",
+        "text": "Build the Anthropic, R2 and web-push clients on first use"
+      },
+      {
+        "type": "added",
+        "text": "Make /api/notifications/vapid-key public so the service worker can reach it"
+      },
+      {
+        "type": "added",
+        "text": "Ride Canvas quizzes on their class tile as a badge"
+      },
+      {
+        "type": "added",
+        "text": "Badge a single occurrence of a recurring event"
+      },
+      {
+        "type": "added",
+        "text": "Cascade overlapping calendar tiles, keep back-to-back ones full width"
+      },
+      {
+        "type": "added",
+        "text": "Log how a sitting went (done / partly / skipped)"
+      },
+      {
+        "type": "added",
+        "text": "Show a task's next sitting, not its earliest"
+      },
+      {
+        "type": "added",
+        "text": "Split a task's estimate across its sittings"
+      },
+      {
+        "type": "added",
+        "text": "Split the daily push cap into user and app lanes"
+      },
+      {
+        "type": "added",
+        "text": "Fold the overnight push backlog into one wake-up summary"
+      },
+      {
+        "type": "added",
+        "text": "Label every time in push prompts with its distance from now"
+      },
+      {
+        "type": "added",
+        "text": "Drop the false \"skips departure nudges\" claim from gentle mode"
+      },
+      {
+        "type": "added",
         "text": "Remind for events at saved locations, keep soft targets off the daily cap"
       },
       {
