@@ -365,6 +365,8 @@ export interface CalendarEvent {
   category: EventCategory | null;
   isAllDay: boolean;
   seriesId: string | null;
+  /** Occurrence-only label rendered on the tile, e.g. "📝 Quiz". */
+  badge?: string | null;
   sourceDumpId: string | null;
   syncedAt: string;
 }

@@ -251,6 +251,11 @@ export const calendarEvents = pgTable(
     isAllDay: boolean("is_all_day").default(false),
     category: text("category"), // school, work, personal, errands, health
     seriesId: text("series_id"), // UUID linking recurring event instances
+    /**
+     * Short label shown ON the tile for this one occurrence ("📝 Quiz").
+     * Occurrence-only by design: series edits never write it.
+     */
+    badge: text("badge"),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
     syncedAt: timestamp("synced_at").defaultNow().notNull(),
   },

@@ -42,6 +42,8 @@ interface EditEventDialogProps {
 interface FormState {
   title: string;
   description: string;
+  /** Occurrence-only tile label. Never part of a series edit. */
+  badge: string;
   location: string;
   date: string;
   startTime: string;
@@ -50,6 +52,9 @@ interface FormState {
   category: EventCategory;
   editMode: "single" | "series";
 }
+
+/** One-tap badges for the common reasons a single class meeting is different. */
+const BADGE_PRESETS = ["📝 Quiz", "📝 Exam", "📌 Due", "🚫 Cancelled"];
 
 function toDateInput(isoString: string, timezone: string): string {
   const local = toUserLocal(new Date(isoString), timezone);
@@ -77,6 +82,7 @@ export function EditEventDialog({
   const [form, setForm] = useState<FormState>({
     title: "",
     description: "",
+    badge: "",
     location: "",
     date: "",
     startTime: "09:00",
@@ -85,6 +91,9 @@ export function EditEventDialog({
     category: "personal",
     editMode: "single",
   });
+  // What the form held when it opened, so a series edit can send only the
+  // fields the user actually changed.
+  const [initialForm, setInitialForm] = useState<FormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
@@ -101,9 +110,10 @@ export function EditEventDialog({
   useEffect(() => {
     if (event) {
       const loc = event.location ?? "";
-      setForm({
+      const opened: FormState = {
         title: event.title.replace(/^\[CC\] /, ""),
         description: event.description ?? "",
+        badge: event.badge ?? "",
         location: loc,
         date: toDateInput(event.startTime, timezone),
         startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime, timezone),
@@ -111,7 +121,9 @@ export function EditEventDialog({
         isAllDay: event.isAllDay,
         category: (event.category as EventCategory) ?? "personal",
         editMode: "single",
-      });
+      };
+      setForm(opened);
+      setInitialForm(opened);
 
       if (!loc) {
         setLocationMode("none");
@@ -161,18 +173,54 @@ export function EditEventDialog({
 
       payload.isAllDay = form.isAllDay;
 
-      const url =
-        form.editMode === "series" && hasSeries
-          ? `/api/calendar/events/${event.id}/series`
-          : `/api/calendar/events/${event.id}`;
+      const isSeriesEdit = form.editMode === "series" && hasSeries;
+      const badgeChanged = form.badge.trim() !== (initialForm?.badge ?? "").trim();
 
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (isSeriesEdit) {
+        // Send only what changed. Sending every field rewrote each occurrence
+        // with this one's values, wiping per-occurrence descriptions and times.
+        const was = initialForm;
+        const timesChanged =
+          !was ||
+          form.date !== was.date ||
+          form.startTime !== was.startTime ||
+          form.endTime !== was.endTime ||
+          form.isAllDay !== was.isAllDay;
+        if (was && form.title.trim() === was.title.trim()) delete payload.title;
+        if (was && form.description === was.description) delete payload.description;
+        if (was && form.location === was.location) delete payload.location;
+        if (was && form.category === was.category) delete payload.category;
+        if (!timesChanged) {
+          delete payload.startTime;
+          delete payload.endTime;
+          delete payload.isAllDay;
+        }
+      } else if (badgeChanged) {
+        payload.badge = form.badge;
+      }
 
-      if (!res.ok) throw new Error("Failed to save");
+      const url = isSeriesEdit
+        ? `/api/calendar/events/${event.id}/series`
+        : `/api/calendar/events/${event.id}`;
+
+      if (Object.keys(payload).length > 0) {
+        const res = await fetch(url, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Failed to save");
+      }
+
+      // The badge is always this occurrence's alone, even during a series edit.
+      if (isSeriesEdit && badgeChanged) {
+        const res = await fetch(`/api/calendar/events/${event.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ badge: form.badge }),
+        });
+        if (!res.ok) throw new Error("Failed to save");
+      }
 
       toast.success(
         form.editMode === "series" ? "All events in series updated" : "Event updated"
@@ -258,6 +306,36 @@ export function EditEventDialog({
               placeholder="Add details..."
               className="min-h-[72px] resize-none"
             />
+          </div>
+
+          {/* Badge — this occurrence only */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-badge">Badge on this day&apos;s tile</Label>
+            <Input
+              id="edit-badge"
+              value={form.badge}
+              maxLength={24}
+              onChange={(e) => updateField("badge", e.target.value)}
+              placeholder="e.g. 📝 Quiz"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {BADGE_PRESETS.map((preset) => (
+                <Button
+                  key={preset}
+                  type="button"
+                  size="sm"
+                  variant={form.badge === preset ? "secondary" : "outline"}
+                  onClick={() => updateField("badge", form.badge === preset ? "" : preset)}
+                >
+                  {preset}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {hasSeries
+                ? "Only this occurrence. Editing the series never changes it."
+                : "Shows on the calendar tile, even when it's narrow."}
+            </p>
           </div>
 
           {/* Location */}

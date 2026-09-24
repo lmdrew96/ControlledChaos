@@ -227,7 +227,10 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
                               categoryDotColor(event.category as EventCategory, calendarColors)
                             )}
                           />
-                          <span className="truncate">{event.title.replace(/^\[CC\] /, "")}</span>
+                          <span className="truncate">
+                            {event.badge && <span className="font-semibold">{event.badge} </span>}
+                            {event.title.replace(/^\[CC\] /, "")}
+                          </span>
                         </span>
                       ))}
                       {/* Plan chips — dashed and unfilled, so planned time is

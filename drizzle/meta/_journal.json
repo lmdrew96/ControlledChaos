@@ -127,6 +127,13 @@
       "when": 1790291645237,
       "tag": "0017_session_outcomes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790292138657,
+      "tag": "0018_event_badge",
+      "breakpoints": true
     }
   ]
 }

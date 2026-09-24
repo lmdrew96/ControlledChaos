@@ -543,6 +543,11 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                               <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
                                 <TooltipTrigger asChild>
                                   <span className="flex-1 truncate text-sm font-medium">
+                                    {item.event.badge && (
+                                      <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+                                        {item.event.badge}
+                                      </span>
+                                    )}
                                     {item.event.title}
                                   </span>
                                 </TooltipTrigger>

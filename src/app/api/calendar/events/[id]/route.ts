@@ -6,6 +6,9 @@ import {
   updateTask,
 } from "@/lib/db/queries";
 
+/** Long enough for "📝 Quiz today", short enough to fit on a narrow tile. */
+const MAX_BADGE_LENGTH = 24;
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -68,6 +71,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (body.startTime !== undefined) data.startTime = new Date(body.startTime);
     if (body.endTime !== undefined) data.endTime = new Date(body.endTime);
     if (body.isAllDay !== undefined) data.isAllDay = body.isAllDay;
+    if (body.badge !== undefined) {
+      // A tile label, not a note: short, and empty means none.
+      const badge = typeof body.badge === "string" ? body.badge.trim().slice(0, MAX_BADGE_LENGTH) : "";
+      data.badge = badge.length > 0 ? badge : null;
+    }
     if (body.category !== undefined) {
       const valid = new Set(["school", "work", "personal", "errands", "health"]);
       data.category = valid.has(body.category) ? body.category : null;

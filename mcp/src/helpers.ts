@@ -117,6 +117,7 @@ export function formatEvent(event: Record<string, unknown>, tz?: string): string
     `Start: ${fmtLocal(event.start_time, tz)}`,
     `End: ${fmtLocal(event.end_time, tz)}`,
   ];
+  if (event.badge) parts.push(`Badge (this occurrence): ${event.badge}`);
   if (event.description) parts.push(`Description: ${event.description}`);
   if (event.location) parts.push(`Location: ${event.location}`);
   if (event.category) parts.push(`Category: ${event.category}`);

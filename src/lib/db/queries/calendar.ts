@@ -201,6 +201,7 @@ export async function updateCalendarEvent(
     endTime: Date;
     location: string | null;
     category: string | null;
+    badge: string | null;
   }>
 ) {
   const [updated] = await db

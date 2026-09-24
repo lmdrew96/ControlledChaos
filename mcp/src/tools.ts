@@ -1058,6 +1058,9 @@ Returns: Confirmation of deletion.`,
 Args:
   - event_id (required): UUID of the event to update.
   - title, description, start_time, end_time, location, category, is_all_day: Fields to update.
+  - badge: Short label shown ON this occurrence's calendar tile, e.g. "📝 Quiz" (max 24 chars; "" clears it).
+    Always applies to THIS event only, even with scope "all" — use it to mark one class meeting ("quiz today")
+    without touching the rest of the series.
   - scope: "this" (default) updates only this event. "all" updates every event in its series (if it belongs to one) —
     title/description/location/is_all_day are applied to every instance; start_time/end_time only change the time-of-day,
     each instance keeps its own date.
@@ -1074,6 +1077,7 @@ Returns: The updated event, or a summary if scope is "all".`,
         location: z.string().max(500).optional().describe("New location"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
         is_all_day: z.boolean().optional().describe("All-day event?"),
+        badge: z.string().max(24).optional().describe('Occurrence-only tile label like "📝 Quiz". "" clears it. Never applied to the whole series.'),
         scope: z.enum(["this", "all"]).default("this").describe("Update just this event, or every instance in its series"),
       },
       annotations: {
@@ -1095,6 +1099,17 @@ Returns: The updated event, or a summary if scope is "all".`,
         return { content: [{ type: "text" as const, text: `Event \`${params.event_id}\` not found, or it's a synced event (only ControlledChaos-created events can be updated).` }] };
       }
       const seriesId = existingRows[0].series_id as string | null;
+      const badge =
+        params.badge === undefined ? undefined : params.badge.trim() === "" ? null : params.badge.trim();
+
+      // The badge belongs to this occurrence alone, so a series-wide edit
+      // writes it here, separately, and never to the other instances.
+      if (params.scope === "all" && seriesId && badge !== undefined) {
+        await sql(
+          `UPDATE calendar_events SET badge = $1, synced_at = NOW() WHERE id = $2 AND user_id = $3 AND source = 'controlledchaos'`,
+          [badge, params.event_id, userId]
+        );
+      }
 
       if (params.scope !== "all" || !seriesId) {
         const setClauses: string[] = ["synced_at = NOW()"];
@@ -1109,6 +1124,7 @@ Returns: The updated event, or a summary if scope is "all".`,
           ["location", params.location],
           ["category", params.category],
           ["is_all_day", params.is_all_day],
+          ["badge", badge],
         ];
 
         for (const [col, val] of fields) {

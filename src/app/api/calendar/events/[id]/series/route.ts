@@ -13,7 +13,15 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-/** PATCH /api/calendar/events/[id]/series — update title/description/location for all events in a series */
+/**
+ * PATCH /api/calendar/events/[id]/series — update title/description/location
+ * for all events in a series.
+ *
+ * Only the fields present in the body are written, and `badge` is never
+ * accepted here: it belongs to one occurrence. The edit dialog sends only
+ * what the user changed, so renaming a series doesn't overwrite one class
+ * meeting's "Quiz today" note.
+ */
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const { userId } = await auth();

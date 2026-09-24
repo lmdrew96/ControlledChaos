@@ -1046,6 +1046,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                       return dayEvents.map((event) => {
                         const pos = eventPosition(event, startHour, timezone);
                         const tile = overlapLayout.get(event.id) ?? FULL_TILE;
+                        // Rendered on the tile itself: a narrow tile hides
+                        // everything else, and the badge is the point.
+                        const tileBadges = event.badge ? [event.badge] : [];
 
                         const isCC = event.source === "controlledchaos";
                         const isBeingDragged =
@@ -1085,6 +1088,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                           >
                             {tile.compact ? (
                               <p className="truncate text-[11px] font-semibold leading-tight">
+                                {tileBadges.length > 0 && <>{tileBadges.join(" ")} </>}
                                 {shortTileTitle(event.title)} ·{" "}
                                 <span className="font-normal opacity-70">
                                   {formatTimeTz(new Date(event.startTime), timezone)}
@@ -1092,6 +1096,18 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               </p>
                             ) : (
                             <>
+                            {tileBadges.length > 0 && (
+                              <p className="mb-0.5 truncate">
+                                {tileBadges.map((b) => (
+                                  <span
+                                    key={b}
+                                    className="mr-1 inline-block rounded bg-background/70 px-1 text-[10px] font-semibold leading-tight"
+                                  >
+                                    {b}
+                                  </span>
+                                ))}
+                              </p>
+                            )}
                             <p
                               className="text-[11px] font-semibold leading-tight"
                               style={{
