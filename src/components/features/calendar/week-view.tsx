@@ -43,6 +43,11 @@ import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
+import {
+  layoutOverlappingTiles,
+  shortTileTitle,
+  type TileLayout,
+} from "@/lib/calendar/overlap-layout";
 import type {
   CalendarEvent,
   CalendarSource,
@@ -168,83 +173,8 @@ function eventPosition(
   return { top, height: Math.max(height, ROW_HEIGHT / 2) };
 }
 
-/**
- * Calculate horizontal layout for overlapping events in a day column.
- * Returns a map of event ID → { column, totalColumns } so events
- * sit side by side instead of stacking on top of each other.
- */
-/** Minimum shape this layout needs — works for events and plan blocks alike. */
-interface Spannable {
-  id: string;
-  startTime: string;
-  endTime: string;
-}
-
-function layoutOverlappingEvents(
-  events: Spannable[]
-): Map<string, { column: number; totalColumns: number }> {
-  const layout = new Map<string, { column: number; totalColumns: number }>();
-  if (events.length === 0) return layout;
-
-  // Sort by start time, then by end time (longer events first)
-  const sorted = [...events].sort((a, b) => {
-    const diff =
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-    if (diff !== 0) return diff;
-    return new Date(b.endTime).getTime() - new Date(a.endTime).getTime();
-  });
-
-  // Group into overlap clusters
-  const clusters: Spannable[][] = [];
-  let currentCluster: Spannable[] = [sorted[0]];
-  let clusterEnd = new Date(sorted[0].endTime).getTime();
-
-  for (let i = 1; i < sorted.length; i++) {
-    const eventStart = new Date(sorted[i].startTime).getTime();
-    if (eventStart <= clusterEnd) {
-      // Overlaps with current cluster (<=  handles zero-duration events at same time)
-      currentCluster.push(sorted[i]);
-      clusterEnd = Math.max(clusterEnd, new Date(sorted[i].endTime).getTime());
-    } else {
-      clusters.push(currentCluster);
-      currentCluster = [sorted[i]];
-      clusterEnd = new Date(sorted[i].endTime).getTime();
-    }
-  }
-  clusters.push(currentCluster);
-
-  // Assign columns within each cluster
-  for (const cluster of clusters) {
-    const columns: { end: number }[] = [];
-
-    for (const event of cluster) {
-      const start = new Date(event.startTime).getTime();
-
-      // Find the first column where this event fits (no overlap)
-      // Use strict < so zero-duration events at the same time get separate columns
-      let col = columns.findIndex((c) => c.end < start);
-      if (col === -1) {
-        col = columns.length;
-        columns.push({ end: 0 });
-      }
-      // Ensure zero-duration events occupy at least 1ms so subsequent events
-      // at the same time don't reuse the same column
-      const end = new Date(event.endTime).getTime();
-      columns[col].end = Math.max(end, start + 1);
-
-      layout.set(event.id, { column: col, totalColumns: 0 });
-    }
-
-    // Set totalColumns for all events in this cluster
-    const totalCols = columns.length;
-    for (const event of cluster) {
-      const entry = layout.get(event.id)!;
-      entry.totalColumns = totalCols;
-    }
-  }
-
-  return layout;
-}
+/** Layout for a tile that overlaps nothing. */
+const FULL_TILE: TileLayout = { leftPct: 0, widthPct: 100, z: 0, compact: false };
 
 /** Either kind of thing the grid lets you drag while Rearrange is on. */
 type DragTarget =
@@ -1021,15 +951,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                       // Keyed by SESSION: a task planned for two sittings the
                       // same day is two blocks, and keying by task id would
                       // collapse them into one layout slot.
-                      const planLayout = layoutOverlappingEvents(
+                      const planLayout = layoutOverlappingTiles(
                         dayPlan.map((b) => ({ ...b, id: b.sessionId }))
                       );
                       return dayPlan.map((block) => {
                         const pos = eventPosition(block, startHour, timezone);
-                        const overlap = planLayout.get(block.sessionId);
-                        const planCols = overlap?.totalColumns ?? 1;
-                        const planWidth = 100 / planCols;
-                        const planLeft = (overlap?.column ?? 0) * planWidth;
+                        const tile = planLayout.get(block.sessionId) ?? FULL_TILE;
                         return (
                           <Tooltip key={block.sessionId} delayDuration={TOOLTIP_DELAY_MS}>
                             <TooltipTrigger asChild>
@@ -1045,7 +972,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                     : undefined
                                 }
                                 className={cn(
-                                  "absolute z-[5] overflow-hidden rounded-md",
+                                  // z comes from the cascade (inline); hover or
+                                  // focus lifts a buried block to the front.
+                                  "absolute overflow-hidden rounded-md hover:z-30! focus-visible:z-30!",
                                   "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
                                   "px-1.5 py-1 text-left outline-none",
                                   "focus-visible:ring-2 focus-visible:ring-primary/60",
@@ -1061,21 +990,31 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                 style={{
                                   top: pos.top,
                                   height: pos.height,
-                                  left: `calc(${planLeft}% + 2px)`,
-                                  width: `calc(${planWidth}% - 4px)`,
+                                  left: `calc(${tile.leftPct}% + 2px)`,
+                                  width: `calc(${tile.widthPct}% - 4px)`,
+                                  // Plans stay under real events (z 10+), however
+                                  // deep the cascade goes.
+                                  zIndex: 5 + Math.min(tile.z, 4),
                                 }}
                               >
-                                <p
-                                  className="text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender"
-                                  style={{
-                                    display: "-webkit-box",
-                                    WebkitBoxOrient: "vertical",
-                                    WebkitLineClamp: titleLineClamp(pos.height),
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {block.title}
-                                </p>
+                                {tile.compact ? (
+                                  <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
+                                    {shortTileTitle(block.title)} ·{" "}
+                                    {formatTimeTz(new Date(block.startTime), timezone)}
+                                  </p>
+                                ) : (
+                                  <p
+                                    className="text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender"
+                                    style={{
+                                      display: "-webkit-box",
+                                      WebkitBoxOrient: "vertical",
+                                      WebkitLineClamp: titleLineClamp(pos.height),
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    {block.title}
+                                  </p>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="max-w-xs">
@@ -1103,16 +1042,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
                     {/* Event blocks */}
                     {(() => {
-                      const overlapLayout = layoutOverlappingEvents(dayEvents);
+                      const overlapLayout = layoutOverlappingTiles(dayEvents);
                       return dayEvents.map((event) => {
                         const pos = eventPosition(event, startHour, timezone);
-                        const overlap = overlapLayout.get(event.id);
-                        const col = overlap?.column ?? 0;
-                        const totalCols = overlap?.totalColumns ?? 1;
-
-                        // Calculate width and left offset for side-by-side layout
-                        const widthPercent = 100 / totalCols;
-                        const leftPercent = col * widthPercent;
+                        const tile = overlapLayout.get(event.id) ?? FULL_TILE;
 
                         const isCC = event.source === "controlledchaos";
                         const isBeingDragged =
@@ -1131,7 +1064,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                 : undefined
                             }
                             className={cn(
-                              "calendar-event-card absolute z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition-all",
+                              "calendar-event-card absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition-all",
+                              // A cascaded tile can hide part of the one under
+                              // it; hover or focus brings any tile to the front.
+                              "hover:z-30! focus-visible:z-30!",
                               "hover:brightness-105 hover:shadow-md",
                               isCC &&
                                 isEditMode &&
@@ -1142,10 +1078,20 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             style={{
                               top: pos.top,
                               height: pos.height,
-                              left: `calc(${leftPercent}% + 2px)`,
-                              width: `calc(${widthPercent}% - 4px)`,
+                              left: `calc(${tile.leftPct}% + 2px)`,
+                              width: `calc(${tile.widthPct}% - 4px)`,
+                              zIndex: 10 + tile.z,
                             }}
                           >
+                            {tile.compact ? (
+                              <p className="truncate text-[11px] font-semibold leading-tight">
+                                {shortTileTitle(event.title)} ·{" "}
+                                <span className="font-normal opacity-70">
+                                  {formatTimeTz(new Date(event.startTime), timezone)}
+                                </span>
+                              </p>
+                            ) : (
+                            <>
                             <p
                               className="text-[11px] font-semibold leading-tight"
                               style={{
@@ -1162,6 +1108,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               <p className="mt-0.5 truncate text-[10px] opacity-60">
                                 {formatTimeTz(new Date(event.startTime), timezone)}
                               </p>
+                            )}
+                            </>
                             )}
                           </button>
                             </TooltipTrigger>
