@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSessionMinutes } from "@/lib/calendar/session-minutes";
+import { resolveSessionMinutes, sessionMarkers } from "@/lib/calendar/session-minutes";
 
 const s = (id: string, minutes: number | null = null, extra = {}) => ({ id, minutes, ...extra });
 
@@ -40,5 +40,33 @@ describe("resolveSessionMinutes", () => {
     expect(r.get("a")).toBe(30);
     expect(r.get("c")).toBe(45);
     expect(r.get("d")).toBe(45);
+  });
+});
+
+describe("sessionMarkers", () => {
+  const at = (h: number, m = 0) => new Date(Date.UTC(2026, 8, 24, h + 4, m)); // EDT
+
+  it("at 4:08 PM, a 9:45 AM + 9:00 PM plan shows 9:00 PM next, 9:45 AM passed", () => {
+    const r = sessionMarkers(
+      [
+        { startsAt: at(21), minutes: 30 },
+        { startsAt: at(9, 45), minutes: 30 },
+      ],
+      at(16, 8)
+    );
+    expect(r.nextAt).toEqual(at(21));
+    expect(r.passedAt).toEqual(at(9, 45));
+  });
+
+  it("a sitting that's underway is still the next one", () => {
+    const r = sessionMarkers([{ startsAt: at(16), minutes: 60 }], at(16, 30));
+    expect(r.nextAt).toEqual(at(16));
+    expect(r.passedAt).toBeNull();
+  });
+
+  it("with every sitting ended, only passedAt is set", () => {
+    const r = sessionMarkers([{ startsAt: at(9), minutes: 30 }], at(12));
+    expect(r.nextAt).toBeNull();
+    expect(r.passedAt).toEqual(at(9));
   });
 });

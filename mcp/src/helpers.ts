@@ -79,7 +79,17 @@ export function formatTask(task: Record<string, unknown>, tz?: string): string {
   if (task.target_date) {
     parts.push(`Target (SOFT — self-imposed, never "due"): ${fmtLocal(task.target_date, tz)}`);
   }
-  if (task.scheduled_for) {
+  // scheduled_for is the EARLIEST sitting. For a task planned across several,
+  // that's the wrong one to report once it has passed, so list queries that
+  // select next_session_at / session_count get the upcoming one instead.
+  const sittings = Number(task.session_count ?? 0);
+  if (sittings > 1) {
+    parts.push(
+      task.next_session_at
+        ? `Planned sittings (not due dates): ${sittings}, next starts ${fmtLocal(task.next_session_at, tz)}`
+        : `Planned sittings (not due dates): ${sittings}, all already started or passed`
+    );
+  } else if (task.scheduled_for) {
     parts.push(`Planned start (not a due date): ${fmtLocal(task.scheduled_for, tz)}`);
   }
   if (task.location_tags) {

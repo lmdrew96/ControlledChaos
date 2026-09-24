@@ -68,3 +68,30 @@ export function resolveSessionMinutes(
 
   return resolved;
 }
+
+/** Block length used when a sitting resolves to null. Matches planBlockMinutes. */
+const DEFAULT_SITTING_MINUTES = 30;
+
+/**
+ * Which sitting a task card should talk about, derived from the clock at
+ * read time. A stored "next" goes stale the moment a sitting ends.
+ *
+ * - `nextAt`: the first sitting that hasn't ENDED yet (one underway counts).
+ * - `passedAt`: the most recent sitting that has ended.
+ */
+export function sessionMarkers(
+  sessions: Array<{ startsAt: Date; minutes: number | null }>,
+  now: Date = new Date()
+): { nextAt: Date | null; passedAt: Date | null } {
+  let nextAt: Date | null = null;
+  let passedAt: Date | null = null;
+  for (const s of [...sessions].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())) {
+    const endMs = s.startsAt.getTime() + (s.minutes ?? DEFAULT_SITTING_MINUTES) * 60_000;
+    if (endMs > now.getTime()) {
+      nextAt ??= s.startsAt;
+    } else {
+      passedAt = s.startsAt;
+    }
+  }
+  return { nextAt, passedAt };
+}

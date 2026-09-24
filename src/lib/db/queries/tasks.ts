@@ -4,6 +4,7 @@ import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, isNull, sql } fr
 import type { ParsedTask } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { deleteTaskScheduleEvents } from "./calendar";
+import { withNextSession } from "./sessions";
 
 // ============================================================
 // Tasks
@@ -137,11 +138,13 @@ export async function getTasksByUser(
     conditions.push(ne(tasks.status, "cancelled"));
   }
 
-  return db
+  const rows = await db
     .select()
     .from(tasks)
     .where(and(...conditions))
     .orderBy(asc(tasks.sortOrder), desc(tasks.createdAt));
+  // scheduledFor comes back as the NEXT sitting, not the stored earliest one.
+  return withNextSession(rows, userId);
 }
 
 /**
@@ -359,7 +362,7 @@ export async function getTasksCompletedToday(userId: string, timezone: string) {
 // ============================================================
 export async function getPendingTasks(userId: string) {
   const now = new Date();
-  return db
+  const rows = await db
     .select()
     .from(tasks)
     .where(
@@ -385,6 +388,9 @@ export async function getPendingTasks(userId: string) {
       asc(tasks.deadline),
       desc(tasks.createdAt)
     );
+  // Every AI surface (snapshot, recommender, digests) reads scheduledFor as
+  // "when is this planned next", so resolve it from the sessions here once.
+  return withNextSession(rows, userId, now);
 }
 
 

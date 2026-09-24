@@ -64,6 +64,15 @@ function todayInTz(tz: string): string {
 // ============================================================
 // Register all ControlledChaos tools on the given server
 // ============================================================
+/**
+ * Extra columns for task list queries: the next sitting that hasn't started
+ * and how many sittings there are. formatTask uses them so a multi-sitting
+ * task reports its upcoming block, not the earliest one (scheduled_for).
+ */
+const SESSION_SUMMARY_COLUMNS = `
+  (SELECT MIN(x.starts_at) FROM task_sessions x WHERE x.task_id = tasks.id AND x.starts_at > NOW()) AS next_session_at,
+  (SELECT COUNT(*)::int FROM task_sessions x WHERE x.task_id = tasks.id) AS session_count`;
+
 export function registerAllTools(server: McpServer): void {
 
   // ----------------------------------------------------------
@@ -128,7 +137,7 @@ Returns: Markdown-formatted list of tasks with IDs, status, priority, energy, de
         paramIdx++;
       }
 
-      const query = `SELECT * FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      const query = `SELECT tasks.*, ${SESSION_SUMMARY_COLUMNS} FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
       values.push(params.limit);
 
       const rows = await sql(query, values);
@@ -1370,7 +1379,7 @@ Returns: Markdown-formatted list of matching tasks.`,
         paramIdx++;
       }
 
-      const query = `SELECT * FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
+      const query = `SELECT tasks.*, ${SESSION_SUMMARY_COLUMNS} FROM tasks WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${paramIdx}`;
       values.push(params.limit);
 
       const rows = await sql(query, values);

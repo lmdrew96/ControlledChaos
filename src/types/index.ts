@@ -16,6 +16,10 @@ export interface Task {
   deadline: string | null;
   targetDate: string | null;
   scheduledFor: string | null;
+  /** Next sitting that hasn't ended, derived at read time (withNextSession). */
+  nextSessionAt?: string | null;
+  /** Most recent sitting that has already ended. */
+  passedSessionAt?: string | null;
   completedAt: string | null;
   sourceDumpId: string | null;
   sourceEventId: string | null;

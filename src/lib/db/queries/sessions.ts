@@ -14,7 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { PLANNED_ON_CALENDAR_STATUSES } from "./tasks";
-import { resolveSessionMinutes } from "@/lib/calendar/session-minutes";
+import { resolveSessionMinutes, sessionMarkers } from "@/lib/calendar/session-minutes";
 
 /**
  * Task work sessions — the planned blocks for a task.
@@ -146,6 +146,53 @@ export async function getSessionsForTasks(
     else byTask.set(row.taskId, [row]);
   }
   return byTask;
+}
+
+/**
+ * Attach the sitting each task should DISPLAY, derived from the clock now.
+ *
+ * `tasks.scheduled_for` mirrors the EARLIEST sitting and only changes when a
+ * session is written, so a task planned for 9:45 AM and 9:00 PM kept showing
+ * 9:45 AM all afternoon. Every read that surfaces "when is this planned" goes
+ * through here instead, and `scheduledFor` on the returned rows is replaced
+ * with: the next sitting that hasn't ended, else the most recent one, else
+ * whatever the mirror held (a plan written without a session row).
+ *
+ * `passedSessionAt` is the most recent sitting that has already ended, so a
+ * card can say "earlier 9:45 AM · next 9:00 PM".
+ */
+export async function withNextSession<
+  T extends { id: string; estimatedMinutes: number | null; scheduledFor: Date | null },
+>(
+  rows: T[],
+  userId: string,
+  now: Date = new Date()
+): Promise<Array<T & { nextSessionAt: Date | null; passedSessionAt: Date | null }>> {
+  const planned = rows.filter((r) => r.scheduledFor);
+  const byTask = await getSessionsForTasks(planned.map((r) => r.id), userId);
+
+  return rows.map((r) => {
+    const list = byTask.get(r.id);
+    if (!list || list.length === 0) {
+      const past = r.scheduledFor != null && r.scheduledFor < now;
+      return {
+        ...r,
+        nextSessionAt: past ? null : r.scheduledFor,
+        passedSessionAt: past ? r.scheduledFor : null,
+      };
+    }
+    const lengths = resolveSessionMinutes(r.estimatedMinutes, list);
+    const { nextAt, passedAt } = sessionMarkers(
+      list.map((s) => ({ startsAt: s.startsAt, minutes: lengths.get(s.id) ?? null })),
+      now
+    );
+    return {
+      ...r,
+      scheduledFor: nextAt ?? passedAt ?? r.scheduledFor,
+      nextSessionAt: nextAt,
+      passedSessionAt: passedAt,
+    };
+  });
 }
 
 /**

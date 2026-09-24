@@ -17,7 +17,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
-import { formatForDisplay, DISPLAY_DATETIME, DISPLAY_DATE } from "@/lib/timezone";
+import {
+  formatForDisplay,
+  toDateKeyInTimezone,
+  DISPLAY_DATETIME,
+  DISPLAY_DATE,
+  DISPLAY_TIME,
+} from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 import { taskBadgeColor, categoryLabel } from "@/lib/calendar/colors";
@@ -346,12 +352,35 @@ export function TaskCard({
     });
   }
 
-  if (task.scheduledFor) {
+  // The sitting to show is derived from the clock by the API: the stored
+  // scheduledFor is the EARLIEST sitting, which goes stale as soon as it ends.
+  // Callers that didn't get the derived fields fall back to it.
+  const nextSession =
+    task.nextSessionAt !== undefined ? task.nextSessionAt : task.scheduledFor;
+  const passedSession = task.passedSessionAt ?? null;
+  const passedToday =
+    passedSession !== null &&
+    toDateKeyInTimezone(new Date(passedSession), timezone) ===
+      toDateKeyInTimezone(new Date(), timezone);
+
+  if (nextSession) {
+    const next = formatForDisplay(new Date(nextSession), timezone, DISPLAY_DATETIME);
     temporalChips.push({
       key: "scheduled",
       Icon: CalendarClock,
-      label: formatForDisplay(new Date(task.scheduledFor), timezone, DISPLAY_DATETIME),
+      label: passedToday
+        ? `Earlier ${formatForDisplay(new Date(passedSession), timezone, DISPLAY_TIME)} · next ${next}`
+        : next,
       tone: "text-primary/80 font-medium",
+    });
+  } else if (passedSession) {
+    // Every sitting is behind us. Say so plainly, without dressing it up as
+    // a failure: it was a plan, and plans move.
+    temporalChips.push({
+      key: "scheduled",
+      Icon: CalendarClock,
+      label: `Was planned ${formatForDisplay(new Date(passedSession), timezone, DISPLAY_DATETIME)}`,
+      tone: "text-muted-foreground",
     });
   }
 
