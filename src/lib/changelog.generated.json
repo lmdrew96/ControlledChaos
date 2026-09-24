@@ -4,6 +4,10 @@
     "items": [
       {
         "type": "added",
+        "text": "Remind for events at saved locations, keep soft targets off the daily cap"
+      },
+      {
+        "type": "added",
         "text": "Set Clerk sign-in redirects in code so Sign in reaches the dashboard"
       },
       {

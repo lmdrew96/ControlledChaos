@@ -79,7 +79,7 @@ const ASSERTIVENESS_OPTIONS: Array<{
     value: "gentle",
     label: "Gentle",
     description:
-      "Up to 4 pushes/day. Skips departure nudges and missed-task follow-ups. Softer language.",
+      "Up to 4 pushes/day. Skips missed-task follow-ups. Softer language.",
   },
   {
     value: "balanced",
