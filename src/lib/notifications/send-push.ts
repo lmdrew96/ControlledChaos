@@ -34,6 +34,13 @@ interface PushPayload {
    * — not just the one whose key became the tag. Defaults to [tag].
    */
   dedupKeys?: string[];
+  /**
+   * "user" = something the user asked for (configured reminders, planned
+   * starts, check-in, snoozes). "app" = the app's own initiative (nudges,
+   * missed-session follow-ups, crisis). Only "app" counts toward the daily
+   * cap; see getAppPushesSentToday. Defaults to "user".
+   */
+  lane?: "user" | "app";
 }
 
 
@@ -121,6 +128,7 @@ export async function sendPushToUser(
       tag: payload.tag,
       dedupKey: payload.tag,
       dedupKeys: payload.dedupKeys ?? (payload.tag ? [payload.tag] : []),
+      lane: payload.lane ?? "user",
     });
   }
 

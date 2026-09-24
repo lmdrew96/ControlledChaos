@@ -173,7 +173,15 @@ export function getDailyPushCap(mode: NotificationAssertiveness): number {
   return NOTIFICATION_CAPS[mode];
 }
 
-export async function getPushNotificationsSentToday(userId: string, timezone = "America/New_York"): Promise<number> {
+/**
+ * Pushes in the APP lane sent today: the ones ControlledChaos decided to send
+ * on its own (inactivity nudges, missed-session follow-ups, crisis). Only
+ * these count toward the daily cap. Anything the user asked for (reminders
+ * they configured, planned starts, the check-in, snoozes) is USER-lane and
+ * never counts, so low-value nudges can't lock out a push the user wanted.
+ * The lane is written onto the notification row by sendPushToUser.
+ */
+export async function getAppPushesSentToday(userId: string, timezone = "America/New_York"): Promise<number> {
   const recent = await getRecentNotifications(userId, 100);
   const todayStart = startOfDayInTimezone(new Date(), timezone);
 
@@ -182,19 +190,16 @@ export async function getPushNotificationsSentToday(userId: string, timezone = "
       n.type === "push" &&
       n.sentAt &&
       new Date(n.sentAt) >= todayStart &&
-      !isSoftTargetTag((n.content as { tag?: string } | null)?.tag)
+      (n.content as { lane?: string } | null)?.lane === "app"
   ).length;
 }
 
-/**
- * Soft-target reminders ("you'd wanted X done by…") don't count toward the
- * daily cap. They're self-imposed dates, and they cluster in the early
- * morning, so counting them spent the budget before the day's real deadlines
- * and classes arrived. A push's tag is its primary alert's dedup key, and
- * target keys are `target-…`.
- */
-export const isSoftTargetTag = (tag: string | undefined): boolean =>
-  tag?.startsWith("target-") ?? false;
+/** Local hour each check-in window opens. Mirrors the shouldSend* gates below. */
+export const CHECK_IN_START_HOUR: Record<DailyCheckInTime, number> = {
+  morning: 11,
+  afternoon: 15,
+  evening: 19,
+};
 
 /**
  * Check for tasks with upcoming deadlines that need push reminders.

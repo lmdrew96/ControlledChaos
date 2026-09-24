@@ -33,6 +33,12 @@ interface CronContext {
   assertivenessMode: NotificationAssertiveness;
   getSnapshot: () => Promise<string | undefined>;
   getLocationName: () => Promise<string | undefined>;
+  /**
+   * Crisis pushes are app-initiated, so they're limited by the daily cap and
+   * tick budget like any other app-lane push. When this returns false the
+   * push is skipped and retried next tick (its dedup key stays unwritten).
+   */
+  canSendAppPush: () => boolean;
 }
 
 /**
@@ -126,7 +132,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   // A date the user set for themselves is theirs to move, and dressing that up
   // as an emergency is exactly how the app would start crying wolf.
   if (result?.severity === "drift") {
-    if (driftActive) {
+    if (driftActive || !ctx.canSendAppPush()) {
       return { detected: false, notificationSent: false };
     }
 
@@ -154,6 +160,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       tag: driftDedupKeyToday,
       userId,
       bypassQuietHours: false,
+    lane: "app",
     });
 
     console.log(
@@ -233,6 +240,16 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     requiredMinutes: result.requiredMinutes,
   });
 
+  // The first push for this detection may never have gone out: quiet hours
+  // or the daily cap held it back on the tick that created the detection,
+  // and every later tick lands here, not in the new-detection branch above.
+  // sendCrisisNotification dedups on its own key, so this is a no-op once sent.
+  if (tier === "nudge" || tier === "auto_triage") {
+    if (await sendCrisisNotification(existing.id, result, ctx)) {
+      return { detected: true, notificationSent: true };
+    }
+  }
+
   // Check if we should re-nudge (ratio worsened AND haven't re-nudged yet)
   if (
     newRatio > oldRatio &&
@@ -240,7 +257,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     (tier === "nudge" || tier === "auto_triage")
   ) {
     const dedupKey = `crisis-renudge-${existing.id}`;
-    if (!(await hasEverBeenNotified(userId, dedupKey))) {
+    if (ctx.canSendAppPush() && !(await hasEverBeenNotified(userId, dedupKey))) {
       const message = await generatePushMessage(
         {
           type: "crisis_worsened",
@@ -261,6 +278,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         tag: dedupKey,
         userId,
         bypassQuietHours: false,
+        lane: "app",
       });
 
       if (sent) {
@@ -287,7 +305,7 @@ async function sendCrisisNotification(
 ): Promise<boolean> {
   const dedupKey = `crisis-detect-${detectionId}`;
 
-  if (await hasEverBeenNotified(ctx.userId, dedupKey)) {
+  if (!ctx.canSendAppPush() || (await hasEverBeenNotified(ctx.userId, dedupKey))) {
     return false;
   }
 
@@ -312,6 +330,7 @@ async function sendCrisisNotification(
     tag: dedupKey,
     userId: ctx.userId,
     bypassQuietHours: false,
+    lane: "app",
   });
 }
 

@@ -79,19 +79,19 @@ const ASSERTIVENESS_OPTIONS: Array<{
     value: "gentle",
     label: "Gentle",
     description:
-      "Up to 4 pushes/day. Skips missed-task follow-ups. Softer language.",
+      "Your own reminders always come through, plus up to 4 app nudges a day. Skips missed-task follow-ups. Softer language.",
   },
   {
     value: "balanced",
     label: "Balanced",
     description:
-      "Up to 6 pushes/day. Departure nudges included. Neutral language.",
+      "Your own reminders always come through, plus up to 6 app nudges a day. Departure nudges included. Neutral language.",
   },
   {
     value: "assertive",
     label: "Assertive",
     description:
-      "Up to 8 pushes/day. Follow-ups when scheduled tasks slip past their start time. More direct language.",
+      "Your own reminders always come through, plus up to 8 app nudges a day. Follow-ups when scheduled tasks slip past their start time. More direct language.",
   },
 ];
 
@@ -608,7 +608,7 @@ export function NotificationSettings() {
         />
         <ReminderIntervalEditor
           label="Your own targets"
-          hint="Before a date you set for yourself. These stay gentle — nothing you set for yourself is treated like a deadline, and these never override quiet hours or your daily cap."
+          hint="Before a date you set for yourself. These stay gentle — nothing you set for yourself is treated like a deadline, and these never override quiet hours."
           intervals={prefs.targetReminderIntervals ?? []}
           onChange={(next) => update({ targetReminderIntervals: next })}
         />
