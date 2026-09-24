@@ -14,6 +14,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { PLANNED_ON_CALENDAR_STATUSES } from "./tasks";
+import { resolveSessionMinutes } from "@/lib/calendar/session-minutes";
 
 /**
  * Task work sessions — the planned blocks for a task.
@@ -32,7 +33,7 @@ export interface TaskSession {
   id: string;
   taskId: string;
   startsAt: Date;
-  /** NULL means "use the task's estimatedMinutes". */
+  /** Explicit length. NULL = an even share of the estimate (resolveSessionMinutes). */
   minutes: number | null;
 }
 
@@ -63,23 +64,59 @@ async function syncTaskScheduledFor(
   return next;
 }
 
+/** A session plus how long it actually runs once NULLs are resolved. */
+export interface TaskSessionWithLength extends TaskSession {
+  /** See resolveSessionMinutes. Null only when nothing gives it a length. */
+  resolvedMinutes: number | null;
+}
+
 /** Every session for one task, soonest first. */
 export async function getTaskSessions(
   taskId: string,
   userId: string
-): Promise<TaskSession[]> {
-  const rows = await db
-    .select({
-      id: taskSessions.id,
-      taskId: taskSessions.taskId,
-      startsAt: taskSessions.startsAt,
-      minutes: taskSessions.minutes,
-    })
-    .from(taskSessions)
-    .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)))
-    .orderBy(asc(taskSessions.startsAt));
+): Promise<TaskSessionWithLength[]> {
+  const [rows, [task]] = await Promise.all([
+    db
+      .select({
+        id: taskSessions.id,
+        taskId: taskSessions.taskId,
+        startsAt: taskSessions.startsAt,
+        minutes: taskSessions.minutes,
+      })
+      .from(taskSessions)
+      .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)))
+      .orderBy(asc(taskSessions.startsAt)),
+    db
+      .select({ estimatedMinutes: tasks.estimatedMinutes })
+      .from(tasks)
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+      .limit(1),
+  ]);
 
-  return rows;
+  const lengths = resolveSessionMinutes(task?.estimatedMinutes ?? null, rows);
+  return rows.map((r) => ({ ...r, resolvedMinutes: lengths.get(r.id) ?? null }));
+}
+
+/**
+ * Resolved length for every session of the given tasks, keyed by session id.
+ *
+ * Needs ALL of a task's sessions, not just the ones in the caller's window:
+ * a sitting's share depends on how many siblings it's split with.
+ */
+async function resolvedLengthsFor(
+  userId: string,
+  tasksInView: Array<{ taskId: string; estimatedMinutes: number | null }>
+): Promise<Map<string, number | null>> {
+  const estimates = new Map(tasksInView.map((t) => [t.taskId, t.estimatedMinutes]));
+  const byTask = await getSessionsForTasks([...estimates.keys()], userId);
+
+  const out = new Map<string, number | null>();
+  for (const [taskId, list] of byTask) {
+    for (const [id, m] of resolveSessionMinutes(estimates.get(taskId) ?? null, list)) {
+      out.set(id, m);
+    }
+  }
+  return out;
 }
 
 /** Sessions for several tasks at once, so a list view isn't N+1. */
@@ -359,7 +396,7 @@ export async function getScheduledSessionsInRange(
   start: Date,
   end: Date
 ) {
-  const [sessionRows, orphanRows] = await Promise.all([
+  const [rawSessionRows, orphanRows] = await Promise.all([
     selectSessionRows(userId, start, end),
     // Reconciliation for writers outside this module. The MCP server writes
     // tasks.scheduled_for with raw SQL and deploys separately from the app, so
@@ -369,6 +406,17 @@ export async function getScheduledSessionsInRange(
     // implicit single session makes the calendar correct whoever wrote it.
     selectOrphanScheduledTasks(userId, start, end),
   ]);
+
+  // sessionMinutes leaves here RESOLVED, so every caller's existing
+  // `sessionMinutes ?? estimatedMinutes` reads the split, not the full clone.
+  const lengths = await resolvedLengthsFor(
+    userId,
+    rawSessionRows.map((r) => ({ taskId: r.id, estimatedMinutes: r.estimatedMinutes }))
+  );
+  const sessionRows = rawSessionRows.map((r) => ({
+    ...r,
+    sessionMinutes: lengths.get(r.sessionId) ?? r.sessionMinutes,
+  }));
 
   return [...sessionRows, ...orphanRows].sort(
     (a, b) => a.scheduledFor.getTime() - b.scheduledFor.getTime()
@@ -485,7 +533,7 @@ export async function getSessionsStartingBetween(
   start: Date,
   end: Date
 ) {
-  return db
+  const rows = await db
     .select({
       sessionId: taskSessions.id,
       taskId: tasks.id,
@@ -511,4 +559,13 @@ export async function getSessionsStartingBetween(
       )
     )
     .orderBy(asc(taskSessions.startsAt));
+
+  const lengths = await resolvedLengthsFor(
+    userId,
+    rows.map((r) => ({ taskId: r.taskId, estimatedMinutes: r.estimatedMinutes }))
+  );
+  return rows.map((r) => ({
+    ...r,
+    sessionMinutes: lengths.get(r.sessionId) ?? r.sessionMinutes,
+  }));
 }

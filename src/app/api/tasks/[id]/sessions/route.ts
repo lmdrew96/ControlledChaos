@@ -30,6 +30,7 @@ export async function GET(
         id: s.id,
         startsAt: s.startsAt.toISOString(),
         minutes: s.minutes,
+        resolvedMinutes: s.resolvedMinutes,
       })),
     });
   } catch (error) {

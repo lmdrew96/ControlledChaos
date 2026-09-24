@@ -209,10 +209,9 @@ export const taskSessions = pgTable(
       .notNull(),
     startsAt: timestamp("starts_at").notNull(),
     /**
-     * This session's length. NULL means "use the task's estimatedMinutes",
-     * which is the old single-block behaviour. Set explicitly when a task is
-     * split across sittings, since three 40-minute sessions is not the same
-     * statement as one 120-minute estimate.
+     * This session's length when the user pinned one. NULL means an even share
+     * of the task's estimate across its NULL sittings (resolved at read time
+     * by resolveSessionMinutes), so a lone sitting still gets the whole thing.
      */
     minutes: integer("minutes"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

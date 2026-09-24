@@ -40,7 +40,10 @@ import { OptionalDateTimeField } from "./optional-datetime-field";
 interface TaskSessionView {
   id: string;
   startsAt: string;
+  /** Explicit length; null = an even share of the estimate. */
   minutes: number | null;
+  /** What the sitting actually runs, with the share worked out. */
+  resolvedMinutes?: number | null;
 }
 
 /**
@@ -251,6 +254,32 @@ export function TaskDetailModal({
       }
     },
     [task, timezone, loadSessions, onUpdate]
+  );
+
+  /**
+   * Pin one sitting's length, or pass null to hand it back to the even split.
+   * The other auto-length sittings re-divide whatever is left.
+   */
+  const handleSetSessionLength = useCallback(
+    async (session: TaskSessionView, minutes: number | null) => {
+      if (!task) return;
+      setBusySessionId(session.id);
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/sessions/${session.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ startsAt: session.startsAt, minutes }),
+        });
+        if (!res.ok) throw new Error();
+        onUpdate?.();
+      } catch {
+        toast.error("Couldn't change that sitting's length");
+      } finally {
+        await loadSessions(task.id);
+        setBusySessionId(null);
+      }
+    },
+    [task, loadSessions, onUpdate]
   );
 
   const handleRemoveSession = useCallback(
@@ -699,12 +728,13 @@ export function TaskDetailModal({
                     // holds a draft, and remounting is how it picks up a time
                     // that changed under it (a move, a calendar drag, a failed
                     // write snapping back).
-                    key={`${session.id}:${session.startsAt}`}
+                    key={`${session.id}:${session.startsAt}:${session.minutes ?? "auto"}:${session.resolvedMinutes ?? ""}`}
                     index={i}
                     session={session}
                     timezone={timezone}
                     isBusy={busySessionId === session.id}
                     onMove={(value) => handleMoveSession(session.id, value)}
+                    onSetLength={(minutes) => handleSetSessionLength(session, minutes)}
                     onRemove={() => handleRemoveSession(session.id)}
                   />
                 ))}
@@ -899,6 +929,7 @@ interface SittingRowProps {
   timezone: string;
   isBusy: boolean;
   onMove: (localValue: string) => void;
+  onSetLength: (minutes: number | null) => void;
   onRemove: () => void;
 }
 
@@ -916,6 +947,7 @@ function SittingRow({
   timezone,
   isBusy,
   onMove,
+  onSetLength,
   onRemove,
 }: SittingRowProps) {
   const serverValue = toDatetimeLocal(session.startsAt, timezone);
@@ -923,6 +955,11 @@ function SittingRow({
   // time that changes under us arrives as a fresh row rather than an effect
   // racing the draft the user is typing.
   const [draft, setDraft] = useState(serverValue);
+  // Empty = automatic (even share), shown as the placeholder.
+  const [lengthDraft, setLengthDraft] = useState(
+    session.minutes != null ? String(session.minutes) : ""
+  );
+  const isLegacy = session.id === LEGACY_SESSION_ID;
 
   const label = formatSessionLabel(session.startsAt, timezone);
 
@@ -932,6 +969,16 @@ function SittingRow({
       return;
     }
     if (draft !== serverValue) onMove(draft);
+  }
+
+  function commitLength() {
+    const trimmed = lengthDraft.trim();
+    const next = trimmed === "" ? null : Math.round(Number(trimmed));
+    if (next !== null && (!Number.isFinite(next) || next <= 0)) {
+      setLengthDraft(session.minutes != null ? String(session.minutes) : "");
+      return;
+    }
+    if (next !== session.minutes) onSetLength(next);
   }
 
   return (
@@ -954,11 +1001,30 @@ function SittingRow({
         className="h-8 flex-1 bg-background"
         aria-label={`Start of the sitting on ${label}`}
       />
-      {session.minutes ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {session.minutes} min
-        </span>
-      ) : null}
+      {!isLegacy && (
+        <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={lengthDraft}
+            placeholder={session.resolvedMinutes != null ? String(session.resolvedMinutes) : "auto"}
+            onChange={(e) => setLengthDraft(e.target.value)}
+            onBlur={commitLength}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
+            disabled={isBusy}
+            className="h-8 w-16 bg-background px-2 tabular-nums"
+            aria-label={`Length of the sitting on ${label}, in minutes. Leave empty to split the estimate evenly.`}
+            title="Leave empty to split the task's estimate evenly across sittings"
+          />
+          min
+        </label>
+      )}
       <Button
         type="button"
         variant="ghost"

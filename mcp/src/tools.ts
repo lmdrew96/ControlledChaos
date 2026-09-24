@@ -558,7 +558,14 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
         // left behind.
         planned = await sql(
           `SELECT t.id, t.title, s.starts_at AS scheduled_for,
-                  COALESCE(s.minutes, t.estimated_minutes) AS estimated_minutes,
+                  -- A NULL sitting takes an even share of the estimate across the
+                  -- task's NULL sittings (mirrors resolveSessionMinutes in the
+                  -- app), so two sittings of a 120-min task are 60 each, not 120.
+                  COALESCE(s.minutes, CASE WHEN t.estimated_minutes IS NULL THEN NULL ELSE
+                    GREATEST(15, ROUND(
+                      (t.estimated_minutes - COALESCE((SELECT SUM(x.minutes) FROM task_sessions x WHERE x.task_id = s.task_id), 0))::numeric
+                      / (SELECT COUNT(*) FROM task_sessions x WHERE x.task_id = s.task_id AND x.minutes IS NULL)
+                    ))::int END) AS estimated_minutes,
                   t.status, t.category, t.deadline, t.target_date
            FROM task_sessions s
            JOIN tasks t ON t.id = s.task_id
