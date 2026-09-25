@@ -73,9 +73,9 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - Note `/api/settings` resolves `calendarStartHour` as `calendarStartHour ?? wakeTime ?? 7` — the AI scheduling window and the calendar's visual range are coupled, so a change to one can move the other
 
 ### Changelog
-- Auto-generated at build time via `scripts/generate-changelog.ts`
-- `prebuild` script runs it automatically
-- Output: `src/lib/changelog.generated.json`
+- Hand-written, user-facing entries in `src/lib/changelog.ts` (ScribeCat's pattern): one entry per batch of releases, plain language, `added` / `improved` / `fixed`
+- **Every version bump updates `CHANGELOG[0]`**: bump its `version` to match package.json and widen its `label`, adding a line if the change is user-visible (or start a new entry)
+- `scripts/check-changelog.ts` runs in `prebuild` and fails the build when `CHANGELOG[0].version` ≠ package.json. It reads no git history, because Workers Builds clones shallow (which is why the old git-log generator showed one item)
 
 ---
 

@@ -1,16 +1,214 @@
-import generatedChangelog from "./changelog.generated.json";
+/**
+ * User-facing changelog — what "What's New" shows.
+ *
+ * Hand-written in plain language, one entry per batch of releases that
+ * shipped together. This is what users read, not a commit log. Newest first;
+ * CHANGELOG[0] is the current release.
+ *
+ * It used to be generated from `git log` at build time. Workers Builds clones
+ * shallow, so the build only ever saw one commit and What's New showed one
+ * line. Writing it by hand fixes that and reads better anyway.
+ *
+ * When you ship a version: add its changes to the newest entry (widening its
+ * `label` range and bumping `version`), or start a new entry. `version` must
+ * equal package.json's — scripts/check-changelog.ts fails the build otherwise,
+ * because the "new" dot keys off it.
+ */
 
-export interface ChangelogWeek {
-  weekOf: string; // YYYY-MM-DD (Monday of that week)
-  items: {
-    type: "added" | "fixed";
-    text: string;
-  }[];
+export type ChangeKind = "added" | "improved" | "fixed";
+
+export interface ChangelogChange {
+  kind: ChangeKind;
+  text: string;
 }
 
-export const changelog: ChangelogWeek[] = generatedChangelog as ChangelogWeek[];
+export interface ChangelogEntry {
+  /** Semver of the last release in this batch. Used for ordering and "seen". */
+  version: string;
+  /** Display range when the entry covers several releases, e.g. "2.70.15 – 2.73.2". */
+  label?: string;
+  /** YYYY-MM-DD the batch shipped. */
+  date: string;
+  title: string;
+  changes: ChangelogChange[];
+}
 
-/** Returns the weekOf string from the most recent changelog entry (used for "seen" tracking). */
-export function getLatestWeek(): string {
-  return changelog[0]?.weekOf ?? "";
+export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "2.73.2",
+    label: "2.70.15 – 2.73.2",
+    date: "2026-09-25",
+    title: "Things connect to each other now",
+    changes: [
+      {
+        kind: "added",
+        text: "Cancel a task from its ··· menu. Cancelled tasks get their own tab, where one tap brings them back — including ones Claude cancelled for you.",
+      },
+      {
+        kind: "added",
+        text: "Click your way around: a goal's “3/5 tasks” lists those tasks, a planned block on the calendar opens its task, a brain dump lands on exactly what it made, and Daily Recap rows open the thing they're about.",
+      },
+      {
+        kind: "added",
+        text: "Microtasks count. Checking one off shows up in your Daily Recap and tells check-ins you've been doing stuff today.",
+      },
+      {
+        kind: "improved",
+        text: "Canvas keeps up: an assignment your instructor deletes leaves your task list, and turning a course back on brings its tasks back.",
+      },
+      {
+        kind: "improved",
+        text: "Rescue steps, recommendations and goal descriptions show formatting instead of stray asterisks.",
+      },
+      {
+        kind: "fixed",
+        text: "“Just now” in the notification bell, the calendar's now-line, and which day is today stay current in a tab you leave open all day.",
+      },
+      {
+        kind: "fixed",
+        text: "Month view puts events on the same day as week view does, in your timezone.",
+      },
+      {
+        kind: "fixed",
+        text: "Replanning a task or clearing today's plan no longer erases sittings you already logged.",
+      },
+      {
+        kind: "fixed",
+        text: "Dragging tasks into your own order actually saves now.",
+      },
+      {
+        kind: "fixed",
+        text: "Deleting the saved location you're standing in works, and “Home” no longer matches “Homework Lab”.",
+      },
+      {
+        kind: "fixed",
+        text: "Subscribed calendars show every sitting of a split task, not just one.",
+      },
+      {
+        kind: "fixed",
+        text: "Turning location suggestions on or off takes effect right away, no reload.",
+      },
+      {
+        kind: "fixed",
+        text: "Cancelled tasks stop sending “time to start” pushes.",
+      },
+      {
+        kind: "fixed",
+        text: "What's New lists everything again, instead of one line.",
+      },
+    ],
+  },
+  {
+    version: "2.70.14",
+    label: "2.69.0 – 2.70.14",
+    date: "2026-09-25",
+    title: "Pushes that don't keep time like a metronome",
+    changes: [
+      {
+        kind: "improved",
+        text: "Every alert gets one chance. No more follow-ups for a start you missed, and no pushes landing on the same ten-minute beat.",
+      },
+      {
+        kind: "improved",
+        text: "Claude can link tasks to goals, and goals and completions work the same whether you use the app or Claude.",
+      },
+      {
+        kind: "fixed",
+        text: "Snooze on a push works even when you're signed out on that device, and snoozed tasks stop asking you to start them.",
+      },
+      {
+        kind: "fixed",
+        text: "Canvas class meetings skip the day-before reminder; exams and quizzes keep it.",
+      },
+      {
+        kind: "fixed",
+        text: "Your energy reads your latest energy moment, and momentum counts days by your local date.",
+      },
+      {
+        kind: "fixed",
+        text: "A page that fails to load shows a retry button instead of pretending you have no tasks.",
+      },
+    ],
+  },
+  {
+    version: "2.68.2",
+    label: "2.60.13 – 2.68.2",
+    date: "2026-09-24",
+    title: "Sittings, and a quieter morning",
+    changes: [
+      {
+        kind: "added",
+        text: "Split a task across several sittings. The estimate splits with it, and the task shows your next sitting.",
+      },
+      {
+        kind: "added",
+        text: "Log how a sitting went: done, partly, or skipped.",
+      },
+      {
+        kind: "added",
+        text: "Pushes that piled up overnight arrive as one wake-up summary.",
+      },
+      {
+        kind: "improved",
+        text: "Overlapping calendar events cascade so you can read them; back-to-back ones stay full width. Canvas quizzes ride on their class as a badge.",
+      },
+      {
+        kind: "improved",
+        text: "Reminders stick to their own item instead of tacking on other homework.",
+      },
+      {
+        kind: "fixed",
+        text: "Turning push off stops every push, including the ones that ignore quiet hours.",
+      },
+      {
+        kind: "fixed",
+        text: "No day-before reminders for recurring events, and no reminders that show up long after they mattered.",
+      },
+    ],
+  },
+  {
+    version: "2.60.12",
+    label: "2.58.0 – 2.60.12",
+    date: "2026-09-22",
+    title: "New home under the hood",
+    changes: [
+      {
+        kind: "improved",
+        text: "ControlledChaos moved to Cloudflare. Same app, a lot less waiting on background work.",
+      },
+      {
+        kind: "added",
+        text: "Reminders for events at your saved locations.",
+      },
+      {
+        kind: "fixed",
+        text: "Signing in lands you on your dashboard, and an open tab notices new versions when you come back to it.",
+      },
+    ],
+  },
+];
+
+export const LATEST_VERSION = CHANGELOG[0]?.version ?? "";
+
+/** Negative when a < b, positive when a > b. Missing segments count as 0. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
+/** An entry's YYYY-MM-DD for display, read as UTC so it never shifts a day. */
+export function formatEntryDate(isoDate: string): string {
+  return DATE_FORMATTER.format(new Date(`${isoDate}T00:00:00Z`));
 }

@@ -110,7 +110,7 @@ pnpm dev
 | `pnpm lint` | Run ESLint |
 | `pnpm test` | Run Vitest once |
 | `pnpm test:watch` | Vitest watch mode |
-| `pnpm changelog` | Regenerate `src/lib/changelog.generated.json` |
+| `pnpm changelog` | Check `src/lib/changelog.ts` covers the package.json version |
 | `pnpm db:generate` | Generate Drizzle migration files |
 | `pnpm db:migrate` | Apply migrations |
 | `pnpm db:push` | Push schema directly (dev shortcut — no migration files) |
