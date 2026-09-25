@@ -68,9 +68,18 @@ const COMPLETED_AT_ON_COMPLETE = `completed_at = CASE WHEN status = 'completed' 
  * an active user reads as idle.
  */
 async function logTaskCompleted(userId: string, taskId: string): Promise<void> {
+  // Same context shape as the app's logTaskCompletion. Energy is left null
+  // here — the app derives it from recent moments, which this server doesn't
+  // replicate — but time of day still feeds the pattern analysis.
+  const tz = await getUserTimezone(userId);
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: tz }).format(new Date())
+  );
+  const timeOfDay =
+    hour >= 6 && hour < 12 ? "morning" : hour >= 12 && hour < 17 ? "afternoon" : hour >= 17 && hour < 21 ? "evening" : "night";
   await sql(
-    `INSERT INTO task_activity (user_id, task_id, action) VALUES ($1, $2, 'completed')`,
-    [userId, taskId]
+    `INSERT INTO task_activity (user_id, task_id, action, context) VALUES ($1, $2, 'completed', $3)`,
+    [userId, taskId, JSON.stringify({ energy: null, time_of_day: timeOfDay })]
   );
 }
 

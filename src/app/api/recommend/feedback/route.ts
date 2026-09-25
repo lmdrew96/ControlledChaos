@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { logTaskActivity, updateTask } from "@/lib/db/queries";
+import { logTaskCompletion } from "@/lib/tasks/log-completion";
 
 const FALLBACK_SNOOZE_MS = 60 * 60_000;
 
@@ -32,8 +33,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Log the feedback
-    await logTaskActivity({ userId, taskId, action });
+    // Log the feedback. A completion carries its energy / time-of-day context.
+    if (action === "completed") {
+      await logTaskCompletion(userId, taskId);
+    } else {
+      await logTaskActivity({ userId, taskId, action });
+    }
 
     // Apply side effects
     if (action === "accepted") {

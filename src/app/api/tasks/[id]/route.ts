@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import {
   updateTask,
   deleteTask,
-  logTaskActivity,
   setPrimaryTaskSession,
   clearTaskSessions,
 } from "@/lib/db/queries";
@@ -11,6 +10,7 @@ import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { parseTaskUpdate } from "@/lib/db/task-update-fields";
+import { logTaskCompletion } from "@/lib/tasks/log-completion";
 
 export async function PATCH(
   request: Request,
@@ -96,7 +96,7 @@ export async function PATCH(
 
     // Log completion to task_activity so notification triggers see today's activity
     if (body.status === "completed") {
-      await logTaskActivity({ userId, taskId: id, action: "completed" });
+      await logTaskCompletion(userId, id);
     }
 
     return NextResponse.json({ task: updated });
