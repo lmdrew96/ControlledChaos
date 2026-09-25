@@ -1103,8 +1103,19 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               </p>
                             ) : (
                             <>
-                            {tileBadges.length > 0 && (
-                              <p className="mb-0.5 truncate">
+                            <p
+                              className="text-[11px] font-semibold leading-tight"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                // One line is reserved for the start time below.
+                                WebkitLineClamp: titleLineClamp(pos.height - ROW_HEIGHT / 2),
+                                overflow: "hidden",
+                              }}
+                            >
+                              {/* Badges sit inline at the start of the title. On
+                                  their own row they pushed the start time out of
+                                  the tile at narrower widths. */}
                                 {event.badge && (
                                   <span className="mr-1 inline-block rounded bg-background/70 px-1 text-[10px] font-semibold leading-tight">
                                     {event.badge}
@@ -1134,18 +1145,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                     {r.label}
                                   </span>
                                 ))}
-                              </p>
-                            )}
-                            <p
-                              className="text-[11px] font-semibold leading-tight"
-                              style={{
-                                display: "-webkit-box",
-                                WebkitBoxOrient: "vertical",
-                                // One line is reserved for the start time below.
-                                WebkitLineClamp: titleLineClamp(pos.height - ROW_HEIGHT / 2),
-                                overflow: "hidden",
-                              }}
-                            >
                               {event.title}
                             </p>
                             {pos.height > ROW_HEIGHT && (
