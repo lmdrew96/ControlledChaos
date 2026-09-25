@@ -2,6 +2,45 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { updateGoal, deleteGoal } from "@/lib/db/queries";
 
+const GOAL_STATUSES = new Set(["active", "completed", "paused"]);
+
+type GoalUpdate = Parameters<typeof updateGoal>[2];
+
+/**
+ * Copy only the fields a client may change. Spreading the raw body into
+ * .set() would let a request rewrite userId, deletedAt, id or createdAt.
+ */
+function parseGoalUpdate(body: unknown): { fields: GoalUpdate } | { error: string } {
+  if (!body || typeof body !== "object") return { error: "Invalid body" };
+  const b = body as Record<string, unknown>;
+  const fields: GoalUpdate = {};
+
+  if (b.title !== undefined) {
+    if (typeof b.title !== "string" || !b.title.trim()) return { error: "Title is required" };
+    fields.title = b.title.trim();
+  }
+  if (b.description !== undefined) {
+    if (b.description !== null && typeof b.description !== "string") return { error: "Invalid description" };
+    fields.description = b.description || null;
+  }
+  if (b.targetDate !== undefined) {
+    if (!b.targetDate) {
+      fields.targetDate = null;
+    } else {
+      const d = typeof b.targetDate === "string" ? new Date(b.targetDate) : null;
+      if (!d || Number.isNaN(d.getTime())) return { error: "Invalid targetDate" };
+      fields.targetDate = d;
+    }
+  }
+  if (b.status !== undefined) {
+    if (typeof b.status !== "string" || !GOAL_STATUSES.has(b.status)) return { error: "Invalid status" };
+    fields.status = b.status;
+  }
+
+  if (Object.keys(fields).length === 0) return { error: "No updatable fields" };
+  return { fields };
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -13,14 +52,12 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
-
-    // Convert targetDate string to Date (or null)
-    if (body.targetDate !== undefined) {
-      body.targetDate = body.targetDate ? new Date(body.targetDate) : null;
+    const parsed = parseGoalUpdate(await request.json());
+    if ("error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
-    const updated = await updateGoal(id, userId, body);
+    const updated = await updateGoal(id, userId, parsed.fields);
 
     if (!updated) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
