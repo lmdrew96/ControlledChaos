@@ -306,13 +306,16 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
     // Persist to server
     try {
-      await fetch("/api/tasks/reorder", {
+      const res = await fetch("/api/tasks/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderedIds: reorderedIds }),
       });
-    } catch {
-      // Revert on failure
+      if (!res.ok) throw new Error(`POST /api/tasks/reorder ${res.status}`);
+    } catch (err) {
+      console.error("Reorder failed:", err);
+      toast.error("Couldn't save that order. Try again.");
+      // Revert to what the server has.
       void fetchTasks();
     }
   };

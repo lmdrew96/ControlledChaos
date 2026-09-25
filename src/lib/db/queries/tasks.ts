@@ -241,16 +241,17 @@ export async function reorderTasks(
   userId: string,
   orderedIds: string[]
 ) {
-  // Canonical batched-transaction pattern for the neon-http driver: sequential
-  // tx.update() calls with no external awaits in between. See CLAUDE.md.
-  await db.transaction(async (tx) => {
-    for (let i = 0; i < orderedIds.length; i++) {
-      await tx
-        .update(tasks)
-        .set({ sortOrder: i, updatedAt: new Date() })
-        .where(and(eq(tasks.id, orderedIds[i]), eq(tasks.userId, userId)));
-    }
-  });
+  // db.batch sends every update in one HTTP transaction — atomic, one round
+  // trip. neon-http has no db.transaction (it throws), which is why this used
+  // to 500 on every drag.
+  const now = new Date();
+  const [first, ...rest] = orderedIds.map((id, i) =>
+    db
+      .update(tasks)
+      .set({ sortOrder: i, updatedAt: now })
+      .where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
+  );
+  if (first) await db.batch([first, ...rest]);
 }
 
 /**
