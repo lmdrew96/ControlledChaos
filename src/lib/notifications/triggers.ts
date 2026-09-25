@@ -529,7 +529,7 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   target_reminder: "No rush — you'd wanted this one done around now.",
   event_reminder: "Heads up — an event is coming up.",
   scheduled: "You planned this. Past-you had your back.",
-  scheduled_missed: "That planned start time slipped. Pick it back up now or snooze with intent.",
+  scheduled_missed: "That planned start slipped. Start it now, or snooze it to a better time.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
@@ -689,7 +689,7 @@ function buildPushFallback(ctx: PushNotificationContext, timezone: string): stri
     case "scheduled":
       return `Time for ${ctx.taskTitle}. Past-you had your back.`;
     case "scheduled_missed":
-      return `Your planned start for ${ctx.taskTitle} slipped. Pick it back up now or snooze with intent.`;
+      return `Your planned start for ${ctx.taskTitle} slipped. Start it now, or snooze it to a better time.`;
     default:
       return PUSH_FALLBACKS[ctx.type];
   }
