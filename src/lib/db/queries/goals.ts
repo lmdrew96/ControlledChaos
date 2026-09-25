@@ -84,7 +84,8 @@ export async function getGoalTaskCounts(userId: string) {
   const rows = await db
     .select({
       goalId: tasks.goalId,
-      total: sql<number>`count(*)::int`,
+      // Cancelled tasks aren't work left to do, so they'd hold a goal below 100% forever.
+      total: sql<number>`count(*) filter (where ${tasks.status} <> 'cancelled')::int`,
       completed: sql<number>`count(*) filter (where ${tasks.status} = 'completed')::int`,
     })
     .from(tasks)

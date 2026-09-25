@@ -883,10 +883,11 @@ Returns: Markdown-formatted list of goals with IDs, descriptions, target dates, 
       const tz = await getUserTimezone(userId);
       const rows = await sql(
         // Progress is counted live from linked tasks, same as the app
-        // (getGoalTaskCounts): deleted tasks don't count.
+        // (getGoalTaskCounts): deleted and cancelled tasks don't count.
         `SELECT g.*,
            (SELECT COUNT(*)::int FROM tasks t
-             WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL) AS task_total,
+             WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
+               AND t.status <> 'cancelled') AS task_total,
            (SELECT COUNT(*)::int FROM tasks t
              WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
                AND t.status = 'completed') AS task_completed
