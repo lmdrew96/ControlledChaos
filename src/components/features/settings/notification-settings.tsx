@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Moon, MapPin, Loader2, Clock, Plus, X, Sun } from "lucide-react";
+import { Bell, Mail, Moon, MapPin, Loader2, AlarmClock, Plus, X, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -592,7 +592,7 @@ export function NotificationSettings() {
       {/* Reminder Times */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <AlarmClock className="h-4 w-4 text-muted-foreground" />
           Reminder Times
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">

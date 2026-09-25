@@ -15,7 +15,7 @@ const TIER_OPTIONS: Array<{
   {
     value: "off",
     label: "Off",
-    description: "I'll open Deadline Rescue myself when I need it.",
+    description: "I'll open Rescue myself when I need it.",
   },
   {
     value: "watch",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Clock, Loader2, Route, Car, Footprints, Bike } from "lucide-react";
+import { Loader2, Route, Car, Footprints, Bike } from "lucide-react";
 import { toast } from "sonner";
 import { MAX_COMMUTE_ESTIMATE_PAIRS } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -337,7 +337,7 @@ export function CommuteTimes() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-4 w-4" />
+            <Route className="h-4 w-4" />
             Commute Times
           </CardTitle>
         </CardHeader>
@@ -366,12 +366,12 @@ export function CommuteTimes() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Clock className="h-4 w-4" />
+          <Route className="h-4 w-4" />
           Commute Times
         </CardTitle>
         <p className="text-xs text-muted-foreground">
           How long does it take to get between your locations? Used for
-          scheduling and Deadline Rescue planning.
+          scheduling and Rescue planning.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

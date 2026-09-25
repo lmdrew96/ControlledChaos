@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Type, Mic, Camera, BookOpen, Zap } from "lucide-react";
+import { Type, Mic, Camera, BookOpen, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DumpInput } from "@/components/features/brain-dump/dump-input";
 import { VoiceRecorder } from "@/components/features/brain-dump/voice-recorder";
@@ -61,7 +61,7 @@ export default function BrainDumpPage() {
               : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
           )}
         >
-          <Zap className="h-4 w-4" />
+          <Brain className="h-4 w-4" />
           Brain Dump
         </button>
         <button

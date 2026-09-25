@@ -97,7 +97,7 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
               "></div>
               <span style="
                 margin-top:3px;
-                background:white;color:#111;
+                background:var(--popover);color:var(--popover-foreground);
                 font-size:10px;font-weight:600;
                 padding:1px 4px;border-radius:3px;
                 white-space:nowrap;

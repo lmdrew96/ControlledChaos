@@ -52,7 +52,7 @@ export function RecapSittings({ date, timezone, onLogged }: RecapSittingsProps) 
   return (
     <Card className="p-4">
       <div className="mb-3">
-        <h2 className="text-sm font-medium">How did these sittings go?</h2>
+        <h2 className="text-sm font-medium">How did these sessions go?</h2>
         <p className="text-xs text-muted-foreground">
           Whatever you log comes off the task&apos;s estimate, and its other
           sittings split the rest. Skip any you like.

@@ -46,7 +46,7 @@ export function SessionOutcomePicker({
       setAskingMinutes(false);
       onLogged?.(status);
     } catch {
-      toast.error("Couldn't log that sitting");
+      toast.error("Couldn't log that session");
     } finally {
       setBusy(null);
     }
@@ -74,7 +74,7 @@ export function SessionOutcomePicker({
           placeholder={plannedMinutes ? String(Math.round(plannedMinutes / 2)) : "20"}
           onChange={(e) => setMinutes(e.target.value)}
           className="h-8 w-16 px-2 tabular-nums"
-          aria-label="Minutes worked in this sitting"
+          aria-label="Minutes worked in this session"
         />
         <span className="text-xs text-muted-foreground">min</span>
         <Button type="submit" size="sm" disabled={!valid || busy !== null}>

@@ -384,8 +384,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       const result = await clearTodaysPlan();
       toast.success(
         result.cleared === 1
-          ? "Cleared 1 planned block."
-          : `Cleared ${result.cleared} planned blocks.`
+          ? "Cleared 1 planned session."
+          : `Cleared ${result.cleared} planned sessions.`
       );
       setShowClearConfirm(false);
       await fetchEvents(weekStart, weekEnd);
@@ -612,7 +612,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         toast.error(
           err instanceof Error
             ? err.message
-            : `Failed to move ${isPlan ? "plan block" : "event"}`
+            : `Failed to move ${isPlan ? "session" : "event"}`
         );
       }
     },
@@ -1039,7 +1039,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             </TooltipTrigger>
                             <TooltipContent side="right" className="max-w-xs">
                               <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">
-                                Planned
+                                Planned session
                               </p>
                               {isEditMode && (
                                 <p className="text-[10px] opacity-60">Drag to move</p>

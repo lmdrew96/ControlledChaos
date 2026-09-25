@@ -12,10 +12,11 @@ import {
   Target,
   Calendar,
   Clock,
+  History,
+  CalendarCheck,
   Settings,
   Siren,
   Plus,
-  Sparkles,
   Sun,
   Moon,
   Search,
@@ -56,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "nav-calendar", label: "Calendar", href: "/calendar", icon: Calendar, keywords: "schedule events" },
   { id: "nav-recap", label: "Daily Recap", href: "/recap", icon: Clock, keywords: "mirror journal day review" },
   { id: "nav-settings", label: "Settings", href: "/settings", icon: Settings, keywords: "preferences config" },
-  { id: "nav-crisis", label: "Deadline Rescue", href: "/crisis", icon: Siren, keywords: "panic emergency support crisis rescue" },
+  { id: "nav-crisis", label: "Rescue", href: "/crisis", icon: Siren, keywords: "panic emergency support crisis rescue" },
 ];
 
 /**
@@ -212,7 +213,7 @@ export function CommandPalette({
                     key={`recent-${r.id}`}
                     value={`recent ${r.label}`}
                     onSelect={() => run(r.id, r.run)}
-                    icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+                    icon={<History className="h-4 w-4 text-muted-foreground" />}
                     label={r.label}
                   />
                 ))}
@@ -243,7 +244,7 @@ export function CommandPalette({
                 <CommandRow
                   value="plan my day schedule ai"
                   onSelect={() => run("act-plan-day", () => onPlanMyDay())}
-                  icon={<Sparkles className="h-4 w-4" />}
+                  icon={<CalendarCheck className="h-4 w-4" />}
                   label="Plan my day"
                 />
               )}

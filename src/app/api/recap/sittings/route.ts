@@ -45,6 +45,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ sittings });
   } catch (error) {
     console.error("[API] GET /api/recap/sittings error:", error);
-    return NextResponse.json({ error: "Failed to load sittings" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to load sessions" }, { status: 500 });
   }
 }

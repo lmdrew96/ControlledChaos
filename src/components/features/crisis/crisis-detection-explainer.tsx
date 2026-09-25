@@ -31,7 +31,7 @@ export function CrisisDetectionExplainer({ taskNames }: CrisisDetectionExplainer
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1.5">
-              <p className="font-medium">Rescue Detection is on</p>
+              <p className="font-medium">Rescue warnings are on</p>
               <p className="text-muted-foreground">
                 {taskNames && taskNames.length > 0
                   ? `I noticed ${taskNames.join(" and ")} are colliding with your available time.`
@@ -44,7 +44,7 @@ export function CrisisDetectionExplainer({ taskNames }: CrisisDetectionExplainer
                   href="/settings?tab=crisis-detection"
                   className="text-primary underline-offset-2 hover:underline"
                 >
-                  Settings → Rescue Detection
+                  Settings → Rescue warnings
                 </Link>
                 .
               </p>

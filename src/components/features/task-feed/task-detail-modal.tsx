@@ -216,9 +216,9 @@ export function TaskDetailModal({
       setNewSessionAt("");
       await loadSessions(task.id);
       onUpdate?.();
-      toast.success("Sitting added");
+      toast.success("Session added");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add that sitting");
+      toast.error(err instanceof Error ? err.message : "Couldn't add that session");
     } finally {
       setIsAddingSession(false);
     }
@@ -248,9 +248,9 @@ export function TaskDetailModal({
               });
         if (!res.ok) throw new Error();
         onUpdate?.();
-        toast.success("Sitting moved");
+        toast.success("Session moved");
       } catch {
-        toast.error("Couldn't move that sitting");
+        toast.error("Couldn't move that session");
       } finally {
         // Reload either way: on failure this snaps the row back to the time the
         // server actually has, rather than leaving a lie in the input.
@@ -278,7 +278,7 @@ export function TaskDetailModal({
         if (!res.ok) throw new Error();
         onUpdate?.();
       } catch {
-        toast.error("Couldn't change that sitting's length");
+        toast.error("Couldn't change that session's length");
       } finally {
         await loadSessions(task.id);
         setBusySessionId(null);
@@ -304,9 +304,9 @@ export function TaskDetailModal({
               });
         if (!res.ok) throw new Error();
         onUpdate?.();
-        toast.success("Sitting removed");
+        toast.success("Session removed");
       } catch {
-        toast.error("Couldn't remove that sitting");
+        toast.error("Couldn't remove that session");
       } finally {
         await loadSessions(task.id);
         setBusySessionId(null);
@@ -718,7 +718,7 @@ export function TaskDetailModal({
           <div className="space-y-2 rounded-lg border border-border/70 p-3">
             <div className="flex items-center gap-2">
               <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-sm">Planned sittings</Label>
+              <Label className="text-sm">Planned sessions</Label>
             </div>
             <p className="text-xs text-muted-foreground">
               When you plan to work on this. Each sitting is its own block on
@@ -761,7 +761,7 @@ export function TaskDetailModal({
                 value={newSessionAt}
                 onChange={(e) => setNewSessionAt(e.target.value)}
                 className="flex-1"
-                aria-label="Start of another sitting"
+                aria-label="Start of another session"
               />
               <Button
                 type="button"
@@ -773,7 +773,7 @@ export function TaskDetailModal({
                 {isAddingSession ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  "Add sitting"
+                  "Add session"
                 )}
               </Button>
             </div>
@@ -987,7 +987,7 @@ function SittingRow({
       if (!res.ok) throw new Error();
       onOutcomeChanged();
     } catch {
-      toast.error("Couldn't change that sitting");
+      toast.error("Couldn't change that session");
     }
   }
 
@@ -1030,7 +1030,7 @@ function SittingRow({
         }}
         disabled={isBusy}
         className="h-8 flex-1 bg-background"
-        aria-label={`Start of the sitting on ${label}`}
+        aria-label={`Start of the session on ${label}`}
       />
       {!isLegacy && (
         <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -1050,8 +1050,8 @@ function SittingRow({
             }}
             disabled={isBusy}
             className="h-8 w-16 bg-background px-2 tabular-nums"
-            aria-label={`Length of the sitting on ${label}, in minutes. Leave empty to split the estimate evenly.`}
-            title="Leave empty to split the task's estimate evenly across sittings"
+            aria-label={`Length of the session on ${label}, in minutes. Leave empty to split the estimate evenly.`}
+            title="Leave empty to split the task's estimate evenly across sessions"
           />
           min
         </label>
@@ -1063,7 +1063,7 @@ function SittingRow({
         className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
         onClick={onRemove}
         disabled={isBusy}
-        aria-label={`Remove the sitting on ${label}`}
+        aria-label={`Remove the session on ${label}`}
       >
         {isBusy ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -447,7 +447,7 @@ export default function CrisisPage() {
           }}
         >
           <ChevronLeft className="h-4 w-4" />
-          {plans.length > 1 ? "All sessions" : "Step away for now"}
+          {plans.length > 1 ? "All plans" : "Step away for now"}
         </Button>
         <div className="max-w-xl">
           <CrisisWarRoom
@@ -477,7 +477,7 @@ export default function CrisisPage() {
     return (
       <div className="mx-auto max-w-lg space-y-6">
         <PageHeader
-          title="Deadline Rescue"
+          title="Rescue"
           description="Behind on something? Let's figure out a path forward."
           action={
             <Button
@@ -548,8 +548,8 @@ export default function CrisisPage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <PageHeader
-        title="Deadline Rescue"
-        description={`${plans.length} active session${plans.length !== 1 ? "s" : ""}`}
+        title="Rescue"
+        description={`${plans.length} active plan${plans.length !== 1 ? "s" : ""}`}
         action={
           <Button size="sm" onClick={handleOpenIntakeFresh}>
             <Plus className="mr-1.5 h-4 w-4" />
@@ -709,12 +709,12 @@ export default function CrisisPage() {
           <CardContent className="flex flex-col items-center justify-center py-10 text-center">
             <Siren className="h-8 w-8 text-muted-foreground/40 mb-3" />
             <p className="font-medium">
-              {showHorizonAlert ? "Nothing in the war room yet" : "No active rescue sessions"}
+              {showHorizonAlert ? "Nothing in the war room yet" : "No active rescue plans"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {showHorizonAlert
                 ? "The heads-up above is just a notice — no plan is locked in until you start one."
-                : "Behind on something? Start a session and I'll help you figure out a plan."}
+                : "Behind on something? Start one and I'll help you figure out a plan."}
             </p>
             <Button size="sm" className="mt-4" onClick={handleOpenIntakeFresh}>
               <Plus className="mr-1.5 h-4 w-4" />

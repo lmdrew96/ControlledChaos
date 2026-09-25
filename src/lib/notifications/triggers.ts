@@ -574,8 +574,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
   time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
   time_to_leave_now: "Time to leave! You need to go now to make it.",
-  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Deadline Rescue if you want it.",
-  crisis_worsened: "Things just got tighter. Your rescue plan is still waiting in Deadline Rescue.",
+  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Rescue if you want it.",
+  crisis_worsened: "Things just got tighter. Your rescue plan is still waiting in Rescue.",
 };
 
 /**
@@ -695,7 +695,7 @@ function describeTaskDetail(d: AlertingTaskDetail, timezone: string): string {
   const lines: string[] = [];
   // A sitting equal to the whole estimate is a single-sitting task — say it once.
   if (d.sessionMinutes && d.sessionMinutes !== d.estimatedMinutes) {
-    lines.push(`This sitting: ${formatReminderInterval(d.sessionMinutes)}`);
+    lines.push(`This session: ${formatReminderInterval(d.sessionMinutes)}`);
   }
   if (d.estimatedMinutes) {
     lines.push(`Estimated time for the whole task: ${formatReminderInterval(d.estimatedMinutes)}`);

@@ -312,7 +312,7 @@ export function CrisisWarRoom({
       <div className="flex gap-3">
         <Button className="flex-1" onClick={handleNextTask}>
           {currentTaskIndex === currentPlan.tasks.length - 1
-            ? "Done — finish session"
+            ? "Done — close this plan"
             : "Done, next task"}
         </Button>
         <Button

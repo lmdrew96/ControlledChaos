@@ -30,7 +30,7 @@ export async function POST(
     }
     if (status === "partial" && !(typeof body?.minutes === "number" && body.minutes > 0)) {
       return NextResponse.json(
-        { error: "minutes is required for a partial sitting" },
+        { error: "minutes is required for a partial session" },
         { status: 400 }
       );
     }
@@ -48,6 +48,6 @@ export async function POST(
     return NextResponse.json({ outcome: result });
   } catch (error) {
     console.error("[API] POST /api/tasks/:id/sessions/:sessionId/outcome error:", error);
-    return NextResponse.json({ error: "Failed to log sitting" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to log session" }, { status: 500 });
   }
 }

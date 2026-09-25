@@ -258,8 +258,8 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
       const result = await clearTodaysPlan();
       toast.success(
         result.cleared === 1
-          ? "Cleared 1 planned block."
-          : `Cleared ${result.cleared} planned blocks.`
+          ? "Cleared 1 planned session."
+          : `Cleared ${result.cleared} planned sessions.`
       );
       setShowClearConfirm(false);
       await fetchEvents(weekStart, weekEnd);
@@ -507,7 +507,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-xs">
                                   <p className="text-[10px] font-medium uppercase tracking-wider opacity-60">
-                                    Planned
+                                    Planned session
                                   </p>
                                   <p className="font-medium">{item.plan.title}</p>
                                   <p className="opacity-75">{item.plan.minutes} min</p>
@@ -515,7 +515,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                               </Tooltip>
                             </div>
                             <p className="ml-[3.875rem] mt-0.5 text-[11px] text-adhd-purple/70 dark:text-adhd-lavender/70">
-                              Planned · {item.plan.minutes} min
+                              Planned session · {item.plan.minutes} min
                             </p>
                           </Link>
                         </li>

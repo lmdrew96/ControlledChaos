@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.74.0",
-    label: "2.70.15 – 2.74.0",
+    version: "2.74.1",
+    label: "2.70.15 – 2.74.1",
     date: "2026-09-25",
     title: "Things connect to each other now",
     changes: [
@@ -70,7 +70,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "fixed",
-        text: "Replanning a task or clearing today's plan no longer erases sittings you already logged.",
+        text: "Replanning a task or clearing today's plan no longer erases sessions you already logged.",
       },
       {
         kind: "fixed",
@@ -82,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "fixed",
-        text: "Subscribed calendars show every sitting of a split task, not just one.",
+        text: "Subscribed calendars show every session of a split task, not just one.",
       },
       {
         kind: "fixed",
@@ -111,6 +111,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "improved",
         text: "“Do This Next” knows which goal a task serves and what you've already planned today.",
+      },
+      {
+        kind: "improved",
+        text: "One name per thing: it's “Rescue” everywhere, a planned block of work is a “session” everywhere, and features stopped sharing icons.",
       },
       {
         kind: "fixed",
@@ -154,15 +158,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "2.68.2",
     label: "2.60.13 – 2.68.2",
     date: "2026-09-24",
-    title: "Sittings, and a quieter morning",
+    title: "Sessions, and a quieter morning",
     changes: [
       {
         kind: "added",
-        text: "Split a task across several sittings. The estimate splits with it, and the task shows your next sitting.",
+        text: "Split a task across several sessions. The estimate splits with it, and the task shows your next session.",
       },
       {
         kind: "added",
-        text: "Log how a sitting went: done, partly, or skipped.",
+        text: "Log how a session went: done, partly, or skipped.",
       },
       {
         kind: "added",

@@ -1,9 +1,10 @@
 import {
   Bell,
-  Brain,
+  Bot,
   Calendar,
-  Clock,
+  Globe,
   MapPin,
+  Route,
   Siren,
   Sun,
   User,
@@ -51,7 +52,7 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
         id: "timezone",
         title: "Timezone",
         keywords: "tz time clock region",
-        icon: Clock,
+        icon: Globe,
       },
       {
         id: "appearance",
@@ -69,7 +70,7 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
         id: "ai-personality",
         title: "AI Personality",
         keywords: "claude assistant tone voice energy personality",
-        icon: Brain,
+        icon: Bot,
       },
       {
         id: "notifications",
@@ -93,18 +94,18 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
         id: "commute",
         title: "Commute Times",
         keywords: "travel commute drive transit time estimate",
-        icon: Clock,
+        icon: Route,
         bare: true,
       },
     ],
   },
   {
     id: "crisis-care",
-    title: "Deadline Rescue & care",
+    title: "Rescue & care",
     settings: [
       {
         id: "crisis-detection",
-        title: "Rescue Detection",
+        title: "Rescue warnings",
         keywords: "panic emergency safety triggers detect support rescue deadline",
         icon: Siren,
       },

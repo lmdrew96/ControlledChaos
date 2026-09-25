@@ -54,7 +54,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
       "Intensity = how rested you feel (1-5). Drop hours in the note: “7h”, “6h 30m”, “restless night”.",
     icon: Moon,
     tintClassName:
-      "border-[#5B6B8F]/50 bg-[#5B6B8F]/12 text-[#3d4a66] dark:text-[#a3b0cc]",
+      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-lavender/40 dark:bg-adhd-lavender/10 dark:text-adhd-lavender",
   },
   energy_high: {
     label: "Energy high",

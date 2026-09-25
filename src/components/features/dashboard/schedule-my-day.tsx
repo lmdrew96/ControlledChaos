@@ -15,7 +15,7 @@ import {
   Loader2,
   Check,
   ArrowRight,
-  Sparkles,
+  CalendarCheck,
   RotateCcw,
   Undo2,
   X,
@@ -207,7 +207,7 @@ export function ScheduleMyDay({
     <>
       {!hideTrigger && (
         <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          <CalendarCheck className="h-3.5 w-3.5 text-primary" />
           Plan my day
         </Button>
       )}

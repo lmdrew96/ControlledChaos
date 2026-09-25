@@ -59,7 +59,7 @@ describe("generatePushMessage fallbacks name the task", () => {
     );
     const userMsg: string = callHaiku.mock.calls[0][0].user;
     expect(userMsg).toContain("Planned start (user's local time)");
-    expect(userMsg).toContain("This sitting: 25 minutes");
+    expect(userMsg).toContain("This session: 25 minutes");
     expect(userMsg).toContain("Estimated time for the whole task: 1 hour 30 minutes");
     expect(userMsg).toContain("Hard deadline (user's local time)");
     expect(userMsg).not.toContain("Soft self-set target");

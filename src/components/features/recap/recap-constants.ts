@@ -34,59 +34,51 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
   task: {
     label: "Tasks",
     icon: ListTodo,
-    // Soft Green #97D181
-    tintClassName:
-      "text-[#4c7a3a] bg-[#97D181]/15 border-[#97D181]/40 dark:text-[#b8e2a0]",
+    tintClassName: "text-success bg-success/15 border-success/40",
     href: (entry) => `/tasks?taskId=${entry.id}`,
   },
   microtask: {
     label: "Microtasks",
     icon: CircleCheck,
-    // Shares the task green: small wins are still wins.
-    tintClassName:
-      "text-[#4c7a3a] bg-[#97D181]/10 border-[#97D181]/30 dark:text-[#b8e2a0]",
+    // Shares the task color: small wins are still wins.
+    tintClassName: "text-success bg-success/10 border-success/30",
     // They live on the dashboard.
     href: () => "/dashboard",
   },
   event: {
     label: "Events",
     icon: Calendar,
-    // Sage Teal #8CBDB9
     tintClassName:
-      "text-[#3e6a66] bg-[#8CBDB9]/15 border-[#8CBDB9]/40 dark:text-[#abd2ce]",
+      "text-adhd-teal bg-adhd-teal/10 border-adhd-teal/30 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
     href: (entry, timezone) =>
       `/calendar?date=${toDateKeyInTimezone(new Date(entry.at), timezone)}`,
   },
   dump: {
     label: "Dumps",
     icon: Brain,
-    // Mauve Purple #88739E
     tintClassName:
-      "text-[#5b4d70] bg-[#88739E]/15 border-[#88739E]/40 dark:text-[#b29bce]",
+      "text-adhd-purple bg-adhd-purple/10 border-adhd-purple/30 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
     href: (entry) => `/dump?dumpId=${entry.id}`,
   },
   journal: {
     label: "Journal",
     icon: BookOpen,
-    // Mauve Purple #88739E — shares color with dumps, differentiated by icon + label
+    // Shares color with dumps, differentiated by icon + label
     tintClassName:
-      "text-[#5b4d70] bg-[#88739E]/15 border-[#88739E]/60 dark:text-[#b29bce]",
+      "text-adhd-purple bg-adhd-purple/10 border-adhd-purple/50 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
     href: (entry) => `/dump?category=junk_journal&dumpId=${entry.id}`,
   },
   rescue: {
     label: "Rescue",
     icon: Siren,
-    // Amber: same family as moments, since both are about how the day felt.
-    tintClassName:
-      "text-[#8a6422] bg-[#DFA649]/10 border-[#DFA649]/30 dark:text-[#e9c175]",
+    // Same family as moments: both are about how the day felt.
+    tintClassName: "text-foreground bg-warning/10 border-warning/30",
     href: () => "/crisis",
   },
   moment: {
     label: "Moments",
     icon: Sparkles,
-    // Amber #DFA649
-    tintClassName:
-      "text-[#8a6422] bg-[#DFA649]/15 border-[#DFA649]/40 dark:text-[#e9c175]",
+    tintClassName: "text-foreground bg-warning/15 border-warning/40",
     // Moments have no source page in v1 — row is non-interactive
     href: null,
   },

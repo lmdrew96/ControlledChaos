@@ -30,7 +30,7 @@ export function MomentsQuickLogFab() {
             className="fixed bottom-20 right-4 z-40 flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-lg transition-transform active:scale-95 md:bottom-6 md:right-6"
             aria-label="Log a moment"
           >
-            <Sparkles className="h-4 w-4 text-[#DFA649]" aria-hidden />
+            <Sparkles className="h-4 w-4 text-warning" aria-hidden />
             <span className="hidden sm:inline">Log</span>
           </button>
         </PopoverTrigger>
