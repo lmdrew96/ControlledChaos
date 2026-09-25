@@ -37,7 +37,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { compareBySoonestTime } from "@/lib/tasks/task-times";
 
-type FilterStatus = "active" | "completed" | "all";
+type FilterStatus = "active" | "completed" | "cancelled" | "all";
 type SortBy = "none" | "priority" | "deadline" | "manual";
 
 const PRIORITY_ORDER: Record<string, number> = {
@@ -108,7 +108,7 @@ function SortableTaskCard({
   );
 }
 
-const VALID_FILTERS: Set<string> = new Set(["active", "completed", "all"]);
+const VALID_FILTERS: Set<string> = new Set(["active", "completed", "cancelled", "all"]);
 const VALID_SORTS: Set<string> = new Set(["none", "priority", "deadline", "manual"]);
 
 export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}) {
@@ -173,7 +173,9 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
   const fetchTasks = useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks");
+      // Cancelled tasks come along so they can be found and restored; every
+      // other view filters them out below.
+      const res = await fetch("/api/tasks?includeCancelled=1");
       if (!res.ok) throw new Error(`GET /api/tasks ${res.status}`);
       const data = await res.json();
       setTasks(data.tasks);
@@ -208,6 +210,11 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredTasks = applySort(
     tasks.filter((task) => {
+      if (filter === "cancelled") {
+        if (task.status !== "cancelled") return false;
+      } else if (task.status === "cancelled") {
+        return false;
+      }
       if (filter === "active" && task.status === "completed") return false;
       if (filter === "completed" && task.status !== "completed") return false;
       if (filterPriority !== "all" && task.priority !== filterPriority) return false;
@@ -229,8 +236,10 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     sortBy
   );
 
-  const activeTasks = tasks.filter((t) => t.status !== "completed");
-  const completedTasks = tasks.filter((t) => t.status === "completed");
+  const cancelledTasks = tasks.filter((t) => t.status === "cancelled");
+  const liveTasks = tasks.filter((t) => t.status !== "cancelled");
+  const activeTasks = liveTasks.filter((t) => t.status !== "completed");
+  const completedTasks = liveTasks.filter((t) => t.status === "completed");
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
@@ -299,7 +308,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     return <LoadErrorStrip message="Couldn't load your tasks." onRetry={fetchTasks} />;
   }
 
-  if (collapsible && !expanded && tasks.length > 0) {
+  if (collapsible && !expanded && liveTasks.length > 0) {
     return (
       <button
         type="button"
@@ -311,7 +320,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
           <ListTodo className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">Tasks</span>
           <span className="text-muted-foreground">
-            ({tasks.length}) · {activeTasks.length} active
+            ({liveTasks.length}) · {activeTasks.length} active
           </span>
         </span>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -373,7 +382,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
             <ListTodo className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">Tasks</span>
             <span className="text-muted-foreground">
-              ({tasks.length}) · {activeTasks.length} active
+              ({liveTasks.length}) · {activeTasks.length} active
             </span>
           </span>
           <ChevronDown className="h-4 w-4 rotate-180 text-muted-foreground" />
@@ -412,6 +421,10 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
               { key: "active", label: `Active (${activeTasks.length})` },
               { key: "completed", label: `Done (${completedTasks.length})` },
               { key: "all", label: "All" },
+              // Only there when there's something in it, or you're on it.
+              ...(cancelledTasks.length > 0 || filter === "cancelled"
+                ? [{ key: "cancelled", label: `Cancelled (${cancelledTasks.length})` } as const]
+                : []),
             ] as const
           ).map(({ key, label }) => (
             <button
@@ -559,9 +572,11 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
                 ? `No tasks match "${searchQuery}".`
                 : filter === "completed"
                   ? "No completed tasks yet. You got this!"
-                  : hasActiveFilters
-                    ? "No tasks match your current filters."
-                    : "All caught up!"}
+                  : filter === "cancelled"
+                    ? "Nothing cancelled."
+                    : hasActiveFilters
+                      ? "No tasks match your current filters."
+                      : "All caught up!"}
             </p>
           )}
         </div>

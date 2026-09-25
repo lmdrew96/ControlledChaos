@@ -29,8 +29,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const status = request.nextUrl.searchParams.get("status") ?? undefined;
-    const tasks = await getTasksByUser(userId, { status });
+    const params = request.nextUrl.searchParams;
+    const status = params.get("status") ?? undefined;
+    const includeCancelled = params.get("includeCancelled") === "1";
+    const tasks = await getTasksByUser(userId, { status, includeCancelled });
 
     return NextResponse.json({ tasks });
   } catch (error) {

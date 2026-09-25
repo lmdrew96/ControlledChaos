@@ -127,13 +127,13 @@ export async function createTasksFromDump(
 
 export async function getTasksByUser(
   userId: string,
-  options?: { status?: string }
+  options?: { status?: string; includeCancelled?: boolean }
 ) {
   const conditions = [eq(tasks.userId, userId), isNull(tasks.deletedAt)];
 
   if (options?.status) {
     conditions.push(eq(tasks.status, options.status));
-  } else {
+  } else if (!options?.includeCancelled) {
     // By default, exclude cancelled tasks
     conditions.push(ne(tasks.status, "cancelled"));
   }

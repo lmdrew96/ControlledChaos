@@ -14,6 +14,8 @@ import {
   MoreHorizontal,
   PlayCircle,
   PauseCircle,
+  Ban,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SessionOutcomePicker } from "@/components/features/task-feed/session-outcome-picker";
@@ -125,7 +127,7 @@ export function TaskCard({
     } else if (
       swipeDirection.current === "x" &&
       swipeOffset >= SWIPE_THRESHOLD &&
-      !isCompleted
+      !isClosed
     ) {
       void handleFindTimeAction();
     }
@@ -144,13 +146,17 @@ export function TaskCard({
     swipeDirection.current = null;
   }
   const isCompleted = task.status === "completed";
+  // Cancelled reads like done on the card (faded, struck through, no menu):
+  // it's work you decided not to do. The circle restores it instead.
+  const isCancelled = task.status === "cancelled";
+  const isClosed = isCompleted || isCancelled;
   const isInProgress = task.status === "in_progress";
   const hasSteps = !!task.progressSteps && task.progressSteps.length > 0;
   const priority =
     priorityConfig[task.priority as keyof typeof priorityConfig] ??
     priorityConfig.normal;
 
-  async function handleAction(action: "complete" | "undo" | "delete") {
+  async function handleAction(action: "complete" | "undo" | "cancel" | "delete") {
     setIsUpdating(true);
     setConfirmDelete(false);
     try {
@@ -159,7 +165,9 @@ export function TaskCard({
         if (!res.ok) throw new Error("Delete failed");
         toast.success(`'${task.title}' deleted`);
       } else {
-        const status = action === "complete" ? "completed" : "pending";
+        const status =
+          action === "complete" ? "completed" : action === "cancel" ? "cancelled" : "pending";
+        const previousStatus = task.status;
         const res = await fetch(`/api/tasks/${task.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -169,6 +177,28 @@ export function TaskCard({
         if (action === "complete") {
           toast.success(`'${task.title}' marked complete`);
           fireTaskConfetti();
+        } else if (action === "cancel") {
+          toast.success(`'${task.title}' cancelled`, {
+            description: "It's under the Cancelled tab if you change your mind.",
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                try {
+                  const undo = await fetch(`/api/tasks/${task.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: previousStatus }),
+                  });
+                  if (!undo.ok) throw new Error("Undo failed");
+                  onUpdate();
+                } catch {
+                  toast.error("Couldn't undo — restore it from the Cancelled tab.");
+                }
+              },
+            },
+          });
+        } else if (isCancelled) {
+          toast.success(`'${task.title}' restored`);
         }
       }
       onUpdate();
@@ -179,7 +209,9 @@ export function TaskCard({
           ? "Couldn't delete task. Try again."
           : action === "complete"
             ? "Couldn't complete task. Try again."
-            : "Couldn't update task. Try again."
+            : action === "cancel"
+              ? "Couldn't cancel task. Try again."
+              : "Couldn't update task. Try again."
       );
     } finally {
       setIsUpdating(false);
@@ -367,7 +399,7 @@ export function TaskCard({
   // Only for a sitting that ended TODAY, never a backlog of old ones: the
   // prompt is a moment's convenience, and unanswered is fine.
   const canLogPassedSitting =
-    !isCompleted &&
+    !isClosed &&
     passedToday &&
     Boolean(task.passedSessionId) &&
     !task.passedSessionStatus;
@@ -405,7 +437,7 @@ export function TaskCard({
       >
         <Trash2 className="h-5 w-5 text-white" />
       </div>
-      {!isCompleted && (
+      {!isClosed && (
         <div
           className={cn(
             "absolute inset-0 flex items-center justify-start pl-5 bg-primary/80 transition-opacity",
@@ -420,7 +452,7 @@ export function TaskCard({
       <Card
         className={cn(
           "ticket-row relative p-4 transition-colors cursor-pointer hover:bg-accent/30",
-          isCompleted && "opacity-60"
+          isClosed && "opacity-60"
         )}
         style={{
           transform: `translateX(${swipeOffset}px)`,
@@ -437,21 +469,32 @@ export function TaskCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              void handleAction(isCompleted ? "undo" : "complete");
+              void handleAction(isClosed ? "undo" : "complete");
             }}
             disabled={isUpdating}
-            aria-label={isCompleted ? `Mark "${task.title}" incomplete` : `Complete "${task.title}"`}
+            aria-label={
+              isCancelled
+                ? `Restore "${task.title}"`
+                : isCompleted
+                  ? `Mark "${task.title}" incomplete`
+                  : `Complete "${task.title}"`
+            }
+            title={isCancelled ? "Restore" : undefined}
             className={cn(
               "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
               isCompleted
                 ? "border-primary bg-primary text-primary-foreground"
-                : "border-muted-foreground/30 hover:border-primary"
+                : isCancelled
+                  ? "border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary"
+                  : "border-muted-foreground/30 hover:border-primary"
             )}
           >
             {isUpdating ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : isCompleted ? (
               <Check className="h-3 w-3" />
+            ) : isCancelled ? (
+              <Undo2 className="h-3 w-3" />
             ) : null}
           </button>
 
@@ -461,13 +504,13 @@ export function TaskCard({
               <h3
                 className={cn(
                   "font-medium leading-snug",
-                  isCompleted && "line-through"
+                  isClosed && "line-through"
                 )}
               >
                 {task.title}
               </h3>
 
-              {!isCompleted && (
+              {!isClosed && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -522,6 +565,13 @@ export function TaskCard({
                       Find a time
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => void handleAction("cancel")}
+                      disabled={isUpdating}
+                    >
+                      <Ban className="h-4 w-4" />
+                      Cancel task
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
                       onSelect={() => setConfirmDelete(true)}
@@ -718,7 +768,7 @@ export function TaskCard({
                 );
               })}
             </ul>
-            {!isCompleted && localStepIndex < steps.length && (
+            {!isClosed && localStepIndex < steps.length && (
               <Button
                 size="sm"
                 className="w-full"
