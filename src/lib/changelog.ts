@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.73.7",
-    label: "2.70.15 – 2.73.7",
+    version: "2.73.8",
+    label: "2.70.15 – 2.73.8",
     date: "2026-09-25",
     title: "Things connect to each other now",
     changes: [

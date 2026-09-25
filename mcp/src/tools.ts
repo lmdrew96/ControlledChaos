@@ -61,6 +61,50 @@ async function syncPlannedSession(
  */
 const COMPLETED_AT_ON_COMPLETE = `completed_at = CASE WHEN status = 'completed' THEN COALESCE(completed_at, NOW()) ELSE NOW() END`;
 
+const DAY_MS = 86_400_000;
+
+/**
+ * The calendar date a caller meant by a datetime for an all-day event.
+ *
+ * Callers are told to send UTC, and a careful one sends local midnight
+ * converted to UTC. A careless one sends the date at UTC midnight
+ * ("2026-09-30T00:00:00Z"), which is the previous evening in the Americas —
+ * taken literally, the event lands a day early. A bare date or an exact UTC
+ * midnight is read as the date itself; anything else is read in the user's
+ * timezone.
+ */
+function intendedDateKey(value: string | Date, tz: string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (d.getTime() % DAY_MS === 0) return d.toISOString().slice(0, 10);
+  const p = getZonedParts(d, tz);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+/** Local midnight of a YYYY-MM-DD in `tz`, plus `addDays`. */
+function localMidnight(dateKey: string, tz: string, addDays = 0): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1, d + addDays));
+  return zonedToUtc(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate(), 0, 0, 0, tz);
+}
+
+/**
+ * The app's all-day convention (allDayRange): local midnight to the local
+ * midnight after the last day, exclusive. `end` is optional; at least one day.
+ */
+function allDayBounds(
+  start: string | Date,
+  end: string | Date | null | undefined,
+  tz: string
+): { start: Date; end: Date } {
+  const startKey = intendedDateKey(start, tz);
+  const startAt = localMidnight(startKey, tz);
+  // The end is exclusive, so the last day is the one just before it.
+  const lastKey = end ? intendedDateKey(new Date(new Date(end).getTime() - 1), tz) : startKey;
+  const endAt = localMidnight(lastKey > startKey ? lastKey : startKey, tz, 1);
+  return { start: startAt, end: endAt };
+}
+
 /**
  * Log a completion the way the app's PATCH /api/tasks/[id] does. Check-ins
  * and idle nudges read task_activity to decide whether the user has been
@@ -651,7 +695,16 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
 
-      const conditions: string[] = ["user_id = $1", "start_time <= $3", "end_time > $2"];
+      // Same as the app's getCalendarEventsByDateRange: half-open [start, end),
+      // so tomorrow's all-day event (stored at exactly midnight) doesn't leak
+      // into today, and legacy cc- plan rows (duplicates of plan blocks) are
+      // left out.
+      const conditions: string[] = [
+        "user_id = $1",
+        "start_time < $3",
+        "end_time > $2",
+        "(external_id IS NULL OR external_id NOT LIKE 'cc-%')",
+      ];
       const values: unknown[] = [userId, new Date(params.start_date).toISOString(), new Date(params.end_date).toISOString()];
       let paramIdx = 4;
 
@@ -717,7 +770,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
              AND t.deleted_at IS NULL
              AND t.status IN ('pending', 'in_progress')
              AND s.starts_at >= $2
-             AND s.starts_at <= $3${planCategory.replace("category", "t.category")}
+             AND s.starts_at < $3${planCategory.replace("category", "t.category")}
            UNION ALL
            SELECT t.id, t.title, t.scheduled_for,
                   t.estimated_minutes, t.status, t.category, t.deadline, t.target_date
@@ -727,7 +780,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
              AND t.status IN ('pending', 'in_progress')
              AND t.scheduled_for IS NOT NULL
              AND t.scheduled_for >= $2
-             AND t.scheduled_for <= $3${planCategory.replace("category", "t.category")}
+             AND t.scheduled_for < $3${planCategory.replace("category", "t.category")}
              AND NOT EXISTS (
                SELECT 1 FROM task_sessions s2
                WHERE s2.task_id = t.id AND s2.starts_at = t.scheduled_for
@@ -790,7 +843,8 @@ Args:
   - description: Optional description.
   - location: Optional location string.
   - category: school, work, personal, errands, or health.
-  - is_all_day: Whether it's an all-day event (default false).
+  - is_all_day: Whether it's an all-day event (default false). All-day events are stored from local midnight to the
+    local midnight after the last day; a bare date ("2026-09-30") or that date at UTC midnight is read as that date.
   - recurrence: Optional. Makes this a recurring series instead of a single event:
       - type (required): "daily" or "weekly".
       - days_of_week: For weekly recurrence, which days (0=Sun...6=Sat). Defaults to start_time's day.
@@ -835,12 +889,18 @@ Returns: The created event (or a summary if recurring).`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
 
+      // All-day events use the app's local-midnight convention, whatever
+      // instant the caller sent. The expander then keeps that wall-clock time
+      // across DST for a series.
+      const bounds = params.is_all_day
+        ? allDayBounds(params.start_time, params.end_time, tz)
+        : null;
       const instances = expandRecurrence({
         title: params.title,
         description: params.description ?? null,
         location: params.location ?? null,
-        startTime: params.start_time,
-        endTime: params.end_time,
+        startTime: bounds ? bounds.start.toISOString() : params.start_time,
+        endTime: bounds ? bounds.end.toISOString() : params.end_time,
         isAllDay: params.is_all_day,
         recurrence: params.recurrence
           ? {
@@ -1257,11 +1317,37 @@ Returns: The updated event, or a summary if scope is "all".`,
         const values: unknown[] = [];
         let idx = 1;
 
+        // Resolve the new times. A start with no end keeps the event's length.
+        // Becoming (or staying) all-day snaps to local midnights — flipping
+        // the flag alone used to leave a 2pm–3pm "all-day" event.
+        const ex = existingRows[0];
+        const exStart = new Date(ex.start_time as string);
+        const exEnd = new Date(ex.end_time as string);
+        const willBeAllDay = params.is_all_day ?? Boolean(ex.is_all_day);
+        let newStartAt: Date | undefined;
+        let newEndAt: Date | undefined;
+        if (willBeAllDay && (params.is_all_day === true || params.start_time || params.end_time)) {
+          const b = allDayBounds(
+            params.start_time ?? exStart,
+            params.end_time ?? (params.start_time ? null : exEnd),
+            tz
+          );
+          newStartAt = b.start;
+          newEndAt = b.end;
+        } else if (params.start_time) {
+          newStartAt = new Date(params.start_time);
+          newEndAt = params.end_time
+            ? new Date(params.end_time)
+            : new Date(newStartAt.getTime() + (exEnd.getTime() - exStart.getTime()));
+        } else if (params.end_time) {
+          newEndAt = new Date(params.end_time);
+        }
+
         const fields: Array<[string, unknown]> = [
           ["title", params.title],
           ["description", params.description],
-          ["start_time", params.start_time ? new Date(params.start_time).toISOString() : undefined],
-          ["end_time", params.end_time ? new Date(params.end_time).toISOString() : undefined],
+          ["start_time", newStartAt?.toISOString()],
+          ["end_time", newEndAt?.toISOString()],
           ["location", params.location],
           ["category", params.category],
           ["is_all_day", params.is_all_day],
@@ -1314,6 +1400,24 @@ Returns: The updated event, or a summary if scope is "all".`,
         updatedRows = await sql(query, metaValues);
       }
 
+      // Turning a whole series all-day: snap each instance to its own local
+      // day, the way a single-event flip does.
+      if (params.is_all_day === true && params.start_time === undefined && params.end_time === undefined) {
+        const seriesRows = await sql(
+          `SELECT id, start_time FROM calendar_events WHERE series_id = $1 AND user_id = $2 AND source = 'controlledchaos'`,
+          [seriesId, userId]
+        );
+        updatedRows = [];
+        for (const row of seriesRows) {
+          const b = allDayBounds(new Date(row.start_time as string), null, tz);
+          const res = await sql(
+            `UPDATE calendar_events SET start_time = $1, end_time = $2, synced_at = NOW() WHERE id = $3 AND user_id = $4 RETURNING *`,
+            [b.start.toISOString(), b.end.toISOString(), row.id, userId]
+          );
+          if (res[0]) updatedRows.push(res[0]);
+        }
+      }
+
       if (params.start_time !== undefined || params.end_time !== undefined) {
         const seriesRows = await sql(
           `SELECT * FROM calendar_events WHERE series_id = $1 AND user_id = $2 AND source = 'controlledchaos'`,
@@ -1338,7 +1442,11 @@ Returns: The updated event, or a summary if scope is "all".`,
 
           if (newStart) {
             newRowStart = withLocalTime(new Date(row.start_time as string), newStart);
-            if (durationMs !== null) newRowEnd = new Date(newRowStart.getTime() + durationMs);
+            // A start-only change keeps this row's own length.
+            const rowDurationMs =
+              durationMs ??
+              new Date(row.end_time as string).getTime() - new Date(row.start_time as string).getTime();
+            newRowEnd = new Date(newRowStart.getTime() + rowDurationMs);
           } else if (newEnd) {
             newRowEnd = withLocalTime(new Date(row.end_time as string), newEnd);
           }

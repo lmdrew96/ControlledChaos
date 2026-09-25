@@ -114,9 +114,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           const updated = withLocalTime(new Date(e.startTime), newStart);
           updateData.startTime = updated;
 
-          if (durationMs !== null) {
-            updateData.endTime = new Date(updated.getTime() + durationMs);
-          }
+          // A start-only change keeps this row's own length; leaving its end
+          // alone could put the end before the new start.
+          const rowDurationMs =
+            durationMs ?? new Date(e.endTime).getTime() - new Date(e.startTime).getTime();
+          updateData.endTime = new Date(updated.getTime() + rowDurationMs);
         } else if (newEnd) {
           updateData.endTime = withLocalTime(new Date(e.endTime), newEnd);
         }
