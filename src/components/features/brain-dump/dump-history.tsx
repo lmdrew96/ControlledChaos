@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
@@ -15,6 +15,7 @@ import {
   Brain,
   Filter,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -55,12 +56,17 @@ function timeAgo(dateStr: string, timezone: string): string {
   return formatForDisplay(new Date(dateStr), timezone, DISPLAY_DATE);
 }
 
-export function DumpHistory() {
+/**
+ * `focusId` (from /dump?dumpId=, e.g. a Daily Recap row) opens that dump and
+ * scrolls to it once the list is in, if it's among the recent ones.
+ */
+export function DumpHistory({ focusId = null }: { focusId?: string | null } = {}) {
   const timezone = useTimezone();
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(focusId);
+  const focusRef = useRef<HTMLDivElement | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
 
   useEffect(() => {
@@ -75,6 +81,10 @@ export function DumpHistory() {
       .catch(() => setLoadError(true))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isLoading) focusRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [isLoading]);
 
   const filteredDumps = useMemo(() => {
     if (filter === "all") return dumps;
@@ -119,13 +129,23 @@ export function DumpHistory() {
             inputTypeIcon[dump.inputType as keyof typeof inputTypeIcon] ?? Type;
           const isExpanded = expandedId === dump.id;
           const media = dump.media ?? [];
-          const hasExpandable = !!dump.rawContent || media.length > 0;
+          const hasExpandable =
+            !!dump.rawContent || media.length > 0 || dump.taskCount > 0;
 
           return (
-            <button
+            <div
               key={dump.id}
+              ref={dump.id === focusId ? focusRef : undefined}
+              className={cn(
+                "ticket-row w-full rounded-lg border border-border bg-card transition-colors hover:bg-accent/50",
+                dump.id === focusId && "ring-2 ring-primary/50"
+              )}
+            >
+            <button
+              type="button"
               onClick={() => setExpandedId(isExpanded ? null : dump.id)}
-              className="ticket-row w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+              aria-expanded={hasExpandable ? isExpanded : undefined}
+              className="w-full p-3 text-left"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0">
@@ -173,9 +193,20 @@ export function DumpHistory() {
                   </div>
                 )}
               </div>
+            </button>
 
+              {/* Outside the toggle button: it holds links, which can't nest in a button. */}
               {isExpanded && hasExpandable && (
-                <div className="mt-3 space-y-3">
+                <div className="space-y-3 px-3 pb-3">
+                  {dump.taskCount > 0 && (
+                    <Link
+                      href={`/tasks?dump=${dump.id}&filter=all`}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    >
+                      <CheckSquare className="h-3 w-3" />
+                      View the {dump.taskCount} task{dump.taskCount !== 1 ? "s" : ""} from this dump
+                    </Link>
+                  )}
                   {dump.rawContent && (
                     <div className="rounded-md bg-muted/50 p-3">
                       <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
@@ -200,7 +231,7 @@ export function DumpHistory() {
                   )}
                 </div>
               )}
-            </button>
+            </div>
           );
         })}
       </div>

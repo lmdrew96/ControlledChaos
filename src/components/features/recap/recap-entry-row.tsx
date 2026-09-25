@@ -21,7 +21,7 @@ export function RecapEntryRow({ entry, timezone }: RecapEntryRowProps) {
   const meta = RECAP_KIND_META[entry.kind];
   const Icon = meta.icon;
   const time = formatForDisplay(new Date(entry.at), timezone, DISPLAY_TIME);
-  const href = meta.href?.(entry) ?? null;
+  const href = meta.href?.(entry, timezone) ?? null;
 
   const { label, snippet } = describe(entry, timezone);
 

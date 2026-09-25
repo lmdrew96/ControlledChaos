@@ -36,6 +36,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -483,11 +484,14 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                     {dayItems.map((item) =>
                       item.kind === "plan" ? (
                         <li key={`plan-${item.plan.sessionId}`}>
-                          <div
+                          {/* A plan block is a task's sitting, so it opens that task. */}
+                          <Link
+                            href={`/tasks?taskId=${item.plan.taskId}`}
                             className={cn(
-                              "w-full rounded-lg border-2 border-dashed px-3 py-2.5 text-left",
-                              "border-adhd-purple/55 bg-adhd-purple/[0.07]",
-                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]"
+                              "block w-full rounded-lg border-2 border-dashed px-3 py-2.5 text-left transition-colors",
+                              "border-adhd-purple/55 bg-adhd-purple/[0.07] hover:bg-adhd-purple/[0.12]",
+                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10] dark:hover:bg-adhd-lavender/[0.16]",
+                              "outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                             )}
                           >
                             <div className="flex items-baseline gap-3">
@@ -496,12 +500,9 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                               </span>
                               <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
                                 <TooltipTrigger asChild>
-                                  {/* Focusable so a truncated title is readable
-                                      by keyboard too, not only on hover. */}
-                                  <span
-                                    tabIndex={0}
-                                    className="flex-1 truncate text-sm font-medium text-adhd-purple outline-none focus-visible:ring-2 focus-visible:ring-primary/60 dark:text-adhd-lavender"
-                                  >
+                                  {/* The link around it takes keyboard focus, so
+                                      the tooltip also opens from the link. */}
+                                  <span className="flex-1 truncate text-sm font-medium text-adhd-purple dark:text-adhd-lavender">
                                     {item.plan.title}
                                   </span>
                                 </TooltipTrigger>
@@ -517,7 +518,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                             <p className="ml-[3.875rem] mt-0.5 text-[11px] text-adhd-purple/70 dark:text-adhd-lavender/70">
                               Planned · {item.plan.minutes} min
                             </p>
-                          </div>
+                          </Link>
                         </li>
                       ) : (
                         <li key={item.event.id}>

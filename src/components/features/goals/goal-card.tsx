@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatForDisplay } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
@@ -207,10 +208,13 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
                 </span>
               )}
               {taskCount > 0 && (
-                <span className="flex items-center gap-1">
+                <Link
+                  href={`/tasks?goal=${goal.id}&filter=all`}
+                  className="flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline"
+                >
                   <ListTodo className="h-3 w-3" />
                   {completedTaskCount}/{taskCount} tasks
-                </span>
+                </Link>
               )}
             </div>
 

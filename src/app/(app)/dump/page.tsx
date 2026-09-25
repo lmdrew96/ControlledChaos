@@ -134,7 +134,7 @@ export default function BrainDumpPage() {
         <PhotoUploader category={category} onSaved={refreshHistory} />
       )}
 
-      <DumpHistory key={historyKey} />
+      <DumpHistory key={historyKey} focusId={searchParams.get("dumpId")} />
     </div>
   );
 }

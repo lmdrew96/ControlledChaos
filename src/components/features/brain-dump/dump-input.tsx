@@ -69,7 +69,15 @@ export function DumpInput({ category, onSaved }: DumpInputProps) {
       }
 
       setContent("");
-      router.push("/tasks");
+      // Land on just what this dump made, not the whole list. Events-only
+      // dumps go to the calendar, where their results are.
+      router.push(
+        taskCount > 0 && data.dump?.id
+          ? `/tasks?dump=${data.dump.id}&filter=all`
+          : eventCount > 0
+            ? "/calendar"
+            : "/tasks"
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

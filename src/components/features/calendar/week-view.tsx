@@ -45,6 +45,7 @@ import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import { attachAssessmentsToClasses } from "@/lib/calendar/attach-assessments";
 import { useNow } from "@/hooks/use-now";
+import { useRouter } from "next/navigation";
 import {
   layoutOverlappingTiles,
   shortTileTitle,
@@ -188,6 +189,7 @@ type DragTarget =
 // ============================================================
 
 export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
+  const router = useRouter();
   const {
     events,
     planBlocks,
@@ -966,16 +968,29 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         return (
                           <Tooltip key={block.sessionId} delayDuration={TOOLTIP_DELAY_MS}>
                             <TooltipTrigger asChild>
-                              {/* Focusable so the tooltip is reachable by keyboard,
-                                  not just by hover. It is not actionable — a plan
-                                  block has no detail view to open — so it stays a
-                                  div rather than pretending to be a button. */}
+                              {/* A plan block is a task's sitting: outside
+                                  Rearrange it opens that task. In Rearrange the
+                                  pointer drags it instead. */}
                               <div
                                 tabIndex={0}
+                                role={isEditMode ? undefined : "link"}
+                                aria-label={isEditMode ? undefined : `Open task "${block.title}"`}
                                 onPointerDown={
                                   isEditMode
                                     ? (e) => handleDragStart(e, { kind: "plan", block })
                                     : undefined
+                                }
+                                onClick={
+                                  isEditMode
+                                    ? undefined
+                                    : () => router.push(`/tasks?taskId=${block.taskId}`)
+                                }
+                                onKeyDown={
+                                  isEditMode
+                                    ? undefined
+                                    : (e) => {
+                                        if (e.key === "Enter") router.push(`/tasks?taskId=${block.taskId}`);
+                                      }
                                 }
                                 className={cn(
                                   // z comes from the cascade (inline); hover or
@@ -988,7 +1003,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                   // Grabbable only while Rearrange is on, matching events.
                                   isEditMode
                                     ? "cursor-grab touch-none active:cursor-grabbing"
-                                    : "cursor-default",
+                                    : "cursor-pointer hover:bg-adhd-purple/[0.12] dark:hover:bg-adhd-lavender/[0.16]",
                                   dragTarget?.kind === "plan" &&
                                     dragTarget.block.sessionId === block.sessionId &&
                                     "opacity-40"

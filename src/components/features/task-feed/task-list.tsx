@@ -125,13 +125,17 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   const filterEnergy = searchParams.get("energy") || "all";
   const filterCategory = searchParams.get("category") || "all";
   const searchQuery = searchParams.get("q") || "";
+  // Scopes set by links from elsewhere: a goal card's "3/5 tasks", or a
+  // brain dump's results. Shown as a removable chip above the list.
+  const goalScope = searchParams.get("goal") || "";
+  const dumpScope = searchParams.get("dump") || "";
 
   // Helper to update URL search params without full navigation
   const updateParams = useCallback((updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       // Remove param if it's the default value
-      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "", taskId: "" };
+      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "", taskId: "", goal: "", dump: "" };
       if (value === defaults[key]) {
         params.delete(key);
       } else {
@@ -192,6 +196,23 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     void fetchTasks();
   }, [fetchTasks]);
 
+  // The goal chip names the goal; the task rows only carry its id.
+  const [goalTitle, setGoalTitle] = useState<string | null>(null);
+  useEffect(() => {
+    if (!goalScope) return;
+    let cancelled = false;
+    fetch("/api/goals")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { goals?: { id: string; title: string }[] } | null) => {
+        if (cancelled) return;
+        setGoalTitle(data?.goals?.find((g) => g.id === goalScope)?.title ?? null);
+      })
+      .catch((err) => console.error("Failed to load goal name:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [goalScope]);
+
   // Deep links (push "Start", command palette, geofence arrival) land on
   // /tasks?taskId=… — open that task once the list is in, then drop the
   // param so closing the modal doesn't reopen it.
@@ -215,6 +236,8 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
       } else if (task.status === "cancelled") {
         return false;
       }
+      if (goalScope && task.goalId !== goalScope) return false;
+      if (dumpScope && task.sourceDumpId !== dumpScope) return false;
       if (filter === "active" && task.status === "completed") return false;
       if (filter === "completed" && task.status !== "completed") return false;
       if (filterPriority !== "all" && task.priority !== filterPriority) return false;
@@ -243,7 +266,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
-  const isDragMode = sortBy === "manual" && filter === "active" &&
+  const isDragMode = sortBy === "manual" && filter === "active" && !goalScope && !dumpScope &&
     filterPriority === "all" && filterEnergy === "all" && filterCategory === "all" &&
     normalizedSearch === "";
 
@@ -413,6 +436,27 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
             </button>
           )}
         </div>
+
+        {(goalScope || dumpScope) && (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs">
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              {goalScope
+                ? goalTitle
+                  ? <>Tasks for <span className="font-medium text-foreground">{goalTitle}</span></>
+                  : "Tasks for one goal"
+                : "Tasks from one brain dump"}
+            </span>
+            <button
+              type="button"
+              onClick={() => updateParams({ goal: "", dump: "" })}
+              className="flex shrink-0 items-center gap-1 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Show all tasks"
+            >
+              <X className="h-3.5 w-3.5" />
+              Show all
+            </button>
+          </div>
+        )}
 
         {/* Status tabs */}
         <div className="flex items-center gap-1 rounded-lg bg-muted p-1">

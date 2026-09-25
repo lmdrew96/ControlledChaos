@@ -157,7 +157,15 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
       if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
       toast.success(parts.length > 0 ? `Created ${parts.join(" and ")}!` : "Photo dump parsed!");
 
-      router.push("/tasks");
+      // Land on just what this dump made, not the whole list. Events-only
+      // dumps go to the calendar, where their results are.
+      router.push(
+        taskCount > 0 && data.dump?.id
+          ? `/tasks?dump=${data.dump.id}&filter=all`
+          : eventCount > 0
+            ? "/calendar"
+            : "/tasks"
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
