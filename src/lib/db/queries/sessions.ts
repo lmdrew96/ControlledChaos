@@ -6,6 +6,8 @@ import {
   asc,
   gte,
   lt,
+  lte,
+  or,
   isNull,
   isNotNull,
   inArray,
@@ -702,6 +704,8 @@ async function selectOrphanScheduledTasks(
  * Sessions starting inside a window, for the "time to start" push trigger.
  * Excludes tasks already in progress — being told to start something you are
  * visibly already doing is the kind of thing that erodes trust in the alerts.
+ * Also excludes tasks snoozed past now: snoozing hides the task, and its
+ * sittings stay on the calendar, so without this the push undoes the snooze.
  */
 export async function getSessionsStartingBetween(
   userId: string,
@@ -729,6 +733,7 @@ export async function getSessionsStartingBetween(
         isNull(tasks.deletedAt),
         ne(tasks.status, "completed"),
         ne(tasks.status, "in_progress"),
+        or(isNull(tasks.snoozedUntil), lte(tasks.snoozedUntil, new Date())),
         gte(taskSessions.startsAt, start),
         lt(taskSessions.startsAt, end)
       )
