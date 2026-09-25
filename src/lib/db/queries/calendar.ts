@@ -352,11 +352,16 @@ export async function getUserIdByCalendarToken(token: string): Promise<string | 
  * Get the most recent syncedAt timestamp for a user's calendar events.
  * Returns null if no events exist.
  */
+/**
+ * When Canvas last synced for this user. Canvas rows only: manual creates and
+ * edits bump syncedAt too, and counting them held off the background Canvas
+ * sync for 15 minutes after every edit.
+ */
 export async function getLastCalendarSync(userId: string): Promise<Date | null> {
   const [row] = await db
     .select({ lastSync: sql<string>`MAX(${calendarEvents.syncedAt})` })
     .from(calendarEvents)
-    .where(eq(calendarEvents.userId, userId));
+    .where(and(eq(calendarEvents.userId, userId), eq(calendarEvents.source, "canvas")));
 
   return row?.lastSync ? new Date(row.lastSync) : null;
 }
