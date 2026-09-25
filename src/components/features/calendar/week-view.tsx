@@ -1380,7 +1380,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
               Clear today&apos;s plan
             </DialogTitle>
             <DialogDescription>
-              Unschedules everything you planned for today. The tasks stay
+              Unschedules what's still ahead in today's plan. The tasks stay
               exactly where they are — only their planned times are removed.
               Real events are untouched.
             </DialogDescription>

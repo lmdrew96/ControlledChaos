@@ -13,24 +13,45 @@ import { expandRecurrence, getZonedParts, zonedToUtc } from "./expand-recurrence
  * — otherwise the next time the app recomputes the mirror it would find no
  * sessions and clear the plan.
  *
- * Single-sitting semantics: a scheduled_for is one timestamp, so setting it
- * replaces whatever was planned. Multi-sitting plans are made in the app.
+ * Mirrors the app's setPrimaryTaskSession / clearTaskSessions: a time moves
+ * the earliest UNANSWERED sitting (or adds one), so a multi-sitting plan keeps
+ * its other sittings; null clears the unanswered ones. Sittings with a logged
+ * outcome are never touched — they're a record of work that happened.
  */
 async function syncPlannedSession(
   userId: string,
   taskId: string,
   startsAt: Date | null
 ): Promise<void> {
-  await sql(`DELETE FROM task_sessions WHERE task_id = $1 AND user_id = $2`, [
-    taskId,
-    userId,
-  ]);
-  if (startsAt) {
+  if (!startsAt) {
     await sql(
-      `INSERT INTO task_sessions (task_id, user_id, starts_at) VALUES ($1, $2, $3)`,
+      `DELETE FROM task_sessions WHERE task_id = $1 AND user_id = $2 AND status IS NULL`,
+      [taskId, userId]
+    );
+  } else {
+    const moved = await sql(
+      `UPDATE task_sessions SET starts_at = $3
+        WHERE id = (SELECT id FROM task_sessions
+                     WHERE task_id = $1 AND user_id = $2 AND status IS NULL
+                     ORDER BY starts_at LIMIT 1)
+        RETURNING id`,
       [taskId, userId, startsAt.toISOString()]
     );
+    if (moved.length === 0) {
+      await sql(
+        `INSERT INTO task_sessions (task_id, user_id, starts_at) VALUES ($1, $2, $3)`,
+        [taskId, userId, startsAt.toISOString()]
+      );
+    }
   }
+  // The mirror is the earliest remaining sitting, which may not be the one
+  // just written.
+  await sql(
+    `UPDATE tasks SET scheduled_for =
+       (SELECT MIN(starts_at) FROM task_sessions WHERE task_id = $1 AND user_id = $2)
+     WHERE id = $1 AND user_id = $2`,
+    [taskId, userId]
+  );
 }
 
 /**

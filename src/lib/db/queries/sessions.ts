@@ -272,10 +272,14 @@ export async function addTaskSession(
 }
 
 /**
- * Replace every session on a task with a single one.
+ * Replace the task's plan with a single session.
  *
  * This is what "Find me a time" does — it MOVES the plan rather than adding to
  * it, which is what the "Moved from X to Y" toast has always promised.
+ *
+ * Only UNANSWERED sittings are replaced. One with a logged outcome is a
+ * record of work that happened: deleting it made the Rescue plan's
+ * remaining-work math overcount and took the outcome out of the recap.
  */
 export async function replaceTaskSessions(
   taskId: string,
@@ -285,7 +289,13 @@ export async function replaceTaskSessions(
 ): Promise<TaskSession | null> {
   await db
     .delete(taskSessions)
-    .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)));
+    .where(
+      and(
+        eq(taskSessions.taskId, taskId),
+        eq(taskSessions.userId, userId),
+        isNull(taskSessions.status)
+      )
+    );
 
   return addTaskSession(taskId, userId, startsAt, minutes);
 }
@@ -303,10 +313,18 @@ export async function setPrimaryTaskSession(
   userId: string,
   startsAt: Date
 ): Promise<TaskSession | null> {
+  // The earliest UNANSWERED sitting — one that's been answered is history,
+  // and moving it would rewrite when it happened.
   const [earliest] = await db
     .select({ id: taskSessions.id })
     .from(taskSessions)
-    .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)))
+    .where(
+      and(
+        eq(taskSessions.taskId, taskId),
+        eq(taskSessions.userId, userId),
+        isNull(taskSessions.status)
+      )
+    )
     .orderBy(asc(taskSessions.startsAt))
     .limit(1);
 
@@ -438,14 +456,23 @@ export async function getLoggedMinutesForTasks(
   return out;
 }
 
-/** Drop every session on a task — "unschedule this". */
+/**
+ * Drop the task's planned sessions — "unschedule this". Answered sittings
+ * stay: they're what happened, not what's planned.
+ */
 export async function clearTaskSessions(
   taskId: string,
   userId: string
 ): Promise<void> {
   await db
     .delete(taskSessions)
-    .where(and(eq(taskSessions.taskId, taskId), eq(taskSessions.userId, userId)));
+    .where(
+      and(
+        eq(taskSessions.taskId, taskId),
+        eq(taskSessions.userId, userId),
+        isNull(taskSessions.status)
+      )
+    );
   await syncTaskScheduledFor(taskId, userId);
 }
 
@@ -462,12 +489,18 @@ export async function clearSessionsInRange(
   start: Date,
   end: Date
 ): Promise<number> {
+  // Only what's still ahead and unanswered. A sitting already underway or
+  // past stays: "clear" is about the rest of the day, not rewriting it.
+  const now = new Date();
+  const from = start.getTime() > now.getTime() ? start : now;
+
   const removed = await db
     .delete(taskSessions)
     .where(
       and(
         eq(taskSessions.userId, userId),
-        gte(taskSessions.startsAt, start),
+        isNull(taskSessions.status),
+        gte(taskSessions.startsAt, from),
         lt(taskSessions.startsAt, end)
       )
     )
@@ -491,7 +524,7 @@ export async function clearSessionsInRange(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
         isNotNull(tasks.scheduledFor),
-        gte(tasks.scheduledFor, start),
+        gte(tasks.scheduledFor, from),
         lt(tasks.scheduledFor, end)
       )
     )
