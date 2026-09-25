@@ -706,6 +706,8 @@ async function selectOrphanScheduledTasks(
  * visibly already doing is the kind of thing that erodes trust in the alerts.
  * Also excludes tasks snoozed past now: snoozing hides the task, and its
  * sittings stay on the calendar, so without this the push undoes the snooze.
+ * Cancelled tasks are out too — MCP cc_update_task and the detail modal both
+ * set that status, and a cancelled task's sittings don't get deleted.
  */
 export async function getSessionsStartingBetween(
   userId: string,
@@ -733,6 +735,7 @@ export async function getSessionsStartingBetween(
         isNull(tasks.deletedAt),
         ne(tasks.status, "completed"),
         ne(tasks.status, "in_progress"),
+        ne(tasks.status, "cancelled"),
         or(isNull(tasks.snoozedUntil), lte(tasks.snoozedUntil, new Date())),
         gte(taskSessions.startsAt, start),
         lt(taskSessions.startsAt, end)

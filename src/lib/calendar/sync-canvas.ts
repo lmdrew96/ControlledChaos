@@ -313,7 +313,11 @@ export async function syncCanvasCalendar(
               sourceEventId: uid,
             });
             tasksCreated++;
-          } else if (existing.status !== "completed" && !existing.deletedAt) {
+          } else if (
+            existing.status !== "completed" &&
+            existing.status !== "cancelled" &&
+            !existing.deletedAt
+          ) {
             const updates: Parameters<typeof updateTask>[2] = {};
 
             // Canvas owns the due date, so a moved deadline follows it. Nothing

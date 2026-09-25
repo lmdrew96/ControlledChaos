@@ -778,7 +778,9 @@ export async function POST(request: Request) {
       const p = item.payload as SnoozedPushPayload;
       const taskGone =
         "taskId" in p &&
-        (item.taskTitle === null || item.taskDeletedAt !== null || item.taskStatus === "completed");
+        (item.taskTitle === null || item.taskDeletedAt !== null ||
+          item.taskStatus === "completed" ||
+          item.taskStatus === "cancelled");
       if (expired || taskGone) {
         await deleteSnoozedPush(item.id);
         continue;
