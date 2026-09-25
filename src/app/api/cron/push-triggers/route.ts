@@ -81,6 +81,14 @@ const EVENT_ACTIONS = [
 
 type PushUser = Awaited<ReturnType<typeof getAllUsersWithPushEnabled>>[number];
 
+/**
+ * How late a reminder band may fire before it's dropped. A quarter of the
+ * band, capped at an hour (day-ahead: 60 min, hour-before: 15), and never
+ * under 15 so the one 10-minute cron tick inside a short band always counts.
+ */
+const staleGraceMinutes = (intervalMinutes: number): number =>
+  Math.max(15, Math.min(60, intervalMinutes / 4));
+
 /** Who a push is for: see refusal() in processUser. */
 type PushLane = "user" | "app";
 
@@ -503,6 +511,22 @@ async function processUser(user: PushUser): Promise<number> {
       }
     }
   }
+
+  // --- Stale reminders expire ---
+  //
+  // A band's reminder stays eligible for the whole band (a day-ahead alert
+  // for 24 hours), so anything held back, by the budget, the cap or a deploy
+  // that lifted one, used to go out hours late: "CGSC 170 starts tomorrow"
+  // at 8:10 PM for a band that opened at 12:40 PM. A reminder that can't go
+  // out near when it was due is dropped, not sent late; the next closer band
+  // still fires. Runs AFTER the wake-up summary, which is exactly where the
+  // overnight ones are meant to land.
+  const nowMs = Date.now();
+  fresh = fresh.filter((c) => {
+    if (c.intervalMinutes === undefined) return true;
+    const bandOpenedMs = c.at.getTime() - c.intervalMinutes * 60_000;
+    return nowMs - bandOpenedMs <= staleGraceMinutes(c.intervalMinutes) * 60_000;
+  });
 
   // Soonest first, so the tick budget is spent on the most urgent situation.
   fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
