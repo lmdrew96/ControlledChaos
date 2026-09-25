@@ -10,6 +10,7 @@ import {
   getCommuteTimes,
   isLocationStale,
   getSessionsStartingBetween,
+  getLastMicrotaskCompletion,
 } from "@/lib/db/queries";
 import {
   startOfDayInTimezone,
@@ -372,6 +373,25 @@ export async function getScheduledTaskAlerts(
   return sessions.map(toScheduledAlert);
 }
 
+function latestOf(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a.getTime() >= b.getTime() ? a : b;
+}
+
+/**
+ * The user's most recent activity: a task action (completed, snoozed…) or a
+ * checked-off microtask, whichever came last. What check-ins mean by
+ * "active today".
+ */
+async function getLastUserActivityAt(userId: string): Promise<Date | null> {
+  const [recent, lastMicro] = await Promise.all([
+    getRecentTaskActivity(userId, 1),
+    getLastMicrotaskCompletion(userId),
+  ]);
+  return latestOf(recent[0] ? new Date(recent[0].createdAt) : null, lastMicro);
+}
+
 /**
  * Determine if the user should get an idle check-in.
  * Criteria: no task activity today AND it's past 11am in their timezone.
@@ -386,10 +406,9 @@ export async function shouldSendIdleCheckin(
   // Morning window: 11am–2:59pm only. Afternoon takes over at 3pm.
   if (currentHour < 11 || currentHour >= 15) return { shouldSend: false, activityLevel: "idle" };
 
-  const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
+  const lastActivity = await getLastUserActivityAt(userId);
+  if (!lastActivity) return { shouldSend: true, activityLevel: "idle" };
 
-  const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
@@ -807,10 +826,9 @@ export async function shouldSendAfternoonCheckin(
   // Afternoon window: 3pm–6:59pm only. Evening takes over at 7pm.
   if (currentHour < 15 || currentHour >= 19) return { shouldSend: false, activityLevel: "idle" };
 
-  const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) return { shouldSend: true, activityLevel: "idle" };
+  const lastActivity = await getLastUserActivityAt(userId);
+  if (!lastActivity) return { shouldSend: true, activityLevel: "idle" };
 
-  const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
@@ -832,12 +850,11 @@ export async function getEveningCheckinStatus(
     return { shouldSend: false, reason: "before_window", activityLevel: "idle" };
   }
 
-  const recentActivity = await getRecentTaskActivity(userId, 1);
-  if (recentActivity.length === 0) {
+  const lastActivity = await getLastUserActivityAt(userId);
+  if (!lastActivity) {
     return { shouldSend: true, reason: "no_activity_recorded", activityLevel: "idle" };
   }
 
-  const lastActivity = new Date(recentActivity[0].createdAt);
   const lastActivityDateStr = lastActivity.toLocaleDateString("en-CA", { timeZone: timezone });
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: timezone });
 
@@ -871,7 +888,12 @@ export async function getInactivityNudgeTier(
   userId: string,
   timezone = "America/New_York"
 ): Promise<{ tier: NudgeTier; streakKey: string; hoursInactive: number } | null> {
-  const lastCompletion = await getLastTaskCompletion(userId);
+  // A checked-off microtask counts as doing something, same as a task.
+  const [lastTask, lastMicro] = await Promise.all([
+    getLastTaskCompletion(userId),
+    getLastMicrotaskCompletion(userId),
+  ]);
+  const lastCompletion = latestOf(lastTask, lastMicro);
   const now = Date.now();
 
   let hoursInactive: number;

@@ -6,6 +6,7 @@ import type { RecapKind } from "@/types";
 
 const VALID_KINDS: RecapKind[] = [
   "task",
+  "microtask",
   "event",
   "dump",
   "journal",

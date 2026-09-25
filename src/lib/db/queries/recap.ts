@@ -1,5 +1,5 @@
 import { db } from "../index";
-import { tasks } from "../schema";
+import { microtaskCompletions, microtasks, tasks } from "../schema";
 import { eq, and, gte, lt, isNull } from "drizzle-orm";
 import type { RecapEntry, RecapKind } from "@/types";
 import { assembleRecapEntries } from "@/lib/recap/assemble";
@@ -26,7 +26,7 @@ export async function getRecapDay(
 ): Promise<RecapEntry[]> {
   const want = (k: RecapKind) => !typeFilters || typeFilters.includes(k);
 
-  const [completedTasks, dayEvents, dayDumps, dayJournal, dayMoments] =
+  const [completedTasks, dayEvents, dayDumps, dayJournal, dayMoments, dayMicrotasks] =
     await Promise.all([
       want("task")
         ? db
@@ -54,6 +54,25 @@ export async function getRecapDay(
       want("moment")
         ? listMoments(userId, { from: dayStart, to: dayEnd, limit: 200 })
         : Promise.resolve([]),
+      want("microtask")
+        ? db
+            .select({
+              id: microtaskCompletions.id,
+              title: microtasks.title,
+              emoji: microtasks.emoji,
+              note: microtaskCompletions.note,
+              completedAt: microtaskCompletions.completedAt,
+            })
+            .from(microtaskCompletions)
+            .innerJoin(microtasks, eq(microtasks.id, microtaskCompletions.microtaskId))
+            .where(
+              and(
+                eq(microtaskCompletions.userId, userId),
+                gte(microtaskCompletions.completedAt, dayStart),
+                lt(microtaskCompletions.completedAt, dayEnd)
+              )
+            )
+        : Promise.resolve([]),
     ]);
 
   return assembleRecapEntries({
@@ -62,6 +81,7 @@ export async function getRecapDay(
     dumps: dayDumps,
     journal: dayJournal,
     moments: dayMoments,
+    microtasks: dayMicrotasks,
     typeFilters,
   });
 }

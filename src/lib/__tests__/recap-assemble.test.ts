@@ -181,3 +181,19 @@ describe("assembleRecapEntries — edge cases", () => {
     expect(out.find((e) => e.id === "d4")).toMatchObject({ summary: null });
   });
 });
+
+describe("assembleRecapEntries — microtasks", () => {
+  it("includes microtask completions in time order and respects the filter", () => {
+    const base = { tasks: [], events: [], dumps: [], journal: [], moments: [] };
+    const microtasks = [
+      { id: "c1", title: "Water plants", emoji: "🪴", note: null, completedAt: new Date("2026-09-25T13:00:00Z") },
+      { id: "c2", title: "Take meds", emoji: null, note: "with food", completedAt: new Date("2026-09-25T15:00:00Z") },
+    ];
+    const out = assembleRecapEntries({ ...base, microtasks });
+    expect(out.map((e) => e.id)).toEqual(["c2", "c1"]);
+    expect(out[0]).toMatchObject({ kind: "microtask", title: "Take meds", note: "with food" });
+
+    expect(assembleRecapEntries({ ...base, microtasks, typeFilters: ["task"] })).toHaveLength(0);
+  });
+});
+

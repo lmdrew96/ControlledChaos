@@ -35,6 +35,15 @@ export interface DumpRow {
   mediaUrls?: string[] | null;
 }
 
+export interface MicrotaskRow {
+  /** The completion's id, not the microtask's — one per day it was done. */
+  id: string;
+  title: string;
+  emoji: string | null;
+  note: string | null;
+  completedAt: Date;
+}
+
 export interface MomentRow {
   id: string;
   type: string;
@@ -49,6 +58,7 @@ export interface AssembleInput {
   dumps: DumpRow[];
   journal: DumpRow[];
   moments: MomentRow[];
+  microtasks?: MicrotaskRow[];
   /** Optional kind filter. When omitted, all kinds are included. */
   typeFilters?: RecapKind[];
 }
@@ -73,6 +83,19 @@ export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
         at: t.completedAt.toISOString(),
         title: t.title,
         category: t.category,
+      });
+    }
+  }
+
+  if (want("microtask")) {
+    for (const m of input.microtasks ?? []) {
+      entries.push({
+        kind: "microtask",
+        id: m.id,
+        at: m.completedAt.toISOString(),
+        title: m.title,
+        emoji: m.emoji,
+        note: m.note,
       });
     }
   }

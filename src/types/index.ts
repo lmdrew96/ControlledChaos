@@ -142,6 +142,7 @@ export interface RecentMoment {
 // ============================================================
 export type RecapKind =
   | "task"
+  | "microtask"
   | "event"
   | "dump"
   | "journal"
@@ -176,6 +177,12 @@ export type RecapEntry =
       summary: string | null;
       inputType: DumpInputType;
       mediaCount: number;
+    })
+  | (RecapEntryBase & {
+      kind: "microtask";
+      title: string;
+      emoji: string | null;
+      note: string | null;
     })
   | (RecapEntryBase & {
       kind: "moment";

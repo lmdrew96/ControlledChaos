@@ -4,6 +4,7 @@ import {
   Brain,
   BookOpen,
   Sparkles,
+  CircleCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { RecapKind, RecapEntry } from "@/types";
@@ -20,6 +21,7 @@ export interface RecapKindMeta {
 
 export const RECAP_KINDS: RecapKind[] = [
   "task",
+  "microtask",
   "event",
   "dump",
   "journal",
@@ -34,6 +36,15 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     tintClassName:
       "text-[#4c7a3a] bg-[#97D181]/15 border-[#97D181]/40 dark:text-[#b8e2a0]",
     href: (entry) => `/tasks?taskId=${entry.id}`,
+  },
+  microtask: {
+    label: "Microtasks",
+    icon: CircleCheck,
+    // Shares the task green: small wins are still wins.
+    tintClassName:
+      "text-[#4c7a3a] bg-[#97D181]/10 border-[#97D181]/30 dark:text-[#b8e2a0]",
+    // They live on the dashboard.
+    href: () => "/dashboard",
   },
   event: {
     label: "Events",

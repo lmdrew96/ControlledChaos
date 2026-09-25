@@ -239,4 +239,17 @@ export async function uncompleteMicrotask(
   return deleted.length > 0;
 }
 
-
+/**
+ * When the user last checked off a microtask, or null. Idle nudges and
+ * check-ins read this alongside task activity, so a day of small wins
+ * doesn't read as a day of nothing.
+ */
+export async function getLastMicrotaskCompletion(userId: string): Promise<Date | null> {
+  const [row] = await db
+    .select({ completedAt: microtaskCompletions.completedAt })
+    .from(microtaskCompletions)
+    .where(eq(microtaskCompletions.userId, userId))
+    .orderBy(desc(microtaskCompletions.completedAt))
+    .limit(1);
+  return row?.completedAt ?? null;
+}

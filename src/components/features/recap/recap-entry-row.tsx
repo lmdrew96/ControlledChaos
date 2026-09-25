@@ -80,6 +80,11 @@ function describe(
   switch (entry.kind) {
     case "task":
       return { label: entry.title, snippet: entry.category };
+    case "microtask":
+      return {
+        label: entry.emoji ? `${entry.emoji} ${entry.title}` : entry.title,
+        snippet: entry.note,
+      };
     case "event": {
       const end = formatForDisplay(
         new Date(entry.endAt),
