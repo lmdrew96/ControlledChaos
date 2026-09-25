@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { neon } from "@neondatabase/serverless";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -31,12 +32,19 @@ export async function getUserTimezone(userId: string): Promise<string> {
   return (rows[0]?.timezone as string) || "America/New_York";
 }
 
+const requestUser = new AsyncLocalStorage<string>();
+
+/** Run one hosted request with every getUserId() inside it scoped to userId. */
+export function runAsUser<T>(userId: string, fn: () => T): T {
+  return requestUser.run(userId, fn);
+}
+
 /**
- * Get the user ID from env. All queries are scoped to this user.
- * This is your Clerk user ID from the ControlledChaos app.
+ * The user all queries are scoped to: the verified user of the current hosted
+ * request, or CC_USER_ID for a local stdio/HTTP run.
  */
 export function getUserId(): string {
-  const userId = process.env.CC_USER_ID;
+  const userId = requestUser.getStore() ?? process.env.CC_USER_ID;
   if (!userId) {
     throw new Error(
       "CC_USER_ID environment variable is required. " +

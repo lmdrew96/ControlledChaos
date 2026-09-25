@@ -155,7 +155,17 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-#### Claude.ai (HTTP mode)
+#### Hosted endpoint (claude.ai connector)
+
+The Vercel deployment serves `/<token>`, where the token is signed with `MCP_TOKEN_SECRET` (set on the Vercel project). A Clerk user id alone gets a 401. Mint a user's connector URL with the same secret:
+
+```bash
+MCP_TOKEN_SECRET=… pnpm mint-url <clerk-user-id> <deployment-base-url>
+```
+
+Rotating `MCP_TOKEN_SECRET` revokes every connector URL at once.
+
+#### Claude.ai (local HTTP mode)
 
 Start the server in HTTP mode:
 

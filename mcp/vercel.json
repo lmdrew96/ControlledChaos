@@ -1,10 +1,10 @@
 {
   "buildCommand": "",
   "rewrites": [
-    { "source": "/:userId", "destination": "/api/:userId" }
+    { "source": "/:token", "destination": "/api/:token" }
   ],
   "functions": {
-    "api/[userId].ts": {
+    "api/[token].ts": {
       "maxDuration": 30,
       "includeFiles": "src/**"
     }
