@@ -65,12 +65,10 @@ self.addEventListener("push", (event) => {
     data: {
       url: payload.url || "/dashboard",
       userId: payload.userId,
-      recipientUserId: payload.recipientUserId,
       taskId: payload.taskId,
       tag: payload.tag,
       title: payload.title,
       body: payload.body,
-      locationName: payload.locationName,
     },
     // Action buttons — silently ignored on iOS/Firefox where not supported
     actions: payload.actions || [],
@@ -87,7 +85,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const { url, userId, recipientUserId, taskId, tag, title, body, locationName } = event.notification.data || {};
+  const { url, userId, taskId, tag, title, body } = event.notification.data || {};
   const action = event.action;
 
   // Snooze: call the API to queue a re-send in 30 min, no navigation
@@ -102,30 +100,11 @@ self.addEventListener("notificationclick", (event) => {
     return;
   }
 
-  // Nudge back: send a random-category nudge in return (no navigation)
-  if (action === "nudge_back" && userId && recipientUserId) {
-    const categories = ["school", "work", "personal", "errands", "health"];
-    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-    event.waitUntil(
-      fetch("/api/friends/nudge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientId: userId,       // nudge back the original sender
-          category: randomCategory,
-          senderId: recipientUserId, // I am the original recipient
-        }),
-      }).catch(console.error)
-    );
-    return;
-  }
-
   // Determine where to navigate
   const navigateTo =
     action === "brain_dump" ? "/dump"
     : action === "see_tasks" ? "/tasks"
     : action === "see_calendar" ? "/calendar"
-    : action === "see_location_tasks" && locationName ? `/tasks?location=${encodeURIComponent(locationName)}`
     : action === "start_task" && taskId ? `/tasks?taskId=${taskId}`
     : url || "/dashboard";
 

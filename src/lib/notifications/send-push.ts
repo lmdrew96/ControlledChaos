@@ -24,8 +24,6 @@ interface PushPayload {
   taskId?: string;
   /** Passed into notification data so the SW can call the snooze endpoint without an auth session. */
   userId?: string;
-  /** The recipient's userId — used by nudge_back so the SW knows who is sending the return nudge. */
-  recipientUserId?: string;
   /** Action buttons shown on the notification (Android Chrome / desktop Chrome). */
   actions?: PushAction[];
   /**
@@ -84,7 +82,6 @@ export async function sendPushToUser(
     tag: payload.tag ?? "cc-notification",
     taskId: payload.taskId,
     userId: payload.userId,
-    recipientUserId: payload.recipientUserId,
     actions: payload.actions ?? [],
   });
 

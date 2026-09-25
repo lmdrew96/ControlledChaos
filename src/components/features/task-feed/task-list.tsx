@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Loader2, Brain, ListTodo, Plus, ArrowUpDown, Zap, Tag, GripVertical, Search, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,7 +131,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       // Remove param if it's the default value
-      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "" };
+      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "", taskId: "" };
       if (value === defaults[key]) {
         params.delete(key);
       } else {
@@ -188,6 +189,21 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   useEffect(() => {
     void fetchTasks();
   }, [fetchTasks]);
+
+  // Deep links (push "Start", command palette, geofence arrival) land on
+  // /tasks?taskId=… — open that task once the list is in, then drop the
+  // param so closing the modal doesn't reopen it.
+  const deepLinkTaskId = searchParams.get("taskId");
+  useEffect(() => {
+    if (!deepLinkTaskId || isLoading || loadError) return;
+    if (tasks.some((t) => t.id === deepLinkTaskId)) {
+      setSelectedTaskId(deepLinkTaskId);
+      setExpanded(true);
+    } else {
+      toast("That task isn't around anymore.");
+    }
+    updateParams({ taskId: "" });
+  }, [deepLinkTaskId, isLoading, loadError, tasks, updateParams]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredTasks = applySort(
