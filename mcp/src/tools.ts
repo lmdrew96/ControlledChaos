@@ -570,7 +570,7 @@ Returns: The completed task.`,
     "cc_delete_task",
     {
       title: "Delete Task",
-      description: `Permanently delete a task and its activity log.
+      description: `Delete a task. It's a soft delete: the task leaves every list and view, but the row and its activity history are kept.
 
 Args:
   - task_id (required): UUID of the task to delete.
@@ -768,7 +768,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
            JOIN tasks t ON t.id = s.task_id
            WHERE s.user_id = $1
              AND t.deleted_at IS NULL
-             AND t.status IN ('pending', 'in_progress')
+             AND t.status IN ('pending', 'in_progress', 'snoozed')
              AND s.starts_at >= $2
              AND s.starts_at < $3${planCategory.replace("category", "t.category")}
            UNION ALL
@@ -777,7 +777,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
            FROM tasks t
            WHERE t.user_id = $1
              AND t.deleted_at IS NULL
-             AND t.status IN ('pending', 'in_progress')
+             AND t.status IN ('pending', 'in_progress', 'snoozed')
              AND t.scheduled_for IS NOT NULL
              AND t.scheduled_for >= $2
              AND t.scheduled_for < $3${planCategory.replace("category", "t.category")}
@@ -2645,7 +2645,9 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
       const conditions: string[] = [
         "user_id = $1",
         "deleted_at IS NULL",
-        "status IN ('pending', 'in_progress')",
+        // Same pool as the app's getPendingTasks: open tasks, plus snoozed
+        // ones whose snooze has run out.
+        "(status IN ('pending', 'in_progress') OR (status = 'snoozed' AND (snoozed_until IS NULL OR snoozed_until < NOW())))",
       ];
       const values: unknown[] = [userId];
       let paramIdx = 2;

@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 ## Tools Available
 
-32 tools across 8 feature areas. All scope automatically to your `CC_USER_ID`.
+35 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
 
 ### Tasks (7)
 | Tool | What it does |
@@ -13,7 +13,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_create_task` | Create a new task with all fields |
 | `cc_update_task` | Update any field on an existing task |
 | `cc_complete_task` | Quick-complete a task |
-| `cc_delete_task` | Permanently delete a task |
+| `cc_delete_task` | Delete a task (soft delete — it leaves every list, its history stays) |
 | `cc_uncomplete_task` | Reopen a completed task (inverse of `cc_complete_task`) |
 | `cc_search_tasks` | Search tasks by text across titles/descriptions |
 
@@ -84,6 +84,12 @@ Junk-journal entries — longer-form reflective writing, separate from task brai
 |---|---|
 | `cc_get_mirror_day` | Read a single day's chronological timeline (tasks, events, dumps, journals, moments) in the user's timezone |
 | `cc_get_daily_stats` | Today's productivity snapshot |
+
+### Recommendations & Rescue (2)
+| Tool | What it does |
+|---|---|
+| `cc_recommend_next_task` | Suggest what to do next from the user's open tasks |
+| `cc_get_active_crisis` | Read the Rescue plan in progress, if there is one |
 
 > **Note:** `cc_get_mirror_day` keeps the legacy "mirror" name even though the user-facing surface was renamed to "Daily Recap" in v2.4.15 — preserves backward-compat with existing Claude Desktop / claude.ai connections.
 
