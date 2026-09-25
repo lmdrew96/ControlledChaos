@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const getRecentNotifications = vi.fn();
 vi.mock("@/lib/db/queries", () => ({
   getRecentNotifications: (...args: unknown[]) => getRecentNotifications(...args),
+  createNotification: vi.fn(),
   getLastTaskCompletion: vi.fn(),
   getPendingTasks: vi.fn(),
   getRecentTaskActivity: vi.fn(),
@@ -13,7 +14,7 @@ vi.mock("@/lib/db/queries", () => ({
   isLocationStale: vi.fn(),
 }));
 
-const { getNotifiedDedupKeys } = await import("@/lib/notifications/triggers");
+const { getNotifiedDedupKeys, hasEverBeenNotified } = await import("@/lib/notifications/triggers");
 
 const TZ = "America/New_York";
 // Noon EDT — comfortably inside the local day, so "today" is unambiguous.
@@ -92,5 +93,35 @@ describe("getNotifiedDedupKeys", () => {
     getRecentNotifications.mockResolvedValue([]);
     await getNotifiedDedupKeys("u1", TZ);
     expect(getRecentNotifications).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("dropped alerts (one chance per alert)", () => {
+  const dropped = (key: string, sentAt: Date) => ({
+    type: "push_dropped",
+    content: { dedupKeys: [key], reason: "tick_budget" },
+    sentAt,
+  });
+
+  it("count as handled for the rest of the day", async () => {
+    getRecentNotifications.mockResolvedValue([dropped("nudge-tier-1-x", new Date(NOW.getTime() - 60_000))]);
+    const { ever, today } = await getNotifiedDedupKeys("u1", TZ);
+    expect(ever.has("nudge-tier-1-x")).toBe(true);
+    expect(today.has("nudge-tier-1-x")).toBe(true);
+    expect(await hasEverBeenNotified("u1", "nudge-tier-1-x")).toBe(true);
+  });
+
+  it("stop counting after a day, so the alert gets a fresh chance", async () => {
+    const twoDaysAgo = new Date(NOW.getTime() - 48 * 60 * 60 * 1000);
+    getRecentNotifications.mockResolvedValue([dropped("crisis-detect-1", twoDaysAgo)]);
+    const { ever } = await getNotifiedDedupKeys("u1", TZ);
+    expect(ever.has("crisis-detect-1")).toBe(false);
+    expect(await hasEverBeenNotified("u1", "crisis-detect-1")).toBe(false);
+  });
+
+  it("don't expire a real push's ever-scope", async () => {
+    const twoDaysAgo = new Date(NOW.getTime() - 48 * 60 * 60 * 1000);
+    getRecentNotifications.mockResolvedValue([notif({ dedupKeys: ["crisis-detect-1"] }, twoDaysAgo)]);
+    expect(await hasEverBeenNotified("u1", "crisis-detect-1")).toBe(true);
   });
 });

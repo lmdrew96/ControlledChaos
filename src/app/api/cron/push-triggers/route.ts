@@ -41,12 +41,14 @@ import {
   hasBeenNotifiedToday,
   hasEverBeenNotified,
   getNotifiedDedupKeys,
+  recordDroppedAlert,
   getInactivityNudgeTier,
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTask,
   type AlertingTaskDetail,
   type PushNotificationContext,
+  type PushSkipReason,
 } from "@/lib/notifications/triggers";
 import {
   clusterAlerts,
@@ -93,7 +95,7 @@ const ONE_CHANCE_MINUTES = 15;
 type PushLane = "user" | "app";
 
 /** Why a push was held back this tick. Logged verbatim, so keep it honest. */
-type SkipReason = "quiet_hours" | "tick_budget" | "daily_cap" | "pacing";
+type SkipReason = PushSkipReason;
 
 /**
  * An alert that is eligible to send this tick, before clustering decides
@@ -243,10 +245,12 @@ async function processUser(user: PushUser): Promise<number> {
 
   // Per-tick budgets. Without them, every reminder that became eligible during
   // quiet hours fires in the same tick the moment quiet hours end — the
-  // "bombarded at wake time" bug. Budgeted items retry next tick, since
-  // eligibility windows (the [1440,60,10] reminder bands) stay open far longer
-  // than a few ticks. The overnight backlog doesn't go through this at all:
-  // it is folded into the wake-up summary below.
+  // "bombarded at wake time" bug. Nothing refused here waits for the next
+  // tick (that retry is what put pushes on the cron's 10-minute beat): the
+  // check-in folds into the push already going out, reminders are dropped
+  // once past their moment, and app-lane pushes are recorded as dropped
+  // (recordDroppedAlert). The overnight backlog is folded into the wake-up
+  // summary below.
   //
   // High-priority alerts used to skip this AND the daily cap entirely, which
   // is how a single class-plus-homework hour produced an unbounded burst: at
@@ -254,10 +258,6 @@ async function processUser(user: PushUser): Promise<number> {
   // now get their own (larger) budget and respect the user's assertiveness cap.
   const NORMAL_PUSH_TICK_BUDGET = 1;
   const HIGH_PUSH_TICK_BUDGET = 2;
-  // Right up against the wire, a missed alert costs more than an extra push,
-  // so these bypass both the tick budget and the daily cap. Quiet hours still
-  // apply unless the alert separately opts out.
-  const ALWAYS_SEND_MINUTES = 15;
   // How long after quiet hours end the wake-up summary may still go out. Wide
   // enough to survive a missed tick or two; narrow enough that it never lands
   // as a "morning" summary in the afternoon.
@@ -272,6 +272,19 @@ async function processUser(user: PushUser): Promise<number> {
   const beforeCheckInWindow =
     getHourInTimezone(new Date(), timezone) < CHECK_IN_START_HOUR[checkInConfig.window];
   const appPacingLimit = Math.ceil(dailyCap / 2);
+
+  // Check-in status, computed at most once per tick. Needed early so a
+  // check-in due this tick can fold into whatever push goes out first.
+  let _checkInStatus: { shouldSend: boolean; activityLevel: "active" | "idle" } | undefined;
+  const getCheckInStatus = async () => {
+    _checkInStatus ??=
+      checkInConfig.window === "morning"
+        ? await shouldSendIdleCheckin(userId, timezone)
+        : checkInConfig.window === "afternoon"
+          ? await shouldSendAfternoonCheckin(userId, timezone)
+          : await getEveningCheckinStatus(userId, timezone);
+    return _checkInStatus;
+  };
 
   /**
    * Why a push may not go out this tick, or null if it may.
@@ -290,6 +303,9 @@ async function processUser(user: PushUser): Promise<number> {
   ): SkipReason | null => {
     if (quietHoursActive && !bypassesQuietHours) return "quiet_hours";
     if (urgent) return null;
+    // The app's own pushes never ride along behind another one in the same
+    // tick: two at once is the burst, one ten minutes later is the beat.
+    if (lane === "app" && userSent > 0) return "tick_budget";
     const budget = priority === "high" ? HIGH_PUSH_TICK_BUDGET : NORMAL_PUSH_TICK_BUDGET;
     const usedThisTick = priority === "high" ? highSentThisTick : normalSentThisTick;
     if (usedThisTick >= budget) return "tick_budget";
@@ -433,6 +449,20 @@ async function processUser(user: PushUser): Promise<number> {
       : !notified.today.has(c.dedupKey)
   );
 
+  // If the check-in is due this tick, the first push that goes out carries
+  // its key: that push is the check-in's moment, and a second push in the
+  // same tick would be the burst (the next tick, the beat).
+  let _checkInFolded: string[] | undefined;
+  const checkInFoldKeys = async (): Promise<string[]> => {
+    if (_checkInFolded) return _checkInFolded;
+    const due =
+      checkInConfig.enabled &&
+      !notified.today.has(checkInDedupKey) &&
+      (await getCheckInStatus()).shouldSend;
+    _checkInFolded = due ? [checkInDedupKey] : [];
+    return _checkInFolded;
+  };
+
   // --- Wake-up summary ---
   //
   // Everything that became eligible overnight used to wait out quiet hours
@@ -447,13 +477,10 @@ async function processUser(user: PushUser): Promise<number> {
     refusal("user", "normal") === null
   ) {
     const endOfToday = new Date(allDayRange(todayKey, timezone).endISO);
-    const foldable = fresh.filter(
-      (c) =>
-        // Start-now cues are about this exact moment, not the day's shape.
-        c.kind !== "scheduled" &&
-        c.at < endOfToday &&
-        !(c.intervalMinutes !== undefined && c.intervalMinutes <= ALWAYS_SEND_MINUTES)
-    );
+    // Everything due today folds in, the close-in alerts too: sending them
+    // separately in the same tick is two pushes at once. Start-now cues fold
+    // as keys only — the sittings list below already names them.
+    const foldable = fresh.filter((c) => c.at < endOfToday);
     const [sittings, todaysEvents] = await Promise.all([
       getScheduledSessionsInRange(userId, new Date(), endOfToday),
       // The day's events straight from the calendar, not only the ones with a
@@ -462,11 +489,13 @@ async function processUser(user: PushUser): Promise<number> {
       getCalendarEventsByDateRange(userId, new Date(), endOfToday),
     ]);
     const items: WakeSummaryItem[] = [
-      ...foldable.map((c) => ({
-        at: c.at,
-        title: c.title,
-        kind: c.kind as WakeSummaryItem["kind"],
-      })),
+      ...foldable
+        .filter((c) => c.kind !== "scheduled")
+        .map((c) => ({
+          at: c.at,
+          title: c.title,
+          kind: c.kind as WakeSummaryItem["kind"],
+        })),
       ...sittings.map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
       ...todaysEvents
         .filter((e) => !e.isAllDay)
@@ -487,7 +516,7 @@ async function processUser(user: PushUser): Promise<number> {
           ...foldable.map((c) => c.dedupKey),
           // A morning check-in right after this would be a second "here's
           // your day" push. The summary is the check-in.
-          ...(replacesCheckIn ? [checkInDedupKey] : []),
+          ...(replacesCheckIn ? [checkInDedupKey] : await checkInFoldKeys()),
         ],
         actions: EVENT_ACTIONS,
         lane: "user",
@@ -543,7 +572,7 @@ async function processUser(user: PushUser): Promise<number> {
       body: message,
       url: primary.url,
       tag: primary.dedupKey,
-      dedupKeys,
+      dedupKeys: [...dedupKeys, ...(await checkInFoldKeys())],
       taskId: primary.taskId,
       actions: primary.actions,
       bypassQuietHours: members.some((m) => m.bypassQuietHours),
@@ -575,7 +604,7 @@ async function processUser(user: PushUser): Promise<number> {
       ),
       url: "/calendar",
       tag: due[0].primary.dedupKey,
-      dedupKeys: due.flatMap((c) => c.dedupKeys),
+      dedupKeys: [...due.flatMap((c) => c.dedupKeys), ...(await checkInFoldKeys())],
       actions: EVENT_ACTIONS,
       lane: "user",
     });
@@ -612,6 +641,7 @@ async function processUser(user: PushUser): Promise<number> {
       body: message,
       url: "/calendar",
       tag: dedupKey,
+      dedupKeys: [dedupKey, ...(await checkInFoldKeys())],
       bypassQuietHours: alert.level === "now",
       lane: "user",
     });
@@ -627,12 +657,7 @@ async function processUser(user: PushUser): Promise<number> {
   } else if (await hasBeenNotifiedToday(userId, checkInDedupKey, timezone)) {
     console.log(`[Push][CheckIn] skip user=${userId} reason=already_notified_today`);
   } else {
-    const status =
-      checkInConfig.window === "morning"
-        ? await shouldSendIdleCheckin(userId, timezone)
-        : checkInConfig.window === "afternoon"
-          ? await shouldSendAfternoonCheckin(userId, timezone)
-          : await getEveningCheckinStatus(userId, timezone);
+    const status = await getCheckInStatus();
     if (!status.shouldSend) {
       console.log(`[Push][CheckIn] skip user=${userId} reason=outside_window_or_not_due window=${checkInConfig.window}`);
     } else {
@@ -668,14 +693,19 @@ async function processUser(user: PushUser): Promise<number> {
   }
 
   // --- Inactivity Nudge ---
+  // Quiet hours hold a nudge; any other refusal drops it (one chance), so it
+  // can't land on a later tick just because this one was taken.
   const nudgeRefusal = refusal("app", "normal");
-  if (nudgeRefusal && nudgeRefusal !== "quiet_hours") {
-    console.log(`[Push][Nudge] skip user=${userId} reason=${nudgeRefusal} appSentToday=${appSentToday} cap=${dailyCap}`);
-  }
-  const nudge = nudgeRefusal ? null : await getInactivityNudgeTier(userId, timezone);
+  const nudge = nudgeRefusal === "quiet_hours" ? null : await getInactivityNudgeTier(userId, timezone);
   if (nudge) {
     const nudgeDedupKey = `nudge-tier-${nudge.tier}-${nudge.streakKey}`;
-    if (!(await hasEverBeenNotified(userId, nudgeDedupKey))) {
+    // hasEverBeenNotified also covers a nudge dropped within the last day.
+    if (await hasEverBeenNotified(userId, nudgeDedupKey)) {
+      // handled
+    } else if (nudgeRefusal) {
+      console.log(`[Push][Nudge] drop user=${userId} reason=${nudgeRefusal} appSentToday=${appSentToday} cap=${dailyCap}`);
+      await recordDroppedAlert(userId, [nudgeDedupKey], nudgeRefusal);
+    } else {
       const message = await generateNudgeMessage(
         nudge.tier,
         nudge.hoursInactive,
@@ -693,6 +723,7 @@ async function processUser(user: PushUser): Promise<number> {
         lane: "app",
       });
       if (sent) markSent("app", "normal");
+      else await recordDroppedAlert(userId, [nudgeDedupKey], "send_refused");
     }
   }
 
@@ -708,7 +739,7 @@ async function processUser(user: PushUser): Promise<number> {
         assertivenessMode: mode,
         getSnapshot,
         getLocationName,
-        canSendAppPush: () => refusal("app", "high") === null,
+        appPushRefusal: () => refusal("app", "high"),
       });
       if (crisisResult.notificationSent) markSent("app");
     } catch (err) {

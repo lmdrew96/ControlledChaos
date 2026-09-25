@@ -109,11 +109,25 @@ export async function markAllNotificationsOpened(userId: string) {
     );
 }
 
-export async function getRecentNotifications(userId: string, limit = 50) {
+/**
+ * Recent notification rows. `visibleOnly` leaves out the internal
+ * "push_dropped" records (triggers.ts DROPPED_ALERT_TYPE) — the bell wants
+ * that; the dedup helpers need them included.
+ */
+export async function getRecentNotifications(
+  userId: string,
+  limit = 50,
+  { visibleOnly = false }: { visibleOnly?: boolean } = {}
+) {
   return db
     .select()
     .from(notifications)
-    .where(eq(notifications.userId, userId))
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        visibleOnly ? ne(notifications.type, "push_dropped") : undefined
+      )
+    )
     .orderBy(desc(notifications.createdAt))
     .limit(limit);
 }
@@ -140,7 +154,8 @@ export async function getUnreadNotificationCount(userId: string) {
     .where(
       and(
         eq(notifications.userId, userId),
-        isNull(notifications.openedAt)
+        isNull(notifications.openedAt),
+        ne(notifications.type, "push_dropped")
       )
     );
   return result.length;

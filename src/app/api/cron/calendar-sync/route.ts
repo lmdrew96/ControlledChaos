@@ -1,11 +1,36 @@
 import { NextResponse } from "next/server";
-import { getAllUsersWithCalendars } from "@/lib/db/queries";
+import { getAllUsersWithCalendars, getUserSettings } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { sendPushToUser } from "@/lib/notifications/send-push";
-import { hasBeenNotifiedToday } from "@/lib/notifications/triggers";
+import { hasBeenNotifiedToday, recordDroppedAlert } from "@/lib/notifications/triggers";
+import { isQuietHours } from "@/lib/notifications/quiet-hours";
+import type { NotificationPrefs } from "@/types";
 import { todayInTimezone } from "@/lib/timezone";
 import { verifyCronRequest } from "@/lib/cron-auth";
 
+
+/**
+ * One Canvas-expired push per day, with one chance: outside quiet hours it
+ * either goes out or is recorded as dropped. It used to retry on every
+ * 15-minute sync whenever the send was refused.
+ */
+async function notifyCanvasExpired(userId: string, timezone: string): Promise<void> {
+  const dedupKey = `canvas-expired-${todayInTimezone(timezone)}`;
+  if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) return;
+
+  const prefs = (await getUserSettings(userId))?.notificationPrefs as NotificationPrefs | null;
+  // Quiet hours hold it; the first sync after they end gets the one chance.
+  if (prefs && isQuietHours(prefs, timezone)) return;
+
+  const sent = await sendPushToUser(userId, {
+    title: "ControlledChaos",
+    body: "Your Canvas calendar link has expired. Tap to update it in Settings.",
+    url: "/settings",
+    tag: dedupKey,
+    bypassQuietHours: false,
+  });
+  if (!sent) await recordDroppedAlert(userId, [dedupKey], "send_refused");
+}
 
 /**
  * POST /api/cron/calendar-sync
@@ -45,22 +70,9 @@ export async function POST(request: Request) {
           const is401 =
             err instanceof Error && err.message.includes("401");
           if (is401) {
-            const dedupKey = `canvas-expired-${todayInTimezone(user.timezone ?? "America/New_York")}`;
-            hasBeenNotifiedToday(user.userId, dedupKey, user.timezone ?? "America/New_York")
-              .then((alreadyNotified) => {
-                if (!alreadyNotified) {
-                  return sendPushToUser(user.userId, {
-                    title: "ControlledChaos",
-                    body: "Your Canvas calendar link has expired. Tap to update it in Settings.",
-                    url: "/settings",
-                    tag: dedupKey,
-                    bypassQuietHours: false,
-                  });
-                }
-              })
-              .catch((e) =>
-                console.error("[Cron] Failed to send Canvas-expired push:", e)
-              );
+            await notifyCanvasExpired(user.userId, user.timezone ?? "America/New_York").catch(
+              (e) => console.error("[Cron] Failed to send Canvas-expired push:", e)
+            );
           }
         }
       }

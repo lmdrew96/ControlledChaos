@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const [notifications, unreadCount] = await Promise.all([
-      getRecentNotifications(userId, 50),
+      getRecentNotifications(userId, 50, { visibleOnly: true }),
       getUnreadNotificationCount(userId),
     ]);
 

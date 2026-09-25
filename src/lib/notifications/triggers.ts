@@ -2,6 +2,7 @@ import {
   getLastTaskCompletion,
   getPendingTasks,
   getRecentNotifications,
+  createNotification,
   getRecentTaskActivity,
   getCalendarEventsByDateRange,
   getUserLocation,
@@ -415,6 +416,38 @@ function notificationCovers(
 }
 
 /**
+ * notifications.type for an alert that had its one chance and didn't go out
+ * (another push already went this tick, or the cap/pacing refused it). The
+ * row carries dedupKeys so every dedup helper treats the alert as handled
+ * instead of retrying it on the next tick. See recordDroppedAlert.
+ */
+export const DROPPED_ALERT_TYPE = "push_dropped";
+
+/** A dropped alert is dropped for about a day, then may get a fresh chance. */
+const DROPPED_ALERT_TTL_MS = 24 * 60 * 60 * 1000;
+
+export type PushSkipReason = "quiet_hours" | "tick_budget" | "daily_cap" | "pacing";
+
+/**
+ * One chance per alert: record that this alert was refused so it is not
+ * retried on the next cron tick (retries are what put pushes on the cron's
+ * 10-minute beat). Never shown to the user — the bell filters this type out.
+ */
+export async function recordDroppedAlert(
+  userId: string,
+  dedupKeys: string[],
+  reason: PushSkipReason | "send_refused"
+): Promise<void> {
+  await createNotification(userId, DROPPED_ALERT_TYPE, { dedupKeys, reason });
+}
+
+/** Ever-scoped lookups let a dropped alert count only while it's fresh. */
+function countsForEver(n: { type: string; sentAt: Date | null }, nowMs: number): boolean {
+  if (n.type !== DROPPED_ALERT_TYPE) return true;
+  return Boolean(n.sentAt) && nowMs - new Date(n.sentAt!).getTime() < DROPPED_ALERT_TTL_MS;
+}
+
+/**
  * Check if a notification with the given dedup key was already sent today.
  */
 export async function hasBeenNotifiedToday(
@@ -446,6 +479,7 @@ export async function getNotifiedDedupKeys(
 ): Promise<{ ever: Set<string>; today: Set<string> }> {
   const recent = await getRecentNotifications(userId, 200);
   const todayStart = startOfDayInTimezone(new Date(), timezone);
+  const nowMs = Date.now();
 
   const ever = new Set<string>();
   const today = new Set<string>();
@@ -462,8 +496,9 @@ export async function getNotifiedDedupKeys(
     if (keys.length === 0) continue;
 
     const isToday = Boolean(n.sentAt) && new Date(n.sentAt!) >= todayStart;
+    const forEver = countsForEver(n, nowMs);
     for (const k of keys) {
-      ever.add(k);
+      if (forEver) ever.add(k);
       if (isToday) today.add(k);
     }
   }
@@ -480,7 +515,8 @@ export async function hasEverBeenNotified(
   dedupKey: string
 ): Promise<boolean> {
   const recent = await getRecentNotifications(userId, 200);
-  return recent.some((n) => notificationCovers(n.content, dedupKey));
+  const nowMs = Date.now();
+  return recent.some((n) => countsForEver(n, nowMs) && notificationCovers(n.content, dedupKey));
 }
 
 /**

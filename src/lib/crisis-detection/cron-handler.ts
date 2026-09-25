@@ -20,7 +20,12 @@ import {
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
-import { generatePushMessage, hasEverBeenNotified } from "@/lib/notifications/triggers";
+import {
+  generatePushMessage,
+  hasEverBeenNotified,
+  recordDroppedAlert,
+  type PushSkipReason,
+} from "@/lib/notifications/triggers";
 import { getSleepBlockedMinutes } from "./time-math";
 import { formatForAI, formatForDisplay, todayInTimezone, DISPLAY_DATETIME } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
@@ -35,11 +40,25 @@ interface CronContext {
   getSnapshot: () => Promise<string | undefined>;
   getLocationName: () => Promise<string | undefined>;
   /**
-   * Crisis pushes are app-initiated, so they're limited by the daily cap and
-   * tick budget like any other app-lane push. When this returns false the
-   * push is skipped and retried next tick (its dedup key stays unwritten).
+   * Why an app-lane push can't go out this tick, or null if it can. Crisis
+   * pushes are app-initiated, so the daily cap and tick budget apply.
    */
-  canSendAppPush: () => boolean;
+  appPushRefusal: () => PushSkipReason | null;
+}
+
+/**
+ * One chance per alert. Quiet hours hold the push for later; any other
+ * refusal drops it for the day (recorded, so the next tick doesn't retry it
+ * and land on the cron's beat). Returns true if the push may go out now.
+ */
+async function mayPushNow(ctx: CronContext, dedupKey: string): Promise<boolean> {
+  const reason = ctx.appPushRefusal();
+  if (reason === null) return true;
+  if (reason !== "quiet_hours") {
+    await recordDroppedAlert(ctx.userId, [dedupKey], reason);
+    console.log(`[CrisisDetection] drop key=${dedupKey} user=${ctx.userId} reason=${reason}`);
+  }
+  return false;
 }
 
 /**
@@ -136,7 +155,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   // A date the user set for themselves is theirs to move, and dressing that up
   // as an emergency is exactly how the app would start crying wolf.
   if (result?.severity === "drift") {
-    if (driftActive || !ctx.canSendAppPush()) {
+    if (driftActive || !(await mayPushNow(ctx, driftDedupKeyToday))) {
       return { detected: false, notificationSent: false };
     }
 
@@ -244,8 +263,9 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   });
 
   // The first push for this detection may never have gone out: quiet hours
-  // or the daily cap held it back on the tick that created the detection,
-  // and every later tick lands here, not in the new-detection branch above.
+  // held it back on the tick that created the detection, and every later
+  // tick lands here, not in the new-detection branch above. A push dropped
+  // for the cap or budget gets its next chance a day later.
   // sendCrisisNotification dedups on its own key, so this is a no-op once sent.
   if (tier === "nudge" || tier === "auto_triage") {
     if (await sendCrisisNotification(existing.id, result, ctx)) {
@@ -260,7 +280,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     (tier === "nudge" || tier === "auto_triage")
   ) {
     const dedupKey = `crisis-renudge-${existing.id}`;
-    if (ctx.canSendAppPush() && !(await hasEverBeenNotified(userId, dedupKey))) {
+    if (!(await hasEverBeenNotified(userId, dedupKey)) && (await mayPushNow(ctx, dedupKey))) {
       const message = await generatePushMessage(
         {
           type: "crisis_worsened",
@@ -307,7 +327,7 @@ async function sendCrisisNotification(
 ): Promise<boolean> {
   const dedupKey = `crisis-detect-${detectionId}`;
 
-  if (!ctx.canSendAppPush() || (await hasEverBeenNotified(ctx.userId, dedupKey))) {
+  if ((await hasEverBeenNotified(ctx.userId, dedupKey)) || !(await mayPushNow(ctx, dedupKey))) {
     return false;
   }
 
