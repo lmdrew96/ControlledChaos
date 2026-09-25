@@ -61,6 +61,35 @@ function todayInTz(tz: string): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * [start, end) of a local calendar day, as instants.
+ *
+ * Timestamp columns here are naive UTC. Comparing one to
+ * `(NOW() AT TIME ZONE tz)::date` lines it up against UTC midnight of the
+ * local date (8pm the evening before in US Eastern), and casting a column
+ * with `AT TIME ZONE tz` shifts it the other way. Build the local day's
+ * bounds as real instants and compare the raw columns against those.
+ *
+ * The `::timestamp` casts matter: a bare `date AT TIME ZONE tz` resolves to
+ * the timestamptz overload, which reads the date as UTC midnight and returns
+ * the wrong start (Sep 23 20:00Z instead of Sep 24 04:00Z in New York).
+ */
+async function localDayWindow(
+  date: string,
+  tz: string
+): Promise<{ start: Date | string; end: Date | string }> {
+  const rows = await sql(
+    `SELECT
+       ($1::date::timestamp AT TIME ZONE $2) AS day_start,
+       (($1::date + INTERVAL '1 day')::timestamp AT TIME ZONE $2) AS day_end`,
+    [date, tz]
+  );
+  return {
+    start: rows[0].day_start as Date | string,
+    end: rows[0].day_end as Date | string,
+  };
+}
+
 // ============================================================
 // Register all ControlledChaos tools on the given server
 // ============================================================
@@ -826,12 +855,14 @@ Returns: Markdown-formatted daily stats summary.`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
 
+      const day = await localDayWindow(todayInTz(tz), tz);
+
       // Completed today
       const completedToday = await sql(
         `SELECT COUNT(*) as count FROM tasks
          WHERE user_id = $1 AND status = 'completed' AND deleted_at IS NULL
-         AND completed_at >= (NOW() AT TIME ZONE $2)::date`,
-        [userId, tz]
+         AND completed_at >= $2 AND completed_at < $3`,
+        [userId, day.start, day.end]
       );
 
       // Total pending
@@ -861,10 +892,10 @@ Returns: Markdown-formatted daily stats summary.`,
       const todaysEvents = await sql(
         `SELECT title, start_time, end_time FROM calendar_events
          WHERE user_id = $1
-         AND start_time >= (NOW() AT TIME ZONE $2)::date
-         AND start_time < (NOW() AT TIME ZONE $2)::date + INTERVAL '1 day'
+         AND start_time >= $2
+         AND start_time < $3
          ORDER BY start_time`,
-        [userId, tz]
+        [userId, day.start, day.end]
       );
 
       const eventsText = todaysEvents.length > 0
@@ -1671,15 +1702,7 @@ Returns: Markdown timeline with times in the user's timezone.`,
         return typeof s === "string" ? s : null;
       };
 
-      // Single round-trip: compute the day window in user's timezone
-      const windowRows = await sql(
-        `SELECT
-           ($1::date AT TIME ZONE $2)::timestamptz AS day_start,
-           (($1::date + INTERVAL '1 day') AT TIME ZONE $2)::timestamptz AS day_end`,
-        [params.date, tz]
-      );
-      const start = windowRows[0].day_start as Date | string;
-      const end = windowRows[0].day_end as Date | string;
+      const { start, end } = await localDayWindow(params.date, tz);
 
       const [tasksRows, eventRows, dumpRows, journalRows, momentRows] = await Promise.all([
         want("task")
@@ -2448,7 +2471,7 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
 
       // Context: current event, next event, completed today
       const nowIso = new Date().toISOString();
-      const todayStr = todayInTz(tz);
+      const today = await localDayWindow(todayInTz(tz), tz);
 
       const [currentEventRows, nextEventRows, completedTodayRows] = await Promise.all([
         sql(
@@ -2467,8 +2490,8 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
           `SELECT count(*)::int AS n FROM tasks
            WHERE user_id = $1 AND deleted_at IS NULL
              AND status = 'completed'
-             AND (completed_at AT TIME ZONE $2)::date = $3::date`,
-          [userId, tz, todayStr]
+             AND completed_at >= $2 AND completed_at < $3`,
+          [userId, today.start, today.end]
         ),
       ]);
 
