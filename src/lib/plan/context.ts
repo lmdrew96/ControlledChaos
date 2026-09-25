@@ -99,12 +99,7 @@ export async function buildPlanningContext(
 
   // Canvas first, so we plan around today's real commitments.
   if (settings?.canvasIcalUrl) {
-    await syncCanvasCalendar(
-      userId,
-      settings.canvasIcalUrl,
-      timezone,
-      settings.autoAddCanvasTasks ?? true
-    ).catch((err) => console.error("[Plan] Canvas pre-sync failed:", err));
+    await syncCanvasCalendar(userId, settings, timezone).catch((err) => console.error("[Plan] Canvas pre-sync failed:", err));
   }
 
   const window = todayPlanningWindow(timezone, wakeHour, sleepHour);

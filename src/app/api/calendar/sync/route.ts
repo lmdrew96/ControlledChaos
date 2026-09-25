@@ -23,13 +23,7 @@ export async function POST() {
     // Sync Canvas if configured
     if (settings?.canvasIcalUrl) {
       try {
-        canvasResult = await syncCanvasCalendar(
-          userId,
-          settings.canvasIcalUrl,
-          timezone,
-          settings.autoAddCanvasTasks ?? true,
-          (settings.canvasSelectedCourses as string[] | null) ?? null
-        );
+        canvasResult = await syncCanvasCalendar(userId, settings, timezone);
       } catch (err) {
         console.error("[API] Canvas sync failed:", err);
         errors.push(

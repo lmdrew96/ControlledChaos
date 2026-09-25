@@ -136,13 +136,30 @@ function buildCanvasTaskFields(
   };
 }
 
+/**
+ * The Canvas fields of a user_settings row. Taken as one object rather than
+ * loose optional args so no caller can drop the course selection — when it
+ * was optional, most callers did, and deselected courses kept coming back.
+ */
+export interface CanvasSyncSettings {
+  canvasIcalUrl: string | null;
+  autoAddCanvasTasks: boolean | null;
+  canvasSelectedCourses: unknown;
+}
+
 export async function syncCanvasCalendar(
   userId: string,
-  icalUrl: string,
-  timezone: string = "America/New_York",
-  autoAddCanvasTasks: boolean = true,
-  selectedCourses: string[] | null = null
+  settings: CanvasSyncSettings,
+  timezone: string
 ): Promise<CalendarSyncResult> {
+  const icalUrl = settings.canvasIcalUrl;
+  if (!icalUrl) throw new Error("No Canvas iCal URL configured");
+  const autoAddCanvasTasks = settings.autoAddCanvasTasks ?? true;
+  // null = sync every course (the default)
+  const selectedCourses = Array.isArray(settings.canvasSelectedCourses)
+    ? (settings.canvasSelectedCourses as string[])
+    : null;
+
   const events = await fetchCanvasEvents(icalUrl);
 
   if (events.length > MAX_EVENTS) {
