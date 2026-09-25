@@ -44,6 +44,14 @@ export interface MicrotaskRow {
   completedAt: Date;
 }
 
+export interface RescueRow {
+  id: string;
+  taskName: string;
+  completedAt: Date | null;
+  currentTaskIndex: number;
+  tasks: unknown;
+}
+
 export interface MomentRow {
   id: string;
   type: string;
@@ -59,6 +67,7 @@ export interface AssembleInput {
   journal: DumpRow[];
   moments: MomentRow[];
   microtasks?: MicrotaskRow[];
+  rescues?: RescueRow[];
   /** Optional kind filter. When omitted, all kinds are included. */
   typeFilters?: RecapKind[];
 }
@@ -148,6 +157,20 @@ export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
         type: m.type as MomentType,
         intensity: m.intensity,
         note: m.note,
+      });
+    }
+  }
+
+  if (want("rescue")) {
+    for (const r of input.rescues ?? []) {
+      if (!r.completedAt) continue;
+      const steps = Array.isArray(r.tasks) ? r.tasks.length : 0;
+      entries.push({
+        kind: "rescue",
+        id: r.id,
+        at: r.completedAt.toISOString(),
+        taskName: r.taskName,
+        finished: steps > 0 && r.currentTaskIndex >= steps,
       });
     }
   }

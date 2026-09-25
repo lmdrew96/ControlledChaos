@@ -134,6 +134,13 @@
       "when": 1790292138657,
       "tag": "0018_event_badge",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790376122663,
+      "tag": "0019_crisis_plan_task",
+      "breakpoints": true
     }
   ]
 }

@@ -188,6 +188,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "deadline is required" }, { status: 400 });
     }
 
+    // Tie the plan to a real task when the name matches exactly one open task,
+    // so finishing that task closes the plan.
+    const wanted = taskName.trim().toLowerCase();
+    const matches = (await getPendingTasks(userId)).filter(
+      (t) => t.title.trim().toLowerCase() === wanted
+    );
+    const taskId = matches.length === 1 ? matches[0].id : null;
+
     // If the user selected a strategy from a previous multi-strategy response,
     // persist it directly without calling AI again.
     if (selectedPlan) {
@@ -195,6 +203,7 @@ export async function POST(request: Request) {
       const saved = await createCrisisPlan({
         userId,
         taskName,
+        taskId,
         deadline: deadlineDate,
         completionPct,
         panicLevel: selectedPlan.panicLevel,
@@ -287,6 +296,7 @@ export async function POST(request: Request) {
     const saved = await createCrisisPlan({
       userId,
       taskName,
+      taskId,
       deadline: deadlineDate,
       completionPct,
       panicLevel: plan.panicLevel,

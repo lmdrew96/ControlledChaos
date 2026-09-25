@@ -403,6 +403,10 @@ export const crisisPlans = pgTable(
       .references(() => users.id)
       .notNull(),
     taskName: text("task_name").notNull(),
+    // The real task this plan rescues, when there is exactly one. Completing
+    // that task closes the plan. Null for free-text plans and multi-task auto
+    // plans; set null (not cascaded) when the task is deleted.
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
     // HARD wall — externally imposed. NULLABLE: a rescue plan must be able to
     // represent "there is no real deadline", or the assistant has no concept
     // the user's own words can map onto and ends up arguing with them.

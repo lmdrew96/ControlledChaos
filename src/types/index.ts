@@ -146,7 +146,8 @@ export type RecapKind =
   | "event"
   | "dump"
   | "journal"
-  | "moment";
+  | "moment"
+  | "rescue";
 
 interface RecapEntryBase {
   id: string;
@@ -183,6 +184,12 @@ export type RecapEntry =
       title: string;
       emoji: string | null;
       note: string | null;
+    })
+  | (RecapEntryBase & {
+      kind: "rescue";
+      taskName: string;
+      /** Every step done, vs closed early (task finished another way, or set aside). */
+      finished: boolean;
     })
   | (RecapEntryBase & {
       kind: "moment";

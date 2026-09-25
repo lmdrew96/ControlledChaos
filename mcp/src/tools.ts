@@ -125,6 +125,13 @@ async function logTaskCompleted(userId: string, taskId: string): Promise<void> {
     `INSERT INTO task_activity (user_id, task_id, action, context) VALUES ($1, $2, 'completed', $3)`,
     [userId, taskId, JSON.stringify({ energy: null, time_of_day: timeOfDay })]
   );
+  // Same as the app's updateTask: finishing the task closes its Rescue plan.
+  // Needs migration 0019 (crisis_plans.task_id).
+  await sql(
+    `UPDATE crisis_plans SET completed_at = NOW(), updated_at = NOW()
+      WHERE user_id = $1 AND task_id = $2 AND completed_at IS NULL`,
+    [userId, taskId]
+  );
 }
 
 /**

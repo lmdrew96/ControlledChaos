@@ -9,6 +9,7 @@ import type { CrisisDetectionTier, CrisisTask } from "@/types";
 export async function createCrisisPlan(params: {
   userId: string;
   taskName: string;
+  taskId?: string | null;
   deadline: Date | null;
   targetDate?: Date | null;
   completionPct: number;
@@ -24,6 +25,7 @@ export async function createCrisisPlan(params: {
     .values({
       userId: params.userId,
       taskName: params.taskName,
+      taskId: params.taskId ?? null,
       deadline: params.deadline,
       targetDate: params.targetDate ?? null,
       completionPct: params.completionPct,
@@ -137,6 +139,26 @@ export async function completeCrisisPlan(planId: string) {
     .where(eq(crisisPlans.id, planId))
     .returning();
   return updated;
+}
+
+/**
+ * Close the open Rescue plans for a task the user just completed. The plan
+ * was about getting that task done; leaving it "active" kept it feeding every
+ * AI prompt and push until its deadline passed.
+ */
+export async function completeCrisisPlansForTask(userId: string, taskId: string) {
+  const now = new Date();
+  return db
+    .update(crisisPlans)
+    .set({ completedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(crisisPlans.userId, userId),
+        eq(crisisPlans.taskId, taskId),
+        isNull(crisisPlans.completedAt)
+      )
+    )
+    .returning({ id: crisisPlans.id });
 }
 
 /** Restore a soft-deleted (abandoned) crisis plan by clearing completedAt. */
@@ -272,6 +294,35 @@ export async function updateCrisisDetection(
     .update(crisisDetections)
     .set(updateData)
     .where(eq(crisisDetections.id, id));
+}
+
+/**
+ * Mark a detection resolved — the conflict is gone — and close the auto plan
+ * generated for it. A manual plan is the user's own and stays open.
+ */
+export async function resolveCrisisDetection(detection: {
+  id: string;
+  userId: string;
+  crisisPlanId: string | null;
+}) {
+  const now = new Date();
+  await db
+    .update(crisisDetections)
+    .set({ resolvedAt: now, updatedAt: now })
+    .where(eq(crisisDetections.id, detection.id));
+  if (detection.crisisPlanId) {
+    await db
+      .update(crisisPlans)
+      .set({ completedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(crisisPlans.id, detection.crisisPlanId),
+          eq(crisisPlans.userId, detection.userId),
+          eq(crisisPlans.source, "auto"),
+          isNull(crisisPlans.completedAt)
+        )
+      );
+  }
 }
 
 /** Resolve any active detections whose first deadline has already passed. */

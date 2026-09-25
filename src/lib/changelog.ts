@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.73.10",
-    label: "2.70.15 – 2.73.10",
+    version: "2.74.0",
+    label: "2.70.15 – 2.74.0",
     date: "2026-09-25",
     title: "Things connect to each other now",
     changes: [
@@ -95,6 +95,26 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "What's New lists everything again, instead of one line.",
+      },
+      {
+        kind: "improved",
+        text: "Finishing a task closes its Rescue plan, and closed plans show up in your Daily Recap.",
+      },
+      {
+        kind: "improved",
+        text: "Rescue warnings notice tasks with no time estimate, and snoozed tasks once the snooze runs out.",
+      },
+      {
+        kind: "fixed",
+        text: "Dismissing a Rescue warning sticks, even with push notifications off.",
+      },
+      {
+        kind: "improved",
+        text: "“Do This Next” knows which goal a task serves and what you've already planned today.",
+      },
+      {
+        kind: "fixed",
+        text: "Daylight-saving days (23 or 25 hours long) no longer knock your plan, recap or digests off by an hour.",
       },
     ],
   },

@@ -5,6 +5,7 @@ import type { ParsedTask } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { deleteTaskScheduleEvents } from "./calendar";
 import { withNextSession } from "./sessions";
+import { completeCrisisPlansForTask } from "./crisis";
 
 // ============================================================
 // Tasks
@@ -169,7 +170,15 @@ export async function getActionableTasksWithDeadlineInRange(
       and(
         eq(tasks.userId, userId),
         isNull(tasks.deletedAt),
-        inArray(tasks.status, ["pending", "in_progress"]),
+        // Open work, plus snoozed tasks whose snooze has run out — the same
+        // pool getPendingTasks treats as actionable.
+        or(
+          inArray(tasks.status, ["pending", "in_progress"]),
+          and(
+            eq(tasks.status, "snoozed"),
+            or(isNull(tasks.snoozedUntil), lt(tasks.snoozedUntil, new Date()))
+          )
+        ),
         // Exclusive lower / inclusive upper, matching the JS filter this
         // replaced (dl > now && dl <= windowEnd) exactly.
         gt(tasks.deadline, from),
@@ -219,6 +228,13 @@ export async function updateTask(
   if (updated && leftTheCalendar) {
     await deleteTaskScheduleEvents(userId, taskId).catch((err) =>
       console.error("[DB] Failed to clear stale schedule events:", err)
+    );
+  }
+
+  // Finishing the task finishes the Rescue plan that was about it.
+  if (updated && data.status === "completed") {
+    await completeCrisisPlansForTask(userId, taskId).catch((err) =>
+      console.error("[DB] Failed to close the task's Rescue plan:", err)
     );
   }
 

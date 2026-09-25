@@ -11,6 +11,7 @@ const VALID_KINDS: RecapKind[] = [
   "dump",
   "journal",
   "moment",
+  "rescue",
 ];
 
 function parseKinds(raw: string | null): RecapKind[] | undefined {

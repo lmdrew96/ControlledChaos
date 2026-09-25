@@ -9,6 +9,7 @@ import {
   createCrisisDetection,
   createCrisisPlan,
   updateCrisisDetection,
+  resolveCrisisDetection,
   resolveStaleDetections,
   getTasksByUser,
   getLoggedMinutesForTasks,
@@ -27,6 +28,7 @@ import {
   type PushSkipReason,
 } from "@/lib/notifications/triggers";
 import { getSleepBlockedMinutes } from "./time-math";
+import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
 import { formatForAI, formatForDisplay, todayInTimezone, DISPLAY_DATETIME } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
 
@@ -95,8 +97,11 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   // Actionable tasks with EITHER a hard deadline or a soft target in the
   // window. The drift tier needs the target-only ones, which a deadline-only
   // filter would have discarded before detection ever saw them.
+  // Snoozed tasks count once the snooze has run out, like getPendingTasks.
   const tasksWithDeadlines = allTasks.filter((t) => {
-    if (t.status !== "pending" && t.status !== "in_progress") return false;
+    const wokenSnooze =
+      t.status === "snoozed" && (!t.snoozedUntil || new Date(t.snoozedUntil) <= now);
+    if (t.status !== "pending" && t.status !== "in_progress" && !wokenSnooze) return false;
     const dl = t.deadline ? new Date(t.deadline) : null;
     const target = t.targetDate ? new Date(t.targetDate) : null;
     const inWindow = (d: Date | null) => !!d && d > now && d <= windowEnd;
@@ -130,8 +135,15 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       title: t.title,
       deadline: t.deadline ? new Date(t.deadline) : null,
       targetDate: t.targetDate ? new Date(t.targetDate) : null,
-      estimatedMinutes: Math.max(0, (t.estimatedMinutes ?? 0) - (loggedMinutes.get(t.id) ?? 0)),
-      status: t.status,
+      // No estimate isn't no work — most Canvas items arrive without one, and
+      // treating them as zero hid them from detection entirely. Assume a
+      // plan block's default length.
+      estimatedMinutes: Math.max(
+        0,
+        (t.estimatedMinutes ?? DEFAULT_PLAN_BLOCK_MINUTES) - (loggedMinutes.get(t.id) ?? 0)
+      ),
+      // A woken snooze is open work again.
+      status: t.status === "snoozed" ? "pending" : t.status,
     })),
     calendarEvents: calendarRows.map((e) => ({
       startTime: new Date(e.startTime),
@@ -198,8 +210,8 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   // --- No crisis detected ---
   if (!result) {
     if (existing) {
-      // Crisis resolved — mark it
-      await updateCrisisDetection(existing.id, { resolvedAt: new Date() });
+      // Crisis resolved — mark it, and close the auto plan made for it.
+      await resolveCrisisDetection(existing);
       console.log(`[CrisisDetection] Resolved detection=${existing.id} for user=${userId}`);
     }
     return { detected: false, notificationSent: false };
@@ -252,6 +264,34 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   }
 
   // --- Crisis detected, existing detection → check for worsening ---
+
+  // The row may have been created by the in-app status check rather than by
+  // this cron, in which case the new-detection branch above never ran and no
+  // auto plan exists yet. One try, on the first tick after the row appears:
+  // the AI can answer with strategies instead of a plan, and retrying that
+  // every tick would be a paid call every ten minutes.
+  const FRESH_ROW_MS = 20 * 60_000;
+  if (
+    tier === "auto_triage" &&
+    !existing.crisisPlanId &&
+    now.getTime() - new Date(existing.createdAt).getTime() < FRESH_ROW_MS
+  ) {
+    try {
+      await generateAutoTriagePlan(
+        userId,
+        existing.id,
+        result,
+        calendarRows,
+        userTimezone,
+        wakeTime,
+        sleepTime,
+        allTasks.length
+      );
+    } catch (err) {
+      console.error(`[CrisisDetection] Auto-triage plan generation failed for detection=${existing.id}:`, err);
+    }
+  }
+
   const oldRatio = Number(existing.crisisRatio);
   const newRatio = result.crisisRatio;
 
@@ -426,6 +466,9 @@ async function generateAutoTriagePlan(
   const saved = await createCrisisPlan({
     userId,
     taskName,
+    // Tied to the task only when there's exactly one: completing it then
+    // closes the plan. A multi-task plan closes when the detection resolves.
+    taskId: result.involvedTaskIds.length === 1 ? result.involvedTaskIds[0] : null,
     deadline: firstDeadline,
     completionPct: 0,
     panicLevel: plan.panicLevel,

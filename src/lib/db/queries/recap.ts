@@ -1,5 +1,5 @@
 import { db } from "../index";
-import { microtaskCompletions, microtasks, tasks } from "../schema";
+import { crisisPlans, microtaskCompletions, microtasks, tasks } from "../schema";
 import { eq, and, gte, lt, isNull } from "drizzle-orm";
 import type { RecapEntry, RecapKind } from "@/types";
 import { assembleRecapEntries } from "@/lib/recap/assemble";
@@ -26,7 +26,7 @@ export async function getRecapDay(
 ): Promise<RecapEntry[]> {
   const want = (k: RecapKind) => !typeFilters || typeFilters.includes(k);
 
-  const [completedTasks, dayEvents, dayDumps, dayJournal, dayMoments, dayMicrotasks] =
+  const [completedTasks, dayEvents, dayDumps, dayJournal, dayMoments, dayMicrotasks, dayRescues] =
     await Promise.all([
       want("task")
         ? db
@@ -73,6 +73,18 @@ export async function getRecapDay(
               )
             )
         : Promise.resolve([]),
+      want("rescue")
+        ? db
+            .select()
+            .from(crisisPlans)
+            .where(
+              and(
+                eq(crisisPlans.userId, userId),
+                gte(crisisPlans.completedAt, dayStart),
+                lt(crisisPlans.completedAt, dayEnd)
+              )
+            )
+        : Promise.resolve([]),
     ]);
 
   return assembleRecapEntries({
@@ -82,6 +94,7 @@ export async function getRecapDay(
     journal: dayJournal,
     moments: dayMoments,
     microtasks: dayMicrotasks,
+    rescues: dayRescues,
     typeFilters,
   });
 }

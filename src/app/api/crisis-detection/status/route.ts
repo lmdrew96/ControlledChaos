@@ -4,6 +4,8 @@ import {
   getCrisisDetectionTier,
   getActiveDetectionForUser,
   updateCrisisDetection,
+  createCrisisDetection,
+  resolveCrisisDetection,
   getActionableTasksWithDeadlineInRange,
   getCalendarEventsByDateRange,
   getUserSettings,
@@ -12,6 +14,7 @@ import {
   getLoggedMinutesForTasks,
 } from "@/lib/db/queries";
 import { detectCrisis } from "@/lib/crisis-detection";
+import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
 import type { CrisisDetectionStatus, MomentType } from "@/types";
 
 const DETECTION_WINDOW_HOURS = 48;
@@ -73,8 +76,13 @@ export async function GET() {
           id: t.id,
           title: t.title,
           deadline: new Date(t.deadline!),
-          estimatedMinutes: Math.max(0, (t.estimatedMinutes ?? 0) - (loggedMinutes.get(t.id) ?? 0)),
-          status: t.status,
+          // Same defaults as the cron: no estimate counts as a plan block,
+          // and a woken snooze is open work.
+          estimatedMinutes: Math.max(
+            0,
+            (t.estimatedMinutes ?? DEFAULT_PLAN_BLOCK_MINUTES) - (loggedMinutes.get(t.id) ?? 0)
+          ),
+          status: t.status === "snoozed" ? "pending" : t.status,
         })),
         calendarEvents: calendarRows.map((e) => ({
           startTime: new Date(e.startTime),
@@ -106,7 +114,7 @@ export async function GET() {
     if (!result) {
       // Retire the stored row so the badge, cron, and banner all agree.
       if (existing) {
-        await updateCrisisDetection(existing.id, { resolvedAt: new Date() });
+        await resolveCrisisDetection(existing);
         console.log(
           `[CrisisDetection] Resolved detection=${existing.id} user=${userId} (conflict cleared)`
         );
@@ -114,10 +122,23 @@ export async function GET() {
       return NextResponse.json({ active: false } satisfies CrisisDetectionStatus);
     }
 
-    // --- No stored row: a fresh inline detection, nothing to reconcile ---
+    // --- No stored row yet: store one ---
+    // The cron only runs for push-subscribed users, so for everyone else this
+    // is where the row gets made. Without it, Dismiss had nothing to mark and
+    // the banner came right back.
     if (!existing) {
+      const detection = await createCrisisDetection({
+        userId,
+        crisisRatio: result.crisisRatio,
+        involvedTaskIds: result.involvedTaskIds,
+        involvedTaskNames: result.involvedTaskNames,
+        firstDeadline: result.firstDeadline,
+        availableMinutes: result.availableMinutes,
+        requiredMinutes: result.requiredMinutes,
+      });
       return NextResponse.json({
         active: true,
+        detectionId: detection.id,
         crisisRatio: result.crisisRatio,
         involvedTaskNames: result.involvedTaskNames,
         firstDeadline: result.firstDeadline.toISOString(),

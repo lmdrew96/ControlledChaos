@@ -80,6 +80,11 @@ function describe(
   switch (entry.kind) {
     case "task":
       return { label: entry.title, snippet: entry.category };
+    case "rescue":
+      return {
+        label: `Rescue plan: ${entry.taskName}`,
+        snippet: entry.finished ? "every step done" : "closed",
+      };
     case "microtask":
       return {
         label: entry.emoji ? `${entry.emoji} ${entry.title}` : entry.title,

@@ -197,3 +197,18 @@ describe("assembleRecapEntries — microtasks", () => {
   });
 });
 
+
+describe("assembleRecapEntries — rescue plans", () => {
+  const base = { tasks: [], events: [], dumps: [], journal: [], moments: [] };
+  it("marks a plan finished only when every step was done", () => {
+    const rescues = [
+      { id: "r1", taskName: "PSYC essay", completedAt: new Date("2026-09-25T20:00:00Z"), currentTaskIndex: 3, tasks: [1, 2, 3] },
+      { id: "r2", taskName: "Lab report", completedAt: new Date("2026-09-25T18:00:00Z"), currentTaskIndex: 1, tasks: [1, 2, 3] },
+      { id: "r3", taskName: "Still open", completedAt: null, currentTaskIndex: 0, tasks: [1] },
+    ];
+    const out = assembleRecapEntries({ ...base, rescues });
+    expect(out.map((e) => e.id)).toEqual(["r1", "r2"]);
+    expect(out[0]).toMatchObject({ kind: "rescue", finished: true });
+    expect(out[1]).toMatchObject({ kind: "rescue", finished: false });
+  });
+});

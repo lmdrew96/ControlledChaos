@@ -5,6 +5,7 @@ import {
   BookOpen,
   Sparkles,
   CircleCheck,
+  Siren,
   type LucideIcon,
 } from "lucide-react";
 import type { RecapKind, RecapEntry } from "@/types";
@@ -26,6 +27,7 @@ export const RECAP_KINDS: RecapKind[] = [
   "dump",
   "journal",
   "moment",
+  "rescue",
 ];
 
 export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
@@ -70,6 +72,14 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     tintClassName:
       "text-[#5b4d70] bg-[#88739E]/15 border-[#88739E]/60 dark:text-[#b29bce]",
     href: (entry) => `/dump?category=junk_journal&dumpId=${entry.id}`,
+  },
+  rescue: {
+    label: "Rescue",
+    icon: Siren,
+    // Amber: same family as moments, since both are about how the day felt.
+    tintClassName:
+      "text-[#8a6422] bg-[#DFA649]/10 border-[#DFA649]/30 dark:text-[#e9c175]",
+    href: () => "/crisis",
   },
   moment: {
     label: "Moments",
