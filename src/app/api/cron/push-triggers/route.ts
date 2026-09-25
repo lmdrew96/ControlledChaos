@@ -3,6 +3,8 @@ import {
   getAllUsersWithPushEnabled,
   getPendingSnoozedPushes,
   markSnoozedPushSent,
+  deleteSnoozedPush,
+  type SnoozedPushPayload,
   getUserLocation,
   isLocationStale,
   getScheduledSessionsInRange,
@@ -60,6 +62,9 @@ import { verifyCronRequest } from "@/lib/cron-auth";
 // limits. On Workers the limit is CPU time, not wall-clock, so time spent
 // waiting on Neon/Anthropic is free; concurrency just shortens the tick.
 const USER_CONCURRENCY = 10;
+
+// A snoozed push that couldn't go out within this long after its time is dropped.
+const SNOOZE_EXPIRY_MS = 15 * 60 * 1000;
 
 const TASK_ACTIONS = [
   { action: "start_task", title: "▶ Start" },
@@ -484,7 +489,6 @@ async function processUser(user: PushUser): Promise<number> {
           // your day" push. The summary is the check-in.
           ...(replacesCheckIn ? [checkInDedupKey] : []),
         ],
-        userId,
         actions: EVENT_ACTIONS,
         lane: "user",
       });
@@ -541,7 +545,6 @@ async function processUser(user: PushUser): Promise<number> {
       tag: primary.dedupKey,
       dedupKeys,
       taskId: primary.taskId,
-      userId,
       actions: primary.actions,
       bypassQuietHours: members.some((m) => m.bypassQuietHours),
       lane: "user",
@@ -573,7 +576,6 @@ async function processUser(user: PushUser): Promise<number> {
       url: "/calendar",
       tag: due[0].primary.dedupKey,
       dedupKeys: due.flatMap((c) => c.dedupKeys),
-      userId,
       actions: EVENT_ACTIONS,
       lane: "user",
     });
@@ -610,7 +612,6 @@ async function processUser(user: PushUser): Promise<number> {
       body: message,
       url: "/calendar",
       tag: dedupKey,
-      userId,
       bypassQuietHours: alert.level === "now",
       lane: "user",
     });
@@ -656,7 +657,6 @@ async function processUser(user: PushUser): Promise<number> {
         body: message,
         url: topTask ? "/tasks" : "/dump",
         tag: checkInDedupKey,
-        userId,
         actions: IDLE_ACTIONS,
         lane: "user",
       });
@@ -690,7 +690,6 @@ async function processUser(user: PushUser): Promise<number> {
         body: message,
         url: "/tasks",
         tag: nudgeDedupKey,
-        userId,
         lane: "app",
       });
       if (sent) markSent("app", "normal");
@@ -741,13 +740,34 @@ export async function POST(request: Request) {
     let userFailures = 0;
 
     for (const item of snoozed) {
-      const p = item.payload as { title: string; body: string; url?: string; tag?: string };
+      // A snooze is one more chance, not a standing order. Past the window
+      // (a refused send, a missed tick) or once the task is done, it's gone —
+      // "starts in 10 min" hours later, after the fact, is worse than nothing.
+      const expired = startedAt > item.sendAfter.getTime() + SNOOZE_EXPIRY_MS;
+      const p = item.payload as SnoozedPushPayload;
+      const taskGone =
+        "taskId" in p &&
+        (item.taskTitle === null || item.taskDeletedAt !== null || item.taskStatus === "completed");
+      if (expired || taskGone) {
+        await deleteSnoozedPush(item.id);
+        continue;
+      }
+
+      // Fresh copy from the task: the original body was written for the
+      // original moment ("starts in 10 min") and is stale by now.
+      const payload =
+        "taskId" in p
+          ? {
+              title: item.taskTitle ?? "Snoozed reminder",
+              body: "Back, like you asked. Ready for it now?",
+              url: `/tasks?taskId=${p.taskId}`,
+              taskId: p.taskId,
+            }
+          : { title: p.title, body: p.body, url: p.url };
+
       const sent = await sendPushToUser(item.userId, {
-        title: p.title,
-        body: p.body,
-        url: p.url,
+        ...payload,
         tag: p.tag ? `${p.tag}-snoozed` : undefined,
-        userId: item.userId,
         actions: TASK_ACTIONS,
         bypassQuietHours: false,
         // A snooze is the user asking to be reminded again at a time they

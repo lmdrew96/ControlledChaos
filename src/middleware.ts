@@ -20,6 +20,9 @@ const isPublicRoute = createRouteMatcher([
   // may have no live Clerk session; gated, it 404'd and that device silently
   // stopped getting push.
   "/api/notifications/vapid-key",
+  // Tapped from a push's Snooze button, often with no live session. Its only
+  // authority is the signed token minted into that push (snooze-token.ts).
+  "/api/notifications/snooze",
   "/manifest.json",
 ]);
 

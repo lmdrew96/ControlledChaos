@@ -224,21 +224,52 @@ export async function getAllUsersWithCalendars() {
 // Snoozed Pushes
 // ============================================================
 
+/**
+ * payload is { taskId, tag } — the copy is rebuilt from the task when it
+ * fires. Rows queued before v2.70.6 carry { title, body, url, tag } instead.
+ */
+export type SnoozedPushPayload =
+  | { taskId: string; tag?: string }
+  | { title: string; body: string; url?: string; tag?: string };
+
 export async function createSnoozedPush(
   userId: string,
-  payload: { title: string; body: string; url?: string; tag?: string },
+  payload: SnoozedPushPayload,
   sendAfter: Date
 ) {
   await db.insert(snoozedPushes).values({ userId, payload, sendAfter });
 }
 
-/** Returns all snoozed pushes whose sendAfter has passed and haven't been sent yet. */
+/**
+ * Snoozed pushes whose sendAfter has passed and haven't been sent yet, each
+ * with its task's current state (null for legacy rows or a vanished task).
+ */
 export async function getPendingSnoozedPushes() {
   const now = new Date();
   return db
-    .select()
+    .select({
+      id: snoozedPushes.id,
+      userId: snoozedPushes.userId,
+      payload: snoozedPushes.payload,
+      sendAfter: snoozedPushes.sendAfter,
+      taskTitle: tasks.title,
+      taskStatus: tasks.status,
+      taskDeletedAt: tasks.deletedAt,
+    })
     .from(snoozedPushes)
+    .leftJoin(
+      tasks,
+      and(
+        sql`${tasks.id}::text = ${snoozedPushes.payload}->>'taskId'`,
+        eq(tasks.userId, snoozedPushes.userId)
+      )
+    )
     .where(and(isNull(snoozedPushes.sentAt), lte(snoozedPushes.sendAfter, now)));
+}
+
+/** Drop a snoozed push that will never be sent (expired, or its task is done). */
+export async function deleteSnoozedPush(id: string) {
+  await db.delete(snoozedPushes).where(eq(snoozedPushes.id, id));
 }
 
 export async function markSnoozedPushSent(id: string) {

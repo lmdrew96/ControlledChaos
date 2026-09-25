@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/queries";
 import type { NotificationPrefs } from "@/types";
 import { isQuietHours } from "./quiet-hours";
+import { mintSnoozeToken } from "./snooze-token";
 
 export interface PushAction {
   action: string;
@@ -22,8 +23,6 @@ interface PushPayload {
   bypassQuietHours?: boolean;
   /** Passed into notification data so the SW can deep-link to the specific task. */
   taskId?: string;
-  /** Passed into notification data so the SW can call the snooze endpoint without an auth session. */
-  userId?: string;
   /** Action buttons shown on the notification (Android Chrome / desktop Chrome). */
   actions?: PushAction[];
   /**
@@ -75,14 +74,26 @@ export async function sendPushToUser(
     return false;
   }
 
+  // Snooze needs a task to bring back and a signed token the SW can present
+  // without a session. No task → no Snooze button.
+  let actions = payload.actions ?? [];
+  let snoozeToken: string | undefined;
+  if (actions.some((a) => a.action === "snooze")) {
+    if (payload.taskId) {
+      snoozeToken = mintSnoozeToken({ userId, taskId: payload.taskId, tag: payload.tag });
+    } else {
+      actions = actions.filter((a) => a.action !== "snooze");
+    }
+  }
+
   const pushPayload = JSON.stringify({
     title: payload.title,
     body: payload.body,
     url: payload.url ?? "/dashboard",
     tag: payload.tag ?? "cc-notification",
     taskId: payload.taskId,
-    userId: payload.userId,
-    actions: payload.actions ?? [],
+    snoozeToken,
+    actions,
   });
 
   let sent = false;

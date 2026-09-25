@@ -64,11 +64,8 @@ self.addEventListener("push", (event) => {
     // Store everything we need for action handlers in data
     data: {
       url: payload.url || "/dashboard",
-      userId: payload.userId,
       taskId: payload.taskId,
-      tag: payload.tag,
-      title: payload.title,
-      body: payload.body,
+      snoozeToken: payload.snoozeToken,
     },
     // Action buttons — silently ignored on iOS/Firefox where not supported
     actions: payload.actions || [],
@@ -85,16 +82,17 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const { url, userId, taskId, tag, title, body } = event.notification.data || {};
+  const { url, taskId, snoozeToken } = event.notification.data || {};
   const action = event.action;
 
-  // Snooze: call the API to queue a re-send in 30 min, no navigation
-  if (action === "snooze" && userId) {
+  // Snooze: queue a re-send in 30 min, no navigation. The signed token is
+  // the only thing the (public) endpoint trusts.
+  if (action === "snooze" && snoozeToken) {
     event.waitUntil(
       fetch("/api/notifications/snooze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, title, body, url, tag, minutes: 30 }),
+        body: JSON.stringify({ token: snoozeToken, minutes: 30 }),
       }).catch(console.error)
     );
     return;

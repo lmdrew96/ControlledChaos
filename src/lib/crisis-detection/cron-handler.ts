@@ -162,7 +162,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       body: message,
       url: "/tasks",
       tag: driftDedupKeyToday,
-      userId,
       bypassQuietHours: false,
     lane: "app",
     });
@@ -280,7 +279,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         body: message,
         url: "/crisis",
         tag: dedupKey,
-        userId,
         bypassQuietHours: false,
         lane: "app",
       });
@@ -332,7 +330,6 @@ async function sendCrisisNotification(
     body: message,
     url: "/crisis",
     tag: dedupKey,
-    userId: ctx.userId,
     bypassQuietHours: false,
     lane: "app",
   });
