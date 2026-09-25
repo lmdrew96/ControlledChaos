@@ -4,6 +4,7 @@ import {
   getCommuteTimes,
   upsertCommuteTime,
   deleteCommuteTime,
+  getSavedLocations,
 } from "@/lib/db/queries";
 
 // GET — fetch all commute times for the user
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "travelMinutes must be a non-negative number" }, { status: 400 });
     }
 
+    // Both ends must be this user's own saved locations. The upsert matches
+    // on the location pair, so without this a foreign id could overwrite
+    // someone else's commute row.
+    const owned = new Set((await getSavedLocations(userId)).map((l) => l.id));
+    if (!owned.has(fromLocationId) || !owned.has(toLocationId)) {
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    }
+
     // Upsert both directions (A→B and B→A are the same commute)
     await Promise.all([
       upsertCommuteTime(userId, fromLocationId, toLocationId, travelMinutes, mode),
@@ -82,8 +91,8 @@ export async function DELETE(request: Request) {
 
     // Delete both directions for the specified mode
     await Promise.all([
-      deleteCommuteTime(fromLocationId, toLocationId, mode),
-      deleteCommuteTime(toLocationId, fromLocationId, mode),
+      deleteCommuteTime(userId, fromLocationId, toLocationId, mode),
+      deleteCommuteTime(userId, toLocationId, fromLocationId, mode),
     ]);
 
     return NextResponse.json({ ok: true });

@@ -45,10 +45,30 @@ export async function updateLocation(
 }
 
 export async function deleteLocation(locationId: string, userId: string) {
-  const [deleted] = await db
-    .delete(locations)
-    .where(and(eq(locations.id, locationId), eq(locations.userId, userId)))
-    .returning();
+  // Two FKs point here with ON DELETE NO ACTION: the user's current geofence
+  // match and the arrival/departure dedup log. Either one made deleting a
+  // location you were standing in (or had been notified about) fail with a
+  // constraint error, so both are cleared first. db.batch runs the three as
+  // one transaction (neon-http has no db.transaction), so a failed delete
+  // doesn't leave the match cleared. Commute times cascade on their own.
+  const [, , [deleted]] = await db.batch([
+    db
+      .update(userLocations)
+      .set({ matchedLocationId: null, matchedLocationName: null })
+      .where(and(eq(userLocations.userId, userId), eq(userLocations.matchedLocationId, locationId))),
+    db
+      .delete(locationNotificationLog)
+      .where(
+        and(
+          eq(locationNotificationLog.userId, userId),
+          eq(locationNotificationLog.locationId, locationId)
+        )
+      ),
+    db
+      .delete(locations)
+      .where(and(eq(locations.id, locationId), eq(locations.userId, userId)))
+      .returning(),
+  ]);
 
   return deleted;
 }
@@ -218,6 +238,7 @@ export async function upsertCommuteTime(
 }
 
 export async function deleteCommuteTime(
+  userId: string,
   fromLocationId: string,
   toLocationId: string,
   travelMode = "driving"
@@ -226,6 +247,7 @@ export async function deleteCommuteTime(
     .delete(commuteTimes)
     .where(
       and(
+        eq(commuteTimes.userId, userId),
         eq(commuteTimes.fromLocationId, fromLocationId),
         eq(commuteTimes.toLocationId, toLocationId),
         eq(commuteTimes.travelMode, travelMode)

@@ -912,9 +912,20 @@ export interface DepartureAlert {
 
 const DEPARTURE_BUFFER_MINUTES = 5; // Extra buffer on top of commute time
 
+/** Whether `phrase` appears in `text` as whole words, case-insensitively. */
+function containsWords(text: string, phrase: string): boolean {
+  const escaped = phrase.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!escaped) return false;
+  // \b fails next to punctuation-only edges, so bound on non-word-or-edge.
+  return new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(text);
+}
+
 /**
  * Match a calendar event's location string to a saved location by name.
- * Uses case-insensitive substring matching in both directions.
+ *
+ * Whole-word containment in either direction: "Smith Hall Room 101" matches a
+ * saved "Smith Hall", and "Campus" matches an event at "Campus". Plain
+ * substring matching used to let "Home" match "Homework Lab".
  */
 export function matchEventLocationToSavedLocation(
   eventLocation: string | null,
@@ -922,16 +933,10 @@ export function matchEventLocationToSavedLocation(
 ): { id: string; name: string } | null {
   if (!eventLocation?.trim()) return null;
 
-  const eventLoc = eventLocation.toLowerCase();
-
   for (const loc of savedLocations) {
-    const savedName = loc.name.toLowerCase();
-    // Match if either contains the other (e.g., "Smith Hall Room 101" matches "Campus")
-    // or if event location starts with the saved name
     if (
-      eventLoc.includes(savedName) ||
-      savedName.includes(eventLoc) ||
-      eventLoc.startsWith(savedName)
+      containsWords(eventLocation, loc.name) ||
+      containsWords(loc.name, eventLocation)
     ) {
       return loc;
     }
