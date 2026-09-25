@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useNow } from "@/hooks/use-now";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,7 +73,8 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
     startOfMonth(initialDate ?? new Date())
   );
 
-  const today = useMemo(() => new Date(), []);
+  const now = useNow();
+  const today = useMemo(() => new Date(now), [now]);
 
   const weeks = useMemo(
     () => buildMonthGrid(currentMonth, weekStartDay),

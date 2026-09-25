@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 
 function getNotificationIcon(type: string) {
@@ -65,8 +66,9 @@ export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  // Capture once per render so timeAgo() stays pure for the React Compiler.
-  const [renderedAt] = useState(() => Date.now());
+  // A shared minute clock rather than Date.now() in render, so timeAgo()
+  // stays pure for the React Compiler and "5m ago" keeps aging in an open tab.
+  const renderedAt = useNow();
 
   const recent = notifications.slice(0, 20);
 

@@ -44,6 +44,7 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
 import { categoryColor } from "@/lib/calendar/colors";
 import { attachAssessmentsToClasses } from "@/lib/calendar/attach-assessments";
+import { useNow } from "@/hooks/use-now";
 import {
   layoutOverlappingTiles,
   shortTileTitle,
@@ -327,7 +328,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     return map;
   }, [planBlocks, weekDays, timezone]);
 
-  const today = new Date();
+  // Ticks every minute, so the now-line moves and "today" rolls over at
+  // midnight in a tab that stays open.
+  const now = useNow();
+  const today = new Date(now);
 
   function navigateWeek(delta: number) {
     setIsEditMode(false);
@@ -627,12 +631,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
 
   // Current time indicator position
   const currentTimeTop = useMemo(() => {
-    const now = new Date();
-    const local = toUserLocal(now, timezone);
+    const local = toUserLocal(new Date(now), timezone);
     const slot = (local.hour - startHour) * 2 + local.minute / 30;
     if (slot < 0 || slot > totalSlots) return null;
     return slot * ROW_HEIGHT;
-  }, [startHour, totalSlots, timezone]);
+  }, [now, startHour, totalSlots, timezone]);
 
   // Is this week the current week?
   const isCurrentWeek = isSameDay(weekStart, getWeekStart(today, weekStartDay));
