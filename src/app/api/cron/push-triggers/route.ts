@@ -6,6 +6,7 @@ import {
   getUserLocation,
   isLocationStale,
   getScheduledSessionsInRange,
+  getCalendarEventsByDateRange,
 } from "@/lib/db/queries";
 import {
   sendPushToUser,
@@ -473,7 +474,13 @@ async function processUser(user: PushUser): Promise<number> {
         c.at < endOfToday &&
         !(c.intervalMinutes !== undefined && c.intervalMinutes <= ALWAYS_SEND_MINUTES)
     );
-    const sittings = await getScheduledSessionsInRange(userId, new Date(), endOfToday);
+    const [sittings, todaysEvents] = await Promise.all([
+      getScheduledSessionsInRange(userId, new Date(), endOfToday),
+      // The day's events straight from the calendar, not only the ones with a
+      // pending reminder: recurring classes get no day-ahead reminder, and
+      // "Today:" should still name them.
+      getCalendarEventsByDateRange(userId, new Date(), endOfToday),
+    ]);
     const items: WakeSummaryItem[] = [
       ...foldable.map((c) => ({
         at: c.at,
@@ -481,6 +488,9 @@ async function processUser(user: PushUser): Promise<number> {
         kind: c.kind as WakeSummaryItem["kind"],
       })),
       ...sittings.map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
+      ...todaysEvents
+        .filter((e) => !e.isAllDay)
+        .map((e) => ({ at: new Date(e.startTime), title: e.title, kind: "event" as const })),
     ];
 
     const replacesCheckIn = checkInConfig.enabled && checkInConfig.window === "morning";

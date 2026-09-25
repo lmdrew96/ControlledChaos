@@ -294,6 +294,9 @@ export async function getTargetReminders(
  * - Events whose location matches a saved location (handled by getDepartureAlerts instead,
  *   to avoid double-firing time-to-leave + reminder within the same window).
  */
+/** Reminders this far out or further are "the day before". */
+const DAY_AHEAD_MINUTES = 1440;
+
 export async function getEventReminders(
   userId: string,
   prefs: NotificationPrefs | null | undefined
@@ -320,7 +323,14 @@ export async function getEventReminders(
 
     const startMs = new Date(event.startTime).getTime();
     const diff = startMs - nowMs;
-    const interval = pickIntervalForDiff(diff, intervals);
+    // A recurring event (a weekly class) is already part of the user's week;
+    // a day-before heads-up for each one was a push per class per day. It
+    // keeps the closer reminders, and the wake-up summary reads the day's
+    // events from the calendar directly, so it still names the class.
+    const interval = pickIntervalForDiff(
+      diff,
+      event.seriesId ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals
+    );
     if (interval === null) continue;
 
     reminders.push({

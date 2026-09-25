@@ -602,7 +602,7 @@ export function NotificationSettings() {
         />
         <ReminderIntervalEditor
           label="Calendar events"
-          hint="Before an event starts. Classes, appointments, shifts."
+          hint="Before an event starts. Classes, appointments, shifts. Recurring events (like weekly classes) skip anything a day or more ahead — they show in your morning summary instead."
           intervals={prefs.eventReminderIntervals ?? []}
           onChange={(next) => update({ eventReminderIntervals: next })}
         />
