@@ -379,3 +379,17 @@ export function describeFromNow(date: Date, nowMs: number = Date.now()): string 
     ? `in ${formatReminderInterval(diff)}`
     : `${formatReminderInterval(-diff)} ago`;
 }
+
+/**
+ * Whether `tz` is an IANA zone this runtime knows. An unknown one makes every
+ * Intl call throw, so a bad value saved once would break each cron that
+ * formats that user's time.
+ */
+export function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}

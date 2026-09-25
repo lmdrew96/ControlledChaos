@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  isValidTimeZone,
   getTimezoneOffsetMs,
   getCalendarParts,
   getHourInTimezone,
@@ -404,5 +405,19 @@ describe("toUTC ↔ toUserLocal round-trip", () => {
     const local = toUserLocal(new Date(utc), "UTC");
     expect(local.hour).toBe(12);
     expect(local.minute).toBe(0);
+  });
+});
+
+describe("isValidTimeZone", () => {
+  it("accepts IANA zones and UTC", () => {
+    expect(isValidTimeZone("America/New_York")).toBe(true);
+    expect(isValidTimeZone("Europe/Bucharest")).toBe(true);
+    expect(isValidTimeZone("UTC")).toBe(true);
+  });
+
+  it("rejects made-up and malformed zones", () => {
+    expect(isValidTimeZone("America/Nowhere")).toBe(false);
+    expect(isValidTimeZone("Eastern")).toBe(false);
+    expect(isValidTimeZone("")).toBe(false);
   });
 });

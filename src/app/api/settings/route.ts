@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
+import { isValidTimeZone } from "@/lib/timezone";
 import type { CalendarColorKey, CalendarColors, CrisisDetectionTier, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
@@ -170,6 +171,11 @@ export async function PATCH(request: Request) {
       if (VALID_CRISIS_DETECTION_TIERS.has(body.crisisDetectionTier)) {
         data.crisisDetectionTier = body.crisisDetectionTier;
       }
+    }
+
+    // Checked before any write, so a bad zone doesn't leave half a save behind.
+    if (typeof body.timezone === "string" && body.timezone.length > 0 && !isValidTimeZone(body.timezone)) {
+      return NextResponse.json({ error: "Unknown timezone" }, { status: 400 });
     }
 
     if (body.displayName !== undefined && typeof body.displayName === "string" && body.displayName.trim().length > 0) {

@@ -31,22 +31,30 @@ export async function POST(request: Request) {
   try {
     const users = await getAllUsersWithNotificationPrefs();
     let sent = 0;
+    let failed = 0;
 
     for (const { userId, timezone, prefs } of users) {
       if (!prefs?.emailEveningDigest) continue;
 
-      if (!force && !hasLocalTimeArrivedToday(prefs.eveningDigestTime, timezone)) continue;
+      // One user's failure (a bad timezone, an AI or email error) must not
+      // stop the digests for everyone after them — log it and move on.
+      try {
+        if (!force && !hasLocalTimeArrivedToday(prefs.eveningDigestTime, timezone)) continue;
 
-      // Dedup: don't send twice in the same day (skip in force mode)
-      const dedupKey = `evening-digest-${todayInTimezone(timezone)}`;
-      if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
+        // Dedup: don't send twice in the same day (skip in force mode)
+        const dedupKey = `evening-digest-${todayInTimezone(timezone)}`;
+        if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
-      const { sendEveningDigest } = await import("@/lib/notifications/send-email");
-      const ok = await sendEveningDigest(userId);
-      if (ok) sent++;
+        const { sendEveningDigest } = await import("@/lib/notifications/send-email");
+        const ok = await sendEveningDigest(userId);
+        if (ok) sent++;
+      } catch (err) {
+        failed++;
+        console.error(`[Cron] evening-digest failed for user ${userId}:`, err);
+      }
     }
 
-    return NextResponse.json({ success: true, sent });
+    return NextResponse.json({ success: true, sent, failed });
   } catch (error) {
     console.error("[Cron] evening-digest error:", error);
     return NextResponse.json({ error: "Cron job failed" }, { status: 500 });
