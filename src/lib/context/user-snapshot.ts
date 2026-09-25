@@ -59,6 +59,13 @@ export interface UserSnapshot {
   activitySignal: string | null;
   /** Pre-formatted text block ready to append to any AI user message */
   formatted: string;
+  /**
+   * Time, energy and today's remaining events only: no tasks. For reminder
+   * pushes, which must stay on their own item. Handed the full task list,
+   * the model kept attaching unasked-for homework tips to class reminders
+   * and suggesting times for work the user had already planned.
+   */
+  scheduleOnly: string;
 }
 
 /**
@@ -217,19 +224,23 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     }
   }
 
+  // Kept apart so reminders can get the day's shape without the task list.
+  const eventLines: string[] = [];
   if (formattedEvents.length > 0) {
-    lines.push(`Remaining schedule today:`);
+    eventLines.push(`Remaining schedule today:`);
     for (const e of formattedEvents) {
       // An all-day event has no meaningful clock time. It used to render as
       // "12:00 AM–11:59 PM", which reads to the model as a real 24-hour
       // commitment blocking the entire day.
       const when = e.isAllDay ? "all day" : `${e.startTime}–${e.endTime}${e.fromNow}`;
       const where = e.location ? ` @ ${e.location}` : "";
-      lines.push(`  - ${e.title}: ${when}${where}`);
+      eventLines.push(`  - ${e.title}: ${when}${where}`);
     }
   } else {
-    lines.push(`No more events scheduled today.`);
+    eventLines.push(`No more events scheduled today.`);
   }
+
+  lines.push(...eventLines);
 
   // Recent activity signal
   let activitySignal: string | null = null;
@@ -282,5 +293,6 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     activeCrisisCount,
     activitySignal,
     formatted: lines.join("\n"),
+    scheduleOnly: [lines[0], lines[1], lines[2], ...eventLines].join("\n"),
   };
 }

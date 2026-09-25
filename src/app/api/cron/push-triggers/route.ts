@@ -211,13 +211,12 @@ async function processUser(user: PushUser): Promise<number> {
   };
 
   // Build user context snapshot once per user — shared across all notification types
-  let _snapshot: string | undefined;
+  let _snapshot: { formatted: string; scheduleOnly: string } | undefined;
   let _snapshotFetched = false;
-  const getSnapshot = async () => {
+  const loadSnapshot = async () => {
     if (!_snapshotFetched) {
       try {
-        const snapshot = await buildUserSnapshot(userId);
-        _snapshot = snapshot.formatted;
+        _snapshot = await buildUserSnapshot(userId);
       } catch (err) {
         console.error(`[Push] snapshot failed for user=${userId}:`, err);
       }
@@ -225,6 +224,12 @@ async function processUser(user: PushUser): Promise<number> {
     }
     return _snapshot;
   };
+  // Full context (tasks included) for check-ins, nudges and crisis.
+  const getSnapshot = async () => (await loadSnapshot())?.formatted;
+  // Reminders get the day's shape only. With the task list in view the model
+  // attached unrelated homework tips to class reminders and second-guessed
+  // work the user had already planned.
+  const getReminderSnapshot = async () => (await loadSnapshot())?.scheduleOnly;
 
   // Per-tick budgets. Without them, every reminder that became eligible during
   // quiet hours fires in the same tick the moment quiet hours end — the
@@ -544,7 +549,7 @@ async function processUser(user: PushUser): Promise<number> {
       timezone,
       mode,
       await getLocationName(),
-      await getSnapshot()
+      await getReminderSnapshot()
     );
     const sent = await sendPushToUser(userId, {
       title: "ControlledChaos",
@@ -588,7 +593,7 @@ async function processUser(user: PushUser): Promise<number> {
       timezone,
       mode,
       await getLocationName(),
-      await getSnapshot()
+      await getReminderSnapshot()
     );
     const sent = await sendPushToUser(userId, {
       title: "ControlledChaos",
