@@ -3,7 +3,12 @@ import { tasks } from "../schema";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import type { CalendarColors } from "@/types";
 import { DEFAULT_CALENDAR_COLORS, categoryLabel } from "@/lib/calendar/colors";
-import { startOfDayInTimezone, todayInTimezone, startOfWeekInTimezone } from "@/lib/timezone";
+import {
+  startOfDayInTimezone,
+  todayInTimezone,
+  startOfWeekInTimezone,
+  toDateKeyInTimezone,
+} from "@/lib/timezone";
 import { getUserSettings } from "./users";
 
 // ============================================================
@@ -68,6 +73,18 @@ function joinNaturally(items: string[]): string {
   if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The last `days` local date keys ending on todayKey, oldest first. Pure
+ * calendar arithmetic on the key itself — deriving keys from a local-midnight
+ * instant via toISOString() lands on the previous UTC date in UTC+ zones.
+ */
+export function trailingDateKeys(todayKey: string, days: number): string[] {
+  const [y, m, d] = todayKey.split("-").map(Number);
+  return Array.from({ length: days }, (_, i) =>
+    new Date(Date.UTC(y, m - 1, d - (days - 1 - i))).toISOString().slice(0, 10)
+  );
 }
 
 export async function getMomentumStats(
@@ -257,18 +274,15 @@ export async function getMomentumStats(
       : String(row.date).slice(0, 10);
     dailyMap.set(d, Number(row.count));
   }
-  const daily: Array<{ date: string; count: number }> = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(startOfDay);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    daily.push({ date: dateStr, count: dailyMap.get(dateStr) ?? 0 });
-  }
+  const daily = trailingDateKeys(todayStr, 14).map((date) => ({
+    date,
+    count: dailyMap.get(date) ?? 0,
+  }));
 
   // Derive today/week counts from daily array
   const completedToday = daily.find((d) => d.date === todayStr)?.count ?? 0;
 
-  const startOfWeekStr = startOfWeek.toISOString().slice(0, 10);
+  const startOfWeekStr = toDateKeyInTimezone(startOfWeek, timezone);
   const completedThisWeek = daily
     .filter((d) => d.date >= startOfWeekStr)
     .reduce((sum, d) => sum + d.count, 0);
@@ -436,7 +450,7 @@ export async function getMomentumStats(
     byEnergy,
     wins,
     calendarColors,
-    weekStartDate: startOfWeek.toISOString().slice(0, 10),
+    weekStartDate: startOfWeekStr,
   };
 }
 
