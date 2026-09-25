@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   deleteCalendarEvent,
+  getCalendarEventById,
   updateCalendarEvent,
   updateTask,
 } from "@/lib/db/queries";
@@ -22,17 +23,22 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params;
-    const deleted = await deleteCalendarEvent(id, userId);
-
-    if (!deleted) {
+    // Check the source BEFORE writing. Checking the returned row afterwards
+    // meant a Canvas event was already gone by the time we answered 403.
+    const existing = await getCalendarEventById(id, userId);
+    if (!existing) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
-
-    if (deleted.source !== "controlledchaos") {
+    if (existing.source !== "controlledchaos") {
       return NextResponse.json(
         { error: "Only scheduled events can be deleted" },
         { status: 403 }
       );
+    }
+
+    const deleted = await deleteCalendarEvent(id, userId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
     // Clear scheduledFor on the linked task (externalId format: cc-{taskId}-{startTime})
@@ -88,17 +94,21 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const updated = await updateCalendarEvent(id, userId, data);
-
-    if (!updated) {
+    // Source check before the write — see DELETE.
+    const existing = await getCalendarEventById(id, userId);
+    if (!existing) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
-
-    if (updated.source !== "controlledchaos") {
+    if (existing.source !== "controlledchaos") {
       return NextResponse.json(
         { error: "Only scheduled events can be edited" },
         { status: 403 }
       );
+    }
+
+    const updated = await updateCalendarEvent(id, userId, data);
+    if (!updated) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
     return NextResponse.json({ event: updated });

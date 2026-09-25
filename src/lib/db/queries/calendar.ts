@@ -183,6 +183,15 @@ export async function deleteTaskScheduleEvents(userId: string, taskId: string) {
     .returning();
 }
 
+export async function getCalendarEventById(id: string, userId: string) {
+  const [event] = await db
+    .select()
+    .from(calendarEvents)
+    .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)))
+    .limit(1);
+  return event ?? null;
+}
+
 export async function deleteCalendarEvent(id: string, userId: string) {
   const [deleted] = await db
     .delete(calendarEvents)

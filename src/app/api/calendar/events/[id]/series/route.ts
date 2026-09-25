@@ -46,6 +46,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
+    // Canvas rows belong to the feed; only ControlledChaos events are editable.
+    if (event.source !== "controlledchaos") {
+      return NextResponse.json(
+        { error: "Only scheduled events can be changed" },
+        { status: 403 }
+      );
+    }
+
     if (!event.seriesId) {
       return NextResponse.json({ error: "Event is not part of a series" }, { status: 400 });
     }
@@ -156,6 +164,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // Canvas rows belong to the feed; only ControlledChaos events are editable.
+    if (event.source !== "controlledchaos") {
+      return NextResponse.json(
+        { error: "Only scheduled events can be changed" },
+        { status: 403 }
+      );
     }
 
     if (!event.seriesId) {
