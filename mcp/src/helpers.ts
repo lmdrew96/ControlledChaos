@@ -69,6 +69,7 @@ export function formatTask(task: Record<string, unknown>, tz?: string): string {
   if (task.description) parts.push(`Description: ${task.description}`);
   if (task.category) parts.push(`Category: ${task.category}`);
   if (task.estimated_minutes) parts.push(`Estimated: ${task.estimated_minutes} min`);
+  if (task.goal_id) parts.push(`Goal: \`${task.goal_id}\``);
   // The three times are labelled distinctly on purpose. A calling model that
   // can't tell a hard wall from a self-imposed buffer will speak about both
   // with deadline urgency, which is the failure the target_date field exists
@@ -212,6 +213,9 @@ export function formatGoal(goal: Record<string, unknown>, tz?: string): string {
   ];
   if (goal.description) parts.push(`Description: ${goal.description}`);
   if (goal.target_date) parts.push(`Target: ${fmtLocal(goal.target_date, tz)}`);
+  if (goal.task_total != null) {
+    parts.push(`Progress: ${goal.task_completed ?? 0}/${goal.task_total} linked tasks done`);
+  }
   return parts.join("\n");
 }
 

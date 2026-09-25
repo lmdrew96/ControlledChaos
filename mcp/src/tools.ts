@@ -53,6 +53,18 @@ async function logTaskCompleted(userId: string, taskId: string): Promise<void> {
   );
 }
 
+/**
+ * Resolve a goal_id param. Returns an error message when the goal isn't the
+ * user's or was deleted, so a task never links to a goal the app hides.
+ */
+async function checkGoal(userId: string, goalId: string): Promise<string | null> {
+  const rows = await sql(
+    `SELECT 1 FROM goals WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [goalId, userId]
+  );
+  return rows.length === 0 ? `Goal \`${goalId}\` not found.` : null;
+}
+
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
 /**
  * Normalize an optional, nullable datetime param for the update field maps.
@@ -247,6 +259,7 @@ Returns: The created task with its ID.`,
         target_date: z.string().optional().describe("SOFT self-imposed target, as an ISO 8601 UTC string. Missing it has no external consequence."),
         scheduled_for: z.string().optional().describe("When the user plans to START working, as an ISO 8601 UTC string. A planned start, never a due date."),
         location_tags: z.array(z.string()).optional().describe("Location tags"),
+        goal_id: z.string().uuid().optional().describe("Goal this task works toward (from cc_list_goals)"),
       },
       annotations: {
         readOnlyHint: false,
@@ -258,9 +271,13 @@ Returns: The created task with its ID.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
+      if (params.goal_id) {
+        const goalError = await checkGoal(userId, params.goal_id);
+        if (goalError) return { content: [{ type: "text" as const, text: goalError }] };
+      }
       const rows = await sql(
-        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags, goal_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           userId,
@@ -274,6 +291,7 @@ Returns: The created task with its ID.`,
           params.target_date ? new Date(params.target_date).toISOString() : null,
           params.scheduled_for ? new Date(params.scheduled_for).toISOString() : null,
           params.location_tags?.length ? JSON.stringify(params.location_tags) : null,
+          params.goal_id ?? null,
         ]
       );
 
@@ -302,7 +320,7 @@ Returns: The created task with its ID.`,
 
 Args:
   - task_id (required): UUID of the task to update.
-  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags: Fields to update.
+  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags, goal_id: Fields to update.
 
 ## The three times a task can carry
 
@@ -332,6 +350,7 @@ Returns: The updated task.`,
         target_date: z.string().nullable().optional().describe("New SOFT self-imposed target (ISO 8601 UTC). Pass null to clear it."),
         scheduled_for: z.string().nullable().optional().describe("When the user plans to START — not a due date (ISO 8601 UTC). Pass null to take the task off the schedule."),
         location_tags: z.array(z.string()).optional().describe("New location tags"),
+        goal_id: z.string().uuid().nullable().optional().describe("Goal this task works toward. Pass null to unlink it from its goal."),
       },
       annotations: {
         readOnlyHint: false,
@@ -343,6 +362,10 @@ Returns: The updated task.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
+      if (params.goal_id) {
+        const goalError = await checkGoal(userId, params.goal_id);
+        if (goalError) return { content: [{ type: "text" as const, text: goalError }] };
+      }
       const setClauses: string[] = ["updated_at = NOW()"];
       const values: unknown[] = [];
       let idx = 1;
@@ -362,6 +385,7 @@ Returns: The updated task.`,
         ["target_date", "target_date", timeField(params.target_date)],
         ["scheduled_for", "scheduled_for", timeField(params.scheduled_for)],
         ["location_tags", "location_tags", params.location_tags ? JSON.stringify(params.location_tags) : undefined],
+        ["goal_id", "goal_id", params.goal_id],
       ];
 
       for (const [, col, val] of fields) {
@@ -845,7 +869,7 @@ Returns: The created event (or a summary if recurring).`,
       title: "List Goals",
       description: `List active goals from ControlledChaos.
 
-Returns: Markdown-formatted list of goals with IDs, descriptions, and target dates.`,
+Returns: Markdown-formatted list of goals with IDs, descriptions, target dates, and progress (completed / total linked tasks).`,
       inputSchema: {},
       annotations: {
         readOnlyHint: true,
@@ -858,7 +882,17 @@ Returns: Markdown-formatted list of goals with IDs, descriptions, and target dat
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `SELECT * FROM goals WHERE user_id = $1 AND status = 'active' ORDER BY created_at`,
+        // Progress is counted live from linked tasks, same as the app
+        // (getGoalTaskCounts): deleted tasks don't count.
+        `SELECT g.*,
+           (SELECT COUNT(*)::int FROM tasks t
+             WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL) AS task_total,
+           (SELECT COUNT(*)::int FROM tasks t
+             WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
+               AND t.status = 'completed') AS task_completed
+         FROM goals g
+         WHERE g.user_id = $1 AND g.status = 'active' AND g.deleted_at IS NULL
+         ORDER BY g.created_at`,
         [userId]
       );
 
@@ -1067,7 +1101,7 @@ Returns: The updated goal.`,
       }
 
       values.push(params.goal_id, userId);
-      const query = `UPDATE goals SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`;
+      const query = `UPDATE goals SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} AND deleted_at IS NULL RETURNING *`;
       const rows = await sql(query, values);
 
       if (rows.length === 0) {
@@ -1085,7 +1119,7 @@ Returns: The updated goal.`,
     "cc_delete_goal",
     {
       title: "Delete Goal",
-      description: `Permanently delete a goal. Tasks linked to this goal will have their goal_id set to null (they won't be deleted).
+      description: `Delete a goal. Tasks linked to this goal will have their goal_id set to null (they won't be deleted). Like the app, this is a soft delete: the goal disappears everywhere but the row is kept.
 
 Args:
   - goal_id (required): UUID of the goal to delete.
@@ -1105,8 +1139,9 @@ Returns: Confirmation of deletion.`,
       const userId = getUserId();
       // Unlink tasks from this goal first
       await sql(`UPDATE tasks SET goal_id = NULL WHERE goal_id = $1 AND user_id = $2`, [params.goal_id, userId]);
+      // Soft delete, matching the app's deleteGoal
       const rows = await sql(
-        `DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING title`,
+        `UPDATE goals SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING title`,
         [params.goal_id, userId]
       );
 

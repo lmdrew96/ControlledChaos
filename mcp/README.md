@@ -31,7 +31,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_list_goals` | List active goals |
 | `cc_create_goal` | Create a new goal with title, description, target date |
 | `cc_update_goal` | Update any field on an existing goal |
-| `cc_delete_goal` | Permanently delete a goal (unlinks tasks) |
+| `cc_delete_goal` | Delete a goal (soft delete, unlinks tasks) |
 
 ### Brain Dumps (2)
 | Tool | What it does |
