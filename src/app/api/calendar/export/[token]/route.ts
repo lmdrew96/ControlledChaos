@@ -129,12 +129,15 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       if (!task.scheduledFor) continue;
 
       const blockStart = task.scheduledFor;
-      const blockEnd = planBlockEnd(blockStart, task.estimatedMinutes);
+      // The sitting's own length, same as the in-app calendar — not the task's
+      // whole estimate, which a multi-sitting plan splits up.
+      const blockEnd = planBlockEnd(blockStart, task.sessionMinutes ?? task.estimatedMinutes);
 
       lines.push("BEGIN:VEVENT");
-      // Distinct UID namespace from calendar rows, so a plan block and an event
-      // can never collide on id in the subscriber's calendar.
-      lines.push(`UID:plan-${task.id}@controlledchaos`);
+      // Keyed on the SITTING: a task planned across several would otherwise
+      // share one UID, and subscribers keep only one event per UID. The
+      // plan- namespace keeps these from colliding with calendar rows.
+      lines.push(`UID:plan-${task.sessionId}@controlledchaos`);
       lines.push(`DTSTAMP:${formatIcalDateTime(new Date().toISOString())}`);
       lines.push(`DTSTART:${formatIcalDateTime(blockStart.toISOString())}`);
       lines.push(`DTEND:${formatIcalDateTime(blockEnd.toISOString())}`);
