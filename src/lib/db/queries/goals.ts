@@ -17,15 +17,6 @@ export async function getUserGoals(userId: string, status?: string) {
     .orderBy(desc(goals.createdAt));
 }
 
-export async function getGoalById(goalId: string, userId: string) {
-  const [goal] = await db
-    .select()
-    .from(goals)
-    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
-    .limit(1);
-  return goal ?? null;
-}
-
 export async function createGoal(
   userId: string,
   data: {
@@ -93,5 +84,3 @@ export async function getGoalTaskCounts(userId: string) {
     .groupBy(tasks.goalId);
   return rows as { goalId: string; total: number; completed: number }[];
 }
-
-

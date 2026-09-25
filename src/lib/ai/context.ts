@@ -327,7 +327,7 @@ export async function buildAIContext(
 // Formatter — turns structured context into prompt-ready text
 // ============================================================
 
-export function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
+function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   const lines: string[] = [];
 
   lines.push("## User Context");

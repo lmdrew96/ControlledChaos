@@ -193,7 +193,6 @@ export async function updateTask(
     locationTags: string[] | null;
     deadline: Date | null;
     targetDate: Date | null;
-    scheduledFor: Date | null;
     snoozedUntil: Date | null;
     completedAt: Date | null;
     progressSteps: object[] | null;
@@ -208,28 +207,16 @@ export async function updateTask(
     .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
     .returning();
 
-  // Whenever the plan moves, retire the calendar event the previous plan
-  // materialized. `/api/tasks/[id]/schedule` keys its event `cc-{taskId}-
-  // {startTime}`, so a new start mints a new externalId and the upsert can
-  // never replace the old row — it lingers as a ghost at the former time.
-  //
-  // This lives here rather than in the PATCH route because every writer of
-  // scheduledFor funnels through updateTask: the detail modal's "Planned for",
-  // the week-view plan-block drag, the auto-scheduler, and cc_update_task over
-  // MCP. Gated on the key actually being present, so the many calls that touch
-  // status or title alone never pay for it.
-  //
-  // Completing or cancelling a task takes it off the calendar too. The plan
-  // block itself vanishes on its own (getScheduledTasksInRange filters by
-  // status), but a cc- event the auto-scheduler materialized is a standalone
-  // calendar row — without this it stays put, so a finished task kept sitting
-  // on the calendar all day.
+  // Completing or cancelling a task takes it off the calendar. The plan block
+  // vanishes on its own (the session queries filter by status), but older
+  // versions materialized plans as standalone `cc-{taskId}-…` calendar rows,
+  // and any still around would otherwise sit there all day. (scheduledFor is
+  // no longer accepted here — it's a mirror the session layer maintains.)
   const leftTheCalendar =
     data.status !== undefined &&
     !(PLANNED_ON_CALENDAR_STATUSES as readonly string[]).includes(data.status);
 
-  // Callers that create a replacement event must upsert it AFTER this runs.
-  if (updated && ("scheduledFor" in data || leftTheCalendar)) {
+  if (updated && leftTheCalendar) {
     await deleteTaskScheduleEvents(userId, taskId).catch((err) =>
       console.error("[DB] Failed to clear stale schedule events:", err)
     );

@@ -4,7 +4,6 @@ import {
   deleteCalendarEvent,
   getCalendarEventById,
   updateCalendarEvent,
-  updateTask,
 } from "@/lib/db/queries";
 
 /** Long enough for "📝 Quiz today", short enough to fit on a narrow tile. */
@@ -39,14 +38,6 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     const deleted = await deleteCalendarEvent(id, userId);
     if (!deleted) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
-    }
-
-    // Clear scheduledFor on the linked task (externalId format: cc-{taskId}-{startTime})
-    if (deleted.externalId?.startsWith("cc-")) {
-      const taskId = deleted.externalId.split("-").slice(1, 6).join("-"); // UUID is 5 parts
-      await updateTask(taskId, userId, { scheduledFor: null }).catch((err) =>
-        console.error("[API] Failed to clear task.scheduledFor:", err)
-      );
     }
 
     return NextResponse.json({ success: true });

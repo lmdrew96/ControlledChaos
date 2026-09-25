@@ -70,11 +70,6 @@ export async function updateMicrotask(
   return row ?? null;
 }
 
-/** Soft delete: sets active=false. Preserves completion history. */
-export async function deactivateMicrotask(id: string, userId: string): Promise<MicrotaskRow | null> {
-  return updateMicrotask(id, userId, { active: false });
-}
-
 /** Manage view: list every microtask the user owns (active first, then inactive). */
 export async function listAllMicrotasksForUser(userId: string): Promise<MicrotaskRow[]> {
   return db

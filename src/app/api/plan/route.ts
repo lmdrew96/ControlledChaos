@@ -2,11 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
   getUser,
-  getScheduledSessionsInRange,
   clearSessionsInRange,
 } from "@/lib/db/queries";
 import { localDaysRange } from "@/lib/timezone";
-import { planBlockEnd, planBlockMinutes } from "@/lib/calendar/plan-blocks";
 
 async function todayBounds(userId: string) {
   const user = await getUser(userId);
@@ -14,40 +12,13 @@ async function todayBounds(userId: string) {
   const { start, end } = localDaysRange(new Date(), timezone);
   return { timezone, start, end };
 }
-
-/** GET /api/plan — today's committed plan blocks. */
-export async function GET() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { start, end } = await todayBounds(userId);
-    const scheduled = await getScheduledSessionsInRange(userId, start, end);
-
-    return NextResponse.json({
-      blocks: scheduled.map((t) => ({
-        taskId: t.id,
-        taskTitle: t.title,
-        startTime: (t.scheduledFor as Date).toISOString(),
-        endTime: planBlockEnd(t.scheduledFor as Date, t.estimatedMinutes).toISOString(),
-        minutes: planBlockMinutes(t.estimatedMinutes),
-        status: t.status,
-      })),
-    });
-  } catch (error) {
-    console.error("[API] GET /api/plan error:", error);
-    return NextResponse.json({ error: "Failed to load plan" }, { status: 500 });
-  }
-}
-
 /**
- * DELETE /api/plan — clear today's plan.
+ * DELETE /api/plan — clear what's still ahead in today's plan.
  *
- * One update nulling `scheduledFor`. This is the whole undo story now: when
- * plans were calendar events, clearing them meant hunting down and deleting
- * rows that had already drifted from their tasks.
+ * Removes today's unanswered sittings from now on (see clearSessionsInRange).
+ * This is the whole undo story now: when plans were calendar events, clearing
+ * them meant hunting down and deleting rows that had already drifted from
+ * their tasks.
  */
 export async function DELETE() {
   try {

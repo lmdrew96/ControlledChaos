@@ -70,8 +70,8 @@ export async function PATCH(
     //
     // Setting it moves the task's FIRST sitting and leaves any others alone —
     // editing "Planned for" on a task with three sittings should nudge the
-    // first, not delete the plan and start over. Clearing it removes the plan
-    // entirely, which is what the field's hint promises. Additional sittings
+    // first, not delete the plan and start over. Clearing it removes every
+    // sitting you haven't logged an outcome for. Additional sittings
     // are added through /api/tasks/[id]/sessions.
     const { scheduledFor, ...rest } = body as typeof body & {
       scheduledFor?: Date | null;

@@ -65,35 +65,6 @@ export async function listMoments(
     .limit(opts?.limit ?? 200);
 }
 
-export async function updateMoment(
-  momentId: string,
-  userId: string,
-  patch: {
-    intensity?: number | null;
-    note?: string | null;
-    occurredAt?: Date;
-  }
-) {
-  const set: Record<string, unknown> = {};
-  if (patch.intensity !== undefined) set.intensity = patch.intensity;
-  if (patch.note !== undefined) set.note = patch.note;
-  if (patch.occurredAt !== undefined) set.occurredAt = patch.occurredAt;
-  if (Object.keys(set).length === 0) return null;
-
-  const [updated] = await db
-    .update(moments)
-    .set(set)
-    .where(
-      and(
-        eq(moments.id, momentId),
-        eq(moments.userId, userId),
-        isNull(moments.deletedAt)
-      )
-    )
-    .returning();
-  return updated ?? null;
-}
-
 export async function softDeleteMoment(momentId: string, userId: string) {
   const [deleted] = await db
     .update(moments)
@@ -152,5 +123,3 @@ export async function getRecentMoments(
     .where(and(...conditions))
     .orderBy(desc(moments.occurredAt));
 }
-
-

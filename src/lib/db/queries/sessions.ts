@@ -477,9 +477,9 @@ export async function clearTaskSessions(
 }
 
 /**
- * Clear planned sessions inside a window — "Clear today's plan" and the
- * midnight rollover. A plan is an intention for a given day, and an unfinished
- * one should not survive into the next as evidence of failure.
+ * Clear planned sessions inside a window — "Clear today's plan". (Past days
+ * need no rollover: the calendar stops showing yesterday's unfinished blocks
+ * on its own; see isPlanBlockCurrent.)
  *
  * Returns the number of SESSIONS removed, which is no longer the same as the
  * number of tasks: one task may have had two sittings that day.

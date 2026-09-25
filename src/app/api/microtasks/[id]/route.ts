@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import {
-  deactivateMicrotask,
   updateMicrotask,
   type MicrotaskTimeOfDay,
   type UpdateMicrotaskInput,
@@ -86,31 +85,6 @@ export async function PATCH(
     console.error("[API] PATCH /api/microtasks/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to update microtask" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const updated = await deactivateMicrotask(id, userId);
-    if (!updated) {
-      return NextResponse.json({ error: "Microtask not found" }, { status: 404 });
-    }
-    return NextResponse.json({ microtask: updated });
-  } catch (error) {
-    console.error("[API] DELETE /api/microtasks/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to deactivate microtask" },
       { status: 500 }
     );
   }

@@ -28,35 +28,6 @@ import {
 } from "@/lib/timezone";
 
 export interface UserSnapshot {
-  timezone: string;
-  currentTime: string;
-  /** Most recent energy signal from Moments, or null if none logged recently. */
-  energyLevel: string | null;
-  pendingTaskCount: number;
-  completedTodayCount: number;
-  topPendingTasks: Array<{
-    title: string;
-    priority: string;
-    /** pending | in_progress | snoozed — getPendingTasks returns all three. */
-    status: string;
-    estimatedMinutes: number | null;
-    /** Where the task can be done; null/empty means anywhere. */
-    locationTags: string[] | null;
-    /** The user's own note on the task, trimmed for prompt budget. */
-    note: string | null;
-    deadline: string | null;
-    targetDate: string | null;
-    scheduledFor: string | null;
-  }>;
-  todayEvents: Array<{
-    title: string;
-    startTime: string;
-    endTime: string;
-    isAllDay: boolean;
-    location: string | null;
-  }>;
-  activeCrisisCount: number;
-  activitySignal: string | null;
   /** Pre-formatted text block ready to append to any AI user message */
   formatted: string;
   /**
@@ -267,7 +238,6 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
   }
 
   // Active crises
-  const activeCrisisCount = crisisPlans.length;
   if (crisisPlans.length > 0) {
     lines.push(`Active crises: ${crisisPlans.length}`);
     for (const c of crisisPlans) {
@@ -282,16 +252,9 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     lines.push(`Behavior: ${activitySignal}`);
   }
 
+  // Only the two text blocks leave this module: every caller hands them to a
+  // prompt. The structured fields they're built from were never read.
   return {
-    timezone,
-    currentTime,
-    energyLevel,
-    pendingTaskCount: pendingTasks.length,
-    completedTodayCount: completedToday.length,
-    topPendingTasks: topPending,
-    todayEvents: formattedEvents,
-    activeCrisisCount,
-    activitySignal,
     formatted: lines.join("\n"),
     scheduleOnly: [lines[0], lines[1], lines[2], ...eventLines].join("\n"),
   };
