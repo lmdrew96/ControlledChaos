@@ -33,6 +33,26 @@ async function syncPlannedSession(
   }
 }
 
+/**
+ * SET fragment that stamps completed_at only on the transition into
+ * completed. Re-completing a task keeps its original completion time, the
+ * same way it doesn't log a second completion.
+ */
+const COMPLETED_AT_ON_COMPLETE = `completed_at = CASE WHEN status = 'completed' THEN COALESCE(completed_at, NOW()) ELSE NOW() END`;
+
+/**
+ * Log a completion the way the app's PATCH /api/tasks/[id] does. Check-ins
+ * and idle nudges read task_activity to decide whether the user has been
+ * active today, so a completion made through Claude has to land here too or
+ * an active user reads as idle.
+ */
+async function logTaskCompleted(userId: string, taskId: string): Promise<void> {
+  await sql(
+    `INSERT INTO task_activity (user_id, task_id, action) VALUES ($1, $2, 'completed')`,
+    [userId, taskId]
+  );
+}
+
 // Compute today's calendar date (YYYY-MM-DD) in the given IANA timezone.
 /**
  * Normalize an optional, nullable datetime param for the update field maps.
@@ -352,9 +372,11 @@ Returns: The updated task.`,
         }
       }
 
-      // If marking completed, set completed_at
+      // Mirror the app: completed stamps completed_at, any other status clears it.
       if (params.status === "completed") {
-        setClauses.push(`completed_at = NOW()`);
+        setClauses.push(COMPLETED_AT_ON_COMPLETE);
+      } else if (params.status !== undefined) {
+        setClauses.push(`completed_at = NULL`);
       }
 
       if (setClauses.length === 1) {
@@ -362,11 +384,21 @@ Returns: The updated task.`,
       }
 
       values.push(params.task_id, userId);
-      const query = `UPDATE tasks SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} RETURNING *`;
+      // The FROM subquery reads the row before the update, so we know whether
+      // this call is what completed the task.
+      const query = `UPDATE tasks SET ${setClauses.join(", ")}
+        FROM (SELECT id AS prev_id, status AS prev_status FROM tasks
+              WHERE id = $${idx} AND user_id = $${idx + 1} AND deleted_at IS NULL) prev
+        WHERE tasks.id = prev.prev_id
+        RETURNING tasks.*, prev.prev_status`;
       const rows = await sql(query, values);
 
       if (rows.length === 0) {
         return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
+      }
+
+      if (params.status === "completed" && rows[0].prev_status !== "completed") {
+        await logTaskCompleted(userId, params.task_id);
       }
 
       // Keep task_sessions in step with the column we just wrote. Passing null
@@ -410,13 +442,20 @@ Returns: The completed task.`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `UPDATE tasks SET status = 'completed', completed_at = NOW(), updated_at = NOW()
-         WHERE id = $1 AND user_id = $2 RETURNING *`,
+        `UPDATE tasks SET status = 'completed', ${COMPLETED_AT_ON_COMPLETE}, updated_at = NOW()
+         FROM (SELECT id AS prev_id, status AS prev_status FROM tasks
+               WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL) prev
+         WHERE tasks.id = prev.prev_id
+         RETURNING tasks.*, prev.prev_status`,
         [params.task_id, userId]
       );
 
       if (rows.length === 0) {
         return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
+      }
+
+      if (rows[0].prev_status !== "completed") {
+        await logTaskCompleted(userId, params.task_id);
       }
 
       return { content: [{ type: "text" as const, text: `🎉 Task completed!\n\n${formatTask(rows[0], tz)}` }] };
