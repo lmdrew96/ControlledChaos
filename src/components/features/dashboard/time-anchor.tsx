@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Clock, ChevronUp, ChevronDown, CalendarClock, Sparkles } from "lucide-react";
 import { toUserLocal, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
-import { useTimezone } from "@/hooks/use-timezone";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 
 interface CalendarEvent {
   id: string;
@@ -31,11 +31,13 @@ function formatMinutes(mins: number): string {
 }
 
 export function TimeAnchor() {
-  const timezone = useTimezone();
+  // Timezone and the wake/sleep window come from the shared settings cache, so
+  // a save in Settings reaches the anchor without a reload.
+  const {
+    settings: { timezone, wakeHour, sleepHour },
+  } = useCalendarSettings();
   const [now, setNow] = useState<Date | null>(null);
   const [nextEvent, setNextEvent] = useState<UpNext | null>(null);
-  const [wakeHour, setWakeHour] = useState(7);
-  const [sleepHour, setSleepHour] = useState(22);
   const [collapsed, setCollapsed] = useState(false);
 
   // Hydrate on mount: set real time + restore collapsed state
@@ -61,21 +63,12 @@ export function TimeAnchor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!now]);
 
-  // Fetch settings + today's events
+  // Fetch the next few hours of events
   const fetchData = useCallback(async () => {
     try {
-      const [settingsRes, eventsRes] = await Promise.all([
-        fetch("/api/settings"),
-        fetch(
-          `/api/calendar/events?start=${new Date().toISOString()}&end=${new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()}`
-        ),
-      ]);
-
-      if (settingsRes.ok) {
-        const data = await settingsRes.json();
-        if (data.wakeTime != null) setWakeHour(data.wakeTime);
-        if (data.sleepTime != null) setSleepHour(data.sleepTime);
-      }
+      const eventsRes = await fetch(
+        `/api/calendar/events?start=${new Date().toISOString()}&end=${new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()}`
+      );
 
       if (eventsRes.ok) {
         const data = await eventsRes.json();

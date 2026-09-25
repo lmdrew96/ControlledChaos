@@ -8,7 +8,7 @@ import {
   DEFAULT_START_HOUR,
   DEFAULT_END_HOUR,
   DEFAULT_WEEK_START_DAY,
-  getBrowserTimezone,
+  defaultSettings,
   type AppSettings,
 } from "@/lib/settings-cache";
 
@@ -19,16 +19,6 @@ export {
 };
 
 export type CalendarSettings = AppSettings;
-
-function fallback(): AppSettings {
-  return {
-    timezone: getBrowserTimezone(),
-    startHour: DEFAULT_START_HOUR,
-    endHour: DEFAULT_END_HOUR,
-    weekStartDay: DEFAULT_WEEK_START_DAY,
-    calendarColors: null,
-  };
-}
 
 /**
  * Everything the calendar needs to lay itself out, plus whether it has arrived.
@@ -53,7 +43,7 @@ export function useCalendarSettings(): {
   isLoaded: boolean;
 } {
   const [settings, setSettings] = useState<AppSettings>(
-    () => getCachedSettings() ?? fallback()
+    () => getCachedSettings() ?? defaultSettings()
   );
   const [isLoaded, setIsLoaded] = useState(() => getCachedSettings() !== null);
 

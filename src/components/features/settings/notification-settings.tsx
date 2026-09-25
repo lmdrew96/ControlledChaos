@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
+import { invalidateSettings } from "@/lib/settings-cache";
 import {
   getReminderIntervals,
   sortIntervalsDesc,
@@ -262,6 +263,7 @@ export function NotificationSettings() {
       });
       if (!res.ok) throw new Error();
       setSavedPrefs(prefs);
+      invalidateSettings();
       toast.success("Notification preferences saved!");
     } catch {
       toast.error("Failed to save notification preferences");
@@ -349,6 +351,7 @@ export function NotificationSettings() {
                     if (res.ok) {
                       setPrefs(newPrefs);
                       setSavedPrefs(newPrefs);
+                      invalidateSettings();
                       toast.success("Push notifications enabled!");
                     } else {
                       toast.error("Subscribed but failed to save preference. Try again.");
@@ -367,6 +370,7 @@ export function NotificationSettings() {
                   });
                   setPrefs(newPrefs);
                   setSavedPrefs(newPrefs);
+                  invalidateSettings();
                   toast.success("Push notifications disabled.");
                 }
               } finally {
@@ -431,6 +435,7 @@ export function NotificationSettings() {
                 if (res.ok) {
                   setPrefs(newPrefs);
                   setSavedPrefs(newPrefs);
+                  invalidateSettings();
                   toast.success("Location suggestions enabled!");
                 }
               } catch {
@@ -447,6 +452,7 @@ export function NotificationSettings() {
               });
               setPrefs(newPrefs);
               setSavedPrefs(newPrefs);
+              invalidateSettings();
               toast.success("Location suggestions disabled.");
             }
           }}

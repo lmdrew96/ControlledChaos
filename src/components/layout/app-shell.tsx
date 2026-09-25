@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useGeofenceTracker } from "@/hooks/use-geofence-tracker";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import {
@@ -111,19 +112,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // have coords available instantly instead of waiting on a user gesture.
   useGeolocation({ autoFetchIfGranted: true });
 
-  // Geofence tracker — fetch setting once, then track passively
-  const [locationEnabled, setLocationEnabled] = useState(false);
-  useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.notificationPrefs?.locationNotificationsEnabled) {
-          setLocationEnabled(true);
-        }
-      })
-      .catch(() => {});
-  }, []);
-  useGeofenceTracker(locationEnabled);
+  // Geofence tracker — read from the shared settings cache, so toggling it in
+  // Settings (which invalidates the cache) starts or stops tracking right away.
+  const { settings: appSettings } = useCalendarSettings();
+  useGeofenceTracker(appSettings.locationNotificationsEnabled);
 
   function dismissInstall() {
     localStorage.setItem("cc-install-dismissed", "1");

@@ -25,19 +25,27 @@ export interface AppSettings {
   endHour: number;
   weekStartDay: number;
   calendarColors: CalendarColors | null;
+  /** The scheduling window (hours 0-23). Feeds the dashboard's TimeAnchor. */
+  wakeHour: number;
+  sleepHour: number;
+  /** Whether the geofence tracker runs (AppShell). */
+  locationNotificationsEnabled: boolean;
 }
 
 export function getBrowserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-function defaults(): AppSettings {
+export function defaultSettings(): AppSettings {
   return {
     timezone: getBrowserTimezone(),
     startHour: DEFAULT_START_HOUR,
     endHour: DEFAULT_END_HOUR,
     weekStartDay: DEFAULT_WEEK_START_DAY,
     calendarColors: null,
+    wakeHour: DEFAULT_START_HOUR,
+    sleepHour: DEFAULT_END_HOUR,
+    locationNotificationsEnabled: false,
   };
 }
 
@@ -71,12 +79,16 @@ export function fetchSettings(): Promise<AppSettings> {
         endHour: data.calendarEndHour ?? DEFAULT_END_HOUR,
         weekStartDay: data.weekStartDay ?? DEFAULT_WEEK_START_DAY,
         calendarColors: data.calendarColors ?? null,
+        wakeHour: data.wakeTime ?? DEFAULT_START_HOUR,
+        sleepHour: data.sleepTime ?? DEFAULT_END_HOUR,
+        locationNotificationsEnabled:
+          data.notificationPrefs?.locationNotificationsEnabled === true,
       };
       cached = settings;
       return settings;
     })
     .catch(() => {
-      const fallback = defaults();
+      const fallback = defaultSettings();
       cached = fallback;
       fetchPromise = null; // Allow a retry on the next mount.
       return fallback;
