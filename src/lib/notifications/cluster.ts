@@ -24,7 +24,6 @@ export type AlertKind =
   | "deadline"
   | "target"
   | "scheduled"
-  | "scheduled_missed"
   | "event";
 
 /**
@@ -40,8 +39,7 @@ const KIND_RANK: Record<AlertKind, number> = {
   // in the gentle register reserved for a date the user set for themselves.
   target: 1,
   scheduled: 2,
-  scheduled_missed: 3,
-  event: 4,
+  event: 3,
 };
 
 export interface ClusterableAlert {

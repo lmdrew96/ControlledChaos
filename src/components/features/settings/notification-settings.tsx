@@ -91,7 +91,7 @@ const ASSERTIVENESS_OPTIONS: Array<{
     value: "assertive",
     label: "Assertive",
     description:
-      "Your own reminders always come through, plus up to 8 app nudges a day. Follow-ups when scheduled tasks slip past their start time. More direct language.",
+      "Your own reminders always come through, plus up to 8 app nudges a day. More direct language.",
   },
 ];
 

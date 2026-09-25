@@ -34,7 +34,6 @@ describe("generatePushMessage fallbacks name the task", () => {
 
   const cases = [
     { type: "scheduled" as const, taskTitle: "Fellowship essay", at: new Date("2026-09-13T19:00:00Z") },
-    { type: "scheduled_missed" as const, taskTitle: "Fellowship essay", at: new Date("2026-09-13T19:00:00Z") },
     {
       type: "target_reminder" as const,
       taskTitle: "Fellowship essay",

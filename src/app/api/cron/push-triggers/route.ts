@@ -19,6 +19,7 @@ import {
 import { todayInTimezone, allDayRange, getHourInTimezone } from "@/lib/timezone";
 import {
   buildWakeSummaryBody,
+  buildDigestBody,
   type WakeSummaryItem,
 } from "@/lib/notifications/wake-summary";
 import {
@@ -28,7 +29,6 @@ import {
   getDailyPushCap,
   getAssertivenessMode,
   getScheduledTaskAlerts,
-  getMissedScheduledTaskAlerts,
   getDepartureAlerts,
   getAppPushesSentToday,
   CHECK_IN_START_HOUR,
@@ -71,11 +71,6 @@ const IDLE_ACTIONS = [
   { action: "see_tasks", title: "📋 See Tasks" },
 ];
 
-const MISSED_TASK_ACTIONS = [
-  { action: "start_task", title: "▶ Start now" },
-  { action: "snooze", title: "⏰ Snooze 30 min" },
-];
-
 const EVENT_ACTIONS = [
   { action: "see_calendar", title: "📅 View" },
 ];
@@ -83,12 +78,11 @@ const EVENT_ACTIONS = [
 type PushUser = Awaited<ReturnType<typeof getAllUsersWithPushEnabled>>[number];
 
 /**
- * How late a reminder band may fire before it's dropped. A quarter of the
- * band, capped at an hour (day-ahead: 60 min, hour-before: 15), and never
- * under 15 so the one 10-minute cron tick inside a short band always counts.
+ * How long after its band opens a reminder can still go out: one 10-minute
+ * cron tick plus slack for a late or retried tick. After that it's dropped,
+ * never queued (see "One chance per alert" in processUser).
  */
-const staleGraceMinutes = (intervalMinutes: number): number =>
-  Math.max(15, Math.min(60, intervalMinutes / 4));
+const ONE_CHANCE_MINUTES = 15;
 
 /** Who a push is for: see refusal() in processUser. */
 type PushLane = "user" | "app";
@@ -175,7 +169,6 @@ function buildClusterContext(
         alsoHappening,
       };
     case "scheduled":
-    case "scheduled_missed":
       return {
         type: primary.kind,
         taskTitle: primary.title,
@@ -414,26 +407,6 @@ async function processUser(user: PushUser): Promise<number> {
     });
   }
 
-  if (mode === "assertive") {
-    for (const a of await getMissedScheduledTaskAlerts(userId)) {
-      candidates.push({
-        kind: "scheduled_missed",
-        dedupKey: `scheduled-missed-${a.taskId}-${a.scheduledFor.toISOString().slice(0, 13)}`,
-        dedupScope: "today",
-        at: a.scheduledFor,
-        title: a.taskTitle,
-        courseCode: extractCourseCode(a.taskTitle, a.taskDescription),
-        sourceEventId: a.sourceEventId,
-        taskDetail: pickTaskDetail(a),
-        priority: "normal",
-        bypassQuietHours: false,
-        url: `/tasks?taskId=${a.taskId}`,
-        taskId: a.taskId,
-        actions: MISSED_TASK_ACTIONS,
-      });
-    }
-  }
-
   // Drop already-notified alerts BEFORE clustering. Filtering afterwards
   // would let a stale member become a cluster's primary and suppress the
   // fresh alerts grouped with it.
@@ -473,7 +446,6 @@ async function processUser(user: PushUser): Promise<number> {
       (c) =>
         // Start-now cues are about this exact moment, not the day's shape.
         c.kind !== "scheduled" &&
-        c.kind !== "scheduled_missed" &&
         c.at < endOfToday &&
         !(c.intervalMinutes !== undefined && c.intervalMinutes <= ALWAYS_SEND_MINUTES)
     );
@@ -525,61 +497,35 @@ async function processUser(user: PushUser): Promise<number> {
     }
   }
 
-  // --- Stale reminders expire ---
+  // --- One chance per alert: no queue ---
   //
-  // A band's reminder stays eligible for the whole band (a day-ahead alert
-  // for 24 hours), so anything held back, by the budget, the cap or a deploy
-  // that lifted one, used to go out hours late: "CGSC 170 starts tomorrow"
-  // at 8:10 PM for a band that opened at 12:40 PM. A reminder that can't go
-  // out near when it was due is dropped, not sent late; the next closer band
-  // still fires. Runs AFTER the wake-up summary, which is exactly where the
-  // overnight ones are meant to land.
+  // Every alert gets exactly one chance, the tick it comes due. Holding the
+  // rest for "the next tick" is what turned unrelated alerts into a drip on
+  // the cron's 10-minute beat (8:00, 8:10, 8:20, 8:30), and a band stayed
+  // eligible for hours, so held alerts also went out late ("CGSC 170 starts
+  // tomorrow" at 8:10 PM for a band that opened at 12:40 PM). Anything past
+  // its moment is dropped; the next closer band still fires. Runs AFTER the
+  // wake-up summary, which is where the ones held overnight land.
   const nowMs = Date.now();
   fresh = fresh.filter((c) => {
     if (c.intervalMinutes === undefined) return true;
     const bandOpenedMs = c.at.getTime() - c.intervalMinutes * 60_000;
-    return nowMs - bandOpenedMs <= staleGraceMinutes(c.intervalMinutes) * 60_000;
+    return nowMs - bandOpenedMs <= ONE_CHANCE_MINUTES * 60_000;
   });
 
-  // Soonest first, so the tick budget is spent on the most urgent situation.
   fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
 
-  for (const cluster of clusterAlerts(fresh)) {
-    const { primary, absorbed, dedupKeys } = cluster;
-    // The cluster inherits the most permissive gating of its members: it
-    // speaks for all of them, so it must not be held back by the calmest one.
+  // Quiet hours hold everything (none of these opt out); the wake-up summary
+  // collects what's still relevant when they end.
+  const due = clusterAlerts(fresh).filter(
+    (c) => !quietHoursActive || [c.primary, ...c.absorbed].some((m) => m.bypassQuietHours)
+  );
+
+  if (due.length === 1) {
+    // One situation: a written push, as before.
+    const { primary, absorbed, dedupKeys } = due[0];
     const members = [primary, ...absorbed];
     const priority = members.some((m) => m.priority === "high") ? "high" : "normal";
-    const bypassQuietHours = members.some((m) => m.bypassQuietHours);
-    // Soft targets are excluded from the always-send lane regardless of how
-    // short an interval the user configured. A date someone set for themselves,
-    // with slack behind it, must never be able to punch through the daily cap.
-    const urgent = members.some(
-      (m) =>
-        m.kind !== "target" &&
-        m.intervalMinutes !== undefined &&
-        m.intervalMinutes <= ALWAYS_SEND_MINUTES
-    );
-
-    // A missed-session follow-up is the app's idea; everything else here is a
-    // reminder the user set up or a start they planned. A cluster speaks for
-    // all its members, so it's app-lane only if every member is.
-    const lane: PushLane = members.every((m) => m.kind === "scheduled_missed")
-      ? "app"
-      : "user";
-
-    const reason = refusal(lane, priority, bypassQuietHours, urgent);
-    if (reason) {
-      // Quiet hours hold every candidate every tick all night; logging those
-      // would bury the skips worth reading.
-      if (reason !== "quiet_hours") {
-        console.log(
-          `[Push][Skip] user=${userId} kind=${primary.kind} lane=${lane} reason=${reason} appSentToday=${appSentToday} cap=${dailyCap}`
-        );
-      }
-      continue;
-    }
-
     const message = await generatePushMessage(
       buildClusterContext(primary, absorbed),
       personalityPrefs,
@@ -597,16 +543,43 @@ async function processUser(user: PushUser): Promise<number> {
       taskId: primary.taskId,
       userId,
       actions: primary.actions,
-      bypassQuietHours,
-      lane,
+      bypassQuietHours: members.some((m) => m.bypassQuietHours),
+      lane: "user",
     });
     if (sent) {
-      markSent(lane, priority);
+      markSent("user", priority);
       if (absorbed.length > 0) {
         console.log(
           `[Push][Cluster] user=${userId} merged=${members.length} primary=${primary.kind} absorbed=${absorbed.map((a) => a.kind).join(",")}`
         );
       }
+    }
+  } else if (due.length > 1) {
+    // Several unrelated things came due at once: ONE push listing them, built
+    // from data. Blending unrelated items into one written sentence is where
+    // the model pairs times wrong, and spreading them out is the drip.
+    const members = due.flatMap((c) => [c.primary, ...c.absorbed]);
+    const sent = await sendPushToUser(userId, {
+      title: "ControlledChaos",
+      body: buildDigestBody(
+        members.map((m) => ({
+          at: m.at,
+          title: m.title,
+          kind: m.kind === "scheduled" ? ("session" as const) : m.kind,
+        })),
+        timezone,
+        { heading: "Coming up", now: new Date(nowMs) }
+      ),
+      url: "/calendar",
+      tag: due[0].primary.dedupKey,
+      dedupKeys: due.flatMap((c) => c.dedupKeys),
+      userId,
+      actions: EVENT_ACTIONS,
+      lane: "user",
+    });
+    if (sent) {
+      markSent("user", members.some((m) => m.priority === "high") ? "high" : "normal");
+      console.log(`[Push][Batch] user=${userId} situations=${due.length} items=${members.length}`);
     }
   }
 

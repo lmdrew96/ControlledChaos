@@ -113,7 +113,6 @@ interface ScheduledAlert extends AlertingTaskDetail {
   sourceEventId: string | null;
 }
 
-type MissedScheduledAlert = ScheduledAlert;
 
 function toScheduledAlert(
   s: Awaited<ReturnType<typeof getSessionsStartingBetween>>[number]
@@ -367,25 +366,6 @@ export async function getScheduledTaskAlerts(
 }
 
 /**
- * Check for tasks whose scheduled start time has already passed and may need a stronger follow-up.
- * We only include tasks that are 20-120 minutes overdue to avoid stale noise.
- */
-export async function getMissedScheduledTaskAlerts(
-  userId: string
-): Promise<MissedScheduledAlert[]> {
-  // Per session, same as getScheduledTaskAlerts: a sitting you skipped is a
-  // sitting you skipped, whether or not it was the first one.
-  const now = new Date();
-  const sessions = await getSessionsStartingBetween(
-    userId,
-    new Date(now.getTime() - 120 * 60 * 1000),
-    new Date(now.getTime() - 20 * 60 * 1000)
-  );
-
-  return sessions.map(toScheduledAlert);
-}
-
-/**
  * Determine if the user should get an idle check-in.
  * Criteria: no task activity today AND it's past 11am in their timezone.
  */
@@ -511,7 +491,6 @@ export type PushNotificationContext =
   // No inProgress here: getSessionsStartingBetween excludes in-progress tasks,
   // so a "time to start" push never fires for work that's already underway.
   | ({ type: "scheduled"; taskTitle: string; at: Date } & AlertingTaskDetail & ClusteredWith)
-  | ({ type: "scheduled_missed"; taskTitle: string; at: Date } & AlertingTaskDetail & ClusteredWith)
   | { type: "idle_checkin"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
@@ -529,7 +508,6 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   target_reminder: "No rush — you'd wanted this one done around now.",
   event_reminder: "Heads up — an event is coming up.",
   scheduled: "You planned this. Past-you had your back.",
-  scheduled_missed: "That planned start slipped. Start it now, or snooze it to a better time.",
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
@@ -571,7 +549,7 @@ export async function generatePushMessage(
     // wanted this done by <time>" instead of inventing one.
     userMsg = `Type: target_reminder\nTask: "${ctx.taskTitle}"\nTarget (user's local time): ${formatForAI(ctx.at, timezone)}`;
     if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
-  } else if (ctx.type === "scheduled" || ctx.type === "scheduled_missed") {
+  } else if (ctx.type === "scheduled") {
     // These used to carry only the title, so "time for X" couldn't say how
     // big a bite it was or why it mattered now — the activation-hump detail.
     userMsg = `Type: ${ctx.type}\nTask: "${ctx.taskTitle}"\nPlanned start (user's local time): ${formatForAI(ctx.at, timezone)} (${describeFromNow(ctx.at)})${describeTaskDetail(ctx, timezone)}`;
@@ -688,8 +666,6 @@ function buildPushFallback(ctx: PushNotificationContext, timezone: string): stri
       return `No rush — you'd wanted "${ctx.taskTitle}" done by ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)}.`;
     case "scheduled":
       return `Time for ${ctx.taskTitle}. Past-you had your back.`;
-    case "scheduled_missed":
-      return `Your planned start for ${ctx.taskTitle} slipped. Start it now, or snooze it to a better time.`;
     default:
       return PUSH_FALLBACKS[ctx.type];
   }
