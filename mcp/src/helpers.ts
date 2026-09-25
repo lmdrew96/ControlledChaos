@@ -135,9 +135,10 @@ export function formatBrainDump(dump: Record<string, unknown>, tz?: string): str
     `**${dump.input_type} ${categoryLabel}**`,
     `ID: \`${dump.id}\``,
     `Category: ${dump.category ?? "braindump"}`,
-    `Parsed: ${dump.parsed ? "yes" : "no"}`,
     `Created: ${fmtLocal(dump.created_at, tz)}`,
   ];
+  const aiResponse = dump.ai_response as { summary?: unknown } | null | undefined;
+  if (typeof aiResponse?.summary === "string") parts.push(`Summary: ${aiResponse.summary}`);
   if (dump.raw_content) {
     const content = String(dump.raw_content);
     const preview = content.length > 300 ? content.slice(0, 300) + "..." : content;

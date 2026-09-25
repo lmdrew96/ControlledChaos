@@ -440,7 +440,9 @@ Returns: Confirmation of deletion.`,
     "cc_brain_dump",
     {
       title: "Brain Dump",
-      description: `Store a raw brain dump entry. This saves the text to the brain_dumps table for later AI parsing by the app.
+      description: `Store a raw brain dump entry in the user's dump history.
+
+The text is saved as-is. The app does NOT parse it later — nothing turns a stored dump into tasks or events. If the dump contains things the user wants to do, create them directly with cc_create_task / cc_create_event.
 
 Args:
   - content (required): Raw text of the brain dump.
@@ -462,8 +464,8 @@ Returns: Confirmation with the dump ID.`,
       const userId = getUserId();
       const cat = params.category ?? "braindump";
       const rows = await sql(
-        `INSERT INTO brain_dumps (user_id, input_type, raw_content, parsed, category)
-         VALUES ($1, 'text', $2, false, $3)
+        `INSERT INTO brain_dumps (user_id, input_type, raw_content, category)
+         VALUES ($1, 'text', $2, $3)
          RETURNING id, created_at, category`,
         [userId, params.content, cat]
       );
@@ -472,7 +474,7 @@ Returns: Confirmation with the dump ID.`,
       return {
         content: [{
           type: "text" as const,
-          text: `🧠 ${label} saved!\nID: \`${rows[0].id}\`\nCategory: ${rows[0].category}\nCreated: ${rows[0].created_at}\n\nThis will be available for AI parsing in the ControlledChaos app.`,
+          text: `🧠 ${label} saved!\nID: \`${rows[0].id}\`\nCategory: ${rows[0].category}\nCreated: ${rows[0].created_at}`,
         }],
       };
     }
@@ -1305,14 +1307,12 @@ Returns: Confirmation of deletion.`,
 
 Args:
   - input_type: Filter by type (text, voice, photo).
-  - parsed: Filter by parsed status (true = already processed, false = pending).
   - category: Filter by category (braindump, junk_journal). Useful for pulling only junk_journal entries for essay drafting.
   - limit: Max results (1-50, default 20).
 
-Returns: Markdown-formatted list of brain dumps with IDs, type, category, content preview, and parsed status.`,
+Returns: Markdown-formatted list of brain dumps with IDs, type, category, AI summary (when the app made one), and a content preview.`,
       inputSchema: {
         input_type: z.enum(["text", "voice", "photo"]).optional().describe("Filter by input type"),
-        parsed: z.boolean().optional().describe("Filter by parsed status"),
         category: z.enum(["braindump", "junk_journal"]).optional().describe("Filter by category"),
         limit: z.number().int().min(1).max(50).default(20).describe("Max results"),
       },
@@ -1333,12 +1333,6 @@ Returns: Markdown-formatted list of brain dumps with IDs, type, category, conten
       if (params.input_type) {
         conditions.push(`input_type = $${paramIdx}`);
         values.push(params.input_type);
-        paramIdx++;
-      }
-
-      if (params.parsed !== undefined) {
-        conditions.push(`parsed = $${paramIdx}`);
-        values.push(params.parsed);
         paramIdx++;
       }
 
@@ -1853,8 +1847,8 @@ Returns: Confirmation with the new entry's ID.`,
     async (params) => {
       const userId = getUserId();
       const rows = await sql(
-        `INSERT INTO brain_dumps (user_id, input_type, raw_content, parsed, category)
-         VALUES ($1, 'text', $2, false, 'junk_journal')
+        `INSERT INTO brain_dumps (user_id, input_type, raw_content, category)
+         VALUES ($1, 'text', $2, 'junk_journal')
          RETURNING id, created_at`,
         [userId, params.content]
       );
