@@ -103,7 +103,7 @@ export async function createTasksFromDump(
     (existingGoals ?? []).map((g) => [g.title.toLowerCase(), g.id])
   );
 
-  const values = parsedTasks.map((task, index) => ({
+  const values = parsedTasks.map((task) => ({
     userId,
     title: task.title,
     description: task.description ?? null,
@@ -118,7 +118,8 @@ export async function createTasksFromDump(
       ? (goalIdByTitle.get(task.goalConnection.toLowerCase()) ?? null)
       : null,
     sourceDumpId: dumpId,
-    sortOrder: index,
+    // No sortOrder: other creates leave it null, and nulls sort last, so
+    // numbering these 0..n pinned every dump's tasks above the rest.
   }));
 
   const created = await db.insert(tasks).values(values).returning();
