@@ -88,17 +88,22 @@ export function DoThisNext() {
 
   const handleAccept = useCallback(
     async (taskId: string) => {
-      // Mark task as completed
+      // One write: the PATCH completes the task and logs the completion.
+      // Sending "completed" feedback as well logged it twice, which crowded
+      // the recent-activity window the recommender reads. Feedback is only
+      // the fallback when the PATCH doesn't land.
+      let completed = false;
       try {
-        await fetch(`/api/tasks/${taskId}`, {
+        const res = await fetch(`/api/tasks/${taskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "completed" }),
         });
-      } catch {
-        // feedback still fires below
+        completed = res.ok;
+      } catch (err) {
+        console.error("Complete via PATCH failed:", err);
       }
-      await sendFeedback(taskId, "completed");
+      if (!completed) await sendFeedback(taskId, "completed");
       const taskTitle = recommendation?.task?.title;
       toast.success(taskTitle ? `'${taskTitle}' marked complete` : "Task completed!");
       fireTaskConfetti();

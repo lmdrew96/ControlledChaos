@@ -194,6 +194,7 @@ export async function updateTask(
     deadline: Date | null;
     targetDate: Date | null;
     scheduledFor: Date | null;
+    snoozedUntil: Date | null;
     completedAt: Date | null;
     progressSteps: object[] | null;
     currentStepIndex: number;

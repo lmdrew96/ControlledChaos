@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { logTaskActivity, updateTask } from "@/lib/db/queries";
 
+const FALLBACK_SNOOZE_MS = 60 * 60_000;
+
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -42,7 +44,13 @@ export async function POST(request: Request) {
         completedAt: new Date(),
       });
     } else if (action === "snoozed") {
-      await updateTask(taskId, userId, { status: "snoozed" });
+      // Without snoozedUntil, getPendingTasks treats the snooze as already
+      // over and the task comes straight back. This path is the fallback when
+      // /api/recommend/snooze (which picks a length) fails, so use a flat hour.
+      await updateTask(taskId, userId, {
+        status: "snoozed",
+        snoozedUntil: new Date(Date.now() + FALLBACK_SNOOZE_MS),
+      });
     }
 
     return NextResponse.json({ success: true });
