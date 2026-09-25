@@ -11,13 +11,15 @@ interface RecommendationInput {
   personalityPrefs?: PersonalityPrefs | null;
   /** Supplementary context (crises, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
+  /** Active goal titles by id, so the model can see what a task serves. */
+  goalTitles?: Record<string, string>;
 }
 
 /**
  * Build the user prompt that provides all context to Haiku.
  */
 function buildRecommendationPrompt(input: RecommendationInput): string {
-  const { context, pendingTasks, recentlyRejectedTaskIds = [] } = input;
+  const { context, pendingTasks, recentlyRejectedTaskIds = [], goalTitles = {} } = input;
 
   const now = new Date();
 
@@ -58,6 +60,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       targetIn: relativeTime(t.targetDate),
       plannedIn: relativeTime(t.scheduledFor),
       status: t.status,
+      goal: t.goalId ? goalTitles[t.goalId] ?? null : null,
     };
   });
 

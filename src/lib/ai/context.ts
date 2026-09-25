@@ -1,7 +1,8 @@
 // ============================================================
 // Centralized AI Context Builder
 // Assembles the full user context for injection into any AI prompt.
-// This is the single source of truth for "what should the AI know?"
+// Used by every in-app AI route. Push copy uses the leaner buildUserSnapshot
+// (lib/context/user-snapshot.ts); the two carry the same task facts.
 // ============================================================
 
 import {
@@ -14,10 +15,12 @@ import {
   getActiveCrisisPlans,
   getUserLocation,
   isLocationStale,
+  getUserGoals,
+  getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
-import { localDaysRange, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
+import { localDaysRange, formatForDisplay, describeFromNow, DISPLAY_TIME, DISPLAY_DATE, DISPLAY_DATETIME } from "@/lib/timezone";
 import { isAssessmentTitle } from "@/lib/calendar/assessments";
 import type { EnergyLevel, PersonalityPrefs } from "@/types";
 
@@ -51,7 +54,17 @@ export interface AIContext {
     /** SOFT aim — self-imposed. Never merge with deadline. */
     targetDate: string | null;
     energyLevel: string;
+    /** pending | in_progress | snoozed (woken). "Start" is wrong for in_progress. */
+    status: string;
+    estimatedMinutes: number | null;
+    /** The task's NEXT planned sitting — a start, not a due date. */
+    plannedFor: string | null;
+    /** Title of the active goal it serves, if any. */
+    goal: string | null;
   }>;
+
+  /** Every sitting planned for today, one entry per sitting. */
+  plannedToday: Array<{ title: string; startLabel: string; minutes: number | null }>;
 
   // Calendar
   todayEvents: Array<{
@@ -149,7 +162,8 @@ export async function buildAIContext(
   // Parallel fetch all context data. Calendar fetch pulls the full horizon so
   // the AI sees upcoming Canvas assessments (quizzes/exams/assignments) that
   // would otherwise fall outside today's window.
-  const [pendingTasks, completedToday, horizonEvents, recentActivity, crisisPlans, userLoc] =
+  const today = localDaysRange(now, timezone);
+  const [pendingTasks, completedToday, horizonEvents, recentActivity, crisisPlans, userLoc, activeGoals, todaySessions] =
     await Promise.all([
       getPendingTasks(userId),
       getTasksCompletedToday(userId, timezone),
@@ -161,7 +175,11 @@ export async function buildAIContext(
         ? Promise.resolve([])
         : getActiveCrisisPlans(userId),
       getUserLocation(userId),
+      getUserGoals(userId, "active"),
+      getScheduledSessionsInRange(userId, today.start, today.end),
     ]);
+
+  const goalTitleById = new Map(activeGoals.map((g) => [g.id, g.title]));
 
   const energyLevel = await getCurrentEnergy(userId, timezone, options.energyOverride);
   const timeOfDay = getTimeOfDayBlock(timezone);
@@ -181,7 +199,21 @@ export async function buildAIContext(
     deadline: t.deadline?.toISOString() ?? null,
     targetDate: t.targetDate?.toISOString() ?? null,
     energyLevel: t.energyLevel,
+    status: t.status,
+    estimatedMinutes: t.estimatedMinutes ?? null,
+    // getPendingTasks resolves scheduledFor to the next sitting.
+    plannedFor: t.scheduledFor?.toISOString() ?? null,
+    goal: t.goalId ? goalTitleById.get(t.goalId) ?? null : null,
   }));
+
+  // One entry per sitting: "3pm and again at 8pm" is what the user planned.
+  const plannedToday = todaySessions
+    .filter((s) => s.scheduledFor)
+    .map((s) => ({
+      title: s.title,
+      startLabel: formatForDisplay(s.scheduledFor as Date, timezone, DISPLAY_TIME),
+      minutes: s.sessionMinutes ?? s.estimatedMinutes ?? null,
+    }));
 
   // Split horizon events into today vs. upcoming (day+1 through horizon end).
   const todayRaw = horizonEvents.filter((e) => e.startTime <= endOfDay);
@@ -295,6 +327,7 @@ export async function buildAIContext(
     pendingTaskCount: pendingTasks.length,
     completedTodayCount: completedToday.length,
     topTasks,
+    plannedToday,
     todayEvents: formattedEvents,
     upcomingEvents: formattedUpcoming,
     urgent72hr,
@@ -314,6 +347,7 @@ export async function buildAIContext(
     pendingTaskCount: pendingTasks.length,
     completedTodayCount: completedToday.length,
     topTasks,
+    plannedToday,
     todayEvents: formattedEvents,
     upcomingEvents: formattedUpcoming,
     urgent72hr,
@@ -384,8 +418,24 @@ function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
           `self-imposed target ${formatForDisplay(new Date(t.targetDate), ctx.timezone, DISPLAY_DATE)}`
         );
       }
+      if (t.plannedFor) {
+        const at = new Date(t.plannedFor);
+        dateParts.push(
+          `planned to start ${formatForDisplay(at, ctx.timezone, DISPLAY_DATETIME)} (${describeFromNow(at)}) — their plan, not a due date`
+        );
+      }
+      if (t.estimatedMinutes) dateParts.push(`~${t.estimatedMinutes} min`);
+      if (t.goal) dateParts.push(`for goal "${t.goal}"`);
       const dateStr = dateParts.length > 0 ? ` (${dateParts.join("; ")})` : "";
-      lines.push(`- ${t.title} [${t.priority}, ${t.energyLevel} energy]${dateStr}`);
+      const state = t.status === "in_progress" ? " — ALREADY IN PROGRESS, don't tell them to start it" : "";
+      lines.push(`- ${t.title} [${t.priority}, ${t.energyLevel} energy]${dateStr}${state}`);
+    }
+  }
+
+  if (ctx.plannedToday.length > 0) {
+    lines.push("\n### Planned Today (time the user already claimed)");
+    for (const p of ctx.plannedToday) {
+      lines.push(`- ${p.startLabel}: ${p.title}${p.minutes ? ` (~${p.minutes} min)` : ""}`);
     }
   }
 

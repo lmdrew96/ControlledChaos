@@ -13,6 +13,7 @@ import {
   getTasksCompletedToday,
   getRecentTaskActivity,
   getSavedLocations,
+  getUserGoals,
   logTaskActivity,
 } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
@@ -68,7 +69,9 @@ export async function POST(request: Request) {
         getNextCalendarEvent(userId),
         getCalendarEventsByDateRange(userId, now, endOfTomorrow),
         getRecentTaskActivity(userId, 10),
-        buildAIContext(userId, { skipCalendar: true }), // calendar fetched separately with broader range
+        // Calendar is fetched separately with a broader range. The energy
+        // override rides along so the context block and the prompt agree.
+        buildAIContext(userId, { skipCalendar: true, energyOverride }),
       ]);
 
     if (pendingTasks.length === 0) {
@@ -94,6 +97,19 @@ export async function POST(request: Request) {
           name: match.name,
           latitude: match.latitude,
           longitude: match.longitude,
+        };
+      }
+    }
+    // No coordinates with this request: fall back to the (fresh) geofence
+    // match the context block already reports. Otherwise the prompt said
+    // "location unknown" right next to a context block saying "Location: Home".
+    if (!locationContext && aiCtx.locationName) {
+      const saved = (await getSavedLocations(userId)).find((l) => l.name === aiCtx.locationName);
+      if (saved?.latitude != null && saved.longitude != null) {
+        locationContext = {
+          name: saved.name,
+          latitude: Number(saved.latitude),
+          longitude: Number(saved.longitude),
         };
       }
     }
@@ -210,12 +226,14 @@ export async function POST(request: Request) {
       updatedAt: t.updatedAt.toISOString(),
     }));
 
+    const activeGoals = await getUserGoals(userId, "active");
     const recommendation = await getTaskRecommendation({
       context,
       pendingTasks: serializedTasks,
       recentlyRejectedTaskIds: recentlyRejectedIds,
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
       aiContextBlock: aiCtx.formatted,
+      goalTitles: Object.fromEntries(activeGoals.map((g) => [g.id, g.title])),
     });
 
     // Log the recommendation

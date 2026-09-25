@@ -55,10 +55,12 @@ function summarizeNote(description: string | null): string | null {
 }
 
 /**
- * Build a snapshot of the user's current state for AI context.
- * This is the single source of truth for "what does the user's day look like?"
- * Use this anywhere the AI needs situational awareness — notifications,
- * recommendations, nudges, digests.
+ * Build a snapshot of the user's current state for PUSH copy.
+ *
+ * Leaner than buildAIContext (lib/ai/context.ts), which every in-app AI route
+ * uses, and it adds `scheduleOnly` for reminders that must stay on their own
+ * item. The two carry the same task facts (status, planned sittings,
+ * estimate, hard vs soft dates); change one and check the other.
  *
  * The `formatted` field is a ready-to-use text block for AI prompts.
  */
