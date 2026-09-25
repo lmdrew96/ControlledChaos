@@ -74,6 +74,9 @@ async function checkGoal(userId: string, goalId: string): Promise<string | null>
  * NULL). The two cases have to stay distinguishable, or a time can be set but
  * never cleared.
  */
+/** A timestamp Postgres will accept, rather than a 500 from the INSERT/UPDATE. */
+const isValidTimestamp = (value: string): boolean => !Number.isNaN(Date.parse(value));
+
 function timeField(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -1546,7 +1549,7 @@ Returns: Confirmation with the moment ID.`,
         ]).describe("Moment type"),
         intensity: z.number().int().min(1).max(5).optional().describe("Optional 1-5 intensity"),
         note: z.string().max(500).optional().describe("Optional one-liner note"),
-        occurred_at: z.string().optional().describe("Optional ISO 8601 UTC timestamp (defaults to now)"),
+        occurred_at: z.string().refine(isValidTimestamp, "occurred_at must be an ISO 8601 timestamp").optional().describe("Optional ISO 8601 UTC timestamp (defaults to now)"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1682,7 +1685,7 @@ Returns: Updated moment.`,
         id: z.string().uuid().describe("Moment ID"),
         intensity: z.number().int().min(1).max(5).nullable().optional(),
         note: z.string().max(500).nullable().optional(),
-        occurred_at: z.string().optional(),
+        occurred_at: z.string().refine(isValidTimestamp, "occurred_at must be an ISO 8601 timestamp").optional(),
       },
       annotations: {
         readOnlyHint: false,

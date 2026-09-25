@@ -6,6 +6,21 @@ import { trimIncompleteTail } from "@/lib/ai/validate";
 import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { buildAIContext } from "@/lib/ai/context";
 import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
+import { parseTaskUpdate, type TaskUpdateField } from "@/lib/db/task-update-fields";
+
+/** What a create may set. Parsed with the PATCH guards (task-update-fields). */
+const CREATE_FIELDS = [
+  "title",
+  "description",
+  "priority",
+  "energyLevel",
+  "estimatedMinutes",
+  "category",
+  "locationTags",
+  "deadline",
+  "targetDate",
+  "goalId",
+] as const satisfies readonly TaskUpdateField[];
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,34 +50,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      title,
-      description,
-      priority,
-      energyLevel,
-      estimatedMinutes,
-      category,
-      locationTags,
-      deadline,
-      targetDate,
-      goalId,
-    } = body;
-
-    if (!title?.trim()) {
+    if (typeof body?.title !== "string" || !body.title.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
+    // Same field guards as PATCH, so enums and numbers are validated once.
+    const parsed = parseTaskUpdate(
+      Object.fromEntries(CREATE_FIELDS.map((k) => [k, body[k]]))
+    );
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const f = parsed.data;
+    const description = f.description ?? null;
+
     const task = await createTask(userId, {
-      title: title.trim(),
-      description: description || null,
-      priority,
-      energyLevel,
-      estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
-      category: category || null,
-      locationTags: locationTags?.length ? locationTags : null,
-      deadline: deadline ? new Date(deadline) : null,
-      targetDate: targetDate ? new Date(targetDate) : null,
-      goalId: goalId || null,
+      title: f.title!,
+      description,
+      priority: f.priority,
+      energyLevel: f.energyLevel,
+      estimatedMinutes: f.estimatedMinutes ?? null,
+      category: f.category ?? null,
+      locationTags: f.locationTags ?? null,
+      deadline: f.deadline ?? null,
+      targetDate: f.targetDate ?? null,
+      goalId: f.goalId ?? null,
     });
 
     // Generate AI note if no description was provided

@@ -1,3 +1,5 @@
+import type { EnergyLevel, TaskCategory, TaskPriority, TaskStatus } from "@/types";
+
 /**
  * Allowlist for PATCH /api/tasks/[id].
  *
@@ -14,14 +16,19 @@
  * orphans a task or makes the next sync duplicate it.
  */
 
+const TASK_STATUSES = ["pending", "in_progress", "completed", "snoozed", "cancelled"] as const satisfies readonly TaskStatus[];
+const TASK_PRIORITIES = ["urgent", "important", "normal", "someday"] as const satisfies readonly TaskPriority[];
+const ENERGY_LEVELS = ["low", "medium", "high"] as const satisfies readonly EnergyLevel[];
+const TASK_CATEGORIES = ["school", "work", "personal", "errands", "health"] as const satisfies readonly TaskCategory[];
+
 /** Fields a client may write. Values are the coercion applied to each. */
 const FIELD_PARSERS = {
   title: parseNonEmptyString,
   description: parseNullableString,
-  status: parseString,
-  priority: parseString,
-  energyLevel: parseString,
-  category: parseNullableString,
+  status: parseEnum(TASK_STATUSES),
+  priority: parseEnum(TASK_PRIORITIES),
+  energyLevel: parseEnum(ENERGY_LEVELS),
+  category: parseNullableEnum(TASK_CATEGORIES),
   locationTags: parseNullableStringArray,
   estimatedMinutes: parseNullableInt,
   deadline: parseNullableDate,
@@ -94,6 +101,22 @@ function parseString(value: unknown, key: string): string {
     throw new FieldError(`${key} must be a string`);
   }
   return value;
+}
+
+function parseEnum<T extends string>(allowed: readonly T[]) {
+  return (value: unknown, key: string): T => {
+    const str = parseString(value, key);
+    if (!(allowed as readonly string[]).includes(str)) {
+      throw new FieldError(`${key} must be one of: ${allowed.join(", ")}`);
+    }
+    return str as T;
+  };
+}
+
+function parseNullableEnum<T extends string>(allowed: readonly T[]) {
+  const parse = parseEnum(allowed);
+  return (value: unknown, key: string): T | null =>
+    value === null || value === "" ? null : parse(value, key);
 }
 
 function parseNonEmptyString(value: unknown, key: string): string {

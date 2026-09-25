@@ -116,3 +116,30 @@ describe("parseTaskUpdate", () => {
     });
   });
 });
+
+describe("parseTaskUpdate enum + number guards", () => {
+  it("accepts known enum values", () => {
+    const r = parseTaskUpdate({ status: "completed", priority: "urgent", energyLevel: "low", category: "school" });
+    expect(r.ok).toBe(true);
+  });
+
+  it.each([
+    ["status", "done"],
+    ["priority", "high"],
+    ["energyLevel", "extreme"],
+    ["category", "hobby"],
+  ])("rejects an unknown %s", (key, value) => {
+    const r = parseTaskUpdate({ [key]: value });
+    expect(r.ok).toBe(false);
+  });
+
+  it("treats an empty category as null", () => {
+    const r = parseTaskUpdate({ category: "" });
+    expect(r).toEqual({ ok: true, data: { category: null } });
+  });
+
+  it("rejects a non-numeric estimatedMinutes instead of storing NaN", () => {
+    expect(parseTaskUpdate({ estimatedMinutes: "abc" }).ok).toBe(false);
+    expect(parseTaskUpdate({ estimatedMinutes: "45" })).toEqual({ ok: true, data: { estimatedMinutes: 45 } });
+  });
+});
