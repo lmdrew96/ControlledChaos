@@ -6,6 +6,9 @@ import {
   findTaskBySourceEventId,
   updateTask,
   deleteTasksBySourceEventIds,
+  getTasksRetiredByDeselection,
+  restoreTask,
+  retireVanishedCanvasTasks,
 } from "@/lib/db/queries";
 import { DISPLAY_DATETIME, allDayRange, formatForDisplay, getCalendarParts, toUTC } from "@/lib/timezone";
 import { parseCanvasTitle } from "@/lib/calendar/assessments";
@@ -162,17 +165,29 @@ export async function syncCanvasCalendar(
 
   const events = await fetchCanvasEvents(icalUrl);
 
-  if (events.length > MAX_EVENTS) {
+  // A truncated feed can't tell us what vanished, so retirement is skipped.
+  const feedTruncated = events.length > MAX_EVENTS;
+  if (feedTruncated) {
     console.warn(
       `[Calendar] Canvas feed has ${events.length} events, limiting to ${MAX_EVENTS}`
     );
     events.length = MAX_EVENTS;
   }
 
+  // Every uid in the feed, whatever happens to it below — the basis for
+  // retiring tasks whose Canvas item is gone.
+  const feedUids: string[] = [];
+  // Tasks a past sync removed because their course was deselected. If the
+  // course is back, they come back rather than staying deleted forever.
+  const retiredByDeselection = autoAddCanvasTasks
+    ? await getTasksRetiredByDeselection(userId)
+    : new Map<string, string>();
+
   // Upsert each event
   let synced = 0;
   let tasksCreated = 0;
   let tasksRefreshed = 0;
+  let tasksRestored = 0;
   const currentExternalIds: string[] = [];
   // Events skipped because their course is deselected. Their calendar rows are
   // handled by deleteStaleCalendarEvents (they never enter currentExternalIds),
@@ -190,6 +205,7 @@ export async function syncCanvasCalendar(
   for (const event of events) {
     const uid = event.uid;
     if (!uid) continue;
+    feedUids.push(uid);
 
     const title = paramValue(event.summary) ?? "Untitled Event";
     const { courseCode } = parseCanvasTitle(title);
@@ -298,7 +314,12 @@ export async function syncCanvasCalendar(
               ? computePrepDeadline(startDate, timezone) ?? startDate
               : startDate;
 
-          const existing = await findTaskBySourceEventId(userId, uid);
+          let existing = await findTaskBySourceEventId(userId, uid);
+          const retiredId = retiredByDeselection.get(uid);
+          if (existing?.deletedAt && retiredId === existing.id) {
+            existing = (await restoreTask(existing.id, userId)) ?? existing;
+            tasksRestored++;
+          }
           const { title: taskTitle, description: taskDescription } =
             buildCanvasTaskFields(title, startDate, timezone, taskKind);
 
@@ -380,8 +401,11 @@ export async function syncCanvasCalendar(
     deselectedEventIds
   );
 
+  // And the tasks whose Canvas item left the feed altogether.
+  const tasksVanished = feedTruncated ? [] : await retireVanishedCanvasTasks(userId, feedUids);
+
   console.log(
-    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted, ${tasksCreated} tasks created, ${tasksRefreshed} tasks refreshed, ${tasksRemoved.length} tasks removed`
+    `[Calendar] Canvas sync: ${synced} synced, ${deleted.length} deleted, ${tasksCreated} tasks created, ${tasksRefreshed} tasks refreshed, ${tasksRestored} tasks restored, ${tasksRemoved.length} tasks removed, ${tasksVanished.length} tasks retired`
   );
 
   return {

@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { taskActivity, tasks } from "../schema";
-import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, isNull, sql } from "drizzle-orm";
+import { eq, and, asc, desc, ne, gt, gte, lt, lte, or, inArray, notInArray, isNull, isNotNull, notLike, sql } from "drizzle-orm";
 import type { ParsedTask } from "@/types";
 import { startOfDayInTimezone } from "@/lib/timezone";
 import { deleteTaskScheduleEvents } from "./calendar";
@@ -273,9 +273,10 @@ export async function deleteTasksBySourceEventIds(
 ) {
   if (sourceEventIds.length === 0) return [];
 
-  return db
+  const now = new Date();
+  const removed = await db
     .update(tasks)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .set({ deletedAt: now, updatedAt: now })
     .where(
       and(
         eq(tasks.userId, userId),
@@ -285,6 +286,90 @@ export async function deleteTasksBySourceEventIds(
       )
     )
     .returning();
+
+  // Mark these as removed BY DESELECTION, stamped with the same instant as
+  // deletedAt. getTasksRetiredByDeselection matches on that equality, so a
+  // task the user deletes by hand later (a different deletedAt) is never
+  // brought back when the course is re-selected.
+  await logCanvasRetirement(userId, removed, CANVAS_DESELECTED, now);
+  return removed;
+}
+
+/** task_activity actions written by Canvas sync, not by the user. */
+const CANVAS_DESELECTED = "canvas_deselected";
+const CANVAS_REMOVED = "canvas_removed";
+
+async function logCanvasRetirement(
+  userId: string,
+  removed: { id: string }[],
+  action: string,
+  at: Date
+) {
+  if (removed.length === 0) return;
+  await db
+    .insert(taskActivity)
+    .values(removed.map((t) => ({ userId, taskId: t.id, action, createdAt: at })));
+}
+
+/**
+ * Canvas tasks retired because their course was deselected, keyed by
+ * sourceEventId. Only those still in that state: deletedAt must equal the
+ * marker's timestamp, so a later hand-delete doesn't count.
+ */
+export async function getTasksRetiredByDeselection(
+  userId: string
+): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ id: tasks.id, sourceEventId: tasks.sourceEventId })
+    .from(tasks)
+    .innerJoin(
+      taskActivity,
+      and(
+        eq(taskActivity.taskId, tasks.id),
+        eq(taskActivity.action, CANVAS_DESELECTED),
+        eq(taskActivity.createdAt, tasks.deletedAt)
+      )
+    )
+    .where(and(eq(tasks.userId, userId), isNotNull(tasks.deletedAt)));
+  return new Map(rows.flatMap((r) => (r.sourceEventId ? [[r.sourceEventId, r.id]] : [])));
+}
+
+export async function restoreTask(taskId: string, userId: string) {
+  const [restored] = await db
+    .update(tasks)
+    .set({ deletedAt: null, updatedAt: new Date() })
+    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .returning();
+  return restored ?? null;
+}
+
+/**
+ * Retire open Canvas tasks whose item is gone from the feed — an assignment
+ * the instructor deleted or unpublished. Only tasks still due in the future:
+ * a feed can drop old items as the term goes on, and an overdue task you still
+ * mean to finish shouldn't vanish for that.
+ */
+export async function retireVanishedCanvasTasks(userId: string, feedUids: string[]) {
+  // An empty feed is far more likely a fetch hiccup than a term with nothing
+  // in it, and retiring against it would clear every Canvas task.
+  if (feedUids.length === 0) return [];
+  const now = new Date();
+  const removed = await db
+    .update(tasks)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNotNull(tasks.sourceEventId),
+        notInArray(tasks.sourceEventId, feedUids),
+        inArray(tasks.status, ["pending", "in_progress", "snoozed"]),
+        gt(tasks.deadline, now),
+        isNull(tasks.deletedAt)
+      )
+    )
+    .returning();
+  await logCanvasRetirement(userId, removed, CANVAS_REMOVED, now);
+  return removed;
 }
 
 export async function deleteTask(taskId: string, userId: string) {
@@ -337,7 +422,8 @@ export async function getRecentTaskActivity(
   return db
     .select()
     .from(taskActivity)
-    .where(eq(taskActivity.userId, userId))
+    // Canvas sync's retirement markers aren't something the user did.
+    .where(and(eq(taskActivity.userId, userId), notLike(taskActivity.action, "canvas_%")))
     .orderBy(desc(taskActivity.createdAt))
     .limit(limit);
 }
