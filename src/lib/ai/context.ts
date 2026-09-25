@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
-import { startOfDayInTimezone, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
+import { localDaysRange, formatForDisplay, DISPLAY_TIME, DISPLAY_DATE } from "@/lib/timezone";
 import { isAssessmentTitle } from "@/lib/calendar/assessments";
 import type { EnergyLevel, PersonalityPrefs } from "@/types";
 
@@ -139,12 +139,11 @@ export async function buildAIContext(
   const timezone = user?.timezone ?? "America/New_York";
   const currentTime = formatCurrentDateTime(timezone);
   const now = new Date();
-  const startOfToday = startOfDayInTimezone(now, timezone);
-  const endOfDay = new Date(startOfToday.getTime() + 86_400_000 - 1);
+  const endOfDay = new Date(localDaysRange(now, timezone).end.getTime() - 1);
   // End of user's local day + horizon days → inclusive of assessment events
   // scheduled late in the final day (e.g., an 11:59 PM Canvas assignment).
   const endOfHorizon = new Date(
-    startOfToday.getTime() + (UPCOMING_HORIZON_DAYS + 1) * 86_400_000 - 1
+    localDaysRange(now, timezone, UPCOMING_HORIZON_DAYS + 1).end.getTime() - 1
   );
 
   // Parallel fetch all context data. Calendar fetch pulls the full horizon so

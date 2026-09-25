@@ -1,6 +1,6 @@
 {
   "name": "controlled-chaos",
-  "version": "2.73.3",
+  "version": "2.73.4",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {

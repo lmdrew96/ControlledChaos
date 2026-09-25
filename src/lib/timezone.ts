@@ -393,3 +393,25 @@ export function isValidTimeZone(tz: string): boolean {
     return false;
   }
 }
+
+/**
+ * [start, end) spanning `days` whole local calendar days, beginning
+ * `offsetDays` after the day `date` falls on in `timezone`.
+ *
+ * Use this instead of `start + days * 86_400_000`: a DST day is 23 or 25
+ * hours long, so fixed-length math ends an hour early or late.
+ */
+export function localDaysRange(
+  date: Date,
+  timezone: string,
+  days = 1,
+  offsetDays = 0
+): { start: Date; end: Date } {
+  const firstKey = addDaysToDateKey(toDateKeyInTimezone(date, timezone), offsetDays);
+  const lastKey = addDaysToDateKey(firstKey, days - 1);
+  return {
+    start: new Date(allDayRange(firstKey, timezone).startISO),
+    end: new Date(allDayRange(lastKey, timezone).endISO),
+  };
+}
+

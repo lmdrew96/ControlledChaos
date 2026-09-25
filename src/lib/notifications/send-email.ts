@@ -1,4 +1,4 @@
-import { startOfDayInTimezone, todayInTimezone } from "@/lib/timezone";
+import { todayInTimezone, localDaysRange } from "@/lib/timezone";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { callSonnet } from "@/lib/ai";
@@ -103,8 +103,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const now = new Date();
 
   // Today's events
-  const todayStart = startOfDayInTimezone(now, timezone);
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: todayStart, end: todayEnd } = localDaysRange(now, timezone);
   const events = sortEventsForDisplay(
     await getCalendarEventsByDateRange(userId, todayStart, todayEnd)
   );
@@ -125,7 +124,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 
   // Deadlines this week — HARD ones only. A self-imposed target has no
   // external consequence and does not belong in a list headed "Deadlines".
-  const weekEnd = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const weekEnd = localDaysRange(now, timezone, 7).end;
   const withDeadlines = pending.filter(
     (t) => t.deadline && new Date(t.deadline) <= weekEnd
   );
@@ -304,9 +303,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const tomorrowPriority = sorted[0] ?? null;
 
   // Tomorrow's calendar for context
-  const todayStart = startOfDayInTimezone(now, timezone);
-  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000);
+  const { start: tomorrowStart, end: tomorrowEnd } = localDaysRange(now, timezone, 1, 1);
 
   // Work already planned for tomorrow — their plan, not a due date.
   // Session-based, same as the morning digest's plannedToday.

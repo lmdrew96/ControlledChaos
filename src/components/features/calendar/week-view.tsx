@@ -57,7 +57,7 @@ import type {
   EventCategory,
   PlanBlock,
 } from "@/types";
-import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, startOfDayInTimezone } from "@/lib/timezone";
+import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, localDaysRange } from "@/lib/timezone";
 import {
   useCalendarSettings,
   DEFAULT_WEEK_START_DAY,
@@ -372,8 +372,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // Count how many CC events are on the current view
   // Plan blocks are tasks with a scheduledFor, not calendar events. Only
   // today's are clearable — a plan is an intention for one specific day.
-  const todayStart = startOfDayInTimezone(new Date(), timezone);
-  const todayEnd = new Date(todayStart.getTime() + 24 * 3_600_000);
+  const { start: todayStart, end: todayEnd } = localDaysRange(new Date(), timezone);
   const scheduledCount = planBlocks.filter((b) => {
     const at = new Date(b.startTime);
     return at >= todayStart && at < todayEnd;
@@ -1380,7 +1379,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
               Clear today&apos;s plan
             </DialogTitle>
             <DialogDescription>
-              Unschedules what's still ahead in today's plan. The tasks stay
+              Unschedules what&apos;s still ahead in today&apos;s plan. The tasks stay
               exactly where they are — only their planned times are removed.
               Real events are untouched.
             </DialogDescription>

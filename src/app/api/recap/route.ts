@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getRecapDay, getUser } from "@/lib/db/queries";
-import { startOfDayInTimezone } from "@/lib/timezone";
+import { allDayRange } from "@/lib/timezone";
 import type { RecapKind } from "@/types";
 
 const VALID_KINDS: RecapKind[] = [
@@ -27,16 +27,13 @@ function parseKinds(raw: string | null): RecapKind[] | undefined {
 }
 
 /**
- * Convert a user-facing YYYY-MM-DD into that day's [start, end) window
- * in the user's timezone. Uses `startOfDayInTimezone` so DST boundaries
- * resolve correctly.
+ * Convert a user-facing YYYY-MM-DD into that day's [start, end) window in the
+ * user's timezone — local midnight to the next local midnight, so a 23- or
+ * 25-hour DST day is covered exactly.
  */
 function dayWindow(dateStr: string, timezone: string): { start: Date; end: Date } {
-  // Use a midday UTC anchor to avoid DST edge cases at midnight UTC.
-  const anchor = new Date(`${dateStr}T12:00:00Z`);
-  const start = startOfDayInTimezone(anchor, timezone);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  return { start, end };
+  const { startISO, endISO } = allDayRange(dateStr, timezone);
+  return { start: new Date(startISO), end: new Date(endISO) };
 }
 
 export async function GET(request: Request) {

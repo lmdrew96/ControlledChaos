@@ -5,14 +5,13 @@ import {
   getScheduledSessionsInRange,
   clearSessionsInRange,
 } from "@/lib/db/queries";
-import { startOfDayInTimezone } from "@/lib/timezone";
+import { localDaysRange } from "@/lib/timezone";
 import { planBlockEnd, planBlockMinutes } from "@/lib/calendar/plan-blocks";
 
 async function todayBounds(userId: string) {
   const user = await getUser(userId);
   const timezone = user?.timezone ?? "America/New_York";
-  const start = startOfDayInTimezone(new Date(), timezone);
-  const end = new Date(start.getTime() + 24 * 3_600_000);
+  const { start, end } = localDaysRange(new Date(), timezone);
   return { timezone, start, end };
 }
 

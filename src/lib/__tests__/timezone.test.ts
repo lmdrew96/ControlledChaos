@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isValidTimeZone,
+  localDaysRange,
   getTimezoneOffsetMs,
   getCalendarParts,
   getHourInTimezone,
@@ -421,3 +422,33 @@ describe("isValidTimeZone", () => {
     expect(isValidTimeZone("")).toBe(false);
   });
 });
+
+describe("localDaysRange", () => {
+  const NY = "America/New_York";
+  const hours = (r: { start: Date; end: Date }) => (r.end.getTime() - r.start.getTime()) / 3_600_000;
+
+  it("covers the 25-hour fall-back day exactly (Nov 1 2026)", () => {
+    const r = localDaysRange(new Date("2026-11-01T15:00:00Z"), NY);
+    expect(r.start.toISOString()).toBe("2026-11-01T04:00:00.000Z");
+    expect(r.end.toISOString()).toBe("2026-11-02T05:00:00.000Z");
+    expect(hours(r)).toBe(25);
+  });
+
+  it("covers the 23-hour spring-forward day (Mar 8 2026)", () => {
+    expect(hours(localDaysRange(new Date("2026-03-08T15:00:00Z"), NY))).toBe(23);
+  });
+
+  it("spans several days and offsets, ending at a local midnight", () => {
+    const tomorrow = localDaysRange(new Date("2026-10-31T15:00:00Z"), NY, 1, 1);
+    expect(tomorrow.start.toISOString()).toBe("2026-11-01T04:00:00.000Z");
+    const week = localDaysRange(new Date("2026-10-28T15:00:00Z"), NY, 7);
+    expect(week.end.toISOString()).toBe("2026-11-04T05:00:00.000Z");
+  });
+
+  it("uses the user's day, not UTC's, late in the evening", () => {
+    // 11pm Oct 5 in New York is already Oct 6 in UTC.
+    const r = localDaysRange(new Date("2026-10-06T03:00:00Z"), NY);
+    expect(r.start.toISOString()).toBe("2026-10-05T04:00:00.000Z");
+  });
+});
+
