@@ -15,6 +15,7 @@ import {
 import { TaskCard } from "./task-card";
 import { TaskDetailModal } from "./task-detail-modal";
 import { CreateTaskModal } from "./create-task-modal";
+import { LoadErrorStrip } from "@/components/ui/load-error-strip";
 import Link from "next/link";
 import type { Task } from "@/types";
 import { priorityOptions, energyOptions, categoryOptions } from "./task-config";
@@ -160,6 +161,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -171,12 +173,13 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   const fetchTasks = useCallback(async () => {
     try {
       const res = await fetch("/api/tasks");
-      if (res.ok) {
-        const data = await res.json();
-        setTasks(data.tasks);
-      }
+      if (!res.ok) throw new Error(`GET /api/tasks ${res.status}`);
+      const data = await res.json();
+      setTasks(data.tasks);
+      setLoadError(false);
     } catch (error) {
       console.error("Failed to fetch tasks:", error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -272,6 +275,12 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  // A failed first load must not fall through to "No tasks yet". A failed
+  // refresh with tasks already on screen keeps showing them.
+  if (loadError && tasks.length === 0) {
+    return <LoadErrorStrip message="Couldn't load your tasks." onRetry={fetchTasks} />;
   }
 
   if (collapsible && !expanded && tasks.length > 0) {

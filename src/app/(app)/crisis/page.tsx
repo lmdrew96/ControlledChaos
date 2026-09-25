@@ -17,6 +17,7 @@ import { CrisisDone } from "@/components/features/crisis/crisis-done";
 import { cn } from "@/lib/utils";
 import { CrisisDetectionExplainer } from "@/components/features/crisis/crisis-detection-explainer";
 import { CrisisHorizonAlert } from "@/components/features/crisis/crisis-horizon-alert";
+import { LoadErrorStrip } from "@/components/ui/load-error-strip";
 import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, CrisisDetectionStatus, PanicLevel } from "@/types";
 
 // -------------------------------------------------------
@@ -101,6 +102,7 @@ export default function CrisisPage() {
   const [detectionStatus, setDetectionStatus] = useState<CrisisDetectionStatus | null>(null);
   const [history, setHistory] = useState<ActivePlanData[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [intakePrefill, setIntakePrefill] = useState<{ taskName?: string; deadline?: string }>({});
 
   // -------------------------------------------------------
@@ -114,7 +116,7 @@ export default function CrisisPage() {
       ]);
 
       // Load crisis plans
-      if (!crisisRes.ok) throw new Error();
+      if (!crisisRes.ok) throw new Error(`GET /api/crisis ${crisisRes.status}`);
       const data = await crisisRes.json();
 
       const mapped: ActivePlanData[] = (data.plans ?? []).map(
@@ -183,8 +185,11 @@ export default function CrisisPage() {
 
       setPlans(mapped);
       setHistory(historyMapped);
+      setLoadError(false);
       setPhase("dashboard");
-    } catch {
+    } catch (error) {
+      console.error("Failed to load rescue plans:", error);
+      setLoadError(true);
       setPhase("dashboard");
     }
   }, []);
@@ -624,7 +629,9 @@ export default function CrisisPage() {
       )}
 
       {/* Active plans */}
-      {plans.length > 0 ? (
+      {loadError && plans.length === 0 ? (
+        <LoadErrorStrip message="Couldn't load your rescue sessions." onRetry={loadPlans} />
+      ) : plans.length > 0 ? (
         <div className="space-y-3">
           {plans.map((plan) => {
             const pct = progressPct(plan);

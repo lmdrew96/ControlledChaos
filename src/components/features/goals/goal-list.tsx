@@ -5,6 +5,7 @@ import { Loader2, Target, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoalCard } from "./goal-card";
 import { CreateGoalModal } from "./create-goal-modal";
+import { LoadErrorStrip } from "@/components/ui/load-error-strip";
 import type { Goal } from "@/types";
 
 type FilterStatus = "active" | "completed" | "paused" | "all";
@@ -12,6 +13,7 @@ type FilterStatus = "active" | "completed" | "paused" | "all";
 export function GoalList() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
@@ -20,12 +22,16 @@ export function GoalList() {
     try {
       const url = filter === "all" ? "/api/goals" : `/api/goals?status=${filter}`;
       const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setGoals(data.goals);
-      }
+      if (!res.ok) throw new Error(`GET ${url} ${res.status}`);
+      const data = await res.json();
+      setGoals(data.goals);
+      setLoadError(false);
     } catch (error) {
       console.error("Failed to fetch goals:", error);
+      // Goals are fetched per filter, so whatever is on screen belongs to
+      // the previous filter — clear it rather than mislabel it.
+      setGoals([]);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -42,6 +48,10 @@ export function GoalList() {
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (loadError && goals.length === 0) {
+    return <LoadErrorStrip message="Couldn't load your goals." onRetry={fetchGoals} />;
   }
 
   if (goals.length === 0 && filter === "active") {
