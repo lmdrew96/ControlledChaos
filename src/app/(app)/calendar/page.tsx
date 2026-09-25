@@ -6,7 +6,6 @@ import { WeekView } from "@/components/features/calendar/week-view";
 import { AgendaView } from "@/components/features/calendar/agenda-view";
 import { MonthView } from "@/components/features/calendar/month-view";
 import { PageHeader } from "@/components/ui/page-header";
-import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 
 type CalendarView = "week" | "month";
 
@@ -23,8 +22,6 @@ export default function CalendarPage() {
 
   const [view, setView] = useState<CalendarView>("week");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialFromUrl);
-  const { settings } = useCalendarSettings();
-  const { weekStartDay, calendarColors } = settings;
 
   function handleDayClick(date: Date) {
     setSelectedDate(date);
@@ -65,12 +62,7 @@ export default function CalendarPage() {
           </div>
         </>
       ) : (
-        <MonthView
-          initialDate={selectedDate}
-          onDayClick={handleDayClick}
-          weekStartDay={weekStartDay}
-          calendarColors={calendarColors}
-        />
+        <MonthView initialDate={selectedDate} onDayClick={handleDayClick} />
       )}
     </div>
   );

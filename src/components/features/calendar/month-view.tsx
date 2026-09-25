@@ -2,30 +2,30 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useNow } from "@/hooks/use-now";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
+import { toDateKeyInTimezone } from "@/lib/timezone";
 import { categoryDotColor, categoryPillColor } from "@/lib/calendar/colors";
-import type { CalendarColors, EventCategory } from "@/types";
+import type { EventCategory } from "@/types";
 
 interface MonthViewProps {
   initialDate?: Date;
   onDayClick: (date: Date) => void;
-  weekStartDay?: number; // 0=Sunday, 1=Monday
-  calendarColors?: CalendarColors | null;
 }
 
 function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+/**
+ * The calendar date a grid cell stands for. Cells are built from local Date
+ * fields, so this reads those fields back rather than converting an instant.
+ */
+function cellKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function isSameMonth(a: Date, b: Date): boolean {
@@ -68,13 +68,17 @@ const MONTH_NAMES = [
 const DAY_HEADERS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_HEADERS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarColors }: MonthViewProps) {
+export function MonthView({ initialDate, onDayClick }: MonthViewProps) {
+  // weekStartDay decides every column and timezone decides which day each
+  // event lands on — LAYOUT, so the grid waits for them (see useCalendarSettings).
+  const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
+  const { weekStartDay, calendarColors, timezone } = settings;
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(initialDate ?? new Date())
   );
 
   const now = useNow();
-  const today = useMemo(() => new Date(now), [now]);
+  const todayKey = toDateKeyInTimezone(new Date(now), timezone);
 
   const weeks = useMemo(
     () => buildMonthGrid(currentMonth, weekStartDay),
@@ -85,7 +89,7 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
   const gridStart = weeks[0][0];
   const gridEnd = weeks[weeks.length - 1][6];
 
-  const { events, planBlocks, fetchEvents, isLoading } = useCalendarEvents();
+  const { events, planBlocks, fetchEvents, isLoading, error } = useCalendarEvents();
 
   useEffect(() => {
     // Add a day buffer on each side
@@ -97,32 +101,28 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth]);
 
-  // Group events by day (keyed by YYYY-MM-DD)
+  // Group by the day each starts on in the USER's timezone, the same as week
+  // and agenda — keyed from browser-local fields, an event could sit on a
+  // different day here than in the other views.
   const eventsByDay = useMemo(() => {
     const map = new Map<string, typeof events>();
     for (const event of events) {
-      const d = new Date(event.startTime);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const key = toDateKeyInTimezone(new Date(event.startTime), timezone);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(event);
     }
     return map;
-  }, [events]);
+  }, [events, timezone]);
 
   const plansByDay = useMemo(() => {
     const map = new Map<string, typeof planBlocks>();
     for (const block of planBlocks) {
-      const d = new Date(block.startTime);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const key = toDateKeyInTimezone(new Date(block.startTime), timezone);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(block);
     }
     return map;
-  }, [planBlocks]);
-
-  function dayKey(date: Date): string {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  }
+  }, [planBlocks, timezone]);
 
   function navigate(delta: number) {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
@@ -155,6 +155,19 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
         </Button>
       </div>
 
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {!settingsLoaded ? (
+        <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading calendar...
+        </div>
+      ) : (
+      <>
       {/* Grid */}
       <div className="rounded-lg border border-border overflow-hidden">
         {/* Day headers */}
@@ -179,10 +192,11 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
             )}
           >
             {week.map((day, di) => {
-              const isToday = isSameDay(day, today);
+              const key = cellKey(day);
+              const isToday = key === todayKey;
               const isCurrentMonth = isSameMonth(day, currentMonth);
-              const dayEvents = eventsByDay.get(dayKey(day)) ?? [];
-              const dayPlans = plansByDay.get(dayKey(day)) ?? [];
+              const dayEvents = eventsByDay.get(key) ?? [];
+              const dayPlans = plansByDay.get(key) ?? [];
               // Real events claim the limited chip slots first — a commitment
               // matters more at a glance than an intention.
               const visible = dayEvents.slice(0, 3);
@@ -262,6 +276,13 @@ export function MonthView({ initialDate, onDayClick, weekStartDay = 1, calendarC
           </div>
         ))}
       </div>
+      {!isLoading && !error && events.length === 0 && planBlocks.length === 0 && (
+        <p className="py-2 text-center text-sm text-muted-foreground">
+          Nothing on the calendar this month.
+        </p>
+      )}
+      </>
+      )}
     </div>
   );
 }
