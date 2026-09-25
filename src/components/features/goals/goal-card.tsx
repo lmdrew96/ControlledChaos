@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/ui/markdown";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -131,7 +132,7 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
                 </h3>
                 {goal.description && (
                   <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {goal.description}
+                    <Markdown inline>{goal.description}</Markdown>
                   </p>
                 )}
               </div>

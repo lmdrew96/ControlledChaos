@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/ui/markdown";
 import { priorityConfig } from "@/components/features/task-feed/task-config";
 import type { Task } from "@/types";
 
@@ -42,7 +43,7 @@ export function AlternativesList({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{alt.task.title}</p>
                 <p className="text-xs text-muted-foreground line-clamp-2 break-words">
-                  {alt.reasoning}
+                  <Markdown inline>{alt.reasoning}</Markdown>
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

@@ -18,6 +18,7 @@ import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/ui/markdown";
 import { WashiTape } from "@/components/ui/washi-tape";
 import {
   priorityConfig,
@@ -98,7 +99,7 @@ export function RecommendationCard({
           <h3 className="font-serif text-lg font-semibold leading-snug">{task.title}</h3>
 
           {/* AI reasoning */}
-          <p className="text-sm text-muted-foreground break-words">{reasoning}</p>
+          <Markdown className="text-sm text-muted-foreground">{reasoning}</Markdown>
 
           {/* Metadata badges */}
           <div className="flex flex-wrap items-center gap-2">

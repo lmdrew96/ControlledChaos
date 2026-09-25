@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Markdown } from "@/components/ui/markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -176,7 +177,7 @@ export function CrisisWarRoom({
         </div>
         <Card>
           <CardContent className="p-4 space-y-3">
-            <p className="text-sm text-muted-foreground">{currentPlan.summary}</p>
+            <Markdown className="text-sm text-muted-foreground">{currentPlan.summary}</Markdown>
             <Button
               onClick={async () => {
                 await patchProgress(planId, { completed: true });
@@ -220,7 +221,7 @@ export function CrisisWarRoom({
       </div>
 
       {/* Summary */}
-      <p className="text-sm text-muted-foreground">{currentPlan.summary}</p>
+      <Markdown className="text-sm text-muted-foreground">{currentPlan.summary}</Markdown>
 
       {reassessError && (
         <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
@@ -301,9 +302,9 @@ export function CrisisWarRoom({
           Do this now
         </p>
         <p className="mb-1 text-lg font-semibold">{currentTask.title}</p>
-        <p className="mb-3 text-sm text-muted-foreground">
+        <Markdown className="mb-3 text-sm text-muted-foreground">
           {currentTask.instruction}
-        </p>
+        </Markdown>
         <Badge variant="outline">~{currentTask.estimatedMinutes} min</Badge>
       </div>
 
@@ -342,7 +343,7 @@ export function CrisisWarRoom({
       {isStuck && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="p-4">
-            <p className="mb-3 text-sm">{currentTask.stuckHint}</p>
+            <Markdown className="mb-3 text-sm">{currentTask.stuckHint}</Markdown>
             <Button
               size="sm"
               variant="outline"
