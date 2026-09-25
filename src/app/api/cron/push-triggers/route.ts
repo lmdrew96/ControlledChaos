@@ -192,6 +192,9 @@ function buildClusterContext(
  */
 async function processUser(user: PushUser): Promise<number> {
   const { userId, timezone, personalityPrefs, notificationPrefs, crisisDetectionTier } = user;
+  // A subscription can outlive the user turning push off. Skip them before
+  // any AI copy is generated; sendPushToUser would refuse every send anyway.
+  if (notificationPrefs && !notificationPrefs.pushEnabled) return 0;
   const mode = getAssertivenessMode(notificationPrefs);
   const dailyCap = getDailyPushCap(mode);
   // Only APP-lane pushes are counted or capped. See getAppPushesSentToday.

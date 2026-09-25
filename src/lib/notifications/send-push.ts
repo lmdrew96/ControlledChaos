@@ -65,14 +65,16 @@ export async function sendPushToUser(
   const prefs = settings?.notificationPrefs as NotificationPrefs | null;
   const timezone = user?.timezone ?? "America/New_York";
 
-  if (!payload.bypassQuietHours) {
-    if (prefs && !prefs.pushEnabled) {
-      return false;
-    }
+  // "Push off" is absolute. It used to sit inside the quiet-hours check, so
+  // anything that bypassed quiet hours ("leave now") also bypassed the
+  // user turning push off entirely.
+  if (prefs && !prefs.pushEnabled) {
+    return false;
+  }
 
-    if (prefs && isQuietHours(prefs, timezone)) {
-      return false;
-    }
+  // Quiet hours are the recipient's own window, in the recipient's timezone.
+  if (!payload.bypassQuietHours && prefs && isQuietHours(prefs, timezone)) {
+    return false;
   }
 
   const pushPayload = JSON.stringify({
