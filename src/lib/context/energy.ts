@@ -33,12 +33,15 @@ export function deriveEnergyFromMoment(type: MomentType): EnergyLevel | null {
   }
 }
 
+const ENERGY_MOMENT_TYPES = ["energy_high", "energy_low", "energy_crash"] as const;
+
 /**
- * Current energy signal, sourced from the user's most recent Moment.
+ * Current energy signal, sourced from the user's most recent energy Moment.
+ * Other Moment types (focus, sleep, tough moments) don't reset it.
  *
- * Returns null when there is no recent Moment (or the most recent Moment
- * isn't an energy-typed one). Callers should treat null as "unknown" and
- * prompt the user (via the Moments chip-bar) if they need a signal.
+ * Returns null when there is no recent energy Moment. Callers should treat
+ * null as "unknown" and prompt the user (via the Moments chip-bar) if they
+ * need a signal.
  *
  * @param override Optional caller-supplied energy (e.g., user-reported inline).
  */
@@ -49,7 +52,7 @@ export async function getCurrentEnergy(
 ): Promise<EnergyLevel | null> {
   if (override) return override;
 
-  const moment = await getRecentMoment(userId, 120);
+  const moment = await getRecentMoment(userId, 120, ENERGY_MOMENT_TYPES);
   if (!moment) return null;
 
   return deriveEnergyFromMoment(moment.type as MomentType);

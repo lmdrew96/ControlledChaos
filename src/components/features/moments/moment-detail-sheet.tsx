@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { toUTC, toUserLocal } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 import type { MomentType } from "@/types";
 import { MOMENT_COPY } from "./moment-constants";
 
@@ -30,14 +32,14 @@ interface MomentDetailSheetProps {
 }
 
 /**
- * Convert a Date to a `<input type="datetime-local">`-compatible string
- * in the user's local timezone (the browser's timezone).
+ * Convert a Date to a `<input type="datetime-local">`-compatible string in
+ * the app's timezone SETTING, not the browser's — toUTC reads it back in the
+ * same frame, like every other time field in the app.
  */
-function toDatetimeLocal(date: Date): string {
+function toDatetimeLocal(date: Date, timezone: string): string {
+  const local = toUserLocal(date, timezone);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
+  return `${local.year}-${pad(local.month)}-${pad(local.day)}T${pad(local.hour)}:${pad(local.minute)}`;
 }
 
 export function MomentDetailSheet({
@@ -87,14 +89,15 @@ interface DetailFormProps {
 }
 
 function DetailForm({ type, onSave, onCancel }: DetailFormProps) {
+  const timezone = useTimezone();
   const [intensity, setIntensity] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [occurredAtLocal, setOccurredAtLocal] = useState(() =>
-    toDatetimeLocal(new Date())
+    toDatetimeLocal(new Date(), timezone)
   );
 
   const handleSave = () => {
-    const occurredAt = new Date(occurredAtLocal);
+    const occurredAt = new Date(toUTC(occurredAtLocal, timezone));
     onSave({
       type,
       intensity,

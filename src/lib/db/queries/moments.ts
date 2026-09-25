@@ -106,10 +106,13 @@ export async function softDeleteMoment(momentId: string, userId: string) {
 /**
  * Most recent non-deleted Moment within the window, or null.
  * Default window = 120 minutes (matches plan "last 2 hours" for AI context).
+ * Pass `types` to look only at those (e.g. energy: a focus_start logged after
+ * energy_low shouldn't turn energy "unknown").
  */
 export async function getRecentMoment(
   userId: string,
-  maxAgeMinutes: number = 120
+  maxAgeMinutes: number = 120,
+  types?: readonly string[]
 ) {
   const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
   const [row] = await db
@@ -119,7 +122,8 @@ export async function getRecentMoment(
       and(
         eq(moments.userId, userId),
         isNull(moments.deletedAt),
-        gte(moments.occurredAt, cutoff)
+        gte(moments.occurredAt, cutoff),
+        types ? inArray(moments.type, [...types]) : undefined
       )
     )
     .orderBy(desc(moments.occurredAt))
