@@ -41,6 +41,7 @@ import {
   type NotificationPrefs,
   type PersonalityPrefs,
 } from "@/types";
+import { isAssessmentTitle } from "@/lib/calendar/assessments";
 
 interface DeadlineReminder {
   taskId: string;
@@ -326,9 +327,14 @@ export async function getEventReminders(
     // a day-before heads-up for each one was a push per class per day. It
     // keeps the closer reminders, and the wake-up summary reads the day's
     // events from the calendar directly, so it still names the class.
+    // Canvas class meetings are recurring too, but the feed sends each one as
+    // its own event with no seriesId — so for Canvas, only an assessment
+    // (quiz, exam, due date) earns the day-before heads-up.
+    const isRoutine =
+      !!event.seriesId || (event.source === "canvas" && !isAssessmentTitle(event.title));
     const interval = pickIntervalForDiff(
       diff,
-      event.seriesId ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals
+      isRoutine ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals
     );
     if (interval === null) continue;
 
