@@ -16,8 +16,8 @@ interface Props {
 
 function panicColor(level: PanicLevel) {
   if (level === "damage-control") return "border-destructive/40 bg-destructive/5";
-  if (level === "tight") return "border-amber-500/40 bg-amber-500/5";
-  return "border-emerald-500/40 bg-emerald-500/5";
+  if (level === "tight") return "border-warning/40 bg-warning/5";
+  return "border-success/40 bg-success/5";
 }
 
 function panicBadgeVariant(level: PanicLevel): "destructive" | "secondary" | "default" {

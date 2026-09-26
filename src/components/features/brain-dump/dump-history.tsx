@@ -156,7 +156,7 @@ export function DumpHistory({ focusId = null }: { focusId?: string | null } = {}
                     </p>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                       {dump.category === "junk_journal" && (
-                        <span className="flex items-center gap-1 text-amber-500">
+                        <span className="flex items-center gap-1 text-warning">
                           <BookOpen className="h-3 w-3" />
                           journal
                         </span>

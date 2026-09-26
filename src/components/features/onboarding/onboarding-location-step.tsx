@@ -93,7 +93,7 @@ function LocationInput({
         )}
       </div>
       {value && (
-        <p className="text-xs text-green-600">
+        <p className="text-xs text-success">
           Location set for &ldquo;{value.name}&rdquo;
         </p>
       )}

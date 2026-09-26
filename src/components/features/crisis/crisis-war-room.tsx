@@ -224,7 +224,7 @@ export function CrisisWarRoom({
       <Markdown className="text-sm text-muted-foreground">{currentPlan.summary}</Markdown>
 
       {reassessError && (
-        <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
+        <p className="text-sm text-warning" role="status">
           {reassessError}
         </p>
       )}
@@ -298,7 +298,7 @@ export function CrisisWarRoom({
 
       {/* Do this now card */}
       <div className="rounded-lg border-l-4 border-l-blue-500 bg-card p-4 shadow-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-500">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">
           Do this now
         </p>
         <p className="mb-1 text-lg font-semibold">{currentTask.title}</p>
@@ -318,7 +318,7 @@ export function CrisisWarRoom({
         <Button
           variant="outline"
           onClick={() => setIsStuck((s) => !s)}
-          className={isStuck ? "border-amber-500 text-amber-500" : ""}
+          className={isStuck ? "border-warning text-warning" : ""}
         >
           {isStuck ? "Hide hint" : "Stuck — help me"}
         </Button>
@@ -341,7 +341,7 @@ export function CrisisWarRoom({
 
       {/* Stuck hint */}
       {isStuck && (
-        <Card className="border-amber-500/30 bg-amber-500/5">
+        <Card className="border-warning/30 bg-warning/5">
           <CardContent className="p-4">
             <Markdown className="mb-3 text-sm">{currentTask.stuckHint}</Markdown>
             <Button

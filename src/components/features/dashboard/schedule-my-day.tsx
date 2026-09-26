@@ -249,8 +249,8 @@ export function ScheduleMyDay({
             two blocks short.
           */}
           {unplaced.length > 0 && (phase === "reviewing" || phase === "done" || phase === "empty") && (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2">
+              <p className="text-xs font-medium text-warning">
                 No room for {unplaced.length === 1 ? "this one" : `these ${unplaced.length}`}:
               </p>
               <ul className="mt-1 space-y-0.5">

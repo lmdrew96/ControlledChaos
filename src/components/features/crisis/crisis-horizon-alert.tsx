@@ -93,11 +93,11 @@ export function CrisisHorizonAlert({
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
         >
-          <Card className="border-amber-500/40 bg-amber-500/5">
+          <Card className="border-warning/40 bg-warning/5">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0">
-                  <Clock className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />
+                  <Clock className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
                   <div className="space-y-1 min-w-0">
                     <p className="text-sm font-medium">Heads up — this one&apos;s on the horizon</p>
                     <p className="text-sm text-muted-foreground">{taskPhrase}</p>

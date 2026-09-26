@@ -33,9 +33,9 @@ const PARSED_TASKS = [
 ];
 
 const PRIORITY_STYLES: Record<string, string> = {
-  high: "bg-rose-500/15 text-rose-400 border-rose-500/20",
-  medium: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  low: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  high: "bg-destructive/15 text-destructive border-destructive/20",
+  medium: "bg-warning/15 text-warning border-warning/20",
+  low: "bg-success/15 text-success border-success/20",
 };
 
 type DemoPhase = "typing" | "processing" | "done";
@@ -96,9 +96,9 @@ function BrainDumpDemo() {
       <div className="rounded-2xl border border-white/8 bg-[color-mix(in_srgb,var(--adhd-dark)_92%,var(--adhd-purple))] shadow-2xl overflow-hidden">
         {/* Title bar */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-[color-mix(in_srgb,var(--adhd-dark)_96%,var(--adhd-purple))]">
-          <div className="w-2.5 h-2.5 rounded-full bg-rose-500/70" />
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-500/70" />
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-destructive/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-warning/70" />
+          <div className="w-2.5 h-2.5 rounded-full bg-success/70" />
           <span className="ml-2 text-xs text-white/30 font-mono">brain dump</span>
         </div>
 
@@ -119,7 +119,7 @@ function BrainDumpDemo() {
                 <div className="rounded-xl bg-white/5 border border-white/8 p-4 min-h-[120px]">
                   <p className="text-sm text-white/70 leading-relaxed font-mono">
                     {typedText}
-                    <span className="inline-block w-0.5 h-4 bg-amber-400 ml-0.5 animate-pulse" />
+                    <span className="inline-block w-0.5 h-4 bg-warning ml-0.5 animate-pulse" />
                   </p>
                 </div>
               </motion.div>
@@ -135,7 +135,7 @@ function BrainDumpDemo() {
               >
                 <div className="relative w-10 h-10">
                   <motion.div
-                    className="absolute inset-0 rounded-full border-2 border-amber-400/30"
+                    className="absolute inset-0 rounded-full border-2 border-warning/30"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     style={{ borderTopColor: "var(--adhd-amber)" }}
@@ -179,7 +179,7 @@ function BrainDumpDemo() {
       </div>
 
       {/* Glow */}
-      <div className="absolute -inset-6 -z-10 rounded-3xl bg-amber-500/5 blur-2xl" />
+      <div className="absolute -inset-6 -z-10 rounded-3xl bg-warning/5 blur-2xl" />
     </div>
   );
 }

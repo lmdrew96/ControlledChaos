@@ -66,7 +66,7 @@ export function UserNav({ onOpenWhatsNew }: { onOpenWhatsNew: () => void }) {
         </UserButton>
         {hasNew && (
           <span
-            className="pointer-events-none absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card"
+            className="pointer-events-none absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card"
             aria-hidden
           />
         )}

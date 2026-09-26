@@ -57,8 +57,8 @@ interface StrategyPickerState {
 
 function panicColor(level: PanicLevel) {
   if (level === "damage-control") return "text-destructive border-destructive/40 bg-destructive/5";
-  if (level === "tight") return "text-amber-500 border-amber-500/40 bg-amber-500/5";
-  return "text-emerald-500 border-emerald-500/40 bg-emerald-500/5";
+  if (level === "tight") return "text-warning border-warning/40 bg-warning/5";
+  return "text-success border-success/40 bg-success/5";
 }
 
 function formatDeadline(isoString: string | null, timezone: string) {

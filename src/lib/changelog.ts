@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.77.0",
-    label: "2.75.0 – 2.77.0",
+    version: "2.77.1",
+    label: "2.75.0 – 2.77.1",
     date: "2026-09-25",
     title: "Room to get there",
     changes: [
+      {
+        kind: "improved",
+        text: "Warning, success and alert colors in Rescue, Moments, the calendar and notifications now come from the app's own palette, in light and dark.",
+      },
       {
         kind: "added",
         text: "Hide the sidebar on bigger screens with the button next to the logo. It folds into one small button in the corner, and remembers your choice.",

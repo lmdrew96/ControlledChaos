@@ -62,7 +62,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "You're riding a wave. Capture the what.",
     icon: Battery,
     tintClassName:
-      "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+      "border-warning/40 bg-warning/10 text-warning",
   },
   energy_low: {
     label: "Energy low",
@@ -70,7 +70,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "Running on fumes. Intensity helps spot patterns later.",
     icon: BatteryLow,
     tintClassName:
-      "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+      "border-warning/40 bg-warning/10 text-warning",
   },
   energy_crash: {
     label: "Crash",
@@ -78,7 +78,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "A crash is different from low. Mark when it hit.",
     icon: Zap,
     tintClassName:
-      "border-amber-600/50 bg-amber-600/15 text-amber-800 dark:text-amber-200",
+      "border-warning/50 bg-warning/15 text-warning",
   },
   focus_start: {
     label: "Focus start",
@@ -86,7 +86,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "What are you focusing on? (optional)",
     icon: Target,
     tintClassName:
-      "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300",
+      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-sage/40 dark:bg-adhd-sage/10 dark:text-adhd-sage",
   },
   focus_end: {
     label: "Focus end",
@@ -94,7 +94,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "Wrapping up a focus block. Nice.",
     icon: CircleStop,
     tintClassName:
-      "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300",
+      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-sage/40 dark:bg-adhd-sage/10 dark:text-adhd-sage",
   },
   tough_moment: {
     label: "Tough moment",
@@ -103,6 +103,6 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
       "Whatever this is, it counts. Intensity helps rescue detection see it.",
     icon: LifeBuoy,
     tintClassName:
-      "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+      "border-destructive/40 bg-destructive/10 text-destructive",
   },
 };

@@ -159,12 +159,12 @@ export function CrisisChatPanel({ planId, questions }: Props) {
   }
 
   return (
-    <Card className="border-blue-500/30">
+    <Card className="border-primary/30">
       <CardContent className="p-0">
         {/* Chat header */}
         <div className="flex items-center justify-between border-b px-4 py-2">
           <div className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-blue-500" />
+            <MessageCircle className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">Rescue Chat</span>
           </div>
           <Button
@@ -244,7 +244,7 @@ export function CrisisChatPanel({ planId, questions }: Props) {
           )}
 
           {sendError && (
-            <p role="status" className="text-xs text-amber-600 dark:text-amber-500">
+            <p role="status" className="text-xs text-warning">
               {sendError}
             </p>
           )}

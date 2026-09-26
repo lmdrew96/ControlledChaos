@@ -1206,8 +1206,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                           className="absolute inset-x-0 z-20 flex items-center"
                           style={{ top: currentTimeTop }}
                         >
-                          <div className="current-time-dot relative h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
-                          <div className="h-[1.5px] flex-1 bg-red-500/80" />
+                          <div className="current-time-dot relative h-2.5 w-2.5 rounded-full bg-destructive shadow-[0_0_6px_color-mix(in_srgb,var(--destructive)_50%,transparent)]" />
+                          <div className="h-[1.5px] flex-1 bg-destructive/80" />
                         </div>
                       )}
                   </div>

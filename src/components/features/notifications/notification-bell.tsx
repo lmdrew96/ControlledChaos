@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 function getNotificationIcon(type: string) {
   switch (type) {
     case "push":
-      return <Zap className="h-3.5 w-3.5 text-yellow-500 shrink-0" />;
+      return <Zap className="h-3.5 w-3.5 text-warning shrink-0" />;
     case "email":
-      return <Mail className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+      return <Mail className="h-3.5 w-3.5 text-primary shrink-0" />;
     default:
       return <Bell className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   }
