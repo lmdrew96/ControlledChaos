@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.77.3",
-    label: "2.75.0 – 2.77.3",
+    version: "2.78.0",
+    label: "2.75.0 – 2.78.0",
     date: "2026-09-25",
     title: "Room to get there",
     changes: [
+      {
+        kind: "improved",
+        text: "Reminders arrive on time, to the minute. A “10 minutes before” reminder for a 12:45 class now comes at 12:35, not whenever the next 10-minute check happened to run.",
+      },
       {
         kind: "fixed",
         text: "Small stuff: a brain dump with nothing actionable in it says so, search shows your latest tasks, Microtasks shows a loading state instead of “No microtasks yet”, the week header reads “Sep 28 – Oct 4”, and calendar times all look alike.",

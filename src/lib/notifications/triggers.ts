@@ -303,6 +303,16 @@ export async function getTargetReminders(
 /** Reminders this far out or further are "the day before". */
 const DAY_AHEAD_MINUTES = 1440;
 
+/** The reminder ladder one event gets: routine events skip the day-before one. */
+function eventReminderIntervals(
+  event: { seriesId: string | null; source: string; title: string },
+  intervals: number[]
+): number[] {
+  const isRoutine =
+    !!event.seriesId || (event.source === "canvas" && !isAssessmentTitle(event.title));
+  return isRoutine ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals;
+}
+
 export async function getEventReminders(
   userId: string,
   prefs: NotificationPrefs | null | undefined
@@ -336,12 +346,7 @@ export async function getEventReminders(
     // Canvas class meetings are recurring too, but the feed sends each one as
     // its own event with no seriesId — so for Canvas, only an assessment
     // (quiz, exam, due date) earns the day-before heads-up.
-    const isRoutine =
-      !!event.seriesId || (event.source === "canvas" && !isAssessmentTitle(event.title));
-    const interval = pickIntervalForDiff(
-      diff,
-      isRoutine ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals
-    );
+    const interval = pickIntervalForDiff(diff, eventReminderIntervals(event, intervals));
     if (interval === null) continue;
 
     reminders.push({
@@ -358,6 +363,9 @@ export async function getEventReminders(
   return reminders;
 }
 
+/** How far ahead of a planned sitting its "time to start" alert opens. */
+export const SCHEDULED_ALERT_LEAD_MINUTES = 15;
+
 /**
  * Check for tasks with scheduledFor in the next 15 minutes.
  */
@@ -371,10 +379,67 @@ export async function getScheduledTaskAlerts(
   const sessions = await getSessionsStartingBetween(
     userId,
     now,
-    new Date(now.getTime() + 15 * 60 * 1000)
+    new Date(now.getTime() + SCHEDULED_ALERT_LEAD_MINUTES * 60 * 1000)
   );
 
   return sessions.map(toScheduledAlert);
+}
+
+/**
+ * Every moment in (from, to] when one of the four upcoming-thing alerts
+ * above opens its band: a deadline/target/event time minus each configured
+ * interval, or a sitting's start minus SCHEDULED_ALERT_LEAD_MINUTES.
+ *
+ * Used to schedule exact-minute pushes (lib/notifications/exact-fire.ts).
+ * It only says WHEN to look again; at that moment the getters above run as
+ * usual and decide what, if anything, is due. So it errs wide: a moment that
+ * turns out to have nothing due costs one no-op invocation.
+ */
+export async function getUpcomingBandOpens(
+  userId: string,
+  prefs: NotificationPrefs | null | undefined,
+  from: Date,
+  to: Date
+): Promise<Date[]> {
+  const fromMs = from.getTime();
+  const toMs = to.getTime();
+  const opens: number[] = [];
+  const addOpens = (atMs: number, intervals: number[]) => {
+    for (const minutes of intervals) {
+      const openMs = atMs - minutes * 60_000;
+      if (openMs > fromMs && openMs <= toMs) opens.push(openMs);
+    }
+  };
+
+  const deadlineIntervals = getReminderIntervals(prefs, "deadline");
+  const targetIntervals = getReminderIntervals(prefs, "target");
+  const eventIntervals = getReminderIntervals(prefs, "event");
+  const leadMs = SCHEDULED_ALERT_LEAD_MINUTES * 60_000;
+
+  const [tasks, events, sessions] = await Promise.all([
+    deadlineIntervals.length > 0 || targetIntervals.length > 0
+      ? getPendingTasks(userId)
+      : Promise.resolve([]),
+    eventIntervals.length > 0
+      ? getCalendarEventsByDateRange(userId, from, new Date(toMs + eventIntervals[0] * 60_000))
+      : Promise.resolve([]),
+    getSessionsStartingBetween(userId, new Date(fromMs + leadMs), new Date(toMs + leadMs)),
+  ]);
+
+  for (const t of tasks) {
+    if (t.deadline) addOpens(new Date(t.deadline).getTime(), deadlineIntervals);
+    if (t.targetDate) addOpens(new Date(t.targetDate).getTime(), targetIntervals);
+  }
+  for (const e of events) {
+    if (e.isAllDay) continue;
+    addOpens(new Date(e.startTime).getTime(), eventReminderIntervals(e, eventIntervals));
+  }
+  for (const s of sessions) {
+    const openMs = s.scheduledFor.getTime() - leadMs;
+    if (openMs > fromMs && openMs <= toMs) opens.push(openMs);
+  }
+
+  return opens.sort((a, b) => a - b).map((ms) => new Date(ms));
 }
 
 function latestOf(a: Date | null, b: Date | null): Date | null {

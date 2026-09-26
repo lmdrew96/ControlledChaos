@@ -9,6 +9,7 @@ import {
   isLocationStale,
   getScheduledSessionsInRange,
   getCalendarEventsByDateRange,
+  getPushUser,
 } from "@/lib/db/queries";
 import {
   sendPushToUser,
@@ -46,6 +47,8 @@ import {
   generateNudgeMessage,
   generatePushMessage,
   getTopPendingTask,
+  getUpcomingBandOpens,
+  SCHEDULED_ALERT_LEAD_MINUTES,
   type AlertingTaskDetail,
   type PushNotificationContext,
   type PushSkipReason,
@@ -58,6 +61,13 @@ import {
 import { buildUserSnapshot } from "@/lib/context/user-snapshot";
 import { runCrisisDetection } from "@/lib/crisis-detection/cron-handler";
 import { verifyCronRequest } from "@/lib/cron-auth";
+import {
+  isExactFireEnabled,
+  fireTimesFor,
+  scheduleFires,
+  FIRE_GRACE_MS,
+  FIRE_HORIZON_MS,
+} from "@/lib/notifications/exact-fire";
 
 // Per-chunk concurrency for the per-user loop. AI message generation is the
 // dominant cost per user; ~10 in-flight stays well below Anthropic rate
@@ -90,6 +100,20 @@ type PushUser = Awaited<ReturnType<typeof getAllUsersWithPushEnabled>>[number];
  * never queued (see "One chance per alert" in processUser).
  */
 const ONE_CHANCE_MINUTES = 15;
+
+/**
+ * "tick" is the 10-minute cron run: everything. "fire" is an exact-minute
+ * callback for one user (lib/notifications/exact-fire.ts): only the
+ * upcoming-thing alerts and the wake-up summary, the parts tied to a moment.
+ */
+type RunScope = "tick" | "fire";
+
+/** When an alert's band opened: its time minus its interval (or lead). */
+function bandOpenedMs(c: { at: Date; intervalMinutes?: number; kind: string }): number {
+  if (c.intervalMinutes !== undefined) return c.at.getTime() - c.intervalMinutes * 60_000;
+  if (c.kind === "scheduled") return c.at.getTime() - SCHEDULED_ALERT_LEAD_MINUTES * 60_000;
+  return c.at.getTime();
+}
 
 /** Who a push is for: see refusal() in processUser. */
 type PushLane = "user" | "app";
@@ -190,7 +214,7 @@ function buildClusterContext(
  * Per-user trigger evaluation. Returns the number of pushes sent for this user
  * so the outer loop can aggregate without shared mutable state.
  */
-async function processUser(user: PushUser): Promise<number> {
+async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<number> {
   const { userId, timezone, personalityPrefs, notificationPrefs, crisisDetectionTier } = user;
   // A subscription can outlive the user turning push off. Skip them before
   // any AI copy is generated; sendPushToUser would refuse every send anyway.
@@ -540,10 +564,17 @@ async function processUser(user: PushUser): Promise<number> {
   // its moment is dropped; the next closer band still fires. Runs AFTER the
   // wake-up summary, which is where the ones held overnight land.
   const nowMs = Date.now();
+  // With exact-minute fires on, age splits the work so a tick and a fire can
+  // never send the same push: a fire sends only what opened in the last
+  // couple of minutes (its own moment), and the tick only what's older (the
+  // fallback for a fire that was lost or late).
+  const leaveToFires = scope === "tick" && isExactFireEnabled();
   fresh = fresh.filter((c) => {
-    if (c.intervalMinutes === undefined) return true;
-    const bandOpenedMs = c.at.getTime() - c.intervalMinutes * 60_000;
-    return nowMs - bandOpenedMs <= ONE_CHANCE_MINUTES * 60_000;
+    const age = nowMs - bandOpenedMs(c);
+    if (c.intervalMinutes !== undefined && age > ONE_CHANCE_MINUTES * 60_000) return false;
+    if (leaveToFires && age < FIRE_GRACE_MS) return false;
+    if (scope === "fire" && age >= FIRE_GRACE_MS) return false;
+    return true;
   });
 
   fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -613,6 +644,10 @@ async function processUser(user: PushUser): Promise<number> {
       console.log(`[Push][Batch] user=${userId} situations=${due.length} items=${members.length}`);
     }
   }
+
+  // A fire is about one moment's reminders. Leave-now, check-ins, nudges and
+  // crisis detection are window-based and stay on the tick.
+  if (scope === "fire") return userSent;
 
   // --- Time to Leave Alerts ---
   const departureAlerts = await getDepartureAlerts(userId, timezone);
@@ -764,6 +799,58 @@ export async function POST(request: Request) {
 
   const startedAt = Date.now();
 
+  // An exact-minute fire for one user, scheduled by an earlier tick. The
+  // scheduled tick itself arrives with an empty body.
+  let fireUserId: string | null = null;
+  if (rawBody.trim()) {
+    try {
+      const parsed = JSON.parse(rawBody) as { fire?: { userId?: unknown } };
+      if (typeof parsed.fire?.userId === "string") fireUserId = parsed.fire.userId;
+    } catch {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
+  }
+
+  if (fireUserId) {
+    try {
+      const user = await getPushUser(fireUserId);
+      const sent = user ? await processUser(user, "fire") : 0;
+      console.log(
+        `[Push][Fire] user=${fireUserId} sent=${sent} at=${new Date(startedAt).toISOString()}${user ? "" : " (no push subscription)"}`
+      );
+      return NextResponse.json({ success: true, notificationsSent: sent });
+    } catch (error) {
+      console.error(`[Push][Fire] user=${fireUserId} failed:`, error);
+      return NextResponse.json({ error: "Fire failed" }, { status: 500 });
+    }
+  }
+
+  // Fires call back to this same route on the host QStash reached us at (the
+  // workers.dev origin; see scripts/sync-qstash-schedules.ts for why). A local
+  // http call can't be reached by QStash, so it schedules nothing.
+  const origin = new URL(request.url).origin;
+  const fireUrl = isExactFireEnabled() && origin.startsWith("https://")
+    ? `${origin}/api/cron/push-triggers`
+    : null;
+  let firesScheduled = 0;
+
+  const scheduleUserFires = async (user: PushUser): Promise<void> => {
+    if (!fireUrl) return;
+    if (user.notificationPrefs && !user.notificationPrefs.pushEnabled) return;
+    try {
+      const now = new Date();
+      const opens = await getUpcomingBandOpens(
+        user.userId,
+        user.notificationPrefs,
+        now,
+        new Date(now.getTime() + FIRE_HORIZON_MS)
+      );
+      firesScheduled += await scheduleFires(user.userId, fireTimesFor(opens, now), fireUrl);
+    } catch (err) {
+      console.error(`[Push][Fire] planning failed user=${user.userId}:`, err);
+    }
+  };
+
   try {
     // --- Fire snoozed pushes (not per-user — check the whole table) ---
     const snoozed = await getPendingSnoozedPushes();
@@ -819,7 +906,13 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < users.length; i += USER_CONCURRENCY) {
       const chunk = users.slice(i, i + USER_CONCURRENCY);
-      const results = await Promise.allSettled(chunk.map(processUser));
+      const results = await Promise.allSettled(
+        chunk.map(async (u) => {
+          const sent = await processUser(u);
+          await scheduleUserFires(u);
+          return sent;
+        })
+      );
       for (let j = 0; j < results.length; j++) {
         const r = results[j];
         if (r.status === "fulfilled") {
@@ -833,7 +926,7 @@ export async function POST(request: Request) {
 
     const durationMs = Date.now() - startedAt;
     console.log(
-      `[Cron][push-triggers] users=${users.length} sent=${totalSent} snoozed=${snoozed.length} failures=${userFailures} durationMs=${durationMs}`
+      `[Cron][push-triggers] users=${users.length} sent=${totalSent} snoozed=${snoozed.length} failures=${userFailures} fires=${fireUrl ? firesScheduled : "off"} durationMs=${durationMs}`
     );
 
     return NextResponse.json({
@@ -842,6 +935,7 @@ export async function POST(request: Request) {
       snoozedFired: snoozed.length,
       notificationsSent: totalSent,
       userFailures,
+      firesScheduled,
       durationMs,
     });
   } catch (error) {

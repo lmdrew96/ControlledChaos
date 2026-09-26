@@ -187,6 +187,31 @@ export async function getAllUsersWithPushEnabled() {
   }));
 }
 
+/** One user's push config, the same shape as getAllUsersWithPushEnabled. */
+export async function getPushUser(userId: string) {
+  const [row] = await db
+    .select({
+      userId: pushSubscriptions.userId,
+      timezone: users.timezone,
+      personalityPrefs: userSettings.personalityPrefs,
+      notificationPrefs: userSettings.notificationPrefs,
+      crisisDetectionTier: userSettings.crisisDetectionTier,
+    })
+    .from(pushSubscriptions)
+    .innerJoin(users, eq(pushSubscriptions.userId, users.id))
+    .leftJoin(userSettings, eq(userSettings.userId, users.id))
+    .where(eq(pushSubscriptions.userId, userId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    userId: row.userId,
+    timezone: row.timezone ?? "America/New_York",
+    personalityPrefs: row.personalityPrefs as PersonalityPrefs | null,
+    notificationPrefs: row.notificationPrefs as NotificationPrefs | null,
+    crisisDetectionTier: (row.crisisDetectionTier as CrisisDetectionTier) ?? "nudge",
+  };
+}
+
 /**
  * Get all users with any non-null notification prefs.
  * Returns userId, timezone, email, and their prefs.

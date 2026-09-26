@@ -59,6 +59,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - Uses `web-push` for server-side VAPID notification delivery
 - Service worker handles client-side push events
 - Notification scheduling is timezone-sensitive — see global CLAUDE.md timezone rules
+- Reminders fire at their exact minute: each 10-min push-triggers tick schedules QStash callbacks ("fires") for the band openings in the next 12 min, and a fire re-runs the upcoming-alert section for one user (`src/lib/notifications/exact-fire.ts`). Needs the `QSTASH_TOKEN` Worker runtime secret; without it the tick sends on its grid as before
 
 ### Calendar Integration
 - Canvas iCal: URL-based import, parsed with `node-ical` — no auth needed
