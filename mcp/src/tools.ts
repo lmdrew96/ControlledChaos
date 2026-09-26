@@ -2704,16 +2704,23 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
       const nowIso = new Date().toISOString();
       const today = await localDayWindow(todayInTz(tz), tz);
 
+      // Timed events only: an all-day event spans local midnight to midnight,
+      // so it read as "currently in" all day and as the "next event" at 12 AM.
+      // Legacy cc- plan rows are left out, as in cc_list_calendar.
       const [currentEventRows, nextEventRows, completedTodayRows, energyRows, crisisRows, goalRows, plannedRows] = await Promise.all([
         sql(
           `SELECT * FROM calendar_events
            WHERE user_id = $1 AND start_time <= $2 AND end_time > $2
+             AND is_all_day IS NOT TRUE
+             AND (external_id IS NULL OR external_id NOT LIKE 'cc-%')
            ORDER BY start_time DESC LIMIT 1`,
           [userId, nowIso]
         ),
         sql(
           `SELECT * FROM calendar_events
            WHERE user_id = $1 AND start_time > $2
+             AND is_all_day IS NOT TRUE
+             AND (external_id IS NULL OR external_id NOT LIKE 'cc-%')
            ORDER BY start_time ASC LIMIT 1`,
           [userId, nowIso]
         ),
