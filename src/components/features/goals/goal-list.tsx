@@ -18,27 +18,24 @@ export function GoalList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
 
+  // Every goal in one fetch, filtered here: switching tabs is instant, and the
+  // tabs can show counts so finished or paused goals are never out of reach.
   const fetchGoals = useCallback(async () => {
     try {
-      const url = filter === "all" ? "/api/goals" : `/api/goals?status=${filter}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`GET ${url} ${res.status}`);
+      const res = await fetch("/api/goals");
+      if (!res.ok) throw new Error(`GET /api/goals ${res.status}`);
       const data = await res.json();
       setGoals(data.goals);
       setLoadError(false);
     } catch (error) {
       console.error("Failed to fetch goals:", error);
-      // Goals are fetched per filter, so whatever is on screen belongs to
-      // the previous filter — clear it rather than mislabel it.
-      setGoals([]);
       setLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
-    setIsLoading(true);
     void fetchGoals();
   }, [fetchGoals]);
 
@@ -54,30 +51,9 @@ export function GoalList() {
     return <LoadErrorStrip message="Couldn't load your goals." onRetry={fetchGoals} />;
   }
 
-  if (goals.length === 0 && filter === "active") {
-    return (
-      <>
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border py-16">
-          <Target className="h-10 w-10 text-muted-foreground/50" />
-          <div className="text-center">
-            <p className="font-medium">No goals yet</p>
-            <p className="text-sm text-muted-foreground">
-              Goals help you see the bigger picture behind your tasks.
-            </p>
-          </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create a Goal
-          </Button>
-        </div>
-        <CreateGoalModal
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-          onSaved={fetchGoals}
-        />
-      </>
-    );
-  }
+  const countFor = (key: FilterStatus): number =>
+    key === "all" ? goals.length : goals.filter((g) => g.status === key).length;
+  const visibleGoals = filter === "all" ? goals : goals.filter((g) => g.status === filter);
 
   return (
     <div className="space-y-4">
@@ -102,6 +78,9 @@ export function GoalList() {
               }`}
             >
               {label}
+              {countFor(key) > 0 && (
+                <span className="ml-1 tabular-nums opacity-60">{countFor(key)}</span>
+              )}
             </button>
           ))}
         </div>
@@ -120,7 +99,7 @@ export function GoalList() {
 
       {/* Goal list */}
       <div className="space-y-2">
-        {goals.map((goal) => (
+        {visibleGoals.map((goal) => (
           <GoalCard
             key={goal.id}
             goal={goal}
@@ -129,15 +108,30 @@ export function GoalList() {
           />
         ))}
 
-        {goals.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {filter === "completed"
-              ? "No completed goals yet. Keep going!"
-              : filter === "paused"
-                ? "No paused goals."
-                : "No goals found."}
-          </p>
-        )}
+        {visibleGoals.length === 0 &&
+          (goals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-border py-16">
+              <Target className="h-10 w-10 text-muted-foreground/50" />
+              <div className="text-center">
+                <p className="font-medium">No goals yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Goals help you see the bigger picture behind your tasks.
+                </p>
+              </div>
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create a Goal
+              </Button>
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {filter === "completed"
+                ? "No completed goals yet. Keep going!"
+                : filter === "paused"
+                  ? "No paused goals."
+                  : "No active goals right now."}
+            </p>
+          ))}
       </div>
 
       {/* Create/Edit modal */}

@@ -146,7 +146,7 @@ export function TaskDetailModal({
   const [isChunking, setIsChunking] = useState(false);
   const [localStepIndex, setLocalStepIndex] = useState(0);
   const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
-  const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
+  const [goals, setGoals] = useState<{ id: string; title: string; status: string }[]>([]);
   // Every planned sitting for this task. All of them are editable in place —
   // the plan is a list, so no single one of them is privileged.
   const [sessions, setSessions] = useState<TaskSessionView[]>([]);
@@ -164,7 +164,9 @@ export function TaskDetailModal({
       .then((r) => r.json())
       .then((data) => setSavedLocations(data.locations ?? []))
       .catch(() => {});
-    fetch("/api/goals?status=active")
+    // Every goal, not just active ones: a task linked to a paused or
+    // finished goal still has to show it, in the read view and the picker.
+    fetch("/api/goals")
       .then((r) => r.json())
       .then((data) => setGoals(data.goals ?? []))
       .catch(() => {});
@@ -835,11 +837,14 @@ export function TaskDetailModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {goals.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.title}
-                      </SelectItem>
-                    ))}
+                    {goals
+                      .filter((g) => g.status === "active" || g.id === task.goalId)
+                      .map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.title}
+                          {g.status !== "active" && ` (${g.status})`}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { formatForDisplay } from "@/lib/timezone";
+import { dateOnlyKey, formatDateOnly, todayInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
   Target,
@@ -63,7 +63,9 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
   const statusInfo = statusConfig[goal.status] ?? statusConfig.active;
 
   const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
-  const isOverdue = targetDate && goal.status === "active" && targetDate < new Date();
+  // Compare calendar days: a target of today isn't past until tomorrow.
+  const isOverdue =
+    targetDate && goal.status === "active" && dateOnlyKey(targetDate) < todayInTimezone(timezone);
 
   async function handleStatusChange(status: string) {
     setIsUpdating(true);
@@ -200,10 +202,11 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
               {targetDate && (
                 <span className={cn("flex items-center gap-1", isOverdue && "text-destructive")}>
                   <Calendar className="h-3 w-3" />
-                  {formatForDisplay(targetDate, timezone, {
+                  {formatDateOnly(targetDate, {
                     month: "short",
                     day: "numeric",
-                    year: targetDate.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+                    year:
+                      targetDate.getUTCFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
                   })}
                   {isOverdue && " (overdue)"}
                 </span>

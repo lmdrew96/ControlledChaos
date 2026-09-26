@@ -278,7 +278,12 @@ export function formatGoal(goal: Record<string, unknown>, tz?: string): string {
     `Status: ${goal.status}`,
   ];
   if (goal.description) parts.push(`Description: ${goal.description}`);
-  if (goal.target_date) parts.push(`Target: ${fmtLocal(goal.target_date, tz)}`);
+  // A calendar day stored as UTC midnight — read it in UTC, not the user's tz.
+  if (goal.target_date) {
+    parts.push(`Target: ${toDate(goal.target_date).toLocaleDateString("en-US", {
+      timeZone: "UTC", weekday: "short", month: "short", day: "numeric", year: "numeric",
+    })}`);
+  }
   if (goal.task_total != null) {
     parts.push(`Progress: ${goal.task_completed ?? 0}/${goal.task_total} linked tasks done`);
   }

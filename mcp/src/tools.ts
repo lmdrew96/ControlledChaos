@@ -198,6 +198,26 @@ function timeField(value: string | null | undefined): string | null | undefined 
   return new Date(value).toISOString();
 }
 
+/**
+ * Goal target dates are calendar days, stored as UTC midnight of that day
+ * (the app's convention). A bare YYYY-MM-DD is taken as-is; a full datetime
+ * becomes the day it falls on in the user's timezone.
+ */
+function goalDateField(value: string | null | undefined, tz: string): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00.000Z`;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) throw new Error(`Invalid target_date: ${value}`);
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+  return `${day}T00:00:00.000Z`;
+}
+
 function todayInTz(tz: string): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
@@ -1379,15 +1399,13 @@ ${eventsText}`;
 Args:
   - title (required): Goal title.
   - description: Optional longer description.
-  - target_date: Target completion date (ISO 8601 UTC).
-
-All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+  - target_date: Target day as YYYY-MM-DD (a calendar day, no time or timezone).
 
 Returns: The created goal with its ID.`,
       inputSchema: {
         title: z.string().min(1).max(500).describe("Goal title"),
         description: z.string().max(2000).optional().describe("Goal description"),
-        target_date: z.string().optional().describe("Target date (ISO 8601 UTC)"),
+        target_date: z.string().optional().describe("Target day, YYYY-MM-DD"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1407,7 +1425,7 @@ Returns: The created goal with its ID.`,
           userId,
           params.title,
           params.description ?? null,
-          params.target_date ? new Date(params.target_date).toISOString() : null,
+          goalDateField(params.target_date, tz) ?? null,
         ]
       );
 
@@ -1428,17 +1446,15 @@ Args:
   - goal_id (required): UUID of the goal to update.
   - title: New title.
   - description: New description.
-  - target_date: New target date (ISO 8601 UTC). Pass null to clear it.
+  - target_date: New target day as YYYY-MM-DD. Pass null to clear it.
   - status: New status (active, completed, paused).
-
-All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
 Returns: The updated goal.`,
       inputSchema: {
         goal_id: z.string().uuid().describe("Goal ID to update"),
         title: z.string().min(1).max(500).optional().describe("New title"),
         description: z.string().max(2000).optional().describe("New description"),
-        target_date: z.string().nullable().optional().describe("New target date (ISO 8601 UTC). Pass null to clear it."),
+        target_date: z.string().nullable().optional().describe("New target day, YYYY-MM-DD. Pass null to clear it."),
         status: z.enum(["active", "completed", "paused"]).optional().describe("New status"),
       },
       annotations: {
@@ -1458,7 +1474,7 @@ Returns: The updated goal.`,
       const fields: Array<[string, unknown]> = [
         ["title", params.title],
         ["description", params.description],
-        ["target_date", timeField(params.target_date)],
+        ["target_date", goalDateField(params.target_date, tz)],
         ["status", params.status],
       ];
 

@@ -331,6 +331,22 @@ export function formatForDisplay(
 }
 
 /**
+ * Date-only values (goal target dates) are stored as UTC midnight of the
+ * chosen day, so their calendar day is the UTC date. Converting one into the
+ * user's timezone shows the day before anywhere west of UTC.
+ */
+export function dateOnlyKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function formatDateOnly(
+  date: Date,
+  options: Intl.DateTimeFormatOptions = DISPLAY_DATE
+): string {
+  return date.toLocaleString("en-US", { timeZone: "UTC", ...options });
+}
+
+/**
  * Format a Date for inclusion in an AI prompt.
  *
  * Any date string handed to the model must be localized first — raw

@@ -56,18 +56,19 @@ export async function updateGoal(
 }
 
 export async function deleteGoal(goalId: string, userId: string) {
-  // Unlink tasks from this goal first
-  await db
-    .update(tasks)
-    .set({ goalId: null })
-    .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId)));
-
-  // Soft delete — set deletedAt instead of removing the row
-  const [deleted] = await db
-    .update(goals)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
-    .returning();
+  // Unlink its tasks and soft-delete the goal in one transaction (neon-http has
+  // no db.transaction), so a failure can't strand tasks unlinked from a live goal.
+  const [, [deleted]] = await db.batch([
+    db
+      .update(tasks)
+      .set({ goalId: null })
+      .where(and(eq(tasks.goalId, goalId), eq(tasks.userId, userId))),
+    db
+      .update(goals)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
+      .returning(),
+  ]);
   return deleted ?? null;
 }
 

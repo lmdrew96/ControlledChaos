@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.79.0",
-    label: "2.75.0 – 2.79.0",
-    date: "2026-09-25",
+    version: "2.79.1",
+    label: "2.75.0 – 2.79.1",
+    date: "2026-09-26",
     title: "Room to get there",
     changes: [
+      {
+        kind: "fixed",
+        text: "Goals show the target day you picked, not the day before. Finished and paused goals stay reachable when nothing is active, switching goal tabs is instant, and a task linked to a paused goal still shows it.",
+      },
       {
         kind: "added",
         text: "Claude can plan a task across several sittings, like a reading split over Saturday, Sunday and Monday, and move or drop one without touching the others. They show up as that task's sessions, the same as ones you plan in the app.",
