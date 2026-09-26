@@ -56,6 +56,63 @@ export function fmtTimeLocal(value: unknown, tz = DEFAULT_TZ): string {
   return formatter.format(d);
 }
 
+/** A task_sessions row as the `sessions` JSON column delivers it. */
+export interface SessionRow {
+  id: string;
+  starts_at: string;
+  minutes: number | null;
+  status: string | null;
+  actual_minutes: number | null;
+}
+
+/**
+ * Each sitting's length. Mirrors the app's resolveSessionMinutes
+ * (src/lib/calendar/session-minutes.ts): a logged sitting shows what was done,
+ * an explicit length wins, and a NULL sitting takes an even share of
+ * (estimate − logged − explicit open lengths), never under 15 min.
+ */
+export function resolveSessionMinutes(
+  estimatedMinutes: number | null,
+  sessions: SessionRow[]
+): Map<string, number | null> {
+  const logged = sessions.filter((s) => s.status);
+  const open = sessions.filter((s) => !s.status);
+  const loggedMinutes = logged.reduce((sum, s) => sum + (s.actual_minutes ?? 0), 0);
+  const explicitOpen = open.reduce((sum, s) => sum + (s.minutes ?? 0), 0);
+  const shareCount = open.filter((s) => s.minutes == null).length;
+  const share =
+    estimatedMinutes == null || shareCount === 0
+      ? null
+      : Math.max(15, Math.round((estimatedMinutes - loggedMinutes - explicitOpen) / shareCount));
+
+  const resolved = new Map<string, number | null>();
+  for (const s of open) resolved.set(s.id, s.minutes ?? share);
+  for (const s of logged) {
+    resolved.set(
+      s.id,
+      s.status === "skipped" || !s.actual_minutes ? s.minutes ?? share : s.actual_minutes
+    );
+  }
+  return resolved;
+}
+
+/** One line per sitting, with the ID the session tools take. */
+export function formatSessions(
+  sessions: SessionRow[],
+  estimatedMinutes: number | null,
+  tz?: string
+): string {
+  const lengths = resolveSessionMinutes(estimatedMinutes, sessions);
+  return sessions
+    .map((s) => {
+      const mins = lengths.get(s.id);
+      const shared = s.minutes == null && !s.status;
+      const length = mins == null ? "" : shared ? ` (${mins} min, even share)` : ` (${mins} min)`;
+      const outcome = s.status ? ` · checked in: ${s.status}` : "";
+      return `  - ${fmtLocal(s.starts_at, tz)}${length}${outcome} — session \`${s.id}\``;
+    })
+    .join("\n");
+}
 
 /**
  * Format a task row into a readable markdown string.
@@ -83,8 +140,17 @@ export function formatTask(task: Record<string, unknown>, tz?: string): string {
   // scheduled_for is the EARLIEST sitting. For a task planned across several,
   // that's the wrong one to report once it has passed, so list queries that
   // select next_session_at / session_count get the upcoming one instead.
+  // Rows that carry the full `sessions` list (SESSION_SUMMARY_COLUMNS) get
+  // every sitting with its ID, so a caller can move or remove one.
+  const sessions = Array.isArray(task.sessions) ? (task.sessions as SessionRow[]) : null;
   const sittings = Number(task.session_count ?? 0);
-  if (sittings > 1) {
+  if (sessions && sessions.length > 0) {
+    const next = task.next_session_at ? `, next starts ${fmtLocal(task.next_session_at, tz)}` : "";
+    parts.push(
+      `Planned sittings (not due dates): ${sessions.length}${next}\n` +
+        formatSessions(sessions, (task.estimated_minutes as number | null) ?? null, tz)
+    );
+  } else if (sittings > 1) {
     parts.push(
       task.next_session_at
         ? `Planned sittings (not due dates): ${sittings}, next starts ${fmtLocal(task.next_session_at, tz)}`

@@ -44,14 +44,36 @@ async function syncPlannedSession(
       );
     }
   }
-  // The mirror is the earliest remaining sitting, which may not be the one
-  // just written.
+  await syncScheduledFor(userId, taskId);
+}
+
+/**
+ * Recompute tasks.scheduled_for from the task's sessions — the MCP twin of
+ * the app's syncTaskScheduledFor. Every session write here ends with it.
+ * The mirror is the earliest remaining sitting, which may not be the one
+ * just written.
+ */
+async function syncScheduledFor(userId: string, taskId: string): Promise<void> {
   await sql(
     `UPDATE tasks SET scheduled_for =
-       (SELECT MIN(starts_at) FROM task_sessions WHERE task_id = $1 AND user_id = $2)
+       (SELECT MIN(starts_at) FROM task_sessions WHERE task_id = $1 AND user_id = $2),
+       updated_at = NOW()
      WHERE id = $1 AND user_id = $2`,
     [taskId, userId]
   );
+}
+
+/** One live task with its full sitting list, for tool responses. */
+async function fetchTaskWithSessions(
+  userId: string,
+  taskId: string
+): Promise<Record<string, unknown> | null> {
+  const rows = await sql(
+    `SELECT tasks.*, ${SESSION_SUMMARY_COLUMNS} FROM tasks
+      WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [taskId, userId]
+  );
+  return rows[0] ?? null;
 }
 
 /**
@@ -158,6 +180,18 @@ async function checkGoal(userId: string, goalId: string): Promise<string | null>
 /** A timestamp Postgres will accept, rather than a 500 from the INSERT/UPDATE. */
 const isValidTimestamp = (value: string): boolean => !Number.isNaN(Date.parse(value));
 
+/** Shape shared by cc_create_task's `sessions` and the session tools. */
+const sessionStart = z
+  .string()
+  .refine(isValidTimestamp, "start must be an ISO 8601 timestamp")
+  .describe("When this sitting starts, as an ISO 8601 UTC string");
+const sessionMinutes = z
+  .number()
+  .int()
+  .min(15)
+  .max(480)
+  .describe("This sitting's length in minutes. Omit to take an even share of the task's estimate.");
+
 function timeField(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -216,7 +250,16 @@ async function localDayWindow(
  */
 const SESSION_SUMMARY_COLUMNS = `
   (SELECT MIN(x.starts_at) FROM task_sessions x WHERE x.task_id = tasks.id AND x.starts_at > NOW()) AS next_session_at,
-  (SELECT COUNT(*)::int FROM task_sessions x WHERE x.task_id = tasks.id) AS session_count`;
+  (SELECT COUNT(*)::int FROM task_sessions x WHERE x.task_id = tasks.id) AS session_count,
+  (SELECT COALESCE(json_agg(json_build_object(
+            'id', x.id,
+            -- Naive UTC column: stamp the Z so JS doesn't read it as local time.
+            'starts_at', to_char(x.starts_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+            'minutes', x.minutes,
+            'status', x.status,
+            'actual_minutes', x.actual_minutes
+          ) ORDER BY x.starts_at), '[]'::json)
+     FROM task_sessions x WHERE x.task_id = tasks.id) AS sessions`;
 
 export function registerAllTools(server: McpServer): void {
 
@@ -315,7 +358,8 @@ Args:
   - category: school, work, personal, errands, or health.
   - deadline: HARD wall, imposed from outside (an instructor, an employer, Canvas). ISO 8601 UTC.
   - target_date: SOFT target the user set for THEMSELVES, usually to leave buffer. ISO 8601 UTC.
-  - scheduled_for: When the user plans to START working on it. A "when", not a "by when". ISO 8601 UTC.
+  - scheduled_for: When the user plans to START working on it, as ONE sitting. A "when", not a "by when". ISO 8601 UTC.
+  - sessions: The planned sittings, when the work is split across more than one: [{ start, minutes? }]. Use instead of scheduled_for, never both.
   - location_tags: Array of location tags like ["home", "campus"].
 
 ## deadline vs target_date — pick deliberately
@@ -327,11 +371,14 @@ These are independent: either, both, or neither may be set. Never derive one fro
 - If the user says a date is self-imposed, believe them and use target_date.
 - If you are unsure which one a date is, ASK. Filing a self-imposed date as a deadline manufactures urgency the user never agreed to — that is the exact failure this field exists to prevent.
 
-**scheduled_for** is a third, independent thing: the block of time the user intends to sit down and work. Use it when planning a schedule ("work on this Tuesday at 2"). It is never a due date, and setting it does not imply anything is due.
+**Planned sittings** are a third, independent thing: when the user intends to sit down and work. They are never due dates, and planning one does not imply anything is due.
+
+- One sitting ("work on this Tuesday at 2"): pass **scheduled_for**.
+- Several ("read Sat, Sun and Mon"): pass **sessions**, one entry per sitting. Each may pin its own minutes; the rest split estimated_minutes evenly. Do NOT create calendar events for extra sittings — events aren't linked to the task, so the app can't show them as its work.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
-Returns: The created task with its ID.`,
+Returns: The created task with its ID and session IDs.`,
       inputSchema: {
         title: z.string().min(1).max(500).describe("Task title"),
         description: z.string().max(2000).optional().describe("Task description"),
@@ -341,7 +388,13 @@ Returns: The created task with its ID.`,
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
         deadline: z.string().optional().describe("HARD deadline imposed from outside, as an ISO 8601 UTC string (e.g. 2026-04-11T18:00:00Z). Not for self-imposed dates."),
         target_date: z.string().optional().describe("SOFT self-imposed target, as an ISO 8601 UTC string. Missing it has no external consequence."),
-        scheduled_for: z.string().optional().describe("When the user plans to START working, as an ISO 8601 UTC string. A planned start, never a due date."),
+        scheduled_for: z.string().optional().describe("When the user plans to START working, as a single sitting (ISO 8601 UTC). A planned start, never a due date. For several sittings use `sessions` instead."),
+        sessions: z
+          .array(z.object({ start: sessionStart, minutes: sessionMinutes.optional() }))
+          .min(1)
+          .max(20)
+          .optional()
+          .describe("Planned sittings when the work is split up, e.g. [{start: '2026-09-27T16:45:00Z', minutes: 90}, {start: '2026-09-28T14:30:00Z'}]. Not with scheduled_for."),
         location_tags: z.array(z.string()).optional().describe("Location tags"),
         goal_id: z.string().uuid().optional().describe("Goal this task works toward (from cc_list_goals)"),
       },
@@ -355,6 +408,14 @@ Returns: The created task with its ID.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
+      if (params.scheduled_for && params.sessions) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: "Pass either scheduled_for (one sitting) or sessions (several), not both. Put the first sitting in sessions too.",
+          }],
+        };
+      }
       if (params.goal_id) {
         const goalError = await checkGoal(userId, params.goal_id);
         if (goalError) return { content: [{ type: "text" as const, text: goalError }] };
@@ -383,12 +444,24 @@ Returns: The created task with its ID.`,
       // mirror of the earliest one. Write both — the app reconciles a bare
       // scheduled_for at read time, but leaving the session missing means this
       // plan would vanish the next time the app recomputes the mirror.
+      const taskId = String(rows[0].id);
       if (params.scheduled_for) {
-        await syncPlannedSession(userId, String(rows[0].id), new Date(params.scheduled_for));
+        await syncPlannedSession(userId, taskId, new Date(params.scheduled_for));
+      } else if (params.sessions) {
+        // Same rows the app's addTaskSession writes: an omitted length stays
+        // NULL, so the sitting takes an even share of the estimate.
+        for (const s of params.sessions) {
+          await sql(
+            `INSERT INTO task_sessions (task_id, user_id, starts_at, minutes) VALUES ($1, $2, $3, $4)`,
+            [taskId, userId, new Date(s.start).toISOString(), s.minutes ?? null]
+          );
+        }
+        await syncScheduledFor(userId, taskId);
       }
 
+      const task = (await fetchTaskWithSessions(userId, taskId)) ?? rows[0];
       return {
-        content: [{ type: "text" as const, text: `✅ Task created!\n\n${formatTask(rows[0], tz)}` }],
+        content: [{ type: "text" as const, text: `✅ Task created!\n\n${formatTask(task, tz)}` }],
       };
     }
   );
@@ -414,9 +487,13 @@ They mean different things and are never interchangeable:
 - **target_date** — a SOFT target the user set for THEMSELVES. Missing it has no external consequence and moving it is a legitimate choice, not a failure.
 - **scheduled_for** — when the user planned to START working. It is not a due date of any kind.
 
+## scheduled_for and multiple sittings
+
+A task can be planned across several sittings. scheduled_for edits only the FIRST sitting that hasn't been checked in yet; the others stay put. To add, move, resize or remove a particular sitting, use cc_add_task_session / cc_update_task_session / cc_delete_task_session with the session IDs that cc_list_tasks, cc_search_tasks and cc_list_calendar return. Never create calendar events to stand in for extra sittings.
+
 Never describe a target_date as "due", and never apply deadline urgency to one. Moving a user's self-imposed target is a normal edit; moving a deadline usually means the user is telling you the stored data is wrong.
 
-To CLEAR any of the three, pass null (not an empty string, not a zero date). Clearing scheduled_for takes the task off the calendar without touching when it is due. Clearing deadline says nothing external is driving the task any more. Omit a field entirely to leave it alone.
+To CLEAR any of the three, pass null (not an empty string, not a zero date). Clearing scheduled_for removes every sitting that hasn't been checked in, taking the task off the calendar without touching when it is due. Clearing deadline says nothing external is driving the task any more. Omit a field entirely to leave it alone.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -432,7 +509,7 @@ Returns: The updated task.`,
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
         deadline: z.string().nullable().optional().describe("New HARD deadline, imposed from outside (ISO 8601 UTC). Pass null to clear it."),
         target_date: z.string().nullable().optional().describe("New SOFT self-imposed target (ISO 8601 UTC). Pass null to clear it."),
-        scheduled_for: z.string().nullable().optional().describe("When the user plans to START — not a due date (ISO 8601 UTC). Pass null to take the task off the schedule."),
+        scheduled_for: z.string().nullable().optional().describe("Moves the task's first unchecked sitting — not a due date (ISO 8601 UTC). Other sittings are left alone. Pass null to take the task off the schedule."),
         location_tags: z.array(z.string()).optional().describe("New location tags"),
         goal_id: z.string().uuid().nullable().optional().describe("Goal this task works toward. Pass null to unlink it from its goal."),
       },
@@ -510,7 +587,7 @@ Returns: The updated task.`,
       }
 
       // Keep task_sessions in step with the column we just wrote. Passing null
-      // clears the plan; passing a time replaces it with a single sitting.
+      // clears the unchecked sittings; passing a time moves the first one.
       if (params.scheduled_for !== undefined) {
         await syncPlannedSession(
           userId,
@@ -519,7 +596,8 @@ Returns: The updated task.`,
         );
       }
 
-      return { content: [{ type: "text" as const, text: `✅ Task updated!\n\n${formatTask(rows[0], tz)}` }] };
+      const task = (await fetchTaskWithSessions(userId, params.task_id)) ?? rows[0];
+      return { content: [{ type: "text" as const, text: `✅ Task updated!\n\n${formatTask(task, tz)}` }] };
     }
   );
 
@@ -610,6 +688,198 @@ Returns: Confirmation of deletion.`,
   );
 
   // ----------------------------------------------------------
+  // 5a. cc_add_task_session
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_add_task_session",
+    {
+      title: "Add Task Session",
+      description: `Plan another sitting for an existing task, leaving its other sittings alone ("also work on this Thursday morning").
+
+A task's planned work is a list of sittings. Use this — not cc_create_event — whenever a task is split across more than one block of time; a calendar event isn't linked to the task, so the app can't show it as that task's work.
+
+Args:
+  - task_id (required): UUID of the task.
+  - start (required): When the sitting starts (ISO 8601 UTC).
+  - minutes: This sitting's length. Omit to take an even share of the task's estimated_minutes.
+
+A sitting is a planned start, never a due date.
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: The task with all its sittings and their session IDs.`,
+      inputSchema: {
+        task_id: z.string().uuid().describe("Task ID"),
+        start: sessionStart,
+        minutes: sessionMinutes.optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const owned = await sql(
+        `SELECT 1 FROM tasks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [params.task_id, userId]
+      );
+      if (owned.length === 0) {
+        return { content: [{ type: "text" as const, text: `Task \`${params.task_id}\` not found.` }] };
+      }
+
+      await sql(
+        `INSERT INTO task_sessions (task_id, user_id, starts_at, minutes) VALUES ($1, $2, $3, $4)`,
+        [params.task_id, userId, new Date(params.start).toISOString(), params.minutes ?? null]
+      );
+      await syncScheduledFor(userId, params.task_id);
+
+      const task = await fetchTaskWithSessions(userId, params.task_id);
+      const body = task ? `\n\n${formatTask(task, tz)}` : "";
+      return { content: [{ type: "text" as const, text: `✅ Sitting added.${body}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 5b. cc_update_task_session
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_update_task_session",
+    {
+      title: "Update Task Session",
+      description: `Move or resize ONE planned sitting of a task. The task's other sittings are untouched.
+
+Args:
+  - session_id (required): Session UUID, from cc_list_tasks, cc_search_tasks or cc_list_calendar.
+  - start: New start (ISO 8601 UTC).
+  - minutes: New length. Pass null to go back to an even share of the task's estimate.
+
+Pass at least one of start / minutes. A sitting the user has already checked in (done, partial or skipped) is a record of work that happened and can't be changed here.
+
+All datetimes must be in UTC. Convert the user's local time to UTC before calling.
+
+Returns: The task with all its sittings.`,
+      inputSchema: {
+        session_id: z.string().uuid().describe("Session ID to change"),
+        start: sessionStart.optional(),
+        minutes: sessionMinutes.nullable().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      if (params.start === undefined && params.minutes === undefined) {
+        return { content: [{ type: "text" as const, text: "Nothing to change. Pass start and/or minutes." }] };
+      }
+
+      const found = await sql(
+        `SELECT s.task_id, s.status FROM task_sessions s
+           JOIN tasks t ON t.id = s.task_id AND t.deleted_at IS NULL
+          WHERE s.id = $1 AND s.user_id = $2`,
+        [params.session_id, userId]
+      );
+      if (found.length === 0) {
+        return { content: [{ type: "text" as const, text: `Session \`${params.session_id}\` not found.` }] };
+      }
+      if (found[0].status) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `That sitting is already checked in (${found[0].status}), so it's a record of what happened and stays as is. Add a new sitting with cc_add_task_session instead.`,
+          }],
+        };
+      }
+
+      const taskId = String(found[0].task_id);
+      await sql(
+        `UPDATE task_sessions
+            SET starts_at = COALESCE($3, starts_at),
+                minutes = CASE WHEN $4::boolean THEN $5::int ELSE minutes END
+          WHERE id = $1 AND user_id = $2`,
+        [
+          params.session_id,
+          userId,
+          params.start ? new Date(params.start).toISOString() : null,
+          params.minutes !== undefined,
+          params.minutes ?? null,
+        ]
+      );
+      await syncScheduledFor(userId, taskId);
+
+      const task = await fetchTaskWithSessions(userId, taskId);
+      const body = task ? `\n\n${formatTask(task, tz)}` : "";
+      return { content: [{ type: "text" as const, text: `✅ Sitting updated.${body}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 5c. cc_delete_task_session
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_delete_task_session",
+    {
+      title: "Delete Task Session",
+      description: `Remove ONE planned sitting from a task. The task and its other sittings stay. To unplan a task entirely, use cc_update_task with scheduled_for: null.
+
+Args:
+  - session_id (required): Session UUID, from cc_list_tasks, cc_search_tasks or cc_list_calendar.
+
+A sitting the user has already checked in (done, partial or skipped) can't be removed — it records work that happened.
+
+Returns: The task with its remaining sittings.`,
+      inputSchema: {
+        session_id: z.string().uuid().describe("Session ID to remove"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      const deleted = await sql(
+        `DELETE FROM task_sessions
+          WHERE id = $1 AND user_id = $2 AND status IS NULL
+          RETURNING task_id`,
+        [params.session_id, userId]
+      );
+      if (deleted.length === 0) {
+        const exists = await sql(
+          `SELECT status FROM task_sessions WHERE id = $1 AND user_id = $2`,
+          [params.session_id, userId]
+        );
+        return {
+          content: [{
+            type: "text" as const,
+            text: exists.length > 0
+              ? `That sitting is already checked in (${exists[0].status}), so it stays as a record of what happened.`
+              : `Session \`${params.session_id}\` not found.`,
+          }],
+        };
+      }
+
+      const taskId = String(deleted[0].task_id);
+      await syncScheduledFor(userId, taskId);
+
+      const task = await fetchTaskWithSessions(userId, taskId);
+      const body = task ? `\n\n${formatTask(task, tz)}` : "";
+      return { content: [{ type: "text" as const, text: `🗑️ Sitting removed.${body}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
   // 6. cc_brain_dump
   // ----------------------------------------------------------
   server.registerTool(
@@ -665,7 +935,7 @@ Returns: Confirmation with the dump ID.`,
       title: "List Calendar Events",
       description: `List calendar events from ControlledChaos within a date range.
 
-Also returns PLANNED WORK BLOCKS — tasks whose scheduled_for falls in the range. Those are intentions, not commitments: the user meant to start that task then. They still occupy real time, so read them before planning anything new or you will double-book the user against their own plan.
+Also returns PLANNED WORK BLOCKS — the task sittings that start in the range, one block per sitting (a task planned across several sittings appears at each). Those are intentions, not commitments: the user meant to work on that task then. They still occupy real time, so read them before planning anything new or you will double-book the user against their own plan. Each block carries its session ID, for cc_update_task_session / cc_delete_task_session.
 
 Args:
   - start_date (required): Start of range (ISO 8601 in UTC, e.g. "2026-03-21T04:00:00Z" for midnight ET).
@@ -689,7 +959,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
           .union([z.boolean(), z.enum(["true", "false"])])
           .transform((v) => (typeof v === "boolean" ? v : v === "true"))
           .optional()
-          .describe("Include planned work blocks (tasks with a scheduled_for in range). Default true."),
+          .describe("Include planned work blocks (task sittings starting in range). Default true."),
       },
       annotations: {
         readOnlyHint: true,
@@ -753,7 +1023,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
         // session behind them, which is what an older build of this server
         // left behind.
         planned = await sql(
-          `SELECT t.id, t.title, s.starts_at AS scheduled_for,
+          `SELECT t.id, t.title, s.id AS session_id, s.starts_at AS scheduled_for,
                   -- Mirrors resolveSessionMinutes in the app: a logged sitting
                   -- shows what was done; an explicit length wins; otherwise a
                   -- NULL sitting takes an even share of (estimate − logged −
@@ -779,7 +1049,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
              AND s.starts_at >= $2
              AND s.starts_at < $3${planCategory.replace("category", "t.category")}
            UNION ALL
-           SELECT t.id, t.title, t.scheduled_for,
+           SELECT t.id, t.title, NULL::uuid AS session_id, t.scheduled_for,
                   t.estimated_minutes, t.status, t.category, t.deadline, t.target_date
            FROM tasks t
            WHERE t.user_id = $1
@@ -821,6 +1091,7 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
                   `- **${t.title}** — ${fmtLocal(t.scheduled_for, tz)}`,
                   mins ? ` (${mins} min)` : "",
                   `\n  Task ID: \`${t.id}\` · status: ${t.status}`,
+                  t.session_id ? ` · session: \`${t.session_id}\`` : "",
                   t.deadline ? `\n  Deadline (HARD): ${fmtLocal(t.deadline, tz)}` : "",
                   t.target_date ? `\n  Target (SOFT): ${fmtLocal(t.target_date, tz)}` : "",
                 ];
@@ -842,6 +1113,8 @@ Returns: Markdown list of events, then a Planned Work section, with times in the
     {
       title: "Create Calendar Event",
       description: `Create a new calendar event in ControlledChaos, optionally recurring.
+
+Not for planning work on a task: a sitting to work on an existing task is a task session (cc_add_task_session, or sessions on cc_create_task), which stays linked to the task. An event made for that shows up as an unrelated block.
 
 Args:
   - title (required): Event title.

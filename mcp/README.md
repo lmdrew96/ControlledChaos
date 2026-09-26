@@ -4,18 +4,21 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 ## Tools Available
 
-35 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
+38 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
 
-### Tasks (7)
+### Tasks (10)
 | Tool | What it does |
 |---|---|
 | `cc_list_tasks` | List/filter tasks by status, priority, category, energy |
-| `cc_create_task` | Create a new task with all fields |
+| `cc_create_task` | Create a new task with all fields, optionally planned across several sittings |
 | `cc_update_task` | Update any field on an existing task |
 | `cc_complete_task` | Quick-complete a task |
 | `cc_delete_task` | Delete a task (soft delete — it leaves every list, its history stays) |
 | `cc_uncomplete_task` | Reopen a completed task (inverse of `cc_complete_task`) |
 | `cc_search_tasks` | Search tasks by text across titles/descriptions |
+| `cc_add_task_session` | Plan another sitting for a task, keeping its others |
+| `cc_update_task_session` | Move or resize one sitting |
+| `cc_delete_task_session` | Remove one sitting (checked-in sittings stay) |
 
 ### Calendar (4)
 | Tool | What it does |
