@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.80.5",
-    label: "2.80.0 – 2.80.5",
+    version: "2.80.6",
+    label: "2.80.0 – 2.80.6",
     date: "2026-09-26",
     title: "Goals you can move",
     changes: [
@@ -47,6 +47,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "Viewing one goal's or one brain dump's tasks, the Active and Done counts now count only those tasks.",
+      },
+      {
+        kind: "fixed",
+        text: "The week and agenda calendars lay out days in your saved timezone, even when your device is set to a different one, so late-night events land on the right day.",
       },
       {
         kind: "fixed",

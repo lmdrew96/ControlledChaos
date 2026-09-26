@@ -17,6 +17,11 @@ import {
   DISPLAY_FULL_DATETIME,
   dateOnlyKey,
   formatDateOnly,
+  startOfDateKey,
+  weekStartKey,
+  pickedDayKey,
+  pickedDayFromKey,
+  toDateKeyInTimezone,
 } from "../timezone";
 
 // ---------------------------------------------------------------------------
@@ -474,5 +479,50 @@ describe("date-only values (goal target days)", () => {
     expect(dateOnlyKey(newYearsEve)).toBe("2026-12-31");
     // Tokyo is UTC+9 — converting there would already be fine, and still must not shift.
     expect(formatDateOnly(newYearsEve, { year: "numeric", month: "short", day: "numeric" })).toBe("Dec 31, 2026");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Calendar grid days (week/agenda views)
+// ---------------------------------------------------------------------------
+
+describe("calendar grid days", () => {
+  it("startOfDateKey is local midnight in the stored zone, not the process's", () => {
+    expect(startOfDateKey("2026-09-28", "America/New_York").toISOString()).toBe("2026-09-28T04:00:00.000Z");
+    expect(startOfDateKey("2026-09-28", "Asia/Tokyo").toISOString()).toBe("2026-09-27T15:00:00.000Z");
+    // Round-trips to the same day in its own zone, whichever zone that is.
+    for (const tz of ["America/Los_Angeles", "Asia/Kolkata", "Pacific/Auckland"]) {
+      expect(toDateKeyInTimezone(startOfDateKey("2026-11-01", tz), tz)).toBe("2026-11-01");
+    }
+  });
+
+  it("startOfDateKey follows DST: the day after the switch starts on the new offset", () => {
+    expect(startOfDateKey("2026-11-01", "America/New_York").toISOString()).toBe("2026-11-01T04:00:00.000Z");
+    expect(startOfDateKey("2026-11-02", "America/New_York").toISOString()).toBe("2026-11-02T05:00:00.000Z");
+  });
+
+  it("weekStartKey finds Monday or Sunday, across month and year edges", () => {
+    // 2026-10-01 is a Thursday.
+    expect(weekStartKey("2026-10-01", 1)).toBe("2026-09-28");
+    expect(weekStartKey("2026-10-01", 0)).toBe("2026-09-27");
+    expect(weekStartKey("2026-09-28", 1)).toBe("2026-09-28");
+    expect(weekStartKey("2026-09-27", 1)).toBe("2026-09-21");
+    expect(weekStartKey("2027-01-01", 1)).toBe("2026-12-28");
+  });
+
+  it("the week's column keys don't depend on the browser zone near midnight", () => {
+    // 11:30pm Sunday in New York is already Monday in UTC and Tokyo. The stored
+    // zone decides: this is still the week of Sep 21 (Monday start).
+    const lateSunday = new Date("2026-09-28T03:30:00Z");
+    const tz = "America/New_York";
+    expect(weekStartKey(toDateKeyInTimezone(lateSunday, tz), 1)).toBe("2026-09-21");
+    expect(weekStartKey(toDateKeyInTimezone(lateSunday, "Asia/Tokyo"), 1)).toBe("2026-09-28");
+  });
+
+  it("pickedDayKey and pickedDayFromKey round-trip a browser-local day", () => {
+    expect(pickedDayKey(new Date(2026, 8, 30, 0, 0))).toBe("2026-09-30");
+    expect(pickedDayKey(new Date(2026, 8, 30, 23, 59))).toBe("2026-09-30");
+    expect(pickedDayKey(pickedDayFromKey("2026-03-08"))).toBe("2026-03-08");
+    expect(pickedDayFromKey("2026-03-08").getHours()).toBe(12);
   });
 });

@@ -57,11 +57,20 @@ import type {
   EventCategory,
   PlanBlock,
 } from "@/types";
-import { toUserLocal, formatForDisplay, DISPLAY_TIME, getCalendarParts, localDaysRange } from "@/lib/timezone";
 import {
-  useCalendarSettings,
-  DEFAULT_WEEK_START_DAY,
-} from "@/hooks/use-calendar-settings";
+  toUserLocal,
+  formatForDisplay,
+  DISPLAY_TIME,
+  getCalendarParts,
+  localDaysRange,
+  toUTC,
+  addDaysToDateKey,
+  startOfDateKey,
+  weekStartKey,
+  pickedDayKey,
+  pickedDayFromKey,
+} from "@/lib/timezone";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 
 // ============================================================
 // Constants
@@ -74,29 +83,10 @@ const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Helpers
 // ============================================================
 
-/** Get the start of the week containing `date`. startDay: 0=Sunday, 1=Monday */
-function getWeekStart(date: Date, startDay: number = 1): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, ...
-  const diff = (day - startDay + 7) % 7;
-  d.setDate(d.getDate() - diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function getWeekDays(monday: Date): Date[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+/** Local midnight, in the stored timezone, of each of the seven days from `startKey`. */
+function getWeekDays(startKey: string, tz: string): Date[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    startOfDateKey(addDaysToDateKey(startKey, i), tz)
   );
 }
 
@@ -106,14 +96,9 @@ function dayKey(date: Date, tz: string): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Check if a UTC date falls on a specific local calendar day */
-function isSameDayTz(utcDate: Date, localDay: Date, tz: string): boolean {
-  const parts = getCalendarParts(utcDate, tz);
-  return (
-    parseInt(parts.year) === localDay.getFullYear() &&
-    parseInt(parts.month) === localDay.getMonth() + 1 &&
-    parseInt(parts.day) === localDay.getDate()
-  );
+/** Whether two instants fall on the same calendar day in the user's timezone */
+function isSameDay(a: Date, b: Date, tz: string): boolean {
+  return dayKey(a, tz) === dayKey(b, tz);
 }
 
 /** Long enough not to fire while the pointer sweeps across a dense grid. */
@@ -208,10 +193,13 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   // `settingsLoaded` so it is never painted from defaults and then rebuilt.
   const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
   const { startHour, endHour, weekStartDay, calendarColors, timezone } = settings;
-  const [weekStart, setWeekStart] = useState(() =>
-    getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
+  // Days are "YYYY-MM-DD" keys in the stored timezone, so a column is the
+  // same day whatever zone the browser is in. null = today, and the week that
+  // contains the selected day, so both follow the clock.
+  const [selectedKey, setSelectedKey] = useState<string | null>(() =>
+    initialDate ? pickedDayKey(initialDate) : null
   );
-  const [selectedDay, setSelectedDay] = useState(() => initialDate ?? new Date());
+  const [weekAnchorKey, setWeekAnchorKey] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
@@ -253,24 +241,32 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   useEffect(() => {
     if (!initialDate) return;
     // Keep week/day anchored to the date selected from month view.
-    setSelectedDay(initialDate);
-    setWeekStart(getWeekStart(initialDate, weekStartDay));
-  }, [initialDate, weekStartDay]);
-
-  useEffect(() => {
-    if (initialDate) return;
-    setWeekStart(getWeekStart(selectedDay, weekStartDay));
-  }, [initialDate, selectedDay, weekStartDay]);
+    setSelectedKey(pickedDayKey(initialDate));
+    setWeekAnchorKey(null);
+  }, [initialDate]);
 
   const totalSlots = (endHour - startHour) * 2;
 
-  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
+  // Ticks every minute, so the now-line moves and "today" rolls over at
+  // midnight in a tab that stays open.
+  const now = useNow();
+  const today = new Date(now);
+  const todayKey = dayKey(today, timezone);
+  const selectedDayKey = selectedKey ?? todayKey;
+  // An anchor is any day in the shown week, so a weekStartDay change re-derives
+  // the week around it rather than jumping.
+  const weekKey = weekStartKey(weekAnchorKey ?? selectedDayKey, weekStartDay);
 
-  const weekEnd = useMemo(() => {
-    const end = new Date(weekStart);
-    end.setDate(end.getDate() + 7);
-    return end;
-  }, [weekStart]);
+  const selectedDay = useMemo(
+    () => startOfDateKey(selectedDayKey, timezone),
+    [selectedDayKey, timezone]
+  );
+  const weekStart = useMemo(() => startOfDateKey(weekKey, timezone), [weekKey, timezone]);
+  const weekEnd = useMemo(
+    () => startOfDateKey(addDaysToDateKey(weekKey, 7), timezone),
+    [weekKey, timezone]
+  );
+  const weekDays = useMemo(() => getWeekDays(weekKey, timezone), [weekKey, timezone]);
 
   // Fetch events when week changes
   useEffect(() => {
@@ -330,24 +326,15 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     return map;
   }, [planBlocks, weekDays, timezone]);
 
-  // Ticks every minute, so the now-line moves and "today" rolls over at
-  // midnight in a tab that stays open.
-  const now = useNow();
-  const today = new Date(now);
-
   function navigateWeek(delta: number) {
     setIsEditMode(false);
-    setWeekStart((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + delta * 7);
-      return next;
-    });
+    setWeekAnchorKey(addDaysToDateKey(weekKey, delta * 7));
   }
 
   function goToToday() {
     setIsEditMode(false);
-    setWeekStart(getWeekStart(new Date(), weekStartDay));
-    setSelectedDay(new Date());
+    setWeekAnchorKey(null);
+    setSelectedKey(null);
   }
 
   async function handleSync() {
@@ -537,7 +524,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       }
 
       // Calculate new start/end times (dragTimeSlot is in half-hour slots)
-      const targetDay = weekDays[dragDayIdx];
+      const targetKey = dayKey(weekDays[dragDayIdx], timezone);
       const hours = startHour + Math.floor(dragTimeSlot / 2);
       const minutes = (dragTimeSlot % 2) * 30;
 
@@ -545,8 +532,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
       const originalEnd = new Date(dragSubject.endTime);
       const durationMs = originalEnd.getTime() - originalStart.getTime();
 
-      const newStart = new Date(targetDay);
-      newStart.setHours(hours, minutes, 0, 0);
+      // The slot's clock time in the stored timezone, not the browser's.
+      const newStart = new Date(
+        toUTC(`${targetKey}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`, timezone)
+      );
       const newEnd = new Date(newStart.getTime() + durationMs);
 
       // Reset drag state
@@ -616,7 +605,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         );
       }
     },
-    [dragTarget, dragSubject, dragDayIdx, dragTimeSlot, weekDays, startHour, fetchEvents, weekStart, weekEnd]
+    [dragTarget, dragSubject, dragDayIdx, dragTimeSlot, weekDays, startHour, fetchEvents, weekStart, weekEnd, timezone]
   );
 
   // Time labels for the grid
@@ -640,10 +629,10 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
   }, [now, startHour, totalSlots, timezone]);
 
   // Is this week the current week?
-  const isCurrentWeek = isSameDay(weekStart, getWeekStart(today, weekStartDay));
+  const isCurrentWeek = weekKey === weekStartKey(todayKey, weekStartDay);
 
   // Events for the selected day (mobile)
-  const selectedDayEvents = eventsByDay.get(dayKey(selectedDay, timezone)) ?? [];
+  const selectedDayEvents = eventsByDay.get(selectedDayKey) ?? [];
 
   return (
     <div className="space-y-4">
@@ -669,13 +658,13 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           </div>
           <span className="hidden text-sm font-semibold sm:inline">
             {formatForDisplay(weekDays[0], timezone, { month: "long" })}{" "}
-            {weekDays[0].getDate()} –{" "}
+            {toUserLocal(weekDays[0], timezone).day} –{" "}
             {/* Name the second month too, or Sep 28 – Oct 4 reads "Sep 28 – 4". */}
-            {weekDays[6].getMonth() !== weekDays[0].getMonth() &&
+            {toUserLocal(weekDays[6], timezone).month !== toUserLocal(weekDays[0], timezone).month &&
               `${formatForDisplay(weekDays[6], timezone, { month: "long" })} `}
-            {weekDays[6].getDate()}
+            {toUserLocal(weekDays[6], timezone).day}
             <span className="ml-1 font-normal text-muted-foreground">
-              {weekDays[0].getFullYear()}
+              {toUserLocal(weekDays[0], timezone).year}
             </span>
           </span>
         </div>
@@ -748,18 +737,18 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         {weekDays.map((day, i) => (
           <button
             key={day.toISOString()}
-            onClick={() => setSelectedDay(day)}
+            onClick={() => setSelectedKey(dayKey(day, timezone))}
             className={cn(
               "flex min-w-[3rem] flex-1 flex-col items-center rounded-lg px-1 py-2 text-xs transition-all",
-              isSameDay(day, selectedDay)
+              isSameDay(day, selectedDay, timezone)
                 ? "bg-primary text-primary-foreground shadow-sm"
-                : isSameDay(day, today)
+                : isSameDay(day, today, timezone)
                   ? "bg-primary/10 text-foreground"
                   : "text-muted-foreground hover:bg-accent/50"
             )}
           >
             <span className="text-[10px] font-medium uppercase tracking-wider opacity-70">{dayLabels[i]}</span>
-            <span className="mt-0.5 text-base font-bold">{day.getDate()}</span>
+            <span className="mt-0.5 text-base font-bold">{toUserLocal(day, timezone).day}</span>
           </button>
         ))}
       </div>
@@ -845,7 +834,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                   key={day.toISOString()}
                   className={cn(
                     "border-l border-border/30 px-2 py-2.5 text-center",
-                    isSameDay(day, today) && "bg-primary/[0.06]"
+                    isSameDay(day, today, timezone) && "bg-primary/[0.06]"
                   )}
                 >
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -855,12 +844,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                     <span
                       className={cn(
                         "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold",
-                        isSameDay(day, today)
+                        isSameDay(day, today, timezone)
                           ? "bg-primary text-primary-foreground"
                           : "text-foreground"
                       )}
                     >
-                      {day.getDate()}
+                      {toUserLocal(day, timezone).day}
                     </span>
                   </div>
                 </div>
@@ -875,7 +864,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                 </div>
                 {weekDays.map((day) => {
                   const dayAllDay = allDayEvents.filter((e) =>
-                    isSameDayTz(new Date(e.startTime), day, timezone)
+                    isSameDay(new Date(e.startTime), day, timezone)
                   );
                   return (
                     <div
@@ -931,7 +920,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                     key={day.toISOString()}
                     className={cn(
                       "relative border-l border-border/30",
-                      isSameDay(day, today) && "bg-primary/[0.03]"
+                      isSameDay(day, today, timezone) && "bg-primary/[0.03]"
                     )}
                     style={{ height: totalSlots * ROW_HEIGHT }}
                   >
@@ -1204,7 +1193,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                     })()}
 
                     {/* Current time indicator */}
-                    {isSameDay(day, today) &&
+                    {isSameDay(day, today, timezone) &&
                       isCurrentWeek &&
                       currentTimeTop !== null && (
                         <div
@@ -1420,7 +1409,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSubmit={handleCreateEvent}
-        defaultDate={selectedDay}
+        defaultDate={pickedDayFromKey(selectedDayKey)}
       />
 
       {/* Edit Event dialog */}

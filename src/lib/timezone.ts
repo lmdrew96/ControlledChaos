@@ -431,3 +431,42 @@ export function localDaysRange(
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Calendar grid days
+// ---------------------------------------------------------------------------
+//
+// The week and agenda views key every column by a "YYYY-MM-DD" day in the
+// STORED timezone. Browser-local Date math (setDate, getDate) put the columns
+// in the browser's zone instead, which disagrees with the stored one near
+// midnight whenever the two differ (travel, a VPN, a wrong OS zone).
+
+/** The instant `dateKey` begins (local midnight) in `timezone`. */
+export function startOfDateKey(dateKey: string, timezone: string): Date {
+  return new Date(allDayRange(dateKey, timezone).startISO);
+}
+
+/**
+ * Key of the first day of the week containing `dateKey`.
+ * startDay: 0 = Sunday, 1 = Monday. A date's weekday doesn't depend on zone,
+ * so this is pure calendar math.
+ */
+export function weekStartKey(dateKey: string, startDay: number): string {
+  const weekday = new Date(`${dateKey}T00:00:00Z`).getUTCDay();
+  return addDaysToDateKey(dateKey, -((weekday - startDay + 7) % 7));
+}
+
+/**
+ * The day a "picked day" Date names. The month grid, the ?date= param and the
+ * create-event dialog carry days as browser-local Dates, whose local getters
+ * ARE the day, whatever zone the user is stored in.
+ */
+export function pickedDayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** The reverse of pickedDayKey: a browser-local Date (noon, clear of DST) naming `dateKey`. */
+export function pickedDayFromKey(dateKey: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(y, m - 1, d, 12);
+}

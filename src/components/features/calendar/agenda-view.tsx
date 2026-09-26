@@ -53,37 +53,22 @@ import {
   DISPLAY_TIME,
   getCalendarParts,
   localDaysRange,
+  toUserLocal,
+  addDaysToDateKey,
+  startOfDateKey,
+  weekStartKey,
+  pickedDayKey,
+  pickedDayFromKey,
 } from "@/lib/timezone";
-import {
-  useCalendarSettings,
-  DEFAULT_WEEK_START_DAY,
-} from "@/hooks/use-calendar-settings";
+import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 
 const DAY_LABELS_MONDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAY_LABELS_SUNDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function getWeekStart(date: Date, startDay: number = 1): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day - startDay + 7) % 7;
-  d.setDate(d.getDate() - diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function getWeekDays(monday: Date): Date[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+/** Local midnight, in the stored timezone, of each of the seven days from `startKey`. */
+function getWeekDays(startKey: string, tz: string): Date[] {
+  return Array.from({ length: 7 }, (_, i) =>
+    startOfDateKey(addDaysToDateKey(startKey, i), tz)
   );
 }
 
@@ -139,8 +124,11 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
 
   const { settings, isLoaded: settingsLoaded } = useCalendarSettings();
   const { weekStartDay, calendarColors, timezone } = settings;
-  const [weekStart, setWeekStart] = useState(() =>
-    getWeekStart(initialDate ?? new Date(), DEFAULT_WEEK_START_DAY)
+  // Any "YYYY-MM-DD" day (stored timezone) in the shown week; null = this
+  // week. A key rather than a Date, so the week can't depend on the browser's
+  // zone, and a weekStartDay change re-derives the week around it.
+  const [weekAnchorKey, setWeekAnchorKey] = useState<string | null>(() =>
+    initialDate ? pickedDayKey(initialDate) : null
   );
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -155,24 +143,18 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
 
   useEffect(() => {
     if (!initialDate) return;
-    setWeekStart(getWeekStart(initialDate, weekStartDay));
-  }, [initialDate, weekStartDay]);
+    setWeekAnchorKey(pickedDayKey(initialDate));
+  }, [initialDate]);
 
-  // Kept for navigation, not for settings: the list is gated on settingsLoaded
-  // now, so weekStartDay no longer arrives mid-render and drags the labels out
-  // of sync with the dates.
-  useEffect(() => {
-    if (initialDate) return;
-    setWeekStart((prev) => getWeekStart(prev, weekStartDay));
-  }, [initialDate, weekStartDay]);
+  const todayKey = dayKey(new Date(), timezone);
+  const weekKey = weekStartKey(weekAnchorKey ?? todayKey, weekStartDay);
 
-  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
-
-  const weekEnd = useMemo(() => {
-    const end = new Date(weekStart);
-    end.setDate(end.getDate() + 7);
-    return end;
-  }, [weekStart]);
+  const weekStart = useMemo(() => startOfDateKey(weekKey, timezone), [weekKey, timezone]);
+  const weekEnd = useMemo(
+    () => startOfDateKey(addDaysToDateKey(weekKey, 7), timezone),
+    [weekKey, timezone]
+  );
+  const weekDays = useMemo(() => getWeekDays(weekKey, timezone), [weekKey, timezone]);
 
   useEffect(() => {
     void fetchEvents(weekStart, weekEnd);
@@ -212,19 +194,14 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
     return map;
   }, [events, weekDays, timezone]);
 
-  const today = new Date();
-  const isCurrentWeek = isSameDay(weekStart, getWeekStart(today, weekStartDay));
+  const isCurrentWeek = weekKey === weekStartKey(todayKey, weekStartDay);
 
   function navigateWeek(delta: number) {
-    setWeekStart((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + delta * 7);
-      return next;
-    });
+    setWeekAnchorKey(addDaysToDateKey(weekKey, delta * 7));
   }
 
   function goToToday() {
-    setWeekStart(getWeekStart(new Date(), weekStartDay));
+    setWeekAnchorKey(null);
   }
 
   async function handleSync() {
@@ -357,10 +334,10 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
           </div>
           <span className="text-sm font-semibold">
             {formatForDisplay(weekDays[0], timezone, { month: "short" })}{" "}
-            {weekDays[0].getDate()} –{" "}
-            {weekDays[6].getMonth() !== weekDays[0].getMonth() &&
+            {toUserLocal(weekDays[0], timezone).day} –{" "}
+            {toUserLocal(weekDays[6], timezone).month !== toUserLocal(weekDays[0], timezone).month &&
               `${formatForDisplay(weekDays[6], timezone, { month: "short" })} `}
-            {weekDays[6].getDate()}
+            {toUserLocal(weekDays[6], timezone).day}
           </span>
         </div>
 
@@ -441,7 +418,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                 plan: p,
               })),
             ].sort((a, b) => a.at - b.at);
-            const isToday = isSameDay(day, today);
+            const isToday = dayKey(day, timezone) === todayKey;
             return (
               <section key={day.toISOString()} className="space-y-2">
                 <div
@@ -459,7 +436,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                         : "bg-muted/60 text-foreground"
                     )}
                   >
-                    {day.getDate()}
+                    {toUserLocal(day, timezone).day}
                   </span>
                   <div className="flex flex-col leading-tight">
                     <span
@@ -757,7 +734,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSubmit={handleCreateEvent}
-        defaultDate={initialDate ?? new Date()}
+        defaultDate={initialDate ?? pickedDayFromKey(todayKey)}
       />
 
       <EditEventDialog
