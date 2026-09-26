@@ -2829,7 +2829,8 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
         ctxLines.push(`Currently in: ${currentEventRows[0].title} (until ${fmtTimeLocal(currentEventRows[0].end_time, tz)})`);
       }
       if (nextEventRows[0]) {
-        ctxLines.push(`Next event: ${nextEventRows[0].title} at ${fmtTimeLocal(nextEventRows[0].start_time, tz)}`);
+        // With the date: "at 2:00 PM" read as today when it was tomorrow's.
+        ctxLines.push(`Next event: ${nextEventRows[0].title} at ${fmtLocal(nextEventRows[0].start_time, tz)}`);
       }
       ctxLines.push(`Completed today: ${completedToday}`);
 
