@@ -142,4 +142,12 @@ describe("parseTaskUpdate enum + number guards", () => {
     expect(parseTaskUpdate({ estimatedMinutes: "abc" }).ok).toBe(false);
     expect(parseTaskUpdate({ estimatedMinutes: "45" })).toEqual({ ok: true, data: { estimatedMinutes: 45 } });
   });
+
+  it("rejects a malformed goalId instead of letting Postgres 500", () => {
+    expect(parseTaskUpdate({ goalId: "not-a-uuid" }).ok).toBe(false);
+    const id = "3f2b8c1e-9a4d-4e6f-8b2a-1c0d9e7f6a5b";
+    expect(parseTaskUpdate({ goalId: id })).toEqual({ ok: true, data: { goalId: id } });
+    expect(parseTaskUpdate({ goalId: null })).toEqual({ ok: true, data: { goalId: null } });
+    expect(parseTaskUpdate({ goalId: "" })).toEqual({ ok: true, data: { goalId: null } });
+  });
 });

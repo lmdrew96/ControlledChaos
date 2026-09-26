@@ -6,6 +6,7 @@ import {
   setPrimaryTaskSession,
   clearTaskSessions,
   getGoalFinishedByTask,
+  getGoal,
 } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
@@ -33,6 +34,10 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
     const body = parsed.data;
+    // The FK only proves the goal row exists — not that it's this user's, or live.
+    if (body.goalId && !(await getGoal(body.goalId, userId))) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 400 });
+    }
 
     // Handle completion — set completedAt timestamp
     if (body.status === "completed" && !body.completedAt) {

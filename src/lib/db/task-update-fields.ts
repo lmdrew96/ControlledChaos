@@ -37,7 +37,7 @@ const FIELD_PARSERS = {
   completedAt: parseNullableDate,
   currentStepIndex: parseInt_,
   sortOrder: parseNullableInt,
-  goalId: parseNullableString,
+  goalId: parseNullableUuid,
 } as const;
 
 export type TaskUpdateField = keyof typeof FIELD_PARSERS;
@@ -128,6 +128,17 @@ function parseNonEmptyString(value: unknown, key: string): string {
 function parseNullableString(value: unknown, key: string): string | null {
   if (value === null || value === "") return null;
   return parseString(value, key);
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Shape only — the routes still check the row is the user's (getGoal). */
+function parseNullableUuid(value: unknown, key: string): string | null {
+  const str = parseNullableString(value, key);
+  if (str !== null && !UUID.test(str)) {
+    throw new FieldError(`${key} must be a UUID`);
+  }
+  return str;
 }
 
 function parseNullableStringArray(

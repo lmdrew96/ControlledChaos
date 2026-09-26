@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { getTasksByUser, createTask, updateTask } from "@/lib/db/queries";
+import { getTasksByUser, createTask, updateTask, getGoal } from "@/lib/db/queries";
 import { callHaiku } from "@/lib/ai";
 import { trimIncompleteTail } from "@/lib/ai/validate";
 import { AUTO_NOTE_TASK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
     const f = parsed.data;
+    // The FK only proves the goal row exists — not that it's this user's, or live.
+    if (f.goalId && !(await getGoal(f.goalId, userId))) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 400 });
+    }
     const description = f.description ?? null;
 
     const task = await createTask(userId, {
