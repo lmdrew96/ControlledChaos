@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pause, Play, ArrowUp, ArrowDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -60,7 +61,10 @@ const EMPTY_FORM: FormState = {
 };
 
 export function MicrotasksManager() {
+  // null = not loaded yet. Showing "No active microtasks yet" while loading
+  // told people with microtasks that they had none.
   const [microtasks, setMicrotasks] = useState<Microtask[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState<FormState | null>(null); // null = sheet closed
   const [saving, setSaving] = useState(false);
 
@@ -70,7 +74,10 @@ export function MicrotasksManager() {
       if (!res.ok) throw new Error();
       const data = (await res.json()) as { microtasks: Microtask[] };
       setMicrotasks(data.microtasks);
-    } catch {
+      setLoadFailed(false);
+    } catch (err) {
+      console.error("[Microtasks] Load failed:", err);
+      setLoadFailed(true);
       toast.error("Couldn't load microtasks");
     }
   }, []);
@@ -206,7 +213,25 @@ export function MicrotasksManager() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Active
         </h2>
-        {active.length === 0 ? (
+        {microtasks === null ? (
+          loadFailed ? (
+            <div className="rounded-xl border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
+              Couldn&apos;t load your microtasks.{" "}
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2" aria-busy="true" aria-label="Loading microtasks">
+              <Skeleton className="h-14 w-full rounded-xl" />
+              <Skeleton className="h-14 w-full rounded-xl" />
+            </div>
+          )
+        ) : active.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/50 px-4 py-6 text-center text-sm text-muted-foreground">
             No active microtasks yet. Tap &quot;New microtask&quot; to add one.
           </div>

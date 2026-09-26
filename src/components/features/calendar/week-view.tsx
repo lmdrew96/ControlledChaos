@@ -624,8 +624,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
     const labels: string[] = [];
     for (let h = startHour; h < endHour; h++) {
       const hour = h % 12 === 0 ? 12 : h % 12;
-      const ampm = h < 12 ? "am" : "pm";
-      labels.push(`${hour}${ampm}`);
+      // "9 AM", matching the "9:30 AM" events print (DISPLAY_TIME).
+      const ampm = h < 12 ? "AM" : "PM";
+      labels.push(`${hour} ${ampm}`);
     }
     return labels;
   }, [startHour, endHour]);
@@ -668,7 +669,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
           </div>
           <span className="hidden text-sm font-semibold sm:inline">
             {formatForDisplay(weekDays[0], timezone, { month: "long" })}{" "}
-            {weekDays[0].getDate()} – {weekDays[6].getDate()}
+            {weekDays[0].getDate()} –{" "}
+            {/* Name the second month too, or Sep 28 – Oct 4 reads "Sep 28 – 4". */}
+            {weekDays[6].getMonth() !== weekDays[0].getMonth() &&
+              `${formatForDisplay(weekDays[6], timezone, { month: "long" })} `}
+            {weekDays[6].getDate()}
             <span className="ml-1 font-normal text-muted-foreground">
               {weekDays[0].getFullYear()}
             </span>

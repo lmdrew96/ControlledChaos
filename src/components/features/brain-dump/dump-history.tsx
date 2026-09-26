@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { formatForDisplay, DISPLAY_DATE } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
+import { useNow } from "@/hooks/use-now";
+import { timeAgo } from "@/lib/utils/time-ago";
 import {
   Type,
   Mic,
@@ -40,28 +41,13 @@ const inputTypeIcon = {
   photo: Camera,
 } as const;
 
-function timeAgo(dateStr: string, timezone: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const minutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(diffMs / 3600000);
-  const days = Math.floor(diffMs / 86400000);
-
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return formatForDisplay(new Date(dateStr), timezone, DISPLAY_DATE);
-}
-
 /**
  * `focusId` (from /dump?dumpId=, e.g. a Daily Recap row) opens that dump and
  * scrolls to it once the list is in, if it's among the recent ones.
  */
 export function DumpHistory({ focusId = null }: { focusId?: string | null } = {}) {
   const timezone = useTimezone();
+  const now = useNow();
   const [dumps, setDumps] = useState<DumpSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -179,7 +165,7 @@ export function DumpHistory({ focusId = null }: { focusId?: string | null } = {}
                           {dump.eventCount} event{dump.eventCount !== 1 ? "s" : ""}
                         </span>
                       )}
-                      <span>{timeAgo(dump.createdAt, timezone)}</span>
+                      <span>{timeAgo(dump.createdAt, now, timezone)}</span>
                     </div>
                   </div>
                 </div>

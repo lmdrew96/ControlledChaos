@@ -127,9 +127,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   // Deadlines this week — HARD ones only. A self-imposed target has no
   // external consequence and does not belong in a list headed "Deadlines".
   const weekEnd = localDaysRange(now, timezone, 7).end;
+  // Past-due ones get their own list: a deadline that already went by isn't
+  // "this week", and filing it there misreads as still ahead.
   const withDeadlines = pending.filter(
-    (t) => t.deadline && new Date(t.deadline) <= weekEnd
+    (t) => t.deadline && new Date(t.deadline) >= now && new Date(t.deadline) <= weekEnd
   );
+  const pastDue = pending.filter((t) => t.deadline && new Date(t.deadline) < now);
 
   // Soft targets land in their own list, with their own wording.
   const targetsThisWeek = pending.filter(
@@ -178,6 +181,9 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}${t.locationTags?.length ? ` [at: ${t.locationTags.join(", ")}]` : ""}`).join("; ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
+    pastDue.length > 0
+      ? `Past due, still open (the date has passed — don't call these "this week"): ${pastDue.map((t) => `${t.title}, was due ${formatDate(t.deadline!, timezone)}`).join(", ")}`
+      : null,
     `SOFT self-imposed targets this week (NOT due — never call these "due"): ${targetsThisWeek.map((t) => `${t.title}, they aimed for ${formatDate(t.targetDate!, timezone)}`).join(", ") || "None"}`,
     `Planned to start today (their own plan, not a deadline): ${plannedToday.map((t) => `${formatTime(t.scheduledFor, timezone)} ${t.title}`).join(", ") || "None"}`,
     activeCrises.length > 0
@@ -213,6 +219,10 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
             : undefined,
       })),
       deadlinesThisWeek: withDeadlines.map((t) => ({
+        title: t.title,
+        deadline: formatDate(t.deadline!, timezone),
+      })),
+      pastDue: pastDue.map((t) => ({
         title: t.title,
         deadline: formatDate(t.deadline!, timezone),
       })),
@@ -289,6 +299,16 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   // Tomorrow's calendar for context
   const { start: tomorrowStart, end: tomorrowEnd } = localDaysRange(now, timezone, 1, 1);
 
+  // The soonest task can be due tonight, or already past due. Calling that
+  // "tomorrow's top priority" misplaces it, so the heading follows the date.
+  const priorityDeadline = tomorrowPriority?.deadline ? new Date(tomorrowPriority.deadline) : null;
+  const priorityLabel =
+    priorityDeadline && priorityDeadline < now
+      ? "Past Due, Still Open"
+      : priorityDeadline && priorityDeadline < tomorrowStart
+        ? "Still Due Tonight"
+        : "Tomorrow's Top Priority";
+
   // Work already planned for tomorrow — their plan, not a due date.
   // Session-based, same as the morning digest's plannedToday.
   const plannedTomorrow = await getScheduledSessionsInRange(
@@ -327,7 +347,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     `User's name: ${user.displayName ?? "there"}`,
     locationName ? `User's last known location: ${locationName}` : null,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
-    `Tomorrow's top priority: ${
+    `${priorityLabel}: ${
       tomorrowPriority
         ? describeTaskFacts(toTaskFacts(tomorrowPriority, goalTitleById), timezone)
         : "Nothing urgent"
@@ -353,6 +373,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
       userName: user.displayName ?? "",
       aiNote,
       completedTasks: completed.map((t) => ({ title: t.title })),
+      priorityLabel,
       tomorrowPriority: tomorrowPriority
         ? {
             title: tomorrowPriority.title,

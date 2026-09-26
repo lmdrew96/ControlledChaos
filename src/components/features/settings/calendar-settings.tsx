@@ -284,11 +284,13 @@ export function CalendarSettings() {
 
   async function handleDisconnectCanvas() {
     try {
-      await fetch("/api/settings", {
+      const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ canvasIcalUrl: null }),
       });
+      if (!res.ok) throw new Error(`Disconnect failed (${res.status})`);
+      invalidateSettings();
       setCanvasUrl("");
       setOriginal("");
       setSyncResult(null);
@@ -296,7 +298,8 @@ export function CalendarSettings() {
       setSelectedCourses(null);
       setCoursesLoaded(false);
       toast.success("Canvas calendar disconnected");
-    } catch {
+    } catch (err) {
+      console.error("[CalendarSettings] Canvas disconnect failed:", err);
       toast.error("Failed to disconnect");
     }
   }

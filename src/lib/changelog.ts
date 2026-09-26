@@ -35,11 +35,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.77.2",
-    label: "2.75.0 – 2.77.2",
+    version: "2.77.3",
+    label: "2.75.0 – 2.77.3",
     date: "2026-09-25",
     title: "Room to get there",
     changes: [
+      {
+        kind: "fixed",
+        text: "Small stuff: a brain dump with nothing actionable in it says so, search shows your latest tasks, Microtasks shows a loading state instead of “No microtasks yet”, the week header reads “Sep 28 – Oct 4”, and calendar times all look alike.",
+      },
+      {
+        kind: "fixed",
+        text: "Rescue plans without a hard deadline no longer say “Due No hard deadline”, and your own target shows the right day. Digest emails keep past-due tasks out of “this week” and don't call tonight's deadline “tomorrow's top priority”.",
+      },
       {
         kind: "improved",
         text: "Morning and evening emails know what the app knows about each task: its estimate, the goal it's for, your next session, and whether you've already started it.",

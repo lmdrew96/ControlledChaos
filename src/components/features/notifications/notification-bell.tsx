@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/popover";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useNow } from "@/hooks/use-now";
+import { useTimezone } from "@/hooks/use-timezone";
+import { timeAgo } from "@/lib/utils/time-ago";
 import { cn } from "@/lib/utils";
 
 function getNotificationIcon(type: string) {
@@ -51,17 +53,6 @@ function getNotificationUrl(n: {
   return null;
 }
 
-function timeAgo(dateStr: string, now: number): string {
-  const diff = now - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const router = useRouter();
@@ -69,6 +60,7 @@ export function NotificationBell() {
   // A shared minute clock rather than Date.now() in render, so timeAgo()
   // stays pure for the React Compiler and "5m ago" keeps aging in an open tab.
   const renderedAt = useNow();
+  const timezone = useTimezone();
 
   const recent = notifications.slice(0, 20);
 
@@ -150,7 +142,7 @@ export function NotificationBell() {
                   )}
                   <div className="flex items-center gap-3 mt-1">
                     <p className="text-xs text-muted-foreground">
-                      {timeAgo(n.sentAt ?? n.createdAt, renderedAt)}
+                      {timeAgo(n.sentAt ?? n.createdAt, renderedAt, timezone)}
                     </p>
                     {isExpanded && url && (
                       <span

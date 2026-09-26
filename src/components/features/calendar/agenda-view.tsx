@@ -357,7 +357,10 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
           </div>
           <span className="text-sm font-semibold">
             {formatForDisplay(weekDays[0], timezone, { month: "short" })}{" "}
-            {weekDays[0].getDate()} – {weekDays[6].getDate()}
+            {weekDays[0].getDate()} –{" "}
+            {weekDays[6].getMonth() !== weekDays[0].getMonth() &&
+              `${formatForDisplay(weekDays[6], timezone, { month: "short" })} `}
+            {weekDays[6].getDate()}
           </span>
         </div>
 

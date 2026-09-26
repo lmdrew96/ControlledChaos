@@ -103,19 +103,23 @@ export function CommandPalette({
   // list only changes via pushRecent(), which happens as the palette closes.
   const recentIds = useMemo(() => (open ? getRecent() : []), [open]);
 
-  // Fetch tasks once when palette opens; cache for the session.
+  // Refetch on every open: a session-long cache kept offering tasks that had
+  // since been completed, renamed or created. The last list shows meanwhile.
   useEffect(() => {
     if (!open) return;
-    if (tasks.length > 0) return;
+    let cancelled = false;
     fetch("/api/tasks")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data?.tasks && Array.isArray(data.tasks)) {
+        if (!cancelled && data?.tasks && Array.isArray(data.tasks)) {
           setTasks(data.tasks as Task[]);
         }
       })
-      .catch(() => {});
-  }, [open, tasks.length]);
+      .catch((err) => console.error("[CommandPalette] Task fetch failed:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Reset the query when the palette closes. Adjusting state during render is
   // React's prescribed way to respond to a prop change without an extra pass.

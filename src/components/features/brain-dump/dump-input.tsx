@@ -64,9 +64,15 @@ export function DumpInput({ category, onSaved }: DumpInputProps) {
       if (taskCount > 0) parts.push(`${taskCount} task${taskCount !== 1 ? "s" : ""}`);
       if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
 
-      if (parts.length > 0) {
-        toast.success(`Created ${parts.join(" and ")}!`);
+      if (parts.length === 0) {
+        // Saved, just nothing actionable in it. Say so and stay here, where
+        // the dump shows up in history, instead of a silent jump to /tasks.
+        toast("Dump saved. Nothing in it looked like a task or event.");
+        setContent("");
+        onSaved?.();
+        return;
       }
+      toast.success(`Created ${parts.join(" and ")}!`);
 
       setContent("");
       // Land on just what this dump made, not the whole list. Events-only

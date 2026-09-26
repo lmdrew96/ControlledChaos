@@ -205,6 +205,8 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         id: saved.id,
+        // The page reads this; it was never sent, so a target always read as none.
+        targetDate: saved.targetDate?.toISOString() ?? null,
         plan: {
           panicLevel: saved.panicLevel,
           panicLabel: saved.panicLabel,
@@ -294,6 +296,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       id: saved.id,
+      targetDate: saved.targetDate?.toISOString() ?? null,
       plan: {
         panicLevel: saved.panicLevel,
         panicLabel: saved.panicLabel,

@@ -695,7 +695,11 @@ export default function CrisisPage() {
 
                   {/* Deadline */}
                   <div className="mt-2 flex items-center justify-between text-xs opacity-60">
-                    <span>Due {formatDeadline(plan.deadline, timezone)}</span>
+                    <span>
+                      {plan.deadline
+                        ? `Due ${formatDeadline(plan.deadline, timezone)}`
+                        : formatDeadline(plan.deadline, timezone)}
+                    </span>
                     <span className="font-medium">{timeLeftLabel(plan.deadline)}</span>
                   </div>
                 </CardContent>

@@ -16,6 +16,8 @@ interface EveningDigestProps {
   /** Null when generation failed — the static copy below carries the email. */
   aiNote: string | null;
   completedTasks: Array<{ title: string }>;
+  /** Heading for the priority: it can be due tonight or already past due. */
+  priorityLabel?: string;
   tomorrowPriority: {
     title: string;
     /** HARD deadline. */
@@ -30,6 +32,7 @@ export function EveningDigestEmail({
   userName,
   aiNote,
   completedTasks,
+  priorityLabel = "Tomorrow's Top Priority",
   tomorrowPriority,
   settingsUrl,
 }: EveningDigestProps) {
@@ -73,7 +76,7 @@ export function EveningDigestEmail({
 
             {tomorrowPriority && (
               <Section>
-                <Text style={emailStyles.sectionTitle}>Tomorrow&apos;s Top Priority</Text>
+                <Text style={emailStyles.sectionTitle}>{priorityLabel}</Text>
                 <Text style={emailStyles.listItem}>
                   {tomorrowPriority.title}
                   {tomorrowPriority.deadline && (

@@ -11,6 +11,8 @@ import { fireTaskConfetti, fireStepConfetti } from "@/lib/utils/confetti";
 import { RotateCw, Loader2, SkipForward } from "lucide-react";
 import { CrisisChatPanel } from "./crisis-chat-panel";
 import type { CrisisPlan } from "@/types";
+import { formatForDisplay } from "@/lib/timezone";
+import { useTimezone } from "@/hooks/use-timezone";
 
 interface Props {
   plan: CrisisPlan & { currentTaskIndex?: number };
@@ -77,6 +79,9 @@ export function CrisisWarRoom({
   onComplete,
   onReassess,
 }: Props) {
+  // The user's stored zone, not the browser's: a target date near midnight
+  // otherwise shows the wrong day when the two differ.
+  const timezone = useTimezone();
   const [currentPlan, setCurrentPlan] = useState(plan);
   const [currentTaskIndex, setCurrentTaskIndex] = useState(
     plan.currentTaskIndex ?? 0
@@ -249,7 +254,7 @@ export function CrisisWarRoom({
               <>
                 <p className="text-xs text-muted-foreground">Your own target</p>
                 <p className="text-base font-semibold leading-tight">
-                  {new Date(targetDate).toLocaleDateString(undefined, {
+                  {formatForDisplay(new Date(targetDate), timezone, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",

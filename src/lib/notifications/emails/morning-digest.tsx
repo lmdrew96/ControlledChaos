@@ -27,6 +27,8 @@ interface MorningDigestProps {
     plannedAt?: string;
   }>;
   deadlinesThisWeek: Array<{ title: string; deadline: string }>;
+  /** Hard deadlines that have already passed on open tasks. */
+  pastDue?: Array<{ title: string; deadline: string }>;
   targetsThisWeek: Array<{ title: string; target: string }>;
   settingsUrl: string;
 }
@@ -37,6 +39,7 @@ export function MorningDigestEmail({
   todayEvents,
   topTasks,
   deadlinesThisWeek,
+  pastDue = [],
   targetsThisWeek,
   settingsUrl,
 }: MorningDigestProps) {
@@ -108,6 +111,17 @@ export function MorningDigestEmail({
                 {deadlinesThisWeek.map((task, i) => (
                   <Text key={i} style={emailStyles.listItem}>
                     {task.deadline} — {task.title}
+                  </Text>
+                ))}
+              </Section>
+            )}
+
+            {pastDue.length > 0 && (
+              <Section>
+                <Text style={emailStyles.sectionTitle}>Past Due, Still Open</Text>
+                {pastDue.map((task, i) => (
+                  <Text key={i} style={emailStyles.listItem}>
+                    was due {task.deadline} — {task.title}
                   </Text>
                 ))}
               </Section>
