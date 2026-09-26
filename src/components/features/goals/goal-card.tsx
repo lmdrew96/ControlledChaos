@@ -2,24 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { dateOnlyKey, formatDateOnly, todayInTimezone } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import {
   Target,
-  Calendar,
+  ArrowRight,
+  Flag,
   Pencil,
   Trash2,
   CheckCircle2,
   RotateCcw,
   Pause,
   ListTodo,
+  PartyPopper,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/ui/markdown";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Goal } from "@/types";
+import { GoalMomentum, GoalTargetDate, formatFinishedDay, isReadyToFinish } from "./goal-meta";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   active: { label: "Active", variant: "default" },
@@ -50,22 +51,18 @@ interface GoalCardProps {
   goal: Goal;
   onUpdate: () => void;
   onEdit: (goal: Goal) => void;
+  /** Opens the "call it done" dialog. */
+  onFinish: (goal: Goal) => void;
 }
 
-export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
+export function GoalCard({ goal, onUpdate, onEdit, onFinish }: GoalCardProps) {
   const timezone = useTimezone();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const taskCount = goal.taskCount ?? 0;
-  const completedTaskCount = goal.completedTaskCount ?? 0;
-  const progress = taskCount > 0 ? Math.round((completedTaskCount / taskCount) * 100) : 0;
   const statusInfo = statusConfig[goal.status] ?? statusConfig.active;
-
-  const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
-  // Compare calendar days: a target of today isn't past until tomorrow.
-  const isOverdue =
-    targetDate && goal.status === "active" && dateOnlyKey(targetDate) < todayInTimezone(timezone);
+  const readyToFinish = isReadyToFinish(goal);
 
   async function handleStatusChange(status: string) {
     setIsUpdating(true);
@@ -76,13 +73,7 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error();
-      toast.success(
-        status === "completed"
-          ? "Goal completed!"
-          : status === "paused"
-            ? "Goal paused"
-            : "Goal reactivated"
-      );
+      toast.success(status === "paused" ? "Goal paused" : "Goal reactivated");
       onUpdate();
     } catch {
       toast.error("Failed to update goal");
@@ -110,8 +101,8 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
     <>
       <Card
         className={cn(
-          "ticket-row p-4 transition-colors",
-          goal.status === "completed" && "opacity-60",
+          "ticket-row relative p-4 transition-colors hover:bg-accent/40",
+          goal.status === "completed" && "opacity-70",
           goal.status === "paused" && "opacity-75"
         )}
       >
@@ -126,16 +117,19 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h3 className={cn(
-                  "font-medium leading-snug",
-                  goal.status === "completed" && "line-through"
-                )}>
-                  {goal.title}
+                {/* Stretched link: the whole card opens the goal; the menu sits above it. */}
+                <h3 className="font-medium leading-snug break-words">
+                  <Link
+                    href={`/goals/${goal.id}`}
+                    className="after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                  >
+                    {goal.title}
+                  </Link>
                 </h3>
                 {goal.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
                     <Markdown inline>{goal.description}</Markdown>
-                  </p>
+                  </div>
                 )}
               </div>
 
@@ -144,7 +138,7 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 shrink-0"
+                    className="relative z-10 h-7 w-7 p-0 shrink-0"
                     disabled={isUpdating}
                   >
                     <span className="sr-only">Actions</span>
@@ -158,11 +152,19 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                   </DropdownMenuItem>
+                  {taskCount > 0 && (
+                    <DropdownMenuItem asChild>
+                      <Link href={`/tasks?goal=${goal.id}&filter=all`}>
+                        <ListTodo className="mr-2 h-4 w-4" />
+                        Show in Tasks
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {goal.status === "active" && (
                     <>
-                      <DropdownMenuItem onClick={() => handleStatusChange("completed")}>
+                      <DropdownMenuItem onClick={() => onFinish(goal)}>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Mark Complete
+                        Call it done
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange("paused")}>
                         <Pause className="mr-2 h-4 w-4" />
@@ -194,41 +196,50 @@ export function GoalCard({ goal, onUpdate, onEdit }: GoalCardProps) {
               </DropdownMenu>
             </div>
 
-            {/* Meta row */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Badge variant={statusInfo.variant} className="text-xs">
-                {statusInfo.label}
-              </Badge>
-              {targetDate && (
-                <span className={cn("flex items-center gap-1", isOverdue && "text-destructive")}>
-                  <Calendar className="h-3 w-3" />
-                  {formatDateOnly(targetDate, {
-                    month: "short",
-                    day: "numeric",
-                    year:
-                      targetDate.getUTCFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-                  })}
-                  {isOverdue && " (overdue)"}
-                </span>
-              )}
-              {taskCount > 0 && (
-                <Link
-                  href={`/tasks?goal=${goal.id}&filter=all`}
-                  className="flex items-center gap-1 underline-offset-2 hover:text-foreground hover:underline"
+            {/* What's next — the reason to open a goal at all */}
+            {goal.status === "active" && (
+              readyToFinish ? (
+                <button
+                  type="button"
+                  onClick={() => onFinish(goal)}
+                  className="relative z-10 flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-2"
                 >
-                  <ListTodo className="h-3 w-3" />
-                  {completedTaskCount}/{taskCount} tasks
-                </Link>
-              )}
-            </div>
+                  <PartyPopper className="h-3.5 w-3.5" />
+                  Every step is done — call it done?
+                </button>
+              ) : goal.nextStep ? (
+                <p className="flex items-center gap-1.5 text-sm min-w-0">
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="text-muted-foreground shrink-0">Next:</span>
+                  <span className="truncate">{goal.nextStep.title}</span>
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Flag className="h-3.5 w-3.5 shrink-0" />
+                  No steps yet — open it to add one.
+                </p>
+              )
+            )}
 
-            {/* Progress bar */}
-            {taskCount > 0 && (
-              <div className="flex items-center gap-2">
-                <Progress value={progress} className="h-1.5 flex-1" />
-                <span className="text-xs text-muted-foreground tabular-nums">{progress}%</span>
+            {goal.status === "completed" && goal.reflection && (
+              <div className="text-sm text-muted-foreground italic line-clamp-2">
+                <Markdown inline>{goal.reflection}</Markdown>
               </div>
             )}
+
+            {/* Meta row */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {goal.status !== "active" && (
+                <Badge variant={statusInfo.variant} className="text-xs">
+                  {statusInfo.label}
+                </Badge>
+              )}
+              {goal.status === "completed" && goal.completedAt && (
+                <span>Finished {formatFinishedDay(goal.completedAt, timezone)}</span>
+              )}
+              {goal.status !== "completed" && <GoalTargetDate goal={goal} timezone={timezone} />}
+              <GoalMomentum goal={goal} />
+            </div>
           </div>
         </div>
       </Card>

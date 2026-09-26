@@ -141,6 +141,13 @@
       "when": 1790376122663,
       "tag": "0019_crisis_plan_task",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790450940015,
+      "tag": "0020_goal_depth",
+      "breakpoints": true
     }
   ]
 }

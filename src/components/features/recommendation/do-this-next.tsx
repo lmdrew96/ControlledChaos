@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnnounceGoalFinished } from "@/hooks/use-announce-goal-finished";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
@@ -14,6 +15,7 @@ import { RecommendationEmptyState } from "./empty-state";
 import type { EnergyLevel } from "@/types";
 
 export function DoThisNext() {
+  const announceGoalFinished = useAnnounceGoalFinished();
   const { latitude, longitude, requestLocation } = useGeolocation();
   const {
     recommendation,
@@ -100,6 +102,7 @@ export function DoThisNext() {
           body: JSON.stringify({ status: "completed" }),
         });
         completed = res.ok;
+        void announceGoalFinished(res);
       } catch (err) {
         console.error("Complete via PATCH failed:", err);
       }
@@ -113,7 +116,7 @@ export function DoThisNext() {
       setHasRequested(false);
       hasFetched.current = false;
     },
-    [sendFeedback, clearRecommendation, recommendation?.task?.title]
+    [sendFeedback, clearRecommendation, recommendation?.task?.title, announceGoalFinished]
   );
 
   const handleSnooze = useCallback(

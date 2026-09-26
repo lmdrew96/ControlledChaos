@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { getUserGoals, createGoal, getGoalTaskCounts } from "@/lib/db/queries";
+import { getUserGoals, createGoal, attachGoalStats, getUser } from "@/lib/db/queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,18 +10,12 @@ export async function GET(request: NextRequest) {
     }
 
     const status = request.nextUrl.searchParams.get("status") ?? undefined;
-    const goals = await getUserGoals(userId, status);
-    const taskCounts = await getGoalTaskCounts(userId);
-
-    const countsMap = new Map(
-      taskCounts.map((c) => [c.goalId, { total: c.total, completed: c.completed }])
+    const [goals, user] = await Promise.all([getUserGoals(userId, status), getUser(userId)]);
+    const goalsWithCounts = await attachGoalStats(
+      userId,
+      goals,
+      user?.timezone ?? "America/New_York"
     );
-
-    const goalsWithCounts = goals.map((g) => ({
-      ...g,
-      taskCount: countsMap.get(g.id)?.total ?? 0,
-      completedTaskCount: countsMap.get(g.id)?.completed ?? 0,
-    }));
 
     return NextResponse.json({ goals: goalsWithCounts });
   } catch (error) {

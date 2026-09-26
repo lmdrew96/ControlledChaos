@@ -287,6 +287,9 @@ export function formatGoal(goal: Record<string, unknown>, tz?: string): string {
   if (goal.task_total != null) {
     parts.push(`Progress: ${goal.task_completed ?? 0}/${goal.task_total} linked tasks done`);
   }
+  if (goal.status === "active" && goal.next_step) parts.push(`Next step: ${goal.next_step}`);
+  if (goal.completed_at) parts.push(`Finished: ${fmtLocal(goal.completed_at, tz)}`);
+  if (goal.reflection) parts.push(`Reflection: ${goal.reflection}`);
   return parts.join("\n");
 }
 

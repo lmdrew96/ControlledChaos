@@ -93,9 +93,19 @@ export interface ParsedCalendarEvent {
   };
 }
 
+/** A new goal proposed by a brain dump — only for a clearly stated long-running aim. */
+export interface ParsedGoal {
+  title: string;
+  description?: string;
+  /** Calendar day, stored as UTC midnight (ISO). */
+  targetDate?: string;
+}
+
 export interface BrainDumpResult {
   tasks: ParsedTask[];
   events: ParsedCalendarEvent[];
+  /** Absent on dumps saved before goals could come from a dump. */
+  goals?: ParsedGoal[];
   summary: string;
 }
 
@@ -460,11 +470,34 @@ export interface Goal {
   id: string;
   title: string;
   description: string | null;
+  /** A calendar day, stored as UTC midnight — read with dateOnlyKey/formatDateOnly. */
   targetDate: string | null;
   status: GoalStatus;
+  completedAt: string | null;
+  reflection: string | null;
+  sortOrder: number | null;
   createdAt: string;
+  updatedAt: string;
   taskCount?: number;
   completedTaskCount?: number;
+  /** Steps finished since the start of this week, in the user's timezone. */
+  completedThisWeek?: number;
+  /** The soonest open linked task, if any. */
+  nextStep?: { id: string; title: string } | null;
+}
+
+/** A "Break it down" suggestion — not a task until the user keeps it. */
+export interface SuggestedGoalStep {
+  title: string;
+  description: string | null;
+  estimatedMinutes: number;
+  energyLevel: EnergyLevel;
+}
+
+/** Returned alongside a completed task when it was its goal's last open step. */
+export interface GoalFinished {
+  id: string;
+  title: string;
 }
 
 // ============================================================

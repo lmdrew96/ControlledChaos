@@ -76,10 +76,14 @@ export const goals = pgTable("goals", {
     .notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  targetDate: timestamp("target_date"),
+  targetDate: timestamp("target_date"), // a calendar day, stored as UTC midnight of that day
   status: text("status").default("active").notNull(), // active, completed, paused
+  completedAt: timestamp("completed_at"), // set when status becomes completed, cleared on reopen
+  reflection: text("reflection"), // optional "how did it go?" note written when finishing
+  sortOrder: integer("sort_order"), // manual order on the Goals page; null sorts after ordered goals
   deletedAt: timestamp("deleted_at"), // soft delete — null = active, set = deleted
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // ============================================================

@@ -35,6 +35,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.80.0",
+    date: "2026-09-26",
+    title: "Goals you can move",
+    changes: [
+      {
+        kind: "added",
+        text: "Every goal has its own page. Tap a card to read the whole description, see its steps, check them off, add a step in one line, or link tasks you already have.",
+      },
+      {
+        kind: "added",
+        text: "“Break it down” suggests a few first steps for a goal. Keep the ones you like; nothing is added until you do.",
+      },
+      {
+        kind: "added",
+        text: "Finishing a goal's last step asks whether to call the goal done, and you can jot down how it went. Finished goals remember when they wrapped up and what you wrote.",
+      },
+      {
+        kind: "added",
+        text: "Your top three goals sit on the dashboard with their next step. Drag goals on the Goals page to choose which three.",
+      },
+      {
+        kind: "added",
+        text: "Say a bigger aim in a brain dump (“I want to get my GPA up this semester”) and it becomes a goal, with that dump's related tasks linked to it.",
+      },
+      {
+        kind: "improved",
+        text: "Goal cards show what's next and how many steps you've done this week, instead of a percentage that dropped whenever you added a step. A passed target date just says so, with no red.",
+      },
+      {
+        kind: "improved",
+        text: "“Do This Next” knows why your goals matter, not just their names, and uses that to break ties.",
+      },
+    ],
+  },
+  {
     version: "2.79.1",
     label: "2.75.0 – 2.79.1",
     date: "2026-09-26",

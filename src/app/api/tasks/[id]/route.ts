@@ -5,6 +5,7 @@ import {
   deleteTask,
   setPrimaryTaskSession,
   clearTaskSessions,
+  getGoalFinishedByTask,
 } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
@@ -99,7 +100,11 @@ export async function PATCH(
       await logTaskCompletion(userId, id);
     }
 
-    return NextResponse.json({ task: updated });
+    // Was that the last open step of a goal? The client offers to call it done.
+    const goalFinished =
+      body.status === "completed" ? await getGoalFinishedByTask(userId, updated.goalId) : null;
+
+    return NextResponse.json({ task: updated, goalFinished });
   } catch (error) {
     console.error("[API] PATCH /api/tasks/:id error:", error);
     return NextResponse.json(

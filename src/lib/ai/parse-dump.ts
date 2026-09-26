@@ -7,7 +7,7 @@ import {
 } from "./prompts";
 import { extractJSON, validateISODate, trimIncompleteTail } from "./validate";
 import { allDayRange, toDateKeyInTimezone, toUTC } from "@/lib/timezone";
-import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedTask, PersonalityPrefs } from "@/types";
+import type { BrainDumpResult, DumpInputType, ParsedCalendarEvent, ParsedGoal, ParsedTask, PersonalityPrefs } from "@/types";
 
 export interface BrainDumpContext {
   existingGoals: Array<{ title: string }>;
@@ -94,7 +94,7 @@ export async function parseBrainDump(
     requireComplete: true,
   });
 
-  let parsed: { tasks: ParsedTask[]; events?: ParsedCalendarEvent[]; summary: string };
+  let parsed: { tasks: ParsedTask[]; events?: ParsedCalendarEvent[]; goals?: ParsedGoal[]; summary: string };
   try {
     parsed = extractJSON(result.text);
   } catch {
@@ -106,10 +106,37 @@ export async function parseBrainDump(
     throw new Error("AI returned unexpected format. Please try again.");
   }
 
-  // Build set of valid goal titles for goalConnection validation
-  const validGoalTitles = new Set(
-    (context?.existingGoals ?? []).map((g) => g.title.toLowerCase())
+  // New goal: at most one, never a duplicate of an existing goal's title.
+  const existingGoalTitles = new Set(
+    (context?.existingGoals ?? []).map((g) => g.title.trim().toLowerCase())
   );
+  const goals: ParsedGoal[] = (Array.isArray(parsed.goals) ? parsed.goals : [])
+    .filter(
+      (g): g is ParsedGoal =>
+        !!g && typeof g.title === "string" && g.title.trim().length > 0 &&
+        !existingGoalTitles.has(g.title.trim().toLowerCase())
+    )
+    .slice(0, 1)
+    .map((g) => ({
+      title: g.title.trim().slice(0, 500),
+      description:
+        typeof g.description === "string" && g.description.trim()
+          ? g.description.trim().slice(0, 2000)
+          : undefined,
+      // Goal target dates are calendar days stored as UTC midnight.
+      targetDate:
+        typeof g.targetDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(g.targetDate) &&
+        !Number.isNaN(new Date(`${g.targetDate}T00:00:00.000Z`).getTime())
+          ? `${g.targetDate}T00:00:00.000Z`
+          : undefined,
+    }));
+
+  // Tasks may link to an existing goal or to the new one.
+  const linkableGoalTitles = [
+    ...(context?.existingGoals ?? []).map((g) => g.title),
+    ...goals.map((g) => g.title),
+  ];
+  const validGoalTitles = new Set(linkableGoalTitles.map((t) => t.toLowerCase()));
 
   // Validate and sanitize each task
   const tasks: ParsedTask[] = parsed.tasks.map((task) => {
@@ -119,9 +146,9 @@ export async function parseBrainDump(
       const matchesGoal = validGoalTitles.has(task.goalConnection.toLowerCase());
       if (matchesGoal) {
         // Find the properly-cased version
-        goalConnection = (context?.existingGoals ?? []).find(
-          (g) => g.title.toLowerCase() === task.goalConnection!.toLowerCase()
-        )?.title;
+        goalConnection = linkableGoalTitles.find(
+          (t) => t.toLowerCase() === task.goalConnection!.toLowerCase()
+        );
       } else {
         console.warn(
           `[AI Validate] Discarded hallucinated goalConnection: "${task.goalConnection}"`
@@ -238,6 +265,7 @@ export async function parseBrainDump(
   return {
     tasks,
     events,
+    goals,
     summary:
       parsed.summary ||
       `Parsed ${tasks.length} task${tasks.length !== 1 ? "s" : ""}${events.length > 0 ? ` and ${events.length} event${events.length !== 1 ? "s" : ""}` : ""} from brain dump`,

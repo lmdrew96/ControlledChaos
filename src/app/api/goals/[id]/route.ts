@@ -1,8 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { updateGoal, deleteGoal } from "@/lib/db/queries";
+import { updateGoal, deleteGoal, getGoal, attachGoalStats, getUser } from "@/lib/db/queries";
 
 const GOAL_STATUSES = new Set(["active", "completed", "paused"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type GoalUpdate = Parameters<typeof updateGoal>[2];
 
@@ -37,8 +38,39 @@ function parseGoalUpdate(body: unknown): { fields: GoalUpdate } | { error: strin
     fields.status = b.status;
   }
 
+  if (b.reflection !== undefined) {
+    if (b.reflection !== null && typeof b.reflection !== "string") return { error: "Invalid reflection" };
+    if (typeof b.reflection === "string" && b.reflection.length > 4000) return { error: "Reflection is too long" };
+    fields.reflection = typeof b.reflection === "string" && b.reflection.trim() ? b.reflection.trim() : null;
+  }
+
   if (Object.keys(fields).length === 0) return { error: "No updatable fields" };
   return { fields };
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const goal = UUID.test(id) ? await getGoal(id, userId) : null;
+    if (!goal) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+
+    const user = await getUser(userId);
+    const [withStats] = await attachGoalStats(userId, [goal], user?.timezone ?? "America/New_York");
+    return NextResponse.json({ goal: withStats });
+  } catch (error) {
+    console.error("[API] GET /api/goals/:id error:", error);
+    return NextResponse.json({ error: "Failed to fetch goal" }, { status: 500 });
+  }
 }
 
 export async function PATCH(

@@ -9,6 +9,7 @@ import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
 import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
 import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
+import { GoalStrip } from "@/components/features/goals/goal-strip";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export default function DashboardPage() {
@@ -66,6 +67,9 @@ export default function DashboardPage() {
 
       {/* Microtasks chip zone — small daily prompts, hidden in Crisis Mode */}
       <MicrotasksZone />
+
+      {/* Top goals and their next steps — quiet, hidden in Crisis Mode */}
+      <GoalStrip />
 
       {/* Task feed — collapsed by default; click header to expand */}
       <TaskList key={`tasks-${planVersion}`} collapsible />

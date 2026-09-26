@@ -234,6 +234,9 @@ export async function POST(request: Request) {
       personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
       aiContextBlock: aiCtx.formatted,
       goalTitles: Object.fromEntries(activeGoals.map((g) => [g.id, g.title])),
+      goalWhys: Object.fromEntries(
+        activeGoals.filter((g) => g.description).map((g) => [g.id, g.description as string])
+      ),
     });
 
     // Log the recommendation

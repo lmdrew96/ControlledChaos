@@ -1,5 +1,6 @@
 "use client";
 
+import { announceDumpGoals, type DumpGoal } from "./announce-dump-goals";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send, AlertCircle } from "lucide-react";
@@ -63,6 +64,8 @@ export function DumpInput({ category, onSaved }: DumpInputProps) {
       const parts = [];
       if (taskCount > 0) parts.push(`${taskCount} task${taskCount !== 1 ? "s" : ""}`);
       if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
+      const goalsCreated: DumpGoal[] = data.goalsCreated ?? [];
+      if (goalsCreated.length > 0) parts.push(`${goalsCreated.length} goal${goalsCreated.length !== 1 ? "s" : ""}`);
 
       if (parts.length === 0) {
         // Saved, just nothing actionable in it. Say so and stay here, where
@@ -82,8 +85,12 @@ export function DumpInput({ category, onSaved }: DumpInputProps) {
           ? `/tasks?dump=${data.dump.id}&filter=all`
           : eventCount > 0
             ? "/calendar"
-            : "/tasks"
+            : goalsCreated[0]
+              ? `/goals/${goalsCreated[0].id}`
+              : "/tasks"
       );
+      // Only needed when we didn't land on the goal itself.
+      if (taskCount > 0 || eventCount > 0) announceDumpGoals(goalsCreated, (href) => router.push(href));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

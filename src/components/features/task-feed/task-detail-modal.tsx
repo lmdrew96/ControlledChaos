@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useAnnounceGoalFinished } from "@/hooks/use-announce-goal-finished";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import confetti from "canvas-confetti";
@@ -125,6 +127,7 @@ export function TaskDetailModal({
   onClose,
   onUpdate,
 }: TaskDetailModalProps) {
+  const announceGoalFinished = useAnnounceGoalFinished();
   const timezone = useTimezone();
   const [form, setForm] = useState<FormState>({
     title: "",
@@ -466,6 +469,7 @@ export function TaskDetailModal({
       toast.success(isCompleted ? `'${task.title}' reopened` : `'${task.title}' marked complete`);
       if (!isCompleted) {
         fireTaskConfetti();
+        void announceGoalFinished(res);
       }
       onUpdate();
       onClose();
@@ -1031,11 +1035,11 @@ function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }:
   const priority = priorityConfig[task.priority as keyof typeof priorityConfig];
   const energy = energyConfig[task.energyLevel as keyof typeof energyConfig];
 
-  const details: Array<{ label: string; value: string }> = [];
+  const details: Array<{ label: string; value: string; href?: string }> = [];
   if (task.deadline) details.push({ label: "Due", value: formatSessionLabel(task.deadline, timezone) });
   if (task.targetDate) details.push({ label: "Target", value: formatSessionLabel(task.targetDate, timezone) });
   if (next) details.push({ label: "Next sitting", value: formatSessionLabel(next.startsAt, timezone) });
-  if (goalTitle) details.push({ label: "Goal", value: goalTitle });
+  if (goalTitle && task.goalId) details.push({ label: "Goal", value: goalTitle, href: `/goals/${task.goalId}` });
 
   return (
     <div className="space-y-4">
@@ -1075,7 +1079,15 @@ function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }:
           {details.map((d) => (
             <div key={d.label} className="contents">
               <dt className="text-muted-foreground">{d.label}</dt>
-              <dd className="min-w-0 break-words">{d.value}</dd>
+              <dd className="min-w-0 break-words">
+                {d.href ? (
+                  <Link href={d.href} className="underline-offset-2 hover:underline">
+                    {d.value}
+                  </Link>
+                ) : (
+                  d.value
+                )}
+              </dd>
             </div>
           ))}
         </dl>

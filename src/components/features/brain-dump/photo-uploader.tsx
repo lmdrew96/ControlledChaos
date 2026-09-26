@@ -6,6 +6,7 @@
  */
 /* eslint-disable @next/next/no-img-element */
 
+import { announceDumpGoals, type DumpGoal } from "./announce-dump-goals";
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, Loader2, RotateCcw, Send } from "lucide-react";
@@ -155,6 +156,8 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
       const parts = [];
       if (taskCount > 0) parts.push(`${taskCount} task${taskCount !== 1 ? "s" : ""}`);
       if (eventCount > 0) parts.push(`${eventCount} calendar event${eventCount !== 1 ? "s" : ""}`);
+      const goalsCreated: DumpGoal[] = data.goalsCreated ?? [];
+      if (goalsCreated.length > 0) parts.push(`${goalsCreated.length} goal${goalsCreated.length !== 1 ? "s" : ""}`);
       toast.success(parts.length > 0 ? `Created ${parts.join(" and ")}!` : "Photo dump parsed!");
 
       // Land on just what this dump made, not the whole list. Events-only
@@ -164,8 +167,12 @@ export function PhotoUploader({ category, onSaved }: PhotoUploaderProps) {
           ? `/tasks?dump=${data.dump.id}&filter=all`
           : eventCount > 0
             ? "/calendar"
-            : "/tasks"
+            : goalsCreated[0]
+              ? `/goals/${goalsCreated[0].id}`
+              : "/tasks"
       );
+      // Only needed when we didn't land on the goal itself.
+      if (taskCount > 0 || eventCount > 0) announceDumpGoals(goalsCreated, (href) => router.push(href));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

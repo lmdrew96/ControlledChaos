@@ -1,5 +1,6 @@
 "use client";
 
+import { useAnnounceGoalFinished } from "@/hooks/use-announce-goal-finished";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Check,
@@ -64,6 +65,7 @@ export function TaskCard({
   onUpdate: () => void;
   onClick?: () => void;
 }) {
+  const announceGoalFinished = useAnnounceGoalFinished();
   const timezone = useTimezone();
   // Category colours are the user's configured calendar colours, so a task
   // reads as the same colour here as its events do on the calendar. Shares
@@ -177,6 +179,7 @@ export function TaskCard({
         if (action === "complete") {
           toast.success(`'${task.title}' marked complete`);
           fireTaskConfetti();
+          void announceGoalFinished(res);
         } else if (action === "cancel") {
           toast.success(`'${task.title}' cancelled`, {
             description: "It's under the Cancelled tab if you change your mind.",
@@ -337,13 +340,14 @@ export function TaskCard({
     setIsAdvancingStep(true);
 
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      const res = await fetch(`/api/tasks/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentStepIndex: nextIndex }),
       });
       if (isLast) {
         toast.success("All steps done — task completed!");
+        void announceGoalFinished(res);
       }
       onUpdate();
     } catch {
@@ -351,7 +355,7 @@ export function TaskCard({
     } finally {
       setIsAdvancingStep(false);
     }
-  }, [steps, localStepIndex, task.id, onUpdate]);
+  }, [steps, localStepIndex, task.id, onUpdate, announceGoalFinished]);
 
   const isSwipingLeft = swipeOffset < -20;
   const isSwipingRight = swipeOffset > 20;

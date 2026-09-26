@@ -664,7 +664,25 @@ Returns: The completed task.`,
         await logTaskCompleted(userId, params.task_id);
       }
 
-      return { content: [{ type: "text" as const, text: `🎉 Task completed!\n\n${formatTask(rows[0], tz)}` }] };
+      // Same check the app runs (getGoalFinishedByTask): was that the last open
+      // step of an active goal? Then say so, so Claude can offer to close it.
+      let goalNote = "";
+      if (rows[0].goal_id) {
+        const finished = await sql(
+          `SELECT g.id, g.title FROM goals g
+            WHERE g.id = $1 AND g.user_id = $2 AND g.status = 'active' AND g.deleted_at IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM tasks t
+                 WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
+                   AND t.status NOT IN ('completed', 'cancelled'))`,
+          [rows[0].goal_id, userId]
+        );
+        if (finished.length > 0) {
+          goalNote = `\n\n🏁 That was the last open step of the goal **${finished[0].title}** (\`${finished[0].id}\`). Ask whether to mark the goal completed (cc_update_goal with status "completed", optionally a reflection).`;
+        }
+      }
+
+      return { content: [{ type: "text" as const, text: `🎉 Task completed!\n\n${formatTask(rows[0], tz)}${goalNote}` }] };
     }
   );
 
@@ -1260,10 +1278,15 @@ Returns: The created event (or a summary if recurring).`,
     "cc_list_goals",
     {
       title: "List Goals",
-      description: `List active goals from ControlledChaos.
+      description: `List goals from ControlledChaos, in the order the user arranged them (most important first).
 
-Returns: Markdown-formatted list of goals with IDs, descriptions, target dates, and progress (completed / total linked tasks).`,
-      inputSchema: {},
+Args:
+  - status: "active" (default), "completed", "paused", or "all".
+
+Returns: Markdown-formatted list of goals with IDs, descriptions, target days, progress (completed / total linked tasks), the next open step, and — for finished goals — when they finished and the user's reflection.`,
+      inputSchema: {
+        status: z.enum(["active", "completed", "paused", "all"]).optional().describe("Which goals to list (default active)"),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -1271,30 +1294,38 @@ Returns: Markdown-formatted list of goals with IDs, descriptions, target dates, 
         openWorldHint: false,
       },
     },
-    async () => {
+    async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
+      const status = params.status ?? "active";
       const rows = await sql(
         // Progress is counted live from linked tasks, same as the app
-        // (getGoalTaskCounts): deleted and cancelled tasks don't count.
+        // (getGoalTaskCounts): deleted and cancelled tasks don't count. The next
+        // step matches getGoalNextSteps: soonest of planned/target/due, else oldest.
         `SELECT g.*,
            (SELECT COUNT(*)::int FROM tasks t
              WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
                AND t.status <> 'cancelled') AS task_total,
            (SELECT COUNT(*)::int FROM tasks t
              WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
-               AND t.status = 'completed') AS task_completed
+               AND t.status = 'completed') AS task_completed,
+           (SELECT t.title FROM tasks t
+             WHERE t.goal_id = g.id AND t.user_id = g.user_id AND t.deleted_at IS NULL
+               AND t.status NOT IN ('completed', 'cancelled')
+             ORDER BY LEAST(t.scheduled_for, t.target_date, t.deadline) ASC NULLS LAST, t.created_at ASC
+             LIMIT 1) AS next_step
          FROM goals g
-         WHERE g.user_id = $1 AND g.status = 'active' AND g.deleted_at IS NULL
-         ORDER BY g.created_at`,
-        [userId]
+         WHERE g.user_id = $1 AND g.deleted_at IS NULL AND ($2 = 'all' OR g.status = $2)
+         ORDER BY g.sort_order ASC NULLS LAST, g.created_at DESC`,
+        [userId, status]
       );
 
+      const label = status === "all" ? "Goals" : `${status[0].toUpperCase()}${status.slice(1)} Goals`;
       if (rows.length === 0) {
-        return { content: [{ type: "text" as const, text: "No active goals found." }] };
+        return { content: [{ type: "text" as const, text: `No ${status === "all" ? "" : `${status} `}goals found.` }] };
       }
 
-      const text = `## Active Goals (${rows.length})\n\n` +
+      const text = `## ${label} (${rows.length})\n\n` +
         rows.map((r, i) => `### ${i + 1}. ${formatGoal(r, tz)}`).join("\n\n---\n\n");
       return { content: [{ type: "text" as const, text }] };
     }
@@ -1418,8 +1449,10 @@ Returns: The created goal with its ID.`,
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
       const rows = await sql(
-        `INSERT INTO goals (user_id, title, description, target_date)
-         VALUES ($1, $2, $3, $4)
+        // New goals go to the top of the manual order, like the app's createGoal.
+        `INSERT INTO goals (user_id, title, description, target_date, sort_order)
+         VALUES ($1, $2, $3, $4,
+           (SELECT COALESCE(MIN(sort_order), 0) - 1 FROM goals WHERE user_id = $1))
          RETURNING *`,
         [
           userId,
@@ -1448,6 +1481,7 @@ Args:
   - description: New description.
   - target_date: New target day as YYYY-MM-DD. Pass null to clear it.
   - status: New status (active, completed, paused).
+  - reflection: The user's "how did it go?" note, usually written when completing. Pass null to clear it.
 
 Returns: The updated goal.`,
       inputSchema: {
@@ -1456,6 +1490,7 @@ Returns: The updated goal.`,
         description: z.string().max(2000).optional().describe("New description"),
         target_date: z.string().nullable().optional().describe("New target day, YYYY-MM-DD. Pass null to clear it."),
         status: z.enum(["active", "completed", "paused"]).optional().describe("New status"),
+        reflection: z.string().max(4000).nullable().optional().describe("How it went — usually set when completing. Pass null to clear it."),
       },
       annotations: {
         readOnlyHint: false,
@@ -1476,6 +1511,7 @@ Returns: The updated goal.`,
         ["description", params.description],
         ["target_date", goalDateField(params.target_date, tz)],
         ["status", params.status],
+        ["reflection", params.reflection === undefined ? undefined : params.reflection?.trim() || null],
       ];
 
       for (const [col, val] of fields) {
@@ -1489,6 +1525,12 @@ Returns: The updated goal.`,
       if (setClauses.length === 0) {
         return { content: [{ type: "text" as const, text: "No fields to update. Pass at least one field to change." }] };
       }
+
+      // completed_at follows status, as in the app's updateGoal.
+      if (params.status !== undefined) {
+        setClauses.push(params.status === "completed" ? "completed_at = NOW()" : "completed_at = NULL");
+      }
+      setClauses.push("updated_at = NOW()");
 
       values.push(params.goal_id, userId);
       const query = `UPDATE goals SET ${setClauses.join(", ")} WHERE id = $${idx} AND user_id = $${idx + 1} AND deleted_at IS NULL RETURNING *`;

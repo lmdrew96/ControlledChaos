@@ -103,7 +103,7 @@ Your job: Parse a messy, stream-of-consciousness brain dump into structured, act
    - BAD: "deadline": "2026-04-04T23:59:00.000Z" (no "Z" — this is local time, not UTC)
    - GOOD: "deadline": "2026-04-04T23:59:00"
    - GOOD: omit the deadline field entirely
-3. GOAL CONNECTION: The user's existing goals are provided. The goalConnection field MUST be one of the exact goal titles from that list, or omitted entirely. Setting it to a non-existent goal will cause a system error.
+3. GOAL CONNECTION: The user's existing goals are provided. The goalConnection field MUST be one of the exact goal titles from that list, or the exact title of a NEW goal you create in this same response (see "New Goals"), or omitted entirely. Setting it to any other title will cause a system error.
 4. DUPLICATES: The user's current pending tasks are provided. If the brain dump clearly matches an existing pending task, skip it and note it in the summary.
 5. CALENDAR: The user's calendar for today is provided for context only. Do NOT create tasks or events from existing calendar events.
 
@@ -119,6 +119,14 @@ For each NEW task (not a duplicate), output:
 - deadline: Local datetime string ("YYYY-MM-DDTHH:MM:SS", no "Z") ONLY if mentioned or clearly inferable. Omit if uncertain.
 - targetDate: Local datetime string (same format) ONLY when the user states a SELF-IMPOSED goal that is clearly distinct from a real due date — "I want this done by Wednesday", "aiming to finish Tuesday", "I'd like it out of the way before the weekend". NEVER calculate it from the deadline. If the user mentions only ONE date, that date is the deadline and you must omit targetDate entirely.
 - goalConnection: Exact title from the provided goals list, or omit.
+
+## New Goals (rare)
+A goal is a long-running aim that takes many tasks over weeks or months — "get my GPA above 3.5 this semester", "run a 5K by spring", "finish the portfolio site before applications open".
+- Create one ONLY when the user explicitly states such an aim in this dump AND it is not already covered by an existing goal (compare meaning, not just wording).
+- NEVER turn a single task, errand, assignment or event into a goal. "Finish my essay" is a task. When in doubt, don't create a goal.
+- At most ONE new goal per dump. Most dumps have none — output "goals": [].
+- Fields: title (short, the aim itself), description (optional: why it matters, in the user's words), targetDate ("YYYY-MM-DD" only if the user named a day or clearly inferable one, else omit).
+- Tasks from this dump that serve the new goal may use its exact title as goalConnection.
 
 ## Event vs Task Test
 Ask: Does this have a specific time block on a specific day?
@@ -165,7 +173,7 @@ Output:
 ], "summary": "Created 4 tasks and 2 events. The Bio exam is on the calendar with a prep task the night before; the ENGL essay is a task due Friday, not an event." }
 
 Respond ONLY with valid JSON (no markdown, no code blocks):
-{ "tasks": [...], "events": [...], "summary": "Brief summary including tasks created, events detected, and any duplicates skipped" }`;
+{ "tasks": [...], "events": [...], "goals": [], "summary": "Brief summary including tasks created, events detected, any new goal, and any duplicates skipped" }`;
 }
 
 
@@ -386,6 +394,25 @@ or
 }
 
 
+
+// ============================================================
+// GOAL BREAKDOWN (starter steps for a goal)
+// ============================================================
+
+export const GOAL_BREAKDOWN_PROMPT = `You help someone with ADHD turn a goal into its first concrete steps, for ControlledChaos.
+
+You get the goal (title, optional description and target day) and the steps already linked to it. Suggest 3 to 5 NEW tasks that move the goal forward from where it is now.
+
+Rules:
+- Each step is a real, finishable task someone could start today: start with a verb, specific enough that "done" is obvious. "Email Prof. Lee about office hours", not "Work on grades".
+- Put the easiest, lowest-friction step first — the point is getting started.
+- Never repeat or rephrase a step that's already linked, open or done.
+- Keep each one to a single sitting (under about 90 minutes). A big piece becomes a smaller first move.
+- If the description says why the goal matters, let that shape the steps. Don't lecture or add motivational copy.
+- Only use facts from the goal. Don't invent courses, people, dates or deadlines.
+
+Respond ONLY with valid JSON (no markdown, no code blocks):
+{ "steps": [ { "title": "…", "description": "one short sentence of context, or omit", "estimatedMinutes": 25, "energyLevel": "low" | "medium" | "high" } ] }`;
 
 // ============================================================
 // TASK CHUNKING (inline progress steps)

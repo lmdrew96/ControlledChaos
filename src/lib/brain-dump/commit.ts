@@ -8,6 +8,7 @@ import {
   getUser,
   getUserSettings,
   getUserGoals,
+  createGoal,
   getPendingTasks,
   getCalendarEventsByDateRange,
   getSavedLocations,
@@ -78,7 +79,7 @@ export async function commitParsedDump(params: {
       ...media,
       category,
     });
-    return { dump: { id: dump.id, summary }, tasks: [], eventsCreated: 0 };
+    return { dump: { id: dump.id, summary }, tasks: [], eventsCreated: 0, goalsCreated: [] };
   }
 
   // Context for anti-hallucination grounding.
@@ -128,7 +129,21 @@ export async function commitParsedDump(params: {
     category,
   });
 
-  const createdTasks = await createTasksFromDump(userId, dump.id, result.tasks, activeGoals);
+  // A goal the dump proposed goes in first, so tasks that serve it can link to it.
+  const createdGoals = await Promise.all(
+    (result.goals ?? []).map((g) =>
+      createGoal(userId, {
+        title: g.title,
+        description: g.description ?? null,
+        targetDate: g.targetDate ? new Date(g.targetDate) : null,
+      })
+    )
+  );
+
+  const createdTasks = await createTasksFromDump(userId, dump.id, result.tasks, [
+    ...activeGoals,
+    ...createdGoals,
+  ]);
 
   let eventsCreated = 0;
   if (result.events && result.events.length > 0) {
@@ -163,5 +178,6 @@ export async function commitParsedDump(params: {
     dump: { id: dump.id, summary: result.summary },
     tasks: createdTasks,
     eventsCreated,
+    goalsCreated: createdGoals.map((g) => ({ id: g.id, title: g.title })),
   };
 }

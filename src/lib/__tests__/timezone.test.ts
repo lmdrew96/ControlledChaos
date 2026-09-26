@@ -15,6 +15,8 @@ import {
   DISPLAY_TIME,
   DISPLAY_DATETIME,
   DISPLAY_FULL_DATETIME,
+  dateOnlyKey,
+  formatDateOnly,
 } from "../timezone";
 
 // ---------------------------------------------------------------------------
@@ -452,3 +454,25 @@ describe("localDaysRange", () => {
   });
 });
 
+
+describe("date-only values (goal target days)", () => {
+  // Stored as UTC midnight of the picked day — what `new Date("2026-10-15")` gives.
+  const picked = new Date("2026-10-15");
+
+  it("keeps the picked calendar day as its key", () => {
+    expect(dateOnlyKey(picked)).toBe("2026-10-15");
+  });
+
+  it("formats as the picked day, not the day before, west of UTC", () => {
+    // The old path formatted in the user's zone: New York showed Oct 14.
+    expect(picked.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })).toBe("Oct 14");
+    expect(formatDateOnly(picked, { month: "short", day: "numeric" })).toBe("Oct 15");
+  });
+
+  it("reads the same day east of UTC too", () => {
+    const newYearsEve = new Date("2026-12-31");
+    expect(dateOnlyKey(newYearsEve)).toBe("2026-12-31");
+    // Tokyo is UTC+9 — converting there would already be fine, and still must not shift.
+    expect(formatDateOnly(newYearsEve, { year: "numeric", month: "short", day: "numeric" })).toBe("Dec 31, 2026");
+  });
+});

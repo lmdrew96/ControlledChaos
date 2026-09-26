@@ -13,13 +13,15 @@ interface RecommendationInput {
   aiContextBlock?: string;
   /** Active goal titles by id, so the model can see what a task serves. */
   goalTitles?: Record<string, string>;
+  /** Why each active goal matters (its description), by id — a tiebreaker, not a deadline. */
+  goalWhys?: Record<string, string>;
 }
 
 /**
  * Build the user prompt that provides all context to Haiku.
  */
 function buildRecommendationPrompt(input: RecommendationInput): string {
-  const { context, pendingTasks, recentlyRejectedTaskIds = [], goalTitles = {} } = input;
+  const { context, pendingTasks, recentlyRejectedTaskIds = [], goalTitles = {}, goalWhys = {} } = input;
 
   const now = new Date();
 
@@ -159,6 +161,18 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     return `\n- Current state: logged ${m.type} ${m.minutesAgo} min ago${intensityStr}${noteStr}`;
   })();
 
+  // Only goals that a pending task serves — the rest can't change the pick.
+  const servedGoalIds = [...new Set(pendingTasks.map((t) => t.goalId).filter((id): id is string => !!id && !!goalTitles[id]))];
+  const goalsSection =
+    servedGoalIds.length > 0
+      ? `\n\n## Goals These Tasks Serve\n${servedGoalIds
+          .map((id) => {
+            const why = goalWhys[id]?.replace(/\s+/g, " ").trim();
+            return `- ${goalTitles[id]}${why ? `: ${why.length > 200 ? `${why.slice(0, 200)}…` : why}` : ""}`;
+          })
+          .join("\n")}\nA goal is a long-term aim, not a deadline: let it break ties between otherwise similar tasks, never outrank a hard deadline.`
+      : "";
+
   const descriptionNote =
     pendingTasks.length > 50
       ? "\n\nNote: Task descriptions omitted due to volume. Prioritize based on title, priority, deadline, and energy."
@@ -179,7 +193,7 @@ NOTE: All deadline/timing info is pre-computed in the "deadlineIn", "targetIn" a
 "deadlineIn" is a HARD externally-imposed due date. "targetIn" is a SOFT target the user set for themselves — it carries real intent but NO external consequence, so it must never outrank a hard deadline or be described as "due". A task whose only time pressure is "targetIn" is not urgent.${calendarSection}
 
 ## Pending Tasks (${taskList.length})
-${JSON.stringify(taskList, null, 2)}${descriptionNote}
+${JSON.stringify(taskList, null, 2)}${descriptionNote}${goalsSection}
 
 Pick the single best task.${input.aiContextBlock ? `\n\n${input.aiContextBlock}` : ""}`;
 }
