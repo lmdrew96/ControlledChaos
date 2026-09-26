@@ -67,7 +67,9 @@ export async function fetchCanvasEvents(icalUrl: string): Promise<VEvent[]> {
   }
 
   const response = await fetch(icalUrl, {
-    headers: { Accept: "text/calendar" },
+    // Canvas 403s a request with no User-Agent before it checks the token,
+    // and the Workers runtime sends none by default (Node's fetch sent "node").
+    headers: { Accept: "text/calendar", "User-Agent": "ControlledChaos/1.0" },
     cache: "no-store",
     signal: AbortSignal.timeout(15000),
   });
