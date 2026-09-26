@@ -185,6 +185,26 @@ export async function getCommuteTimes(userId: string) {
     .where(eq(commuteTimes.userId, userId));
 }
 
+/**
+ * Everything travelBuffers() / commuteContextFrom() need, in one call.
+ * `currentLocationId` is the geofence match only while it's fresh — a stale
+ * one points at wherever the user was last, not where they are.
+ */
+export async function getCommuteSetup(userId: string) {
+  const [savedLocations, commutes, userLocation] = await Promise.all([
+    getSavedLocations(userId),
+    getCommuteTimes(userId),
+    getUserLocation(userId),
+  ]);
+  const fresh = userLocation && !isLocationStale(userLocation.updatedAt) ? userLocation : null;
+  return {
+    savedLocations,
+    commutes,
+    currentLocationId: fresh?.matchedLocationId ?? null,
+    currentLocationName: fresh?.matchedLocationName ?? null,
+  };
+}
+
 export async function getCommuteBetween(
   fromLocationId: string,
   toLocationId: string,

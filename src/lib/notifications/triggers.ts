@@ -21,6 +21,10 @@ import {
   describeFromNow,
   DISPLAY_TIME,
 } from "@/lib/timezone";
+import {
+  matchEventLocationToSavedLocation,
+  shortestCommuteMinutes,
+} from "@/lib/calendar/commute-buffers";
 /**
  * The Anthropic SDK and the prompt builders load lazily, not at module scope.
  * Every cron route reaches this module, but only a small fraction of ticks
@@ -934,38 +938,9 @@ export interface DepartureAlert {
 
 const DEPARTURE_BUFFER_MINUTES = 5; // Extra buffer on top of commute time
 
-/** Whether `phrase` appears in `text` as whole words, case-insensitively. */
-function containsWords(text: string, phrase: string): boolean {
-  const escaped = phrase.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (!escaped) return false;
-  // \b fails next to punctuation-only edges, so bound on non-word-or-edge.
-  return new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i").test(text);
-}
-
-/**
- * Match a calendar event's location string to a saved location by name.
- *
- * Whole-word containment in either direction: "Smith Hall Room 101" matches a
- * saved "Smith Hall", and "Campus" matches an event at "Campus". Plain
- * substring matching used to let "Home" match "Homework Lab".
- */
-export function matchEventLocationToSavedLocation(
-  eventLocation: string | null,
-  savedLocations: Array<{ id: string; name: string }>
-): { id: string; name: string } | null {
-  if (!eventLocation?.trim()) return null;
-
-  for (const loc of savedLocations) {
-    if (
-      containsWords(eventLocation, loc.name) ||
-      containsWords(loc.name, eventLocation)
-    ) {
-      return loc;
-    }
-  }
-
-  return null;
-}
+// Location matching lives with the other commute helpers; re-exported so
+// existing importers keep working.
+export { matchEventLocationToSavedLocation };
 
 /**
  * Get departure alerts for a user's upcoming events.
@@ -1007,19 +982,12 @@ export async function getDepartureAlerts(
 
     // Find commute time from current location to event location
     // Check all travel modes and use the shortest (most likely mode)
-    const relevantCommutes = allCommutes.filter(
-      (c) =>
-        c.fromLocationId === userLoc.matchedLocationId &&
-        c.toLocationId === destination.id
+    const commuteMinutes = shortestCommuteMinutes(
+      userLoc.matchedLocationId,
+      destination.id,
+      allCommutes
     );
-
-    if (relevantCommutes.length === 0) continue;
-
-    // Use shortest commute time across all modes
-    const shortestCommute = relevantCommutes.reduce((min, c) =>
-      c.travelMinutes < min.travelMinutes ? c : min
-    );
-    const commuteMinutes = shortestCommute.travelMinutes;
+    if (commuteMinutes === null) continue;
 
     // Calculate when user needs to leave
     const eventStart = new Date(event.startTime);

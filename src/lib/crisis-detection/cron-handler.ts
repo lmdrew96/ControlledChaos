@@ -17,7 +17,9 @@ import {
   getUserSettings,
   getUser,
   getRecentMoments,
+  getCommuteSetup,
 } from "@/lib/db/queries";
+import { commuteContextFrom, travelBuffers } from "@/lib/calendar/commute-buffers";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
@@ -109,7 +111,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   });
 
   // Fetch calendar events for the window and recent Moments for augmentation
-  const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
+  const [calendarRows, recentMomentRows, loggedMinutes, commute] = await Promise.all([
     getCalendarEventsByDateRange(userId, now, windowEnd),
     // 2-hour window is the widest any Moment augmentation rule cares about
     getRecentMoments(userId, 120, [
@@ -119,7 +121,24 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     // Work already logged in sittings. A task that's half done needs half
     // its estimate, not all of it, or the collision math cries wolf.
     getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),
+    getCommuteSetup(userId),
   ]);
+
+  // Travel between events at different saved locations is time the user
+  // can't work, same as the events. The manual crisis route adds the same
+  // buffers (api/crisis/route.ts eventsWithTravel), so both see one number.
+  const busyRows = [
+    ...calendarRows,
+    ...travelBuffers(calendarRows, commute.savedLocations, commute.commutes, {
+      startLocationId: commute.currentLocationId,
+      now,
+    }).map((b) => ({
+      title: `Travel to ${b.destination}`,
+      startTime: b.start,
+      endTime: b.end,
+      isAllDay: false,
+    })),
+  ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   // A drift warning stands for the day it was sent. Feeding that back in gives
   // the detector its hysteresis band, so a workload parked near the threshold
@@ -145,7 +164,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       // A woken snooze is open work again.
       status: t.status === "snoozed" ? "pending" : t.status,
     })),
-    calendarEvents: calendarRows.map((e) => ({
+    calendarEvents: busyRows.map((e) => ({
       startTime: new Date(e.startTime),
       endTime: new Date(e.endTime),
       isAllDay: e.isAllDay ?? false,
@@ -241,11 +260,12 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
           userId,
           detection.id,
           result,
-          calendarRows,
+          busyRows,
           userTimezone,
           wakeTime,
           sleepTime,
-          allTasks.length
+          allTasks.length,
+          commute
         );
         if (planId) {
           console.log(`[CrisisDetection] Auto-triage plan=${planId} generated for detection=${detection.id}`);
@@ -281,11 +301,12 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         userId,
         existing.id,
         result,
-        calendarRows,
+        busyRows,
         userTimezone,
         wakeTime,
         sleepTime,
-        allTasks.length
+        allTasks.length,
+        commute
       );
     } catch (err) {
       console.error(`[CrisisDetection] Auto-triage plan generation failed for detection=${existing.id}:`, err);
@@ -407,7 +428,8 @@ async function generateAutoTriagePlan(
   timezone: string,
   wakeTime: number,
   sleepTime: number,
-  totalPendingTaskCount: number
+  totalPendingTaskCount: number,
+  commute: Awaited<ReturnType<typeof getCommuteSetup>>
 ): Promise<string | null> {
   const now = new Date();
   const firstDeadline = result.firstDeadline;
@@ -450,6 +472,10 @@ async function generateAutoTriagePlan(
         };
       }),
     existingPendingTaskCount: totalPendingTaskCount,
+    // Same location lines the manual route sends, so a plan that needs the
+    // user somewhere else gets its "Leave for" step either way.
+    currentLocation: commute.currentLocationName,
+    commuteContext: commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes),
   };
 
   const crisisResult = await getCrisisPlan(params);

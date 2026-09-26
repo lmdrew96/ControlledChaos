@@ -8,8 +8,10 @@ import {
   getCalendarEventsByDateRange,
   getScheduledSessionsInRange,
   replaceTaskSessions,
+  getCommuteSetup,
 } from "@/lib/db/queries";
 import { planBlocksAsBusyIntervals } from "@/lib/calendar/plan-blocks";
+import { travelBuffers, travelBuffersAsBusyIntervals } from "@/lib/calendar/commute-buffers";
 import { db } from "@/lib/db";
 import { tasks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -68,10 +70,18 @@ export async function POST(_req: Request, context: RouteContext) {
     // stored as `scheduledFor` on a task, not as a calendar event, so without
     // this the scheduler is blind to every slot the user has already claimed
     // and will happily drop this task on top of one.
-    const [existingEvents, scheduledTasks] = await Promise.all([
+    const [existingEvents, scheduledTasks, commute] = await Promise.all([
       getCalendarEventsByDateRange(userId, now, windowEnd),
       getScheduledSessionsInRange(userId, now, windowEnd),
+      getCommuteSetup(userId),
     ]);
+    // Travel between events at different saved locations is busy time too.
+    const travel = travelBuffersAsBusyIntervals(
+      travelBuffers(existingEvents, commute.savedLocations, commute.commutes, {
+        startLocationId: commute.currentLocationId,
+        now,
+      })
+    );
 
     const serializedEvents = existingEvents.map((e) => ({
       id: e.id,
@@ -132,7 +142,7 @@ export async function POST(_req: Request, context: RouteContext) {
 
     const block = await scheduleOneTask({
       task: serializedTask,
-      calendarEvents: [...serializedEvents, ...otherPlanBlocks],
+      calendarEvents: [...serializedEvents, ...travel, ...otherPlanBlocks],
       currentEnergy,
       timezone,
       wakeTime,

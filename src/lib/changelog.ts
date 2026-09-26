@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.75.0",
+    date: "2026-09-25",
+    title: "Room to get there",
+    changes: [
+      {
+        kind: "improved",
+        text: "Planning knows you have to travel. When back-to-back events are at different saved places, Plan my day, Find me a time and Rescue plans all leave your commute free instead of filling it with work.",
+      },
+    ],
+  },
+  {
     version: "2.74.1",
     label: "2.70.15 – 2.74.1",
     date: "2026-09-25",

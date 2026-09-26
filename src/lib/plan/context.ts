@@ -4,11 +4,13 @@ import {
   getPendingTasks,
   getCalendarEventsByDateRange,
   getScheduledSessionsInRange,
+  getCommuteSetup,
 } from "@/lib/db/queries";
 import { buildAIContext } from "@/lib/ai/context";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { planBlocksAsBusyIntervals, todayPlanningWindow } from "@/lib/calendar/plan-blocks";
+import { travelBuffers, travelBuffersAsBusyIntervals } from "@/lib/calendar/commute-buffers";
 import type { CalendarEvent, PersonalityPrefs, Task } from "@/types";
 
 type TaskRow = Awaited<ReturnType<typeof getPendingTasks>>[number];
@@ -66,7 +68,7 @@ export interface PlanningContext {
   sleepHour: number;
   /** null when the sleep hour has already passed — nothing left to plan today. */
   window: { start: Date; end: Date } | null;
-  /** Real events PLUS committed plan blocks, so the scheduler sees both as busy. */
+  /** Real events, travel between them, and committed plan blocks: all busy to the scheduler. */
   busyIntervals: CalendarEvent[];
   /** Pending tasks that are NOT already planned into the window. */
   schedulableTasks: Task[];
@@ -108,14 +110,22 @@ export async function buildPlanningContext(
   let alreadyPlannedIds = new Set<string>();
 
   if (window) {
-    const [events, scheduled] = await Promise.all([
+    const [events, scheduled, commute] = await Promise.all([
       getCalendarEventsByDateRange(userId, window.start, window.end),
       getScheduledSessionsInRange(userId, window.start, window.end),
+      getCommuteSetup(userId),
     ]);
 
     alreadyPlannedIds = new Set(scheduled.map((t) => t.id));
     busyIntervals = [
       ...events.map(serializeEvent),
+      // Getting between events at different saved locations takes time too.
+      ...travelBuffersAsBusyIntervals(
+        travelBuffers(events, commute.savedLocations, commute.commutes, {
+          startLocationId: commute.currentLocationId,
+          now: new Date(),
+        })
+      ),
       ...planBlocksAsBusyIntervals(
         scheduled.map((t) => ({
           id: t.id,

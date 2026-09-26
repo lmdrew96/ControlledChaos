@@ -14,11 +14,9 @@ import {
   updateCrisisPlanProgress,
   completeCrisisPlan,
   restoreCrisisPlan,
-  getUserLocation,
-  getCommuteTimes,
-  getSavedLocations,
-  isLocationStale,
+  getCommuteSetup,
 } from "@/lib/db/queries";
+import { commuteContextFrom, travelBuffers } from "@/lib/calendar/commute-buffers";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
@@ -32,6 +30,23 @@ import {
   startOfDayInTimezone,
 } from "@/lib/timezone";
 
+/**
+ * Events plus the travel between them, as the crisis prompt reads them.
+ * Auto-triage (crisis-detection/cron-handler.ts) builds the same list, so a
+ * manual and an automatic plan see the same busy time.
+ */
+function eventsWithTravel(
+  events: Array<{ title: string; startTime: Date; endTime: Date; isAllDay: boolean | null; location: string | null }>,
+  commute: Awaited<ReturnType<typeof getCommuteSetup>>,
+  now: Date
+) {
+  const travel = travelBuffers(events, commute.savedLocations, commute.commutes, {
+    startLocationId: commute.currentLocationId,
+    now,
+  }).map((b) => ({ title: `Travel to ${b.destination}`, startTime: b.start, endTime: b.end }));
+  return [...events, ...travel].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
 function formatEventsForAI(
   events: Array<{ title: string; startTime: Date; endTime: Date }>,
   timezone: string
@@ -42,30 +57,6 @@ function formatEventsForAI(
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_DATETIME),
     durationMinutes: Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60_000),
   }));
-}
-
-/**
- * Build commute context: for the user's last known location, list travel
- * times to all other saved locations. Caller must have already filtered
- * `userLocation` for staleness — a stale match would point commute steps
- * at wherever the user was last, not where they are now.
- */
-function buildCommuteContext(
-  userLocation: { matchedLocationId: string | null } | null,
-  allCommutes: Array<{ fromLocationId: string; toLocationId: string; travelMode: string; travelMinutes: number }>,
-  savedLocations: Array<{ id: string; name: string }>
-): Array<{ to: string; minutes: number }> {
-  if (!userLocation?.matchedLocationId || allCommutes.length === 0) return [];
-
-  const fromId = userLocation.matchedLocationId;
-  const locationNameMap = new Map(savedLocations.map((l) => [l.id, l.name]));
-
-  return allCommutes
-    .filter((c) => c.fromLocationId === fromId && c.travelMode === "driving")
-    .map((c) => ({
-      to: locationNameMap.get(c.toLocationId) ?? "Unknown",
-      minutes: c.travelMinutes,
-    }));
 }
 
 /**
@@ -230,14 +221,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, aiCtx] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
-      getUserLocation(userId),
-      getCommuteTimes(userId),
+      getCommuteSetup(userId),
       buildAIContext(userId, { skipCalendar: true, skipCrises: true }), // calendar + crises fetched separately with custom ranges
     ]);
 
@@ -253,12 +243,9 @@ export async function POST(request: Request) {
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     // App reports position only while foregrounded (no PWA background geolocation) —
-    // a stale match is worse than none for a "Leave for [destination]" step.
-    const freshUserLocation =
-      userLocation && !isLocationStale(userLocation.updatedAt) ? userLocation : null;
-
-    // Build commute context from user's last known location
-    const commuteContext = buildCommuteContext(freshUserLocation, allCommutes, await getSavedLocations(userId));
+    // getCommuteSetup drops a stale match, which is worse than none for a
+    // "Leave for [destination]" step.
+    const commuteContext = commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes);
 
     const result = await getCrisisPlan({
       taskName,
@@ -267,7 +254,7 @@ export async function POST(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
+      upcomingEvents: formatEventsForAI(eventsWithTravel(upcomingEvents, commute, now), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
@@ -277,7 +264,7 @@ export async function POST(request: Request) {
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
-      currentLocation: freshUserLocation?.matchedLocationName ?? null,
+      currentLocation: commute.currentLocationName,
       commuteContext,
       files,
       aiContextBlock: aiCtx.formatted,
@@ -359,15 +346,13 @@ export async function PUT(request: Request) {
     const planningHorizonEnd =
       deadlineDate ?? new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, userLocation, allCommutes, savedLocs, aiCtx] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, planningHorizonEnd),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
-      getUserLocation(userId),
-      getCommuteTimes(userId),
-      getSavedLocations(userId),
+      getCommuteSetup(userId),
       buildAIContext(userId, { skipCalendar: true, skipCrises: true }),
     ]);
 
@@ -387,9 +372,7 @@ export async function PUT(request: Request) {
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
-    const freshUserLocation =
-      userLocation && !isLocationStale(userLocation.updatedAt) ? userLocation : null;
-    const commuteContext = buildCommuteContext(freshUserLocation, allCommutes, savedLocs);
+    const commuteContext = commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes);
 
     // Preserve completed steps — only regenerate remaining work
     const existingTasks = plan.tasks as CrisisTask[];
@@ -406,7 +389,7 @@ export async function PUT(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(upcomingEvents, timezone),
+      upcomingEvents: formatEventsForAI(eventsWithTravel(upcomingEvents, commute, now), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
@@ -417,7 +400,7 @@ export async function PUT(request: Request) {
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
       completedSteps: completedStepTitles,
-      currentLocation: freshUserLocation?.matchedLocationName ?? null,
+      currentLocation: commute.currentLocationName,
       commuteContext,
       aiContextBlock: aiCtx.formatted,
     });
