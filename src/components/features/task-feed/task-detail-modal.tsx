@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Loader2, Check, Trash2, Undo2, Layers, AlertCircle } from "lucide-react";
+import { Loader2, Check, Trash2, Undo2, Layers, AlertCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { SessionOutcomePicker } from "@/components/features/task-feed/session-outcome-picker";
 import type { SessionOutcome } from "@/lib/calendar/session-minutes";
@@ -31,7 +31,10 @@ import type { Task, ProgressStep } from "@/types";
 import { toUserLocal, toUTC } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { SourceBackBadge } from "@/components/shared/source-back-badge";
+import { Markdown } from "@/components/ui/markdown";
 import {
+  priorityConfig,
+  energyConfig,
   priorityOptions,
   energyOptions,
   categoryOptions,
@@ -151,6 +154,9 @@ export function TaskDetailModal({
   const [isAddingSession, setIsAddingSession] = useState(false);
   // Which row is mid-write, so it can't be edited twice at once.
   const [busySessionId, setBusySessionId] = useState<string | null>(null);
+  // A tap is usually "what was this again?", not "change it". The modal opens
+  // on a read view; Edit swaps the same modal into the form.
+  const [mode, setMode] = useState<"view" | "edit">("view");
 
   // Fetch user's saved locations and goals
   useEffect(() => {
@@ -187,6 +193,14 @@ export function TaskDetailModal({
     // timezone is a dep: useTimezone starts on the browser zone and re-renders
     // with the stored one, and the datetime-local strings are built from it.
   }, [task, timezone, loadSessions]);
+
+  // Keyed on the id, not the object: the list refetches after every write and
+  // hands us a fresh object, which must not kick the user out of the form.
+  const taskId = task?.id;
+  useEffect(() => {
+    setMode("view");
+    setConfirmDelete(false);
+  }, [taskId]);
 
   // Every sitting gets a row. A task planned only through `tasks.scheduled_for`
   // has no session row yet, so it is shown as one — see LEGACY_SESSION_ID.
@@ -371,6 +385,13 @@ export function TaskDetailModal({
     Boolean(form.deadline) &&
     new Date(form.targetDate) > new Date(form.deadline);
 
+  function cancelEdit() {
+    if (!task) return;
+    setForm(formFromTask(task, timezone));
+    setTitleError(null);
+    setMode("view");
+  }
+
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key === "title" && titleError) setTitleError(null);
@@ -502,10 +523,19 @@ export function TaskDetailModal({
     <Dialog open={!!task} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Task</DialogTitle>
-          <DialogDescription>
-            Make changes and hit save.
-          </DialogDescription>
+          {mode === "view" ? (
+            <>
+              <DialogTitle className="pr-6 leading-snug">{task.title}</DialogTitle>
+              <DialogDescription className="sr-only">Task details</DialogDescription>
+            </>
+          ) : (
+            <>
+              <DialogTitle>Edit Task</DialogTitle>
+              <DialogDescription>
+                Make changes and hit save.
+              </DialogDescription>
+            </>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 space-y-4">
@@ -516,290 +546,305 @@ export function TaskDetailModal({
             />
           )}
 
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="task-title">Title</Label>
-            <Input
-              id="task-title"
-              value={form.title}
-              onChange={(e) => updateField("title", e.target.value)}
-              placeholder="Task title"
-              aria-invalid={!!titleError}
-              className={titleError ? "border-destructive" : ""}
+          {mode === "view" ? (
+            <TaskReadView
+              task={task}
+              timezone={timezone}
+              sittings={plannedSittings}
+              goalTitle={goals.find((g) => g.id === task.goalId)?.title ?? null}
+              onOutcomeChanged={() => {
+                void loadSessions(task.id);
+                onUpdate?.();
+              }}
             />
-            {titleError && (
-              <p className="flex items-center gap-1 text-xs text-destructive">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                {titleError}
-              </p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="task-description">Description</Label>
-            <Textarea
-              id="task-description"
-              value={form.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              placeholder="Add details..."
-              className="min-h-[80px] resize-none"
-            />
-          </div>
-
-          {/* Priority + Energy */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          ) : (
+            <>
+            {/* Title */}
             <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select
-                value={form.priority}
-                onValueChange={(v) => updateField("priority", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Energy Level</Label>
-              <Select
-                value={form.energyLevel}
-                onValueChange={(v) => updateField("energyLevel", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {energyOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Category + Location */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select
-                value={form.category || "none"}
-                onValueChange={(v) =>
-                  updateField("category", v === "none" ? "" : v)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {categoryOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Location</Label>
-              {savedLocations.length === 0 ? (
-                <p className="text-xs text-muted-foreground pt-1">
-                  No saved locations. Add them in Settings.
+              <Label htmlFor="task-title">Title</Label>
+              <Input
+                id="task-title"
+                value={form.title}
+                onChange={(e) => updateField("title", e.target.value)}
+                placeholder="Task title"
+                aria-invalid={!!titleError}
+                className={titleError ? "border-destructive" : ""}
+              />
+              {titleError && (
+                <p className="flex items-center gap-1 text-xs text-destructive">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  {titleError}
                 </p>
-              ) : (
-                <div className="flex flex-wrap gap-3 pt-1">
-                  {savedLocations.map((loc) => {
-                    const checked = form.locationTags.includes(loc.name);
-                    return (
-                      <label
-                        key={loc.id}
-                        className="flex items-center gap-1.5 text-sm cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            const next = checked
-                              ? form.locationTags.filter((t) => t !== loc.name)
-                              : [...form.locationTags, loc.name];
-                            updateField("locationTags", next);
-                          }}
-                          className="accent-primary h-4 w-4 rounded"
-                        />
-                        {loc.name}
-                      </label>
-                    );
-                  })}
-                </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                None checked = can be done anywhere
-              </p>
             </div>
-          </div>
 
-          {/* Time Estimate + Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="task-time">Time Estimate (min)</Label>
-              <Input
-                id="task-time"
-                type="number"
-                min={1}
-                value={form.estimatedMinutes}
-                onChange={(e) => updateField("estimatedMinutes", e.target.value)}
-                placeholder="e.g. 30"
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                value={form.description}
+                onChange={(e) => updateField("description", e.target.value)}
+                placeholder="Add details..."
+                className="min-h-[80px] resize-none"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => updateField("status", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Priority + Energy */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={form.priority}
+                  onValueChange={(v) => updateField("priority", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Energy Level</Label>
+                <Select
+                  value={form.energyLevel}
+                  onValueChange={(v) => updateField("energyLevel", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {energyOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
 
-          {/* Deadline — hard, externally imposed */}
-          <OptionalDateTimeField
-            id="task-deadline"
-            label="Due"
-            value={form.deadline}
-            onChange={(v) => updateField("deadline", v)}
-            hint="When it's actually due — a date something outside you set."
-          />
+            {/* Category + Location */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={form.category || "none"}
+                  onValueChange={(v) =>
+                    updateField("category", v === "none" ? "" : v)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {categoryOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Target — soft, self-imposed */}
-          <OptionalDateTimeField
-            id="task-target"
-            label="Target"
-            value={form.targetDate}
-            onChange={(v) => updateField("targetDate", v)}
-            hint="When you want it done. Reminders about a target stay gentle."
-          >
-            {targetAfterDeadline && (
-              <p className="flex items-center gap-1 text-xs text-adhd-amber">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                Your target is after the due date. That still saves — just
-                double-check it&apos;s what you meant.
-              </p>
-            )}
-          </OptionalDateTimeField>
-
-          {/* Planned sittings — the "when", not the "by when". Big tasks rarely
-              happen in one go, so the plan is a LIST: every row here is a real
-              block on the calendar, and every one of them can be moved or
-              dropped. This section used to be gated on the first sitting, which
-              made clearing that one hide the rest of a plan that still existed. */}
-          <div className="space-y-2 rounded-lg border border-border/70 p-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-              <Label className="text-sm">Planned sessions</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              When you plan to work on this. Each sitting is its own block on
-              your calendar, and edits here save as you make them.
-            </p>
-
-            {plannedSittings.length > 0 ? (
-              <ul className="space-y-1.5">
-                {plannedSittings.map((session, i) => (
-                  <SittingRow
-                    // The stored time is part of the key on purpose: a row
-                    // holds a draft, and remounting is how it picks up a time
-                    // that changed under it (a move, a calendar drag, a failed
-                    // write snapping back).
-                    key={`${session.id}:${session.startsAt}:${session.minutes ?? "auto"}:${session.resolvedMinutes ?? ""}:${session.status ?? ""}`}
-                    index={i}
-                    session={session}
-                    timezone={timezone}
-                    isBusy={busySessionId === session.id}
-                    onMove={(value) => handleMoveSession(session.id, value)}
-                    onSetLength={(minutes) => handleSetSessionLength(session, minutes)}
-                    taskId={task.id}
-                    onOutcomeChanged={() => {
-                      void loadSessions(task.id);
-                      onUpdate?.();
-                    }}
-                    onRemove={() => handleRemoveSession(session.id)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Nothing planned yet. Add a sitting to put this on your calendar.
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                type="datetime-local"
-                value={newSessionAt}
-                onChange={(e) => setNewSessionAt(e.target.value)}
-                className="flex-1"
-                aria-label="Start of another session"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleAddSession}
-                disabled={!newSessionAt || isAddingSession}
-                className="shrink-0"
-              >
-                {isAddingSession ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+              <div className="space-y-2">
+                <Label>Location</Label>
+                {savedLocations.length === 0 ? (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    No saved locations. Add them in Settings.
+                  </p>
                 ) : (
-                  "Add session"
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    {savedLocations.map((loc) => {
+                      const checked = form.locationTags.includes(loc.name);
+                      return (
+                        <label
+                          key={loc.id}
+                          className="flex items-center gap-1.5 text-sm cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              const next = checked
+                                ? form.locationTags.filter((t) => t !== loc.name)
+                                : [...form.locationTags, loc.name];
+                              updateField("locationTags", next);
+                            }}
+                            className="accent-primary h-4 w-4 rounded"
+                          />
+                          {loc.name}
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
-              </Button>
+                <p className="text-xs text-muted-foreground">
+                  None checked = can be done anywhere
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Goal */}
-          {goals.length > 0 && (
-            <div className="space-y-2">
-              <Label>Goal</Label>
-              <Select
-                value={form.goalId || "none"}
-                onValueChange={(v) => updateField("goalId", v === "none" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {goals.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Time Estimate + Status */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-time">Time Estimate (min)</Label>
+                <Input
+                  id="task-time"
+                  type="number"
+                  min={1}
+                  value={form.estimatedMinutes}
+                  onChange={(e) => updateField("estimatedMinutes", e.target.value)}
+                  placeholder="e.g. 30"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => updateField("status", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {/* Deadline — hard, externally imposed */}
+            <OptionalDateTimeField
+              id="task-deadline"
+              label="Due"
+              value={form.deadline}
+              onChange={(v) => updateField("deadline", v)}
+              hint="When it's actually due — a date something outside you set."
+            />
+
+            {/* Target — soft, self-imposed */}
+            <OptionalDateTimeField
+              id="task-target"
+              label="Target"
+              value={form.targetDate}
+              onChange={(v) => updateField("targetDate", v)}
+              hint="When you want it done. Reminders about a target stay gentle."
+            >
+              {targetAfterDeadline && (
+                <p className="flex items-center gap-1 text-xs text-adhd-amber">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  Your target is after the due date. That still saves — just
+                  double-check it&apos;s what you meant.
+                </p>
+              )}
+            </OptionalDateTimeField>
+
+            {/* Planned sittings — the "when", not the "by when". Big tasks rarely
+                happen in one go, so the plan is a LIST: every row here is a real
+                block on the calendar, and every one of them can be moved or
+                dropped. This section used to be gated on the first sitting, which
+                made clearing that one hide the rest of a plan that still existed. */}
+            <div className="space-y-2 rounded-lg border border-border/70 p-3">
+              <div className="flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-sm">Planned sessions</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When you plan to work on this. Each sitting is its own block on
+                your calendar, and edits here save as you make them.
+              </p>
+
+              {plannedSittings.length > 0 ? (
+                <ul className="space-y-1.5">
+                  {plannedSittings.map((session, i) => (
+                    <SittingRow
+                      // The stored time is part of the key on purpose: a row
+                      // holds a draft, and remounting is how it picks up a time
+                      // that changed under it (a move, a calendar drag, a failed
+                      // write snapping back).
+                      key={`${session.id}:${session.startsAt}:${session.minutes ?? "auto"}:${session.resolvedMinutes ?? ""}:${session.status ?? ""}`}
+                      index={i}
+                      session={session}
+                      timezone={timezone}
+                      isBusy={busySessionId === session.id}
+                      onMove={(value) => handleMoveSession(session.id, value)}
+                      onSetLength={(minutes) => handleSetSessionLength(session, minutes)}
+                      taskId={task.id}
+                      onOutcomeChanged={() => {
+                        void loadSessions(task.id);
+                        onUpdate?.();
+                      }}
+                      onRemove={() => handleRemoveSession(session.id)}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nothing planned yet. Add a sitting to put this on your calendar.
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="datetime-local"
+                  value={newSessionAt}
+                  onChange={(e) => setNewSessionAt(e.target.value)}
+                  className="flex-1"
+                  aria-label="Start of another session"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddSession}
+                  disabled={!newSessionAt || isAddingSession}
+                  className="shrink-0"
+                >
+                  {isAddingSession ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Add session"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Goal */}
+            {goals.length > 0 && (
+              <div className="space-y-2">
+                <Label>Goal</Label>
+                <Select
+                  value={form.goalId || "none"}
+                  onValueChange={(v) => updateField("goalId", v === "none" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {goals.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            </>
           )}
 
           {/* Progress Steps — step-through UI */}
@@ -898,7 +943,7 @@ export function TaskDetailModal({
           </div>
 
           <div className="flex gap-2">
-            {canChunk && (
+            {mode === "view" && canChunk && (
               <Button
                 variant="outline"
                 size="sm"
@@ -913,23 +958,159 @@ export function TaskDetailModal({
                 {isChunking ? "Chunking..." : "Chunk it"}
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={isSaving || !hasChanges}
-            >
-              {isSaving ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              Save
-            </Button>
+            {mode === "view" ? (
+              <Button size="sm" onClick={() => setMode("edit")}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                Edit
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={isSaving || !hasChanges}
+                >
+                  {isSaving ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  Save
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const statusLabel: Record<string, string> = {
+  in_progress: "In progress",
+  completed: "Completed",
+  snoozed: "Snoozed",
+  cancelled: "Cancelled",
+};
+
+function sittingOutcome(session: TaskSessionView): string | null {
+  if (session.status === "done") return `Done · ${session.actualMinutes ?? 0} min`;
+  if (session.status === "partial") return `Partly · ${session.actualMinutes ?? 0} min`;
+  if (session.status === "skipped") return "Skipped";
+  return null;
+}
+
+interface TaskReadViewProps {
+  task: Task;
+  timezone: string;
+  sittings: TaskSessionView[];
+  goalTitle: string | null;
+  onOutcomeChanged: () => void;
+}
+
+/**
+ * Everything about a task at a glance, nothing to accidentally change. Logging
+ * how a past sitting went is the one action here: it's a "doing" step, and
+ * hiding it behind Edit would bury the prompt the sitting exists for.
+ */
+function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }: TaskReadViewProps) {
+  // Read once per open: "next sitting" doesn't need to tick while you look.
+  const [now] = useState(() => Date.now());
+  const sorted = [...sittings].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+  );
+  const sittingEnd = (s: TaskSessionView) =>
+    new Date(s.startsAt).getTime() + (s.resolvedMinutes ?? 30) * 60_000;
+  const next = sorted.find((s) => sittingEnd(s) > now) ?? null;
+  const priority = priorityConfig[task.priority as keyof typeof priorityConfig];
+  const energy = energyConfig[task.energyLevel as keyof typeof energyConfig];
+
+  const details: Array<{ label: string; value: string }> = [];
+  if (task.deadline) details.push({ label: "Due", value: formatSessionLabel(task.deadline, timezone) });
+  if (task.targetDate) details.push({ label: "Target", value: formatSessionLabel(task.targetDate, timezone) });
+  if (next) details.push({ label: "Next sitting", value: formatSessionLabel(next.startsAt, timezone) });
+  if (goalTitle) details.push({ label: "Goal", value: goalTitle });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1.5">
+        {priority && (
+          <Badge variant="outline" className={priority.className}>
+            {priority.label}
+          </Badge>
+        )}
+        {energy && <Badge variant="outline">{energy.label}</Badge>}
+        {task.estimatedMinutes != null && (
+          <Badge variant="outline">~{task.estimatedMinutes} min</Badge>
+        )}
+        {task.category && (
+          <Badge variant="outline" className="capitalize">
+            {task.category}
+          </Badge>
+        )}
+        {(task.locationTags ?? []).map((loc) => (
+          <Badge key={loc} variant="outline">
+            {loc}
+          </Badge>
+        ))}
+        {statusLabel[task.status] && (
+          <Badge variant="secondary">{statusLabel[task.status]}</Badge>
+        )}
+      </div>
+
+      {task.description?.trim() ? (
+        <Markdown className="text-sm">{task.description}</Markdown>
+      ) : (
+        <p className="text-sm text-muted-foreground">No description.</p>
+      )}
+
+      {details.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+          {details.map((d) => (
+            <div key={d.label} className="contents">
+              <dt className="text-muted-foreground">{d.label}</dt>
+              <dd className="min-w-0 break-words">{d.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {sorted.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Layers className="h-3.5 w-3.5" />
+            Planned sessions
+          </p>
+          <ul className="space-y-1">
+            {sorted.map((s) => {
+              const ended = sittingEnd(s) <= now;
+              const outcome = sittingOutcome(s);
+              return (
+                <li key={s.id} className="space-y-1 rounded-md bg-muted/50 px-2.5 py-1.5 text-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                    <span className={cn(ended && "text-muted-foreground")}>
+                      {formatSessionLabel(s.startsAt, timezone)}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {outcome ?? (s.resolvedMinutes != null ? `${s.resolvedMinutes} min` : "")}
+                    </span>
+                  </div>
+                  {ended && !outcome && s.id !== LEGACY_SESSION_ID && (
+                    <SessionOutcomePicker
+                      taskId={task.id}
+                      sessionId={s.id}
+                      plannedMinutes={s.resolvedMinutes}
+                      onLogged={onOutcomeChanged}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

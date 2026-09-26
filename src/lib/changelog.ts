@@ -35,10 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.75.0",
+    version: "2.76.0",
+    label: "2.75.0 – 2.76.0",
     date: "2026-09-25",
     title: "Room to get there",
     changes: [
+      {
+        kind: "improved",
+        text: "Tapping a task shows it first: the full description, due and target dates, next session, goal and steps, with nothing to change by accident. Hit Edit when you do want to change something.",
+      },
       {
         kind: "improved",
         text: "Planning knows you have to travel. When back-to-back events are at different saved places, Plan my day, Find me a time and Rescue plans all leave your commute free instead of filling it with work.",
