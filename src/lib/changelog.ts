@@ -35,10 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.80.0",
+    version: "2.80.1",
+    label: "2.80.0 – 2.80.1",
     date: "2026-09-26",
     title: "Goals you can move",
     changes: [
+      {
+        kind: "fixed",
+        text: "Goals Claude set up before this update show their target day correctly instead of one day late.",
+      },
       {
         kind: "added",
         text: "Every goal has its own page. Tap a card to read the whole description, see its steps, check them off, add a step in one line, or link tasks you already have.",

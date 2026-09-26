@@ -148,6 +148,13 @@
       "when": 1790450940015,
       "tag": "0020_goal_depth",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790455521241,
+      "tag": "0021_goal_target_days",
+      "breakpoints": true
     }
   ]
 }
