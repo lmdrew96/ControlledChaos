@@ -8,6 +8,7 @@ import { useGeolocation } from "@/hooks/use-geolocation";
 import { useCalendarSettings } from "@/hooks/use-calendar-settings";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import {
   LayoutDashboard,
   Brain,
@@ -22,6 +23,8 @@ import {
   Siren,
   Repeat,
   Search,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -104,6 +107,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     onTogglePalette: togglePalette,
   });
 
+  // Folds the desktop sidebar into a floating button, so a medium window gives
+  // its width to the page. Open by default.
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+
   // Crisis detection badge state
   const { isActive: crisisActive } = useCrisisDetection();
 
@@ -169,10 +176,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1">
       {/* Sidebar — hidden on mobile, shown on md+ */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card sticky top-0 h-screen">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-6">
+      <aside
+        className={cn(
+          "w-64 flex-col border-r border-border bg-card sticky top-0 h-screen",
+          sidebarCollapsed ? "hidden" : "hidden md:flex"
+        )}
+      >
+        <div className="flex h-14 items-center gap-2 border-b border-border pl-6 pr-3">
           <Logo className="h-5 w-5" />
-          <span className="font-serif text-base font-semibold tracking-tight">ControlledChaos</span>
+          <span className="flex-1 font-serif text-base font-semibold tracking-tight">ControlledChaos</span>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
         <button
@@ -237,6 +258,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <LegalFooter />
         </div>
       </aside>
+
+      {/* Folded sidebar: one floating button, carrying the Rescue dot so an
+          active crisis doesn't disappear along with the nav. */}
+      {sidebarCollapsed && (
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed(false)}
+          className="fixed left-3 top-3 z-40 hidden h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-md transition-colors hover:text-foreground md:flex"
+          aria-label="Show sidebar"
+          title="Show sidebar"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+          {crisisActive && (
+            <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card" />
+          )}
+        </button>
+      )}
 
       {/* Mobile bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
@@ -334,7 +372,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main content — padded on mobile to clear the bottom nav */}
-      <main className="flex-1 overflow-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main
+        className={cn(
+          "flex-1 overflow-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0",
+          // Clear the floating button so it never sits on a page heading.
+          sidebarCollapsed && "md:pl-14"
+        )}
+      >
         <div className="mx-auto max-w-4xl px-4 py-4 sm:p-6">{children}</div>
       </main>
       </div>
