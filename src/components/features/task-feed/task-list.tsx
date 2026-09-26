@@ -259,8 +259,14 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     sortBy
   );
 
-  const cancelledTasks = tasks.filter((t) => t.status === "cancelled");
-  const liveTasks = tasks.filter((t) => t.status !== "cancelled");
+  // Counts follow the goal/dump scope; unscoped, this is every task.
+  const scopedTasks = tasks.filter(
+    (t) =>
+      (!goalScope || t.goalId === goalScope) &&
+      (!dumpScope || t.sourceDumpId === dumpScope)
+  );
+  const cancelledTasks = scopedTasks.filter((t) => t.status === "cancelled");
+  const liveTasks = scopedTasks.filter((t) => t.status !== "cancelled");
   const activeTasks = liveTasks.filter((t) => t.status !== "completed");
   const completedTasks = liveTasks.filter((t) => t.status === "completed");
 
