@@ -88,7 +88,7 @@ Junk-journal entries — longer-form reflective writing, separate from task brai
 ### Recommendations & Rescue (2)
 | Tool | What it does |
 |---|---|
-| `cc_recommend_next_task` | Suggest what to do next from the user's open tasks |
+| `cc_recommend_next_task` | Suggest what to do next from the user's open tasks, with energy, active Rescue plans, goals and today's planned sittings |
 | `cc_get_active_crisis` | Read the Rescue plan in progress, if there is one |
 
 > **Note:** `cc_get_mirror_day` keeps the legacy "mirror" name even though the user-facing surface was renamed to "Daily Recap" in v2.4.15 — preserves backward-compat with existing Claude Desktop / claude.ai connections.

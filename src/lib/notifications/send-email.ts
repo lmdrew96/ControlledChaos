@@ -21,7 +21,9 @@ import {
   getUserLocation,
   isLocationStale,
   getScheduledSessionsInRange,
+  getUserGoals,
 } from "@/lib/db/queries";
+import { toTaskFacts, describeTaskFacts } from "@/lib/ai/context";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
 import type { PersonalityPrefs } from "@/types";
@@ -146,10 +148,13 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   );
 
   // Fetch crises and recent activity for holistic context
-  const [activeCrises, recentActivity] = await Promise.all([
+  const [activeCrises, recentActivity, activeGoals] = await Promise.all([
     getActiveCrisisPlans(userId),
     getRecentTaskActivity(userId, 10),
+    getUserGoals(userId, "active"),
   ]);
+  // Task facts use the same wording as every in-app prompt (buildAIContext).
+  const goalTitleById = new Map(activeGoals.map((g) => [g.id, g.title]));
 
   // Quick behavior signal
   const snoozeRejectCount = recentActivity.filter(
@@ -171,7 +176,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `User's name: ${user.displayName ?? "there"}`,
     locationName ? `User's last known location: ${locationName}` : null,
     `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
-    `Top tasks: ${topTasks.map((t) => `${t.title} (${t.priority})${t.locationTags?.length ? ` [${t.locationTags.join(", ")}]` : ""}`).join(", ") || "None"}`,
+    `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}${t.locationTags?.length ? ` [at: ${t.locationTags.join(", ")}]` : ""}`).join("; ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
     `SOFT self-imposed targets this week (NOT due — never call these "due"): ${targetsThisWeek.map((t) => `${t.title}, they aimed for ${formatDate(t.targetDate!, timezone)}`).join(", ") || "None"}`,
     `Planned to start today (their own plan, not a deadline): ${plannedToday.map((t) => `${formatTime(t.scheduledFor, timezone)} ${t.title}`).join(", ") || "None"}`,
@@ -247,27 +252,6 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 }
 
 /**
- * Spell out which of a task's three times exist, in words the model can't
- * flatten into "due". Empty string when the task carries none of them.
- */
-function describeTaskTimes(
-  task: { deadline: Date | null; targetDate: Date | null; scheduledFor: Date | null },
-  timezone: string
-): string {
-  const parts: string[] = [];
-  if (task.deadline) parts.push(`HARD deadline ${formatDate(task.deadline, timezone)}`);
-  if (task.targetDate) {
-    parts.push(
-      `SOFT self-imposed target ${formatDate(task.targetDate, timezone)} — not due, do not say "due"`
-    );
-  }
-  if (task.scheduledFor) {
-    parts.push(`planned to start ${formatTime(task.scheduledFor, timezone)}`);
-  }
-  return parts.length > 0 ? ` — ${parts.join("; ")}` : "";
-}
-
-/**
  * Send the evening digest email for a user.
  */
 export async function sendEveningDigest(userId: string): Promise<boolean> {
@@ -317,10 +301,12 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   );
 
   // Fetch crises and recent activity for holistic context
-  const [activeCrises, recentActivity] = await Promise.all([
+  const [activeCrises, recentActivity, activeGoals] = await Promise.all([
     getActiveCrisisPlans(userId),
     getRecentTaskActivity(userId, 10),
+    getUserGoals(userId, "active"),
   ]);
+  const goalTitleById = new Map(activeGoals.map((g) => [g.id, g.title]));
 
   const snoozeRejectCount = recentActivity.filter(
     (a) => a.action === "snoozed" || a.action === "rejected"
@@ -343,7 +329,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `Tomorrow's top priority: ${
       tomorrowPriority
-        ? `${tomorrowPriority.title} (${tomorrowPriority.priority})${describeTaskTimes(tomorrowPriority, timezone)}`
+        ? describeTaskFacts(toTaskFacts(tomorrowPriority, goalTitleById), timezone)
         : "Nothing urgent"
     }`,
     `Tomorrow's calendar: ${tomorrowEvents.length > 0 ? tomorrowEvents.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") : "Nothing scheduled"}`,

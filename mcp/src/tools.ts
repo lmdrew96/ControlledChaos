@@ -2616,7 +2616,7 @@ Returns: The updated (now inactive) microtask.`,
     "cc_recommend_next_task",
     {
       title: "Recommend Next Task",
-      description: `Return up to 5 candidate next tasks plus current context (energy, calendar, today's progress) so the calling AI can recommend "what to do right now."
+      description: `Return up to 5 candidate next tasks plus current context (energy, active Rescue plans, goals, today's planned sittings, calendar, today's progress) so the calling AI can recommend "what to do right now."
 
 Tasks are ranked by:
   1. Has a HARD deadline (deadlined tasks first)
@@ -2632,7 +2632,13 @@ Args:
   - time_available_minutes: Only suggest tasks whose estimated_minutes fits in this window.
   - location_tag: Only suggest tasks tagged for this location (e.g., "home", "office").
 
-Returns: Markdown with a Recommendations section (top tasks) and a Context section (now-time, current/next calendar event, tasks completed today).`,
+Weigh it the way the app's own recommendation does:
+  - Energy: the latest energy Moment from the last 2 hours. Low energy → favour low-energy tasks unless a hard deadline can't wait.
+  - An active Rescue plan comes first: its current step is usually the answer.
+  - A task that serves an active goal is worth more than an equal one that doesn't.
+  - Time already planned today is claimed; don't recommend starting something that runs into the next planned sitting.
+
+Returns: Markdown with a Recommendations section (top tasks, each with its goal and whether it has a Rescue plan) and a Context section (now-time, energy, Rescue plans, planned sittings today, current/next calendar event, tasks completed today).`,
       inputSchema: {
         energy_level: z.enum(["low", "medium", "high"]).optional().describe("Match this energy level"),
         time_available_minutes: z.number().int().positive().optional().describe("Only tasks fitting in this many minutes"),
@@ -2698,7 +2704,7 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
       const nowIso = new Date().toISOString();
       const today = await localDayWindow(todayInTz(tz), tz);
 
-      const [currentEventRows, nextEventRows, completedTodayRows] = await Promise.all([
+      const [currentEventRows, nextEventRows, completedTodayRows, energyRows, crisisRows, goalRows, plannedRows] = await Promise.all([
         sql(
           `SELECT * FROM calendar_events
            WHERE user_id = $1 AND start_time <= $2 AND end_time > $2
@@ -2718,9 +2724,53 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
              AND completed_at >= $2 AND completed_at < $3`,
           [userId, today.start, today.end]
         ),
+        // Same signal as the app's getCurrentEnergy: the newest energy
+        // Moment in the last 2 hours. Crash reads as low.
+        sql(
+          `SELECT type, occurred_at FROM moments
+           WHERE user_id = $1 AND deleted_at IS NULL
+             AND type IN ('energy_high', 'energy_low', 'energy_crash')
+             AND occurred_at >= NOW() - INTERVAL '120 minutes'
+           ORDER BY occurred_at DESC LIMIT 1`,
+          [userId]
+        ),
+        // Mirrors activePlanCondition() in src/lib/db/queries/crisis.ts, as
+        // cc_get_active_crisis does.
+        sql(
+          `SELECT task_id, task_name, deadline, panic_level, tasks, current_task_index
+           FROM crisis_plans
+           WHERE user_id = $1
+             AND completed_at IS NULL
+             AND (
+               deadline > NOW()
+               OR (deadline IS NULL AND created_at > NOW() - INTERVAL '24 hours')
+             )
+           ORDER BY created_at DESC`,
+          [userId]
+        ),
+        sql(
+          `SELECT id, title FROM goals
+           WHERE user_id = $1 AND status = 'active' AND deleted_at IS NULL`,
+          [userId]
+        ),
+        // Every sitting planned today, one row per sitting, snoozed tasks
+        // included (their blocks are still on the calendar).
+        sql(
+          `SELECT s.starts_at, COALESCE(s.minutes, t.estimated_minutes) AS minutes, t.title
+           FROM task_sessions s
+           JOIN tasks t ON t.id = s.task_id
+           WHERE s.user_id = $1 AND s.starts_at >= $2 AND s.starts_at < $3
+             AND t.deleted_at IS NULL AND t.status NOT IN ('completed', 'cancelled')
+           ORDER BY s.starts_at`,
+          [userId, today.start, today.end]
+        ),
       ]);
 
       const completedToday = (completedTodayRows[0]?.n as number) ?? 0;
+      const goalTitleById = new Map(goalRows.map((g) => [g.id as string, g.title as string]));
+      const rescuedTaskIds = new Set(
+        crisisRows.map((c) => c.task_id as string | null).filter((id): id is string => !!id)
+      );
 
       const sections: string[] = [];
 
@@ -2729,7 +2779,11 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
         sections.push("_No pending tasks match those filters. Try a brain dump?_");
       } else {
         tasks.forEach((t, i) => {
-          sections.push(`### ${i + 1}. ${formatTask(t, tz)}`);
+          const extras: string[] = [];
+          const goal = t.goal_id ? goalTitleById.get(t.goal_id as string) : undefined;
+          if (goal) extras.push(`Serves active goal: "${goal}"`);
+          if (rescuedTaskIds.has(t.id as string)) extras.push("Has an active Rescue plan (see Context)");
+          sections.push(`### ${i + 1}. ${formatTask(t, tz)}${extras.length ? `\n${extras.join("\n")}` : ""}`);
         });
       }
 
@@ -2741,6 +2795,29 @@ Returns: Markdown with a Recommendations section (top tasks) and a Context secti
         `Timezone: ${tz}`,
         `Scheduling window: ${settings.wakeTime}:00–${settings.sleepTime}:00 local (wake_time–sleep_time). Never place work outside it. The calendar's display range is a separate, cosmetic setting — see cc_get_settings.`,
       ];
+      const energyMoment = energyRows[0];
+      ctxLines.push(
+        energyMoment
+          ? `Energy: ${energyMoment.type === "energy_high" ? "high" : "low"} (${String(energyMoment.type).replace("energy_", "")} Moment at ${fmtTimeLocal(energyMoment.occurred_at, tz)})`
+          : "Energy: not logged in the last 2 hours (assume medium)"
+      );
+      for (const c of crisisRows) {
+        const steps = (c.tasks as Array<{ title?: string }> | null) ?? [];
+        const idx = Number(c.current_task_index ?? 0);
+        const current = steps[idx]?.title;
+        ctxLines.push(
+          `Active Rescue plan: "${c.task_name}" (${c.panic_level}, step ${Math.min(idx + 1, steps.length)}/${steps.length}${
+            c.deadline ? `, hard deadline ${fmtLocal(c.deadline, tz)}` : ", no hard deadline"
+          })${current ? `. Current step: ${current}` : ""}`
+        );
+      }
+      if (plannedRows.length > 0) {
+        ctxLines.push(
+          `Planned today (time already claimed): ${plannedRows
+            .map((r) => `${fmtTimeLocal(r.starts_at, tz)} ${r.title}${r.minutes ? ` (~${r.minutes} min)` : ""}`)
+            .join("; ")}`
+        );
+      }
       if (currentEventRows[0]) {
         ctxLines.push(`Currently in: ${currentEventRows[0].title} (until ${fmtTimeLocal(currentEventRows[0].end_time, tz)})`);
       }

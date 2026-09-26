@@ -193,18 +193,7 @@ export async function buildAIContext(
       : null;
 
   // Top 5 pending tasks
-  const topTasks = pendingTasks.slice(0, 5).map((t) => ({
-    title: t.title,
-    priority: t.priority,
-    deadline: t.deadline?.toISOString() ?? null,
-    targetDate: t.targetDate?.toISOString() ?? null,
-    energyLevel: t.energyLevel,
-    status: t.status,
-    estimatedMinutes: t.estimatedMinutes ?? null,
-    // getPendingTasks resolves scheduledFor to the next sitting.
-    plannedFor: t.scheduledFor?.toISOString() ?? null,
-    goal: t.goalId ? goalTitleById.get(t.goalId) ?? null : null,
-  }));
+  const topTasks = pendingTasks.slice(0, 5).map((t) => toTaskFacts(t, goalTitleById));
 
   // One entry per sitting: "3pm and again at 8pm" is what the user planned.
   const plannedToday = todaySessions
@@ -358,6 +347,61 @@ export async function buildAIContext(
 }
 
 // ============================================================
+// Task facts — one shape and one wording for every prompt that describes a
+// task (this block, and the digests in notifications/send-email.ts)
+// ============================================================
+
+export type TaskFacts = AIContext["topTasks"][number];
+
+type PendingTaskRow = Awaited<ReturnType<typeof getPendingTasks>>[number];
+
+export function toTaskFacts(
+  t: PendingTaskRow,
+  goalTitleById: Map<string, string>
+): TaskFacts {
+  return {
+    title: t.title,
+    priority: t.priority,
+    deadline: t.deadline?.toISOString() ?? null,
+    targetDate: t.targetDate?.toISOString() ?? null,
+    energyLevel: t.energyLevel,
+    status: t.status,
+    estimatedMinutes: t.estimatedMinutes ?? null,
+    // getPendingTasks resolves scheduledFor to the next sitting.
+    plannedFor: t.scheduledFor?.toISOString() ?? null,
+    goal: t.goalId ? goalTitleById.get(t.goalId) ?? null : null,
+  };
+}
+
+/** "Essay [important, high energy] (hard deadline Sep 30; ~60 min)". */
+export function describeTaskFacts(t: TaskFacts, timezone: string): string {
+  // Hard and soft dates are emitted as separate, explicitly labeled facts.
+  // Merging them is what let the assistant call a self-imposed date "due".
+  const dateParts: string[] = [];
+  if (t.deadline) {
+    dateParts.push(
+      `hard deadline ${formatForDisplay(new Date(t.deadline), timezone, DISPLAY_DATE)}`
+    );
+  }
+  if (t.targetDate) {
+    dateParts.push(
+      `self-imposed target ${formatForDisplay(new Date(t.targetDate), timezone, DISPLAY_DATE)}`
+    );
+  }
+  if (t.plannedFor) {
+    const at = new Date(t.plannedFor);
+    dateParts.push(
+      `planned to start ${formatForDisplay(at, timezone, DISPLAY_DATETIME)} (${describeFromNow(at)}) — their plan, not a due date`
+    );
+  }
+  if (t.estimatedMinutes) dateParts.push(`~${t.estimatedMinutes} min`);
+  if (t.goal) dateParts.push(`for goal "${t.goal}"`);
+  const dateStr = dateParts.length > 0 ? ` (${dateParts.join("; ")})` : "";
+  const state = t.status === "in_progress" ? " — ALREADY IN PROGRESS, don't tell them to start it" : "";
+  return `${t.title} [${t.priority}, ${t.energyLevel} energy]${dateStr}${state}`;
+}
+
+// ============================================================
 // Formatter — turns structured context into prompt-ready text
 // ============================================================
 
@@ -405,30 +449,7 @@ function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   if (ctx.topTasks.length > 0) {
     lines.push("\n### Top Priority Tasks");
     for (const t of ctx.topTasks) {
-      // Hard and soft dates are emitted as separate, explicitly labeled facts.
-      // Merging them is what let the assistant call a self-imposed date "due".
-      const dateParts: string[] = [];
-      if (t.deadline) {
-        dateParts.push(
-          `hard deadline ${formatForDisplay(new Date(t.deadline), ctx.timezone, DISPLAY_DATE)}`
-        );
-      }
-      if (t.targetDate) {
-        dateParts.push(
-          `self-imposed target ${formatForDisplay(new Date(t.targetDate), ctx.timezone, DISPLAY_DATE)}`
-        );
-      }
-      if (t.plannedFor) {
-        const at = new Date(t.plannedFor);
-        dateParts.push(
-          `planned to start ${formatForDisplay(at, ctx.timezone, DISPLAY_DATETIME)} (${describeFromNow(at)}) — their plan, not a due date`
-        );
-      }
-      if (t.estimatedMinutes) dateParts.push(`~${t.estimatedMinutes} min`);
-      if (t.goal) dateParts.push(`for goal "${t.goal}"`);
-      const dateStr = dateParts.length > 0 ? ` (${dateParts.join("; ")})` : "";
-      const state = t.status === "in_progress" ? " — ALREADY IN PROGRESS, don't tell them to start it" : "";
-      lines.push(`- ${t.title} [${t.priority}, ${t.energyLevel} energy]${dateStr}${state}`);
+      lines.push(`- ${describeTaskFacts(t, ctx.timezone)}`);
     }
   }
 

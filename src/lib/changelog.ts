@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.77.1",
-    label: "2.75.0 – 2.77.1",
+    version: "2.77.2",
+    label: "2.75.0 – 2.77.2",
     date: "2026-09-25",
     title: "Room to get there",
     changes: [
+      {
+        kind: "improved",
+        text: "Morning and evening emails know what the app knows about each task: its estimate, the goal it's for, your next session, and whether you've already started it.",
+      },
       {
         kind: "improved",
         text: "Warning, success and alert colors in Rescue, Moments, the calendar and notifications now come from the app's own palette, in light and dark.",
