@@ -35,7 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.81.0",
+    version: "2.81.1",
+    label: "2.81.0 – 2.81.1",
     date: "2026-09-27",
     title: "Fewer pings about the same task",
     changes: [

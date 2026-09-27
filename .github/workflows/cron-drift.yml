@@ -1,0 +1,41 @@
+name: Cron drift check
+
+# Weekly read-only check that the live QStash schedules still match
+# scripts/sync-qstash-schedules.ts, the source of truth. It runs
+# `pnpm cron:check`, which only lists schedules and never changes them. A red
+# run's summary names each drifted schedule and field; fix it with
+# `pnpm cron:sync` locally, or by updating SCHEDULES if the change was meant.
+#
+# Needs the QSTASH_TOKEN repo secret: the production QStash account's token
+# (the same one as .env.local, confirmed 2026-09-27 by cron:check seeing the
+# four live schedules). Weekly is plenty: drift is rare and slow.
+
+on:
+  schedule:
+    - cron: "0 13 * * 1" # Mondays, 9am EDT / 8am EST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the version from package.json's "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check QStash schedules against the repo
+        run: pnpm cron:check
+        env:
+          QSTASH_TOKEN: ${{ secrets.QSTASH_TOKEN }}

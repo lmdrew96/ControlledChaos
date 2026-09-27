@@ -16,6 +16,7 @@
  * live scheduling is a human decision.
  */
 
+import { appendFileSync } from "node:fs";
 import { Client } from "@upstash/qstash";
 import dotenv from "dotenv";
 
@@ -83,6 +84,23 @@ const SCHEDULES: ScheduleDef[] = [
 
 const destinationFor = (def: ScheduleDef): string => `${CRON_ORIGIN}/api/cron/${def.route}`;
 
+/**
+ * Every report line, so a CI run can also write them to the job summary: a
+ * red weekly run should say which schedule drifted, and in which field, on
+ * the page the failure email links to (.github/workflows/cron-drift.yml).
+ */
+const report: string[] = [];
+const log = (line = ""): void => {
+  report.push(line);
+  console.log(line);
+};
+
+const writeJobSummary = (): void => {
+  const path = process.env.GITHUB_STEP_SUMMARY;
+  if (!path) return;
+  appendFileSync(path, `### QStash schedules (${QSTASH_BASE_URL})\n\n\`\`\`\n${report.join("\n")}\n\`\`\`\n`);
+};
+
 type Drift = { field: string; live: string; want: string };
 
 const main = async () => {
@@ -90,8 +108,7 @@ const main = async () => {
 
   const token = process.env.QSTASH_TOKEN;
   if (!token) {
-    console.error("QSTASH_TOKEN missing — expected in .env.local");
-    process.exit(1);
+    throw new Error("QSTASH_TOKEN missing — expected in .env.local, or the QSTASH_TOKEN secret in CI");
   }
 
   // `schedules` is a getter, not a method: client.schedules() throws.
@@ -135,7 +152,7 @@ const main = async () => {
 
     if (!existing) {
       drifted++;
-      console.log(`  MISSING   ${def.route}  ->  want cron "${def.cron}"`);
+      log(`  MISSING   ${def.route}  ->  want cron "${def.cron}"`);
       if (apply) {
         const { scheduleId } = await client.schedules.create({
           destination,
@@ -143,7 +160,7 @@ const main = async () => {
           method: "POST",
           retries: RETRIES,
         });
-        console.log(`            created ${scheduleId}`);
+        log(`            created ${scheduleId}`);
       }
       continue;
     }
@@ -166,14 +183,14 @@ const main = async () => {
     }
 
     if (diffs.length === 0) {
-      console.log(`  OK        ${def.route}  ${def.cron}`);
+      log(`  OK        ${def.route}  ${def.cron}`);
       continue;
     }
 
     drifted++;
-    console.log(`  DRIFT     ${def.route}  (${existing.scheduleId})`);
+    log(`  DRIFT     ${def.route}  (${existing.scheduleId})`);
     for (const d of diffs) {
-      console.log(`            ${d.field}: live "${d.live}"  ->  want "${d.want}"`);
+      log(`            ${d.field}: live "${d.live}"  ->  want "${d.want}"`);
     }
 
     if (apply) {
@@ -188,7 +205,7 @@ const main = async () => {
         retries: RETRIES,
       });
       if (existing.isPaused) await client.schedules.resume({ schedule: existing.scheduleId });
-      console.log(`            updated in place`);
+      log(`            updated in place`);
     }
   }
 
@@ -196,24 +213,28 @@ const main = async () => {
   const extras = live.filter((s) => !known.has(s.destination) && !adopted.has(s.scheduleId));
   for (const extra of extras) {
     drifted++;
-    console.log(`  UNEXPECTED  ${extra.destination}  ${extra.cron}  (${extra.scheduleId})`);
-    console.log(`              not in SCHEDULES — delete by hand if it's dead`);
+    log(`  UNEXPECTED  ${extra.destination}  ${extra.cron}  (${extra.scheduleId})`);
+    log(`              not in SCHEDULES — delete by hand if it's dead`);
   }
 
-  console.log("");
+  log();
   if (drifted === 0) {
-    console.log(`  ${SCHEDULES.length} schedules match the committed definition.\n`);
+    log(`  ${SCHEDULES.length} schedules match the committed definition.\n`);
     return;
   }
   if (apply) {
-    console.log(`  Reconciled ${drifted} difference(s). Re-run without --apply to confirm.\n`);
+    log(`  Reconciled ${drifted} difference(s). Re-run without --apply to confirm.\n`);
     return;
   }
-  console.log(`  ${drifted} difference(s). Re-run with --apply to reconcile.\n`);
+  log(`  ${drifted} difference(s). Re-run with --apply to reconcile.\n`);
   process.exitCode = 1;
 };
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main()
+  .then(writeJobSummary)
+  .catch((error) => {
+    report.push(`  ERROR  ${error instanceof Error ? error.message : String(error)}`);
+    writeJobSummary();
+    console.error(error);
+    process.exit(1);
+  });
