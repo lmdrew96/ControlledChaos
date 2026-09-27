@@ -10,6 +10,7 @@ interface CalendarEvent {
   title: string;
   startTime: string;
   endTime: string;
+  isTentative?: boolean;
 }
 
 /** What the anchor shows next — a real event or a block you planned. */
@@ -75,7 +76,11 @@ export function TimeAnchor() {
         // Planned blocks count as "what's next" too — they're the whole point
         // of having planned the day. They read as time you claimed, not as a
         // commitment someone else imposed, so they're tagged as planned.
-        const events = ((data.events ?? []) as CalendarEvent[]).map((e) => ({
+        // A tentative event isn't a countdown: "Open mic in 20m" reads as
+        // somewhere to be. It stays on the calendar, dashed.
+        const events = ((data.events ?? []) as CalendarEvent[])
+          .filter((e) => !e.isTentative)
+          .map((e) => ({
           id: e.id,
           title: e.title,
           startTime: e.startTime,

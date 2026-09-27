@@ -189,6 +189,8 @@ export function formatEvent(event: Record<string, unknown>, tz?: string): string
   if (event.location) parts.push(`Location: ${event.location}`);
   if (event.category) parts.push(`Category: ${event.category}`);
   if (event.is_all_day) parts.push(`All day event`);
+  // Absent means mandatory, the default.
+  if (event.is_tentative) parts.push(`Commitment: TENTATIVE (the user might go; the time counts as free)`);
   if (event.series_id) parts.push(`Series: \`${event.series_id}\` (use scope: "all" to update/delete every instance)`);
   return parts.join("\n");
 }

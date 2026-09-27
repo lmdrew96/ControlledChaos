@@ -58,11 +58,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Event is not part of a series" }, { status: 400 });
     }
 
-    const data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null } = {};
+    const data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null; isTentative?: boolean } = {};
     if (body.title !== undefined) data.title = body.title;
     if (body.description !== undefined) data.description = body.description;
     if (body.location !== undefined) data.location = body.location;
     if (body.isAllDay !== undefined) data.isAllDay = body.isAllDay;
+    // A standing maybe (a weekly open mic) is tentative across the series.
+    if (typeof body.isTentative === "boolean") data.isTentative = body.isTentative;
     if (body.category !== undefined) {
       const valid = new Set(["school", "work", "personal", "errands", "health"]);
       data.category = valid.has(body.category) ? body.category : null;

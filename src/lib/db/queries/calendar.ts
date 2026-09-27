@@ -12,7 +12,11 @@ export async function getNextCalendarEvent(userId: string) {
     .select()
     .from(calendarEvents)
     .where(
-      and(eq(calendarEvents.userId, userId), gt(calendarEvents.startTime, now))
+      and(
+        eq(calendarEvents.userId, userId),
+        gt(calendarEvents.startTime, now),
+        eq(calendarEvents.isTentative, false)
+      )
     )
     .orderBy(calendarEvents.startTime)
     .limit(1);
@@ -34,7 +38,9 @@ export async function getCurrentCalendarEvent(userId: string) {
         eq(calendarEvents.userId, userId),
         lte(calendarEvents.startTime, now),
         gt(calendarEvents.endTime, now),
-        eq(calendarEvents.isAllDay, false)
+        eq(calendarEvents.isAllDay, false),
+        // Maybe-going isn't "in an event": the time is still the user's.
+        eq(calendarEvents.isTentative, false)
       )
     )
     .orderBy(calendarEvents.startTime)
@@ -54,6 +60,8 @@ export async function upsertCalendarEvent(params: {
   location: string | null;
   isAllDay: boolean;
   category?: string | null;
+  /** From the feed's STATUS:TENTATIVE. Feed rows aren't user-editable, so the feed decides. */
+  isTentative?: boolean;
 }) {
   const [result] = await db
     .insert(calendarEvents)
@@ -68,6 +76,7 @@ export async function upsertCalendarEvent(params: {
       location: params.location,
       isAllDay: params.isAllDay,
       category: params.category ?? null,
+      isTentative: params.isTentative ?? false,
       syncedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -84,6 +93,7 @@ export async function upsertCalendarEvent(params: {
         location: params.location,
         isAllDay: params.isAllDay,
         category: params.category ?? null,
+        isTentative: params.isTentative ?? false,
         syncedAt: new Date(),
       },
     })
@@ -95,7 +105,13 @@ export async function upsertCalendarEvent(params: {
 export async function getCalendarEventsByDateRange(
   userId: string,
   start: Date,
-  end: Date
+  end: Date,
+  /**
+   * Leave out tentative events. Every caller that treats events as BUSY time
+   * (scheduler, crisis math, travel buffers) passes this; display and
+   * reminder callers don't, since a tentative event still shows and reminds.
+   */
+  opts: { committedOnly?: boolean } = {}
 ) {
   // Include events that overlap with the range:
   // - events starting within the range, OR
@@ -127,7 +143,8 @@ export async function getCalendarEventsByDateRange(
         eq(calendarEvents.userId, userId),
         lt(calendarEvents.startTime, end),
         gt(calendarEvents.endTime, start),
-        notLike(calendarEvents.externalId, "cc-%")
+        notLike(calendarEvents.externalId, "cc-%"),
+        opts.committedOnly ? eq(calendarEvents.isTentative, false) : undefined
       )
     )
     .orderBy(calendarEvents.startTime);
@@ -211,6 +228,7 @@ export async function updateCalendarEvent(
     location: string | null;
     category: string | null;
     badge: string | null;
+    isTentative: boolean;
   }>
 ) {
   const [updated] = await db
@@ -231,6 +249,7 @@ export async function createManualCalendarEvent(params: {
   isAllDay: boolean;
   seriesId: string | null;
   category?: string | null;
+  isTentative?: boolean;
 }) {
   const externalId = `manual-${crypto.randomUUID()}`;
   const [event] = await db
@@ -247,6 +266,7 @@ export async function createManualCalendarEvent(params: {
       isAllDay: params.isAllDay,
       category: params.category ?? null,
       seriesId: params.seriesId,
+      isTentative: params.isTentative ?? false,
       syncedAt: new Date(),
     })
     .returning();
@@ -298,7 +318,7 @@ export async function deleteCalendarEventsBySeries(
 export async function updateCalendarEventSeries(
   seriesId: string,
   userId: string,
-  data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null }
+  data: { title?: string; description?: string | null; location?: string | null; isAllDay?: boolean; category?: string | null; isTentative?: boolean }
 ) {
   return db
     .update(calendarEvents)

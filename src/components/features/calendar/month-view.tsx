@@ -234,7 +234,10 @@ export function MonthView({ initialDate, onDayClick }: MonthViewProps) {
                           key={event.id}
                           className={cn(
                             "flex items-center gap-1 text-[10px] rounded px-1 py-0.5 truncate w-full",
-                            categoryPillColor(event.category as EventCategory, calendarColors)
+                            categoryPillColor(event.category as EventCategory, calendarColors),
+                            // Month pills carry no border of their own, so the dash
+                            // takes the text colour.
+                            event.isTentative && "calendar-event-tentative border border-current/40"
                           )}
                         >
                           <span

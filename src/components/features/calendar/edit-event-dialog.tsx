@@ -49,6 +49,8 @@ interface FormState {
   startTime: string;
   endTime: string;
   isAllDay: boolean;
+  /** Might go. Applies to the whole series on a series edit, like category. */
+  isTentative: boolean;
   category: EventCategory;
   editMode: "single" | "series";
 }
@@ -88,6 +90,7 @@ export function EditEventDialog({
     startTime: "09:00",
     endTime: "10:00",
     isAllDay: false,
+    isTentative: false,
     category: "personal",
     editMode: "single",
   });
@@ -119,6 +122,7 @@ export function EditEventDialog({
         startTime: event.isAllDay ? "00:00" : toTimeInput(event.startTime, timezone),
         endTime: event.isAllDay ? "23:59" : toTimeInput(event.endTime, timezone),
         isAllDay: event.isAllDay,
+        isTentative: event.isTentative ?? false,
         category: (event.category as EventCategory) ?? "personal",
         editMode: "single",
       };
@@ -157,6 +161,7 @@ export function EditEventDialog({
         description: form.description || null,
         location: form.location || null,
         category: form.category,
+        isTentative: form.isTentative,
       };
 
       if (form.isAllDay) {
@@ -190,6 +195,7 @@ export function EditEventDialog({
         if (was && form.description === was.description) delete payload.description;
         if (was && form.location === was.location) delete payload.location;
         if (was && form.category === was.category) delete payload.category;
+        if (was && form.isTentative === was.isTentative) delete payload.isTentative;
         if (!timesChanged) {
           delete payload.startTime;
           delete payload.endTime;
@@ -427,6 +433,20 @@ export function EditEventDialog({
             />
             <Label htmlFor="edit-allday" className="cursor-pointer font-normal">
               All day
+            </Label>
+          </div>
+
+          {/* Tentative toggle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="edit-tentative"
+              checked={form.isTentative}
+              onChange={(e) => updateField("isTentative", e.target.checked)}
+              className="accent-primary h-4 w-4 rounded"
+            />
+            <Label htmlFor="edit-tentative" className="cursor-pointer font-normal">
+              Tentative <span className="text-muted-foreground">(I might go)</span>
             </Label>
           </div>
 

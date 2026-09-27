@@ -289,6 +289,9 @@ export async function syncCanvasCalendar(
         location: paramValue(event.location),
         isAllDay,
         category: "school",
+        // STATUS only. TRANSP:TRANSPARENT means "doesn't block time", not
+        // "optional": mapping it could turn an exam into an if-you-feel-like-it.
+        isTentative: event.status === "TENTATIVE",
       });
 
       synced++;

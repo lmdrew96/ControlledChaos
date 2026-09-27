@@ -137,6 +137,8 @@ type Candidate = ClusterableAlert & {
   inProgress?: boolean;
   /** Where the event is, for event alerts. */
   location?: string | null;
+  /** A tentative event: invitational copy, never the urgent lane. */
+  tentative?: boolean;
   /** Size and stakes of the task, for scheduled-start alerts. */
   taskDetail?: AlertingTaskDetail;
   url: string;
@@ -189,6 +191,7 @@ function buildClusterContext(
         minutesUntil,
         at: primary.at,
         location: primary.location,
+        tentative: primary.tentative,
         alsoHappening,
       };
     case "target":
@@ -427,7 +430,9 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       externalId: r.externalId,
       intervalMinutes: r.intervalMinutes,
       location: r.location,
-      priority: r.intervalMinutes <= 60 ? "high" : "normal",
+      tentative: r.isTentative,
+      // A maybe never earns the urgent lane.
+      priority: !r.isTentative && r.intervalMinutes <= 60 ? "high" : "normal",
       // See the deadline reminder above — proximity never overrides quiet hours.
       bypassQuietHours: false,
       url: "/calendar",
@@ -527,7 +532,11 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       ...sittings.map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
       ...todaysEvents
         .filter((e) => !e.isAllDay)
-        .map((e) => ({ at: new Date(e.startTime), title: e.title, kind: "event" as const })),
+        .map((e) => ({
+          at: new Date(e.startTime),
+          title: e.isTentative ? `${e.title} (maybe)` : e.title,
+          kind: "event" as const,
+        })),
     ];
 
     const replacesCheckIn = checkInConfig.enabled && checkInConfig.window === "morning";

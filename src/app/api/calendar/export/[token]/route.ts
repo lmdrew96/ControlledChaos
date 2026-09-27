@@ -121,6 +121,12 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       if (event.location) {
         lines.push(foldLine(`LOCATION:${escapeIcalText(event.location)}`));
       }
+      // A maybe shows as tentative and leaves the time free in whatever
+      // calendar subscribes to this feed.
+      if (event.isTentative) {
+        lines.push("STATUS:TENTATIVE");
+        lines.push("TRANSP:TRANSPARENT");
+      }
 
       lines.push("END:VEVENT");
     }

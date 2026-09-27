@@ -65,7 +65,7 @@ export async function GET() {
     if (tasksWithDeadlines.length > 0) {
       // Fetch calendar events for the detection window + recent Moments for augmentation
       const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
-        getCalendarEventsByDateRange(userId, now, windowEnd),
+        getCalendarEventsByDateRange(userId, now, windowEnd, { committedOnly: true }),
         getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
         // Same as the cron: logged sitting work comes off the estimate.
         getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),

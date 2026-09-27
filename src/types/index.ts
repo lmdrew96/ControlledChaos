@@ -234,6 +234,7 @@ export interface UserContext {
     startTime: string;
     endTime: string;
     source: string;
+    isTentative?: boolean;
   }>;
   /** Most recent energy signal derived from Moments, or null if none recent */
   energyLevel?: EnergyLevel | null;
@@ -391,6 +392,8 @@ export interface CalendarEvent {
   seriesId: string | null;
   /** Occurrence-only label rendered on the tile, e.g. "📝 Quiz". */
   badge?: string | null;
+  /** Optional attendance: dashed on the calendar, free time to the scheduler. */
+  isTentative?: boolean;
   sourceDumpId: string | null;
   syncedAt: string;
 }

@@ -984,6 +984,9 @@ Args:
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
+An event marked "Commitment: TENTATIVE" is one the user MIGHT go to: treat its time as free when planning, and never
+frame it as an obligation. Events without that line are mandatory.
+
 Returns: Markdown list of events, then a Planned Work section, with times in the user's timezone.`,
       inputSchema: {
         start_date: z.string().describe("Start date (ISO 8601 UTC, e.g. 2026-03-21T04:00:00Z)"),
@@ -1163,6 +1166,8 @@ Args:
   - category: school, work, personal, errands, or health.
   - is_all_day: Whether it's an all-day event (default false). All-day events are stored from local midnight to the
     local midnight after the last day; a bare date ("2026-09-30") or that date at UTC midnight is read as that date.
+  - tentative: true for something the user MIGHT attend (default false = mandatory). Tentative events show dashed,
+    don't block time for scheduling or recommendations, and get one invitational reminder instead of the countdown.
   - recurrence: Optional. Makes this a recurring series instead of a single event:
       - type (required): "daily" or "weekly".
       - days_of_week: For weekly recurrence, which days (0=Sun...6=Sat). Defaults to start_time's day.
@@ -1183,6 +1188,7 @@ Returns: The created event (or a summary if recurring).`,
         location: z.string().max(500).optional().describe("Event location"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("Category"),
         is_all_day: z.boolean().default(false).describe("All-day event?"),
+        tentative: z.boolean().default(false).describe("Might attend (true) vs mandatory (false, default)"),
         recurrence: z
           .object({
             type: z.enum(["daily", "weekly"]).describe("Recurrence frequency"),
@@ -1237,8 +1243,8 @@ Returns: The created event (or a summary if recurring).`,
       for (const inst of instances) {
         const externalId = `mcp-${crypto.randomUUID()}`;
         const rows = await sql(
-          `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, category, series_id, synced_at)
-           VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          `INSERT INTO calendar_events (user_id, source, external_id, title, description, start_time, end_time, location, is_all_day, category, series_id, is_tentative, synced_at)
+           VALUES ($1, 'controlledchaos', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
            RETURNING *`,
           [
             userId,
@@ -1251,6 +1257,7 @@ Returns: The created event (or a summary if recurring).`,
             inst.isAllDay,
             params.category ?? null,
             seriesId,
+            params.tentative,
           ]
         );
         created.push(rows[0]);
@@ -1388,7 +1395,7 @@ Returns: Markdown-formatted daily stats summary.`,
 
       // Today's events
       const todaysEvents = await sql(
-        `SELECT title, start_time, end_time FROM calendar_events
+        `SELECT title, start_time, end_time, is_tentative FROM calendar_events
          WHERE user_id = $1
          AND start_time >= $2
          AND start_time < $3
@@ -1400,7 +1407,7 @@ Returns: Markdown-formatted daily stats summary.`,
         ? todaysEvents.map(e => {
             const start = fmtTimeLocal(e.start_time, tz);
             const end = fmtTimeLocal(e.end_time, tz);
-            return `  - ${e.title} (${start} – ${end})`;
+            return `  - ${e.title} (${start} – ${end})${e.is_tentative ? " (tentative)" : ""}`;
           }).join("\n")
         : "  No events today";
 
@@ -1597,6 +1604,8 @@ Returns: Confirmation of deletion.`,
 Args:
   - event_id (required): UUID of the event to update.
   - title, description, start_time, end_time, location, category, is_all_day: Fields to update.
+  - tentative: true = the user might go (dashed, time counts as free, one gentle reminder); false = mandatory.
+    With scope "all" it applies to every instance (a standing maybe, like a weekly open mic).
   - badge: Short label shown ON this occurrence's calendar tile, e.g. "📝 Quiz" (max 24 chars; "" clears it).
     Always applies to THIS event only, even with scope "all" — use it to mark one class meeting ("quiz today")
     without touching the rest of the series.
@@ -1616,6 +1625,7 @@ Returns: The updated event, or a summary if scope is "all".`,
         location: z.string().max(500).optional().describe("New location"),
         category: z.enum(["school", "work", "personal", "errands", "health"]).optional().describe("New category"),
         is_all_day: z.boolean().optional().describe("All-day event?"),
+        tentative: z.boolean().optional().describe("Might attend (true) vs mandatory (false)"),
         badge: z.string().max(24).optional().describe('Occurrence-only tile label like "📝 Quiz". "" clears it. Never applied to the whole series.'),
         scope: z.enum(["this", "all"]).default("this").describe("Update just this event, or every instance in its series"),
       },
@@ -1689,6 +1699,7 @@ Returns: The updated event, or a summary if scope is "all".`,
           ["location", params.location],
           ["category", params.category],
           ["is_all_day", params.is_all_day],
+          ["is_tentative", params.tentative],
           ["badge", badge],
         ];
 
@@ -1721,6 +1732,7 @@ Returns: The updated event, or a summary if scope is "all".`,
         ["location", params.location],
         ["category", params.category],
         ["is_all_day", params.is_all_day],
+        ["is_tentative", params.tentative],
       ];
       for (const [col, val] of metaFields) {
         if (val !== undefined) {
@@ -3043,6 +3055,7 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
           `SELECT * FROM calendar_events
            WHERE user_id = $1 AND start_time <= $2 AND end_time > $2
              AND is_all_day IS NOT TRUE
+             AND is_tentative IS NOT TRUE
              AND (external_id IS NULL OR external_id NOT LIKE 'cc-%')
            ORDER BY start_time DESC LIMIT 1`,
           [userId, nowIso]
@@ -3051,6 +3064,7 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
           `SELECT * FROM calendar_events
            WHERE user_id = $1 AND start_time > $2
              AND is_all_day IS NOT TRUE
+             AND is_tentative IS NOT TRUE
              AND (external_id IS NULL OR external_id NOT LIKE 'cc-%')
            ORDER BY start_time ASC LIMIT 1`,
           [userId, nowIso]

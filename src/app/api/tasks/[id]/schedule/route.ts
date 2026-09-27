@@ -71,7 +71,7 @@ export async function POST(_req: Request, context: RouteContext) {
     // this the scheduler is blind to every slot the user has already claimed
     // and will happily drop this task on top of one.
     const [existingEvents, scheduledTasks, commute] = await Promise.all([
-      getCalendarEventsByDateRange(userId, now, windowEnd),
+      getCalendarEventsByDateRange(userId, now, windowEnd, { committedOnly: true }),
       getScheduledSessionsInRange(userId, now, windowEnd),
       getCommuteSetup(userId),
     ]);

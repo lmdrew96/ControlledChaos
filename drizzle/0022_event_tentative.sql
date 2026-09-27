@@ -1,0 +1,1 @@
+ALTER TABLE "calendar_events" ADD COLUMN "is_tentative" boolean DEFAULT false NOT NULL;

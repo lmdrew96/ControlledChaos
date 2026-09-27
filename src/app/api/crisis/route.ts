@@ -226,7 +226,7 @@ export async function POST(request: Request) {
     const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
-      getCalendarEventsByDateRange(userId, now, deadlineDate),
+      getCalendarEventsByDateRange(userId, now, deadlineDate, { committedOnly: true }),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
       getCommuteSetup(userId),
@@ -352,7 +352,7 @@ export async function PUT(request: Request) {
     const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
-      getCalendarEventsByDateRange(userId, now, planningHorizonEnd),
+      getCalendarEventsByDateRange(userId, now, planningHorizonEnd, { committedOnly: true }),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
       getCommuteSetup(userId),

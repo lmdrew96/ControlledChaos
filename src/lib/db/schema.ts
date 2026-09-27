@@ -260,6 +260,12 @@ export const calendarEvents = pgTable(
      * Occurrence-only by design: series edits never write it.
      */
     badge: text("badge"),
+    /**
+     * Something the user MIGHT go to. Tentative time counts as free for the
+     * scheduler, recommendations and crisis detection, and gets one
+     * invitational reminder instead of the countdown ladder.
+     */
+    isTentative: boolean("is_tentative").default(false).notNull(),
     sourceDumpId: uuid("source_dump_id").references(() => brainDumps.id),
     syncedAt: timestamp("synced_at").defaultNow().notNull(),
   },

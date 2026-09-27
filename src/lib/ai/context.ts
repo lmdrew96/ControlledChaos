@@ -22,6 +22,7 @@ import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import { localDaysRange, formatForDisplay, describeFromNow, DISPLAY_TIME, DISPLAY_DATE, DISPLAY_DATETIME } from "@/lib/timezone";
 import { isAssessmentTitle } from "@/lib/calendar/assessments";
+import { aiEventTitle } from "@/lib/calendar/tentative";
 import type { EnergyLevel, PersonalityPrefs } from "@/types";
 
 const UPCOMING_HORIZON_DAYS = 7;
@@ -209,7 +210,7 @@ export async function buildAIContext(
   const upcomingRaw = horizonEvents.filter((e) => e.startTime > endOfDay);
 
   const formattedEvents = todayRaw.map((e) => ({
-    title: e.title,
+    title: aiEventTitle(e),
     startTime: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_TIME),
     source: e.source,
@@ -253,7 +254,7 @@ export async function buildAIContext(
     if (e.endTime.getTime() < now.getTime()) continue; // skip already-ended events
     urgentItems.push({
       kind: "event",
-      title: e.title,
+      title: aiEventTitle(e),
       hitTime: e.startTime.toISOString(),
       dateLabel: formatForDisplay(e.startTime, timezone, DISPLAY_DATE),
       timeLabel: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
@@ -271,7 +272,7 @@ export async function buildAIContext(
   // point of including these in context.
   const formattedUpcoming = upcomingRaw
     .map((e) => ({
-      title: e.title,
+      title: aiEventTitle(e),
       startTime: e.startTime.toISOString(),
       endTime: e.endTime.toISOString(),
       dateLabel: formatForDisplay(e.startTime, timezone, DISPLAY_DATE),

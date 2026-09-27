@@ -81,6 +81,8 @@ export interface EventReminder {
   /** Canvas UID, so a generated task can be matched back to its event. */
   externalId: string | null;
   location: string | null;
+  /** A maybe: one invitational reminder, never countdown copy. */
+  isTentative: boolean;
 }
 
 /**
@@ -303,11 +305,21 @@ export async function getTargetReminders(
 /** Reminders this far out or further are "the day before". */
 const DAY_AHEAD_MINUTES = 1440;
 
-/** The reminder ladder one event gets: routine events skip the day-before one. */
-function eventReminderIntervals(
-  event: { seriesId: string | null; source: string; title: string },
+/**
+ * The reminder ladder one event gets: routine events skip the day-before one,
+ * and a tentative event gets exactly one rung.
+ */
+export function eventReminderIntervals(
+  event: { seriesId: string | null; source: string; title: string; isTentative?: boolean | null },
   intervals: number[]
 ): number[] {
+  if (event.isTentative) {
+    // One gentle "it's on if you feel like it", early enough to decide and get
+    // there: the largest same-day rung (60 on the default ladder). A user whose
+    // only rung is the day before gets that one. Events turned off stays off.
+    const pick = intervals.find((m) => m < DAY_AHEAD_MINUTES) ?? intervals[intervals.length - 1];
+    return pick === undefined ? [] : [pick];
+  }
   const isRoutine =
     !!event.seriesId || (event.source === "canvas" && !isAssessmentTitle(event.title));
   return isRoutine ? intervals.filter((m) => m < DAY_AHEAD_MINUTES) : intervals;
@@ -356,6 +368,7 @@ export async function getEventReminders(
       startTime: event.startTime,
       externalId: event.externalId ?? null,
       location: event.location ?? null,
+      isTentative: event.isTentative,
     });
   }
 
@@ -617,7 +630,7 @@ type ClusteredWith = { alsoHappening?: { title: string; at: Date }[] };
 export type PushNotificationContext =
   | ({ type: "deadline_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
   | ({ type: "target_reminder"; taskTitle: string; minutesUntil: number; at: Date; inProgress?: boolean } & ClusteredWith)
-  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date; location?: string | null } & ClusteredWith)
+  | ({ type: "event_reminder"; eventTitle: string; minutesUntil: number; at: Date; location?: string | null; tentative?: boolean } & ClusteredWith)
   // No inProgress here: getSessionsStartingBetween excludes in-progress tasks,
   // so a "time to start" push never fires for work that's already underway.
   | ({ type: "scheduled"; taskTitle: string; at: Date } & AlertingTaskDetail & ClusteredWith)
@@ -673,6 +686,7 @@ export async function generatePushMessage(
     // but never reached the writer, so "your class starts in 10" could never
     // say where.
     if (ctx.location) userMsg += `\nLocation: "${ctx.location}"`;
+    if (ctx.tentative) userMsg += `\nCommitment: TENTATIVE (the user may or may not go)`;
   } else if (ctx.type === "target_reminder") {
     // Deliberately no "time until" line: targets must never scale urgency with
     // proximity. The absolute time is included so the model can say "you'd
@@ -791,7 +805,9 @@ function buildPushFallback(ctx: PushNotificationContext, timezone: string): stri
     case "deadline_reminder":
       return `${ctx.taskTitle} is due in ${formatReminderInterval(ctx.minutesUntil)}.`;
     case "event_reminder":
-      return `${ctx.eventTitle} starts in ${formatReminderInterval(ctx.minutesUntil)}.`;
+      return ctx.tentative
+        ? `${ctx.eventTitle} is on at ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)} if you feel like it.`
+        : `${ctx.eventTitle} starts in ${formatReminderInterval(ctx.minutesUntil)}.`;
     case "target_reminder":
       return `No rush — you'd wanted "${ctx.taskTitle}" done by ${formatForDisplay(ctx.at, timezone, DISPLAY_TIME)}.`;
     case "scheduled":
@@ -1036,6 +1052,8 @@ export async function getDepartureAlerts(
 
   for (const event of upcomingEvents) {
     if (event.isAllDay) continue;
+    // "You need to leave now" is exactly the obligation a maybe mustn't carry.
+    if (event.isTentative) continue;
     if (!event.location) continue;
 
     // Match event location to a saved location

@@ -877,7 +877,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                           onClick={() => setSelectedEvent(event)}
                           className={cn(
                             "mb-0.5 w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium",
-                            categoryColor(event.category as EventCategory, calendarColors)
+                            categoryColor(event.category as EventCategory, calendarColors),
+                            event.isTentative && "calendar-event-tentative border"
                           )}
                         >
                           {event.title}
@@ -1094,7 +1095,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                 isEditMode &&
                                 "cursor-grab ring-1 ring-inset ring-primary/40 active:cursor-grabbing",
                               isBeingDragged && "opacity-30",
-                              categoryColor(event.category as EventCategory, calendarColors)
+                              categoryColor(event.category as EventCategory, calendarColors),
+                              event.isTentative && "calendar-event-tentative border"
                             )}
                             style={{
                               top: pos.top,
@@ -1169,6 +1171,9 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             </TooltipTrigger>
                             <TooltipContent side="right" className="max-w-xs">
                               <p className="font-medium">{event.title}</p>
+                              {event.isTentative && (
+                                <p className="opacity-75">Tentative: only if you feel like it</p>
+                              )}
                               <p className="opacity-75">
                                 {formatDateRange(
                                   new Date(event.startTime),
@@ -1271,6 +1276,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                     <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       <Repeat className="mr-1 inline h-2.5 w-2.5" />
                       Series
+                    </span>
+                  )}
+                  {selectedEvent.isTentative && (
+                    <span className="inline-block rounded-full border border-dashed border-muted-foreground/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Tentative
                     </span>
                   )}
                 </DialogDescription>

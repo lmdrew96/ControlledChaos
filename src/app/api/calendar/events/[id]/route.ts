@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (body.startTime !== undefined) data.startTime = new Date(body.startTime);
     if (body.endTime !== undefined) data.endTime = new Date(body.endTime);
     if (body.isAllDay !== undefined) data.isAllDay = body.isAllDay;
+    if (typeof body.isTentative === "boolean") data.isTentative = body.isTentative;
     if (body.badge !== undefined) {
       // A tile label, not a note: short, and empty means none.
       const badge = typeof body.badge === "string" ? body.badge.trim().slice(0, MAX_BADGE_LENGTH) : "";

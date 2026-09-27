@@ -18,7 +18,7 @@ vi.mock("@/lib/db/queries", () => ({
 const callHaiku = vi.fn();
 vi.mock("@/lib/ai", () => ({ callHaiku }));
 
-const { generatePushMessage } = await import("@/lib/notifications/triggers");
+const { generatePushMessage, eventReminderIntervals } = await import("@/lib/notifications/triggers");
 
 /**
  * Pushes arrive titled only "ControlledChaos", so copy that says "this"
@@ -80,4 +80,50 @@ describe("generatePushMessage fallbacks name the task", () => {
       expect(msg).toContain("Fellowship essay");
     });
   }
+});
+
+describe("tentative events", () => {
+  const oneOff = { seriesId: null, source: "controlledchaos", title: "Open mic" };
+  const ladder = [1440, 60, 10];
+
+  it("get exactly one rung: the largest same-day one", () => {
+    expect(eventReminderIntervals({ ...oneOff, isTentative: true }, ladder)).toEqual([60]);
+    expect(eventReminderIntervals({ ...oneOff, isTentative: true }, [1440, 120, 30])).toEqual([120]);
+  });
+
+  it("fall back to the day-before rung when it's the only one", () => {
+    expect(eventReminderIntervals({ ...oneOff, isTentative: true }, [1440])).toEqual([1440]);
+  });
+
+  it("stay silent when event reminders are off", () => {
+    expect(eventReminderIntervals({ ...oneOff, isTentative: true }, [])).toEqual([]);
+  });
+
+  it("leave mandatory events on the full ladder", () => {
+    expect(eventReminderIntervals({ ...oneOff, isTentative: false }, ladder)).toEqual(ladder);
+  });
+
+  const ctx = {
+    type: "event_reminder" as const,
+    eventTitle: "Open mic",
+    minutesUntil: 60,
+    at: new Date("2026-09-27T22:00:00Z"), // 6 PM ET
+    tentative: true,
+  };
+
+  it("tell the writer it's a maybe", async () => {
+    callHaiku.mockResolvedValue({ text: "Open mic is on at 6 if you feel like it." });
+    await generatePushMessage(ctx, null, "America/New_York");
+    const userMsg: string = callHaiku.mock.calls.at(-1)![0].user;
+    expect(userMsg).toContain("Commitment: TENTATIVE");
+  });
+
+  it("fall back to invitational copy, not a countdown", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    callHaiku.mockImplementation(async () => {
+      throw new Error("boom");
+    });
+    const msg = await generatePushMessage(ctx, null, "America/New_York");
+    expect(msg).toBe("Open mic is on at 6:00 PM if you feel like it.");
+  });
 });

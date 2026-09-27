@@ -111,7 +111,7 @@ export async function buildPlanningContext(
 
   if (window) {
     const [events, scheduled, commute] = await Promise.all([
-      getCalendarEventsByDateRange(userId, window.start, window.end),
+      getCalendarEventsByDateRange(userId, window.start, window.end, { committedOnly: true }),
       getScheduledSessionsInRange(userId, window.start, window.end),
       getCommuteSetup(userId),
     ]);

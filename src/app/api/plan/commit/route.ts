@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       const to = new Date(Math.max(...starts) + 24 * 60 * 60 * 1000);
 
       const [events, scheduled] = await Promise.all([
-        getCalendarEventsByDateRange(userId, from, to),
+        getCalendarEventsByDateRange(userId, from, to, { committedOnly: true }),
         getScheduledSessionsInRange(userId, from, to),
       ]);
 

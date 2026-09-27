@@ -192,6 +192,7 @@ export async function POST(request: Request) {
         startTime: e.startTime.toISOString(),
         endTime: e.endTime.toISOString(),
         source: e.source,
+        isTentative: e.isTentative,
       })),
       energyLevel,
       recentMoment,

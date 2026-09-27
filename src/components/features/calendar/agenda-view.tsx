@@ -508,7 +508,8 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                               categoryColor(
                                 item.event.category as EventCategory,
                                 calendarColors
-                              )
+                              ),
+                              item.event.isTentative && "calendar-event-tentative border"
                             )}
                           >
                             <div className="flex items-baseline gap-3">
@@ -594,6 +595,11 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                     <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       <Repeat className="mr-1 inline h-2.5 w-2.5" />
                       Series
+                    </span>
+                  )}
+                  {selectedEvent.isTentative && (
+                    <span className="inline-block rounded-full border border-dashed border-muted-foreground/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Tentative
                     </span>
                   )}
                 </DialogDescription>

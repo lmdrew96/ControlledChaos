@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.82.0",
+    date: "2026-09-27",
+    title: "Events you might go to",
+    changes: [
+      {
+        kind: "added",
+        text: "Mark an event Tentative when you might go. It shows dashed and lighter, your plans and suggestions treat that time as free, and you get one easygoing reminder (\"it's on at 6 if you feel like it\") instead of a countdown.",
+      },
+    ],
+  },
+  {
     version: "2.81.1",
     label: "2.81.0 – 2.81.1",
     date: "2026-09-27",

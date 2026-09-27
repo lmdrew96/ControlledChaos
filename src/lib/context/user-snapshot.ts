@@ -15,6 +15,7 @@ import {
   getScheduledSessionsInRange,
 } from "@/lib/db/queries";
 import { getCurrentEnergy, getTimeOfDayBlock } from "@/lib/context/energy";
+import { aiEventTitle } from "@/lib/calendar/tentative";
 import { formatCurrentDateTime } from "@/lib/ai/prompts";
 import {
   startOfDayInTimezone,
@@ -124,7 +125,7 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
 
   // Format events for AI consumption
   const formattedEvents = todayEvents.map((e) => ({
-    title: e.title,
+    title: aiEventTitle(e),
     startTime: formatForDisplay(e.startTime, timezone, DISPLAY_TIME),
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_TIME),
     isAllDay: e.isAllDay ?? false,

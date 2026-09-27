@@ -2,6 +2,7 @@ import { callHaiku } from "./index";
 import { buildPersonalityBlock, buildTaskRecommendationPrompt } from "./prompts";
 import { extractJSON, extractScratchpad } from "./validate";
 import { getCalendarParts, formatForDisplay, DISPLAY_TIME } from "@/lib/timezone";
+import { aiEventTitle } from "@/lib/calendar/tentative";
 import type { UserContext, TaskRecommendation, Task, PersonalityPrefs } from "@/types";
 
 interface RecommendationInput {
@@ -129,7 +130,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     const formatEvent = (e: (typeof context.upcomingEvents)[number]) => {
       const start = formatForDisplay(new Date(e.startTime), context.timezone, DISPLAY_TIME);
       const end = formatForDisplay(new Date(e.endTime), context.timezone, DISPLAY_TIME);
-      return `  - ${start}–${end}: ${e.title}`;
+      return `  - ${start}–${end}: ${aiEventTitle(e)}`;
     };
 
     const todayEvents = context.upcomingEvents.filter(

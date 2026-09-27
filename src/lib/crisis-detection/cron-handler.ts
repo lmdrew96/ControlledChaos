@@ -112,7 +112,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
 
   // Fetch calendar events for the window and recent Moments for augmentation
   const [calendarRows, recentMomentRows, loggedMinutes, commute] = await Promise.all([
-    getCalendarEventsByDateRange(userId, now, windowEnd),
+    getCalendarEventsByDateRange(userId, now, windowEnd, { committedOnly: true }),
     // 2-hour window is the widest any Moment augmentation rule cares about
     getRecentMoments(userId, 120, [
       "tough_moment",

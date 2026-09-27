@@ -62,6 +62,7 @@ export function useCalendarEvents() {
       startTime: string;
       endTime: string;
       isAllDay?: boolean;
+      isTentative?: boolean;
       recurrence?: {
         type: "daily" | "weekly";
         daysOfWeek?: number[];

@@ -44,6 +44,7 @@ interface CreateEventDialogProps {
     startTime: string;
     endTime: string;
     isAllDay?: boolean;
+    isTentative?: boolean;
     category?: EventCategory;
     recurrence?: {
       type: "daily" | "weekly";
@@ -70,6 +71,7 @@ export function CreateEventDialog({
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [isAllDay, setIsAllDay] = useState(false);
+  const [isTentative, setIsTentative] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<
     "none" | "daily" | "weekly"
   >("none");
@@ -104,6 +106,7 @@ export function CreateEventDialog({
     setLocation("");
     setDescription("");
     setIsAllDay(false);
+    setIsTentative(false);
     setRecurrenceType("none");
     setSelectedDays([now.getDay()]);
     const end = new Date(now);
@@ -170,6 +173,7 @@ export function CreateEventDialog({
         startTime: startISO,
         endTime: endISO,
         isAllDay,
+        isTentative,
         category,
         recurrence,
       });
@@ -240,6 +244,18 @@ export function CreateEventDialog({
               onCheckedChange={setIsAllDay}
             />
             <Label htmlFor="all-day">All day</Label>
+          </div>
+
+          {/* Tentative Toggle */}
+          <div className="flex items-center gap-3">
+            <Switch
+              id="tentative"
+              checked={isTentative}
+              onCheckedChange={setIsTentative}
+            />
+            <Label htmlFor="tentative" className="font-normal">
+              Tentative <span className="text-muted-foreground">(I might go)</span>
+            </Label>
           </div>
 
           {/* Time Inputs */}

@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, description, location, startTime, endTime, isAllDay, recurrence, category } =
+    const { title, description, location, startTime, endTime, isAllDay, recurrence, category, isTentative } =
       body as {
         title?: string;
         description?: string;
@@ -137,6 +137,7 @@ export async function POST(request: Request) {
           endDate?: string;
         };
         category?: string;
+        isTentative?: boolean;
       };
 
     if (!title?.trim()) {
@@ -203,6 +204,7 @@ export async function POST(request: Request) {
         isAllDay: instance.isAllDay,
         seriesId,
         category: category && validCategories.has(category) ? category : null,
+        isTentative: isTentative === true,
       });
 
       createdEvents.push(event);
