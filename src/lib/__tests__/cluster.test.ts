@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   clusterAlerts,
+  dropCoveredHeadsUps,
+  isHeadsUp,
+  taskIdFromDedupKey,
   extractCourseCode,
   CLUSTER_WINDOW_MINUTES,
   type ClusterableAlert,
@@ -247,5 +250,60 @@ describe("clusterAlerts — structural guarantees", () => {
       "soonest",
       "later",
     ]);
+  });
+});
+
+describe("heads-ups vs moments", () => {
+  const PSYC = "3f2b8c1e-9a4d-4e6f-8b2a-1c0d9e7f6a5b";
+  const OTHER = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+  type A = { kind: ClusterableAlert["kind"]; intervalMinutes?: number; taskId?: string; dedupKey: string };
+  const target: A = { kind: "target", intervalMinutes: 1440, taskId: PSYC, dedupKey: `target-${PSYC}-1440-x` };
+  const dayOut: A = { kind: "deadline", intervalMinutes: 1440, taskId: PSYC, dedupKey: `deadline-${PSYC}-1440-x` };
+  const hourOut: A = { kind: "deadline", intervalMinutes: 60, taskId: PSYC, dedupKey: `deadline-${PSYC}-60-x` };
+  const start: A = { kind: "scheduled", taskId: PSYC, dedupKey: `scheduled-${PSYC}-2026-09-24T13:00` };
+
+  it("classifies targets and far deadlines as heads-ups; starts and close deadlines as moments", () => {
+    expect(isHeadsUp(target)).toBe(true);
+    expect(isHeadsUp(dayOut)).toBe(true);
+    expect(isHeadsUp(hourOut)).toBe(false);
+    expect(isHeadsUp({ kind: "deadline", intervalMinutes: 10 })).toBe(false);
+    expect(isHeadsUp(start)).toBe(false);
+    expect(isHeadsUp({ kind: "event", intervalMinutes: 1440 })).toBe(false);
+  });
+
+  it("reads the task id out of task-shaped keys only", () => {
+    expect(taskIdFromDedupKey(start.dedupKey)).toBe(PSYC);
+    expect(taskIdFromDedupKey(dayOut.dedupKey)).toBe(PSYC);
+    expect(taskIdFromDedupKey(`event-${PSYC}-60-x`)).toBeNull();
+    expect(taskIdFromDedupKey("wake-summary-2026-09-24")).toBeNull();
+  });
+
+  it("drops a heads-up for a task already pushed about today", () => {
+    const { kept, dropped } = dropCoveredHeadsUps([target], [start.dedupKey]);
+    expect(kept).toEqual([]);
+    expect(dropped).toEqual([target]);
+  });
+
+  it("drops a heads-up when a moment for the same task goes out in the same batch", () => {
+    const { kept, dropped } = dropCoveredHeadsUps([dayOut, start], []);
+    expect(kept).toEqual([start]);
+    expect(dropped).toEqual([dayOut]);
+  });
+
+  it("never drops a moment, even after earlier pushes about the task", () => {
+    const earlier = [target.dedupKey, start.dedupKey];
+    expect(dropCoveredHeadsUps([hourOut], earlier).kept).toEqual([hourOut]);
+  });
+
+  it("keeps the first heads-up of the day, and other tasks' heads-ups", () => {
+    const otherTarget: A = { kind: "target", intervalMinutes: 1440, taskId: OTHER, dedupKey: `target-${OTHER}-1440-x` };
+    expect(dropCoveredHeadsUps([target], []).kept).toEqual([target]);
+    expect(dropCoveredHeadsUps([otherTarget], [start.dedupKey]).kept).toEqual([otherTarget]);
+  });
+
+  it("counts a task folded into the wake-up summary as pushed", () => {
+    // The summary records its members' keys under its own push.
+    const summaryKeys = ["wake-summary-2026-09-24", `deadline-${PSYC}-1440-y`];
+    expect(dropCoveredHeadsUps([target], summaryKeys).dropped).toEqual([target]);
   });
 });

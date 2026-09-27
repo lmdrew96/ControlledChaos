@@ -55,6 +55,7 @@ import {
 } from "@/lib/notifications/triggers";
 import {
   clusterAlerts,
+  dropCoveredHeadsUps,
   extractCourseCode,
   type ClusterableAlert,
 } from "@/lib/notifications/cluster";
@@ -472,6 +473,9 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       ? !notified.ever.has(c.dedupKey)
       : !notified.today.has(c.dedupKey)
   );
+  // Every key pushed today, this run's wake-up summary included, for the
+  // heads-up rule below.
+  const pushedTodayKeys = new Set(notified.today);
 
   // If the check-in is due this tick, the first push that goes out carries
   // its key: that push is the check-in's moment, and a second push in the
@@ -549,6 +553,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         markSent("user", "normal");
         const folded = new Set(foldable.map((c) => c.dedupKey));
         fresh = fresh.filter((c) => !folded.has(c.dedupKey));
+        for (const k of folded) pushedTodayKeys.add(k);
         console.log(`[Push][WakeSummary] user=${userId} items=${items.length} folded=${folded.size}`);
       }
     }
@@ -576,6 +581,18 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
     if (scope === "fire" && age >= FIRE_GRACE_MS) return false;
     return true;
   });
+
+  // A heads-up for a task that's already been pushed about today (or has a
+  // moment alert going out now) is dropped, not held: see "Heads-ups vs
+  // moments" in lib/notifications/cluster.ts. One chance per alert means it
+  // won't come back later.
+  const headsUps = dropCoveredHeadsUps(fresh, pushedTodayKeys);
+  if (headsUps.dropped.length > 0) {
+    console.log(
+      `[Push][HeadsUp] user=${userId} dropped=${headsUps.dropped.map((c) => c.dedupKey).join(",")}`
+    );
+  }
+  fresh = headsUps.kept;
 
   fresh.sort((a, b) => a.at.getTime() - b.at.getTime());
 

@@ -205,3 +205,70 @@ export function clusterAlerts<T extends ClusterableAlert>(
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Heads-ups vs moments — one task, several kinds, one day
+// ---------------------------------------------------------------------------
+//
+// Each kind dedups on its own key, and clustering only merges alerts that come
+// due together, so one task could collect a target heads-up, a day-out
+// deadline, a scheduled start and a close deadline across one morning (PSYC
+// 100 got four). Kinds split by what the push is FOR:
+//
+//   - A heads-up (a target, or a deadline more than an hour out) puts the task
+//     on the radar. Once any push about the task has gone out today it's
+//     already there, so a later heads-up is dropped.
+//   - A moment (a scheduled start, or a deadline within the hour) always
+//     fires: "now's the time" and "this is due soon" can't be traded for one
+//     fewer interruption.
+//
+// A numeric per-task cap was rejected: it drops whichever alert comes LAST,
+// which is usually the most urgent one.
+
+/** Deadline alerts further out than this are heads-ups; this close, moments. */
+export const HEADS_UP_DEADLINE_MINUTES = 60;
+
+/** Whether an alert is a heads-up (droppable once the task is on the radar). */
+export function isHeadsUp(alert: { kind: AlertKind; intervalMinutes?: number }): boolean {
+  if (alert.kind === "target") return true;
+  if (alert.kind === "deadline") {
+    return (alert.intervalMinutes ?? 0) > HEADS_UP_DEADLINE_MINUTES;
+  }
+  return false;
+}
+
+// deadline-/target-/scheduled- keys carry the task id right after the kind.
+const TASK_KEY_RE =
+  /^(?:deadline|target|scheduled)-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/i;
+
+/** The task a dedup key is about, or null for a key that isn't task-shaped. */
+export function taskIdFromDedupKey(key: string): string | null {
+  return key.match(TASK_KEY_RE)?.[1] ?? null;
+}
+
+/**
+ * Drop heads-ups for tasks already pushed about today, or about to be by a
+ * moment alert in this same batch. `pushedTodayKeys` is every dedup key sent
+ * today, cluster members and wake-up-summary folds included, since a task
+ * named in any push counts as on the radar.
+ */
+export function dropCoveredHeadsUps<
+  T extends { kind: AlertKind; intervalMinutes?: number; taskId?: string | null },
+>(alerts: T[], pushedTodayKeys: Iterable<string>): { kept: T[]; dropped: T[] } {
+  const covered = new Set<string>();
+  for (const key of pushedTodayKeys) {
+    const taskId = taskIdFromDedupKey(key);
+    if (taskId) covered.add(taskId);
+  }
+  for (const a of alerts) {
+    if (a.taskId && !isHeadsUp(a)) covered.add(a.taskId);
+  }
+
+  const kept: T[] = [];
+  const dropped: T[] = [];
+  for (const a of alerts) {
+    if (isHeadsUp(a) && a.taskId && covered.has(a.taskId)) dropped.push(a);
+    else kept.push(a);
+  }
+  return { kept, dropped };
+}

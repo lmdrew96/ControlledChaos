@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.81.0",
+    date: "2026-09-27",
+    title: "Fewer pings about the same task",
+    changes: [
+      {
+        kind: "improved",
+        text: "Once a task has sent you a notification today, its gentler heads-ups (a target date, or a deadline more than an hour away) stay quiet. Start times and deadlines within the hour still come through.",
+      },
+    ],
+  },
+  {
     version: "2.80.6",
     label: "2.80.0 – 2.80.6",
     date: "2026-09-26",
