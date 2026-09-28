@@ -27,6 +27,18 @@ describe("attachAssessmentsToClasses", () => {
     expect(attached.get("c")?.[0]).toMatchObject({ label: "📝 Quiz" });
   });
 
+  it("folds a test due exactly at class end into the class tile", () => {
+    const test = ev("t", "canvas", "Test #2 (Module 2) [26F-LATN101-011]", "18:40", "18:40");
+    const { visible, attached } = attachAssessmentsToClasses([cls, test]);
+    expect(visible.map((e) => e.id)).toEqual(["c"]);
+    expect(attached.get("c")?.[0]).toMatchObject({ label: "📝 Test" });
+  });
+
+  it("leaves a test due just after class ends alone", () => {
+    const test = ev("t", "canvas", "Test #2 (Module 2) [26F-LATN101-011]", "18:41", "18:41");
+    expect(attachAssessmentsToClasses([cls, test]).visible).toHaveLength(2);
+  });
+
   it("leaves a quiz for a different course alone", () => {
     const quiz = ev("q", "canvas", "QUIZ: Cells [26F-BIOL101-010]", "17:50", "17:50");
     expect(attachAssessmentsToClasses([cls, quiz]).visible).toHaveLength(2);

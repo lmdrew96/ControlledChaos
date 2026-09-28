@@ -35,13 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.82.0",
+    version: "2.82.1",
+    label: "2.82.0 – 2.82.1",
     date: "2026-09-27",
     title: "Events you might go to",
     changes: [
       {
         kind: "added",
         text: "Mark an event Tentative when you might go. It shows dashed and lighter, your plans and suggestions treat that time as free, and you get one easygoing reminder (\"it's on at 6 if you feel like it\") instead of a countdown.",
+      },
+      {
+        kind: "fixed",
+        text: "Canvas tests due at the end of class now ride on the class as a badge, like quizzes do.",
       },
     ],
   },

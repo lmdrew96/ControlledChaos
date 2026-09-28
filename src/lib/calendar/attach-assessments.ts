@@ -66,8 +66,9 @@ export function attachAssessmentsToClasses<E extends AttachableEvent>(
       if (courseKey(c.title) !== key) return false;
       const cStart = new Date(c.startTime).getTime();
       const cEnd = new Date(c.endTime).getTime();
-      // Starts during the class (a quiz "due" exactly at class start counts).
-      return aStart >= cStart && aStart < cEnd;
+      // Lands during the class, ends included: Canvas stamps a quiz at class
+      // start but an in-class test at class end (its "due" time).
+      return aStart >= cStart && aStart <= cEnd;
     });
     if (!host) continue;
 
