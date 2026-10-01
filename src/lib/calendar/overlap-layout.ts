@@ -31,8 +31,14 @@ export interface TileLayout {
   compact: boolean;
 }
 
-/** Starts this close together read as "at the same time". */
-const SIDE_BY_SIDE_MS = 30 * 60_000;
+/**
+ * Starts this close together read as "at the same time". It only has to
+ * clear the earlier tile's first title line (~18px, about 11 min on the
+ * week grid). At 30 min, a 5:00 and a 5:20 split into two unreadable halves
+ * while a 1:50 and a 2:30 cascaded, so near-identical overlaps looked
+ * different.
+ */
+const SIDE_BY_SIDE_MS = 15 * 60_000;
 /** Total indent budget for a cascade, so each tile keeps ~80% of the width. */
 const CASCADE_INDENT_PCT = 20;
 /** Below this width a title can't wrap legibly. */

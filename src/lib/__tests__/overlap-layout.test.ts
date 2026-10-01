@@ -26,6 +26,18 @@ describe("layoutOverlappingTiles", () => {
     expect(l.get("b")).toMatchObject({ leftPct: 20, widthPct: 80, z: 1, compact: false });
   });
 
+  it("a tile starting 20 min later cascades rather than splitting the column", () => {
+    const l = layoutOverlappingTiles([t("a", "17:00", "17:30"), t("b", "17:20", "18:40")]);
+    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 80, z: 0, compact: false });
+    expect(l.get("b")).toMatchObject({ leftPct: 20, widthPct: 80, z: 1, compact: false });
+  });
+
+  it("tiles starting under 15 min apart still sit side by side", () => {
+    const l = layoutOverlappingTiles([t("a", "17:00", "18:00"), t("b", "17:10", "18:00")]);
+    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 50 });
+    expect(l.get("b")).toMatchObject({ leftPct: 50, widthPct: 50 });
+  });
+
   it("zero-length tiles at the same instant still get their own slot", () => {
     const l = layoutOverlappingTiles([t("a", "09:00", "09:00"), t("b", "09:00", "09:00")]);
     expect(l.get("a")!.widthPct).toBe(50);

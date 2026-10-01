@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.82.1",
-    label: "2.82.0 – 2.82.1",
+    version: "2.82.2",
+    label: "2.82.0 – 2.82.2",
     date: "2026-09-27",
     title: "Events you might go to",
     changes: [
@@ -47,6 +47,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "Canvas tests due at the end of class now ride on the class as a badge, like quizzes do.",
+      },
+      {
+        kind: "fixed",
+        text: "Events that overlap by a little now cascade so both titles stay readable, instead of squeezing into two narrow halves.",
       },
     ],
   },
