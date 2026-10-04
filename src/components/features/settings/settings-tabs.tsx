@@ -10,7 +10,7 @@ import { AppearanceSettings } from "./appearance-settings";
 import { TimezoneSettings } from "./timezone-settings";
 import { PersonalitySettings } from "./personality-settings";
 import { SavedLocations } from "./saved-locations";
-import { CommuteTimes } from "./commute-times";
+import { TravelModeSettings } from "./travel-mode-settings";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
@@ -32,7 +32,7 @@ const RENDERERS: Record<string, () => React.ReactNode> = {
   notifications: () => <NotificationSettings />,
   calendar: () => <CalendarSettings />,
   locations: () => <SavedLocations />,
-  commute: () => <CommuteTimes />,
+  commute: () => <TravelModeSettings />,
   "crisis-detection": () => <CrisisDetectionSettings />,
 };
 

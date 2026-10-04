@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { updateLocation, deleteLocation, setHomeLocation } from "@/lib/db/queries";
+import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
 
 export async function PATCH(
   request: Request,
@@ -35,6 +36,13 @@ export async function PATCH(
       return NextResponse.json(
         { error: "Location not found" },
         { status: 404 }
+      );
+    }
+
+    // A moved pin changes its commutes. Deletes need nothing: rows cascade.
+    if (data.latitude !== undefined || data.longitude !== undefined) {
+      await refreshCommuteTimes(userId).catch((err) =>
+        console.error("[API] PATCH /api/locations/:id commute refresh failed:", err)
       );
     }
 

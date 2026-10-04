@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getSavedLocations, createLocation } from "@/lib/db/queries";
+import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
 
 export async function GET() {
   try {
@@ -54,6 +55,12 @@ export async function POST(request: Request) {
       latitude: latitude.toString(),
       longitude: longitude.toString(),
     });
+
+    // A failed estimate shouldn't fail the save; the calendar-sync cron
+    // retries pairs that are still missing.
+    await refreshCommuteTimes(userId).catch((err) =>
+      console.error("[API] POST /api/locations commute refresh failed:", err)
+    );
 
     return NextResponse.json({ location }, { status: 201 });
   } catch (error) {

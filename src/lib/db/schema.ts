@@ -57,6 +57,7 @@ export const userSettings = pgTable(
     calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
     crisisDetectionTier: text("crisis_detection_tier").default("nudge"), // "off" | "watch" | "nudge" | "auto_triage"
     canvasSelectedCourses: jsonb("canvas_selected_courses"), // string[] of course codes (e.g. "ENGL204") to sync; null = sync all courses (default)
+    travelMode: text("travel_mode").default("driving").notNull(), // "driving" | "walking" | "cycling" — commutes over SHORT_HOP_METERS use it
   },
   (table) => ({
     // One settings row per user. Closes the onboarding double-submit race

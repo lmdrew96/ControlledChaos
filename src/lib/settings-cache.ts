@@ -1,6 +1,6 @@
 "use client";
 
-import type { CalendarColors } from "@/types";
+import type { CalendarColors, TravelMode } from "@/types";
 
 /**
  * One shared client-side cache of /api/settings.
@@ -28,6 +28,8 @@ export interface AppSettings {
   /** The scheduling window (hours 0-23). Feeds the dashboard's TimeAnchor. */
   wakeHour: number;
   sleepHour: number;
+  /** How the user gets around; sets the mode of background-computed commutes. */
+  travelMode: TravelMode;
 }
 
 export function getBrowserTimezone(): string {
@@ -43,6 +45,7 @@ export function defaultSettings(): AppSettings {
     calendarColors: null,
     wakeHour: DEFAULT_START_HOUR,
     sleepHour: DEFAULT_END_HOUR,
+    travelMode: "driving",
   };
 }
 
@@ -78,6 +81,7 @@ export function fetchSettings(): Promise<AppSettings> {
         calendarColors: data.calendarColors ?? null,
         wakeHour: data.wakeTime ?? DEFAULT_START_HOUR,
         sleepHour: data.sleepTime ?? DEFAULT_END_HOUR,
+        travelMode: data.travelMode ?? "driving",
       };
       cached = settings;
       return settings;

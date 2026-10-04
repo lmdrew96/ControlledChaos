@@ -9,6 +9,7 @@ import {
   updateUser,
   createLocation,
 } from "@/lib/db/queries";
+import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
 import type { PersonalityPrefs, NotificationPrefs } from "@/types";
 
 export async function POST(request: Request) {
@@ -114,7 +115,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create locations
+    // Create locations, then their commutes (failure is logged; the
+    // calendar-sync cron fills missing pairs).
     if (locations && Array.isArray(locations)) {
       for (const loc of locations) {
         if (loc.name?.trim() && loc.latitude && loc.longitude) {
@@ -126,6 +128,9 @@ export async function POST(request: Request) {
           });
         }
       }
+      await refreshCommuteTimes(userId).catch((err) =>
+        console.error("[API] onboarding commute refresh failed:", err)
+      );
     }
 
     return NextResponse.json({ success: true });

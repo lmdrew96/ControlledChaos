@@ -92,10 +92,9 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
       },
       {
         id: "commute",
-        title: "Commute Times",
-        keywords: "travel commute drive transit time estimate",
+        title: "Getting Around",
+        keywords: "travel commute drive walk bike time",
         icon: Route,
-        bare: true,
       },
     ],
   },

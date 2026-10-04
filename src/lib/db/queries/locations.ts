@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { commuteTimes, locations } from "../schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { getUser } from "./users";
 import { getCalendarEventsByDateRange } from "./calendar";
 import { inferCurrentLocation } from "@/lib/calendar/commute-buffers";
@@ -137,74 +137,37 @@ export async function getCommuteSetup(userId: string) {
   };
 }
 
-export async function getCommuteBetween(
-  fromLocationId: string,
-  toLocationId: string,
-  travelMode = "driving"
-): Promise<number | null> {
-  const [row] = await db
-    .select({ travelMinutes: commuteTimes.travelMinutes })
-    .from(commuteTimes)
-    .where(
-      and(
-        eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId),
-        eq(commuteTimes.travelMode, travelMode)
-      )
-    );
-  return row?.travelMinutes ?? null;
-}
-
-export async function upsertCommuteTime(
+/**
+ * Swap the user's stored commutes for a freshly computed set in one
+ * transaction (db.batch), so readers never see a half-replaced table.
+ */
+export async function replaceCommuteTimes(
   userId: string,
-  fromLocationId: string,
-  toLocationId: string,
-  travelMinutes: number,
-  travelMode = "driving"
+  rows: Array<typeof commuteTimes.$inferInsert>
 ) {
-  const [existing] = await db
-    .select({ id: commuteTimes.id })
-    .from(commuteTimes)
-    .where(
-      and(
-        eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId),
-        eq(commuteTimes.travelMode, travelMode)
-      )
-    );
-
-  if (existing) {
-    const [updated] = await db
-      .update(commuteTimes)
-      .set({ travelMinutes, updatedAt: new Date() })
-      .where(eq(commuteTimes.id, existing.id))
-      .returning();
-    return updated;
+  const clear = db.delete(commuteTimes).where(eq(commuteTimes.userId, userId));
+  if (rows.length === 0) {
+    await clear;
+    return;
   }
-
-  const [created] = await db
-    .insert(commuteTimes)
-    .values({ userId, fromLocationId, toLocationId, travelMinutes, travelMode })
-    .returning();
-  return created;
+  await db.batch([clear, db.insert(commuteTimes).values(rows)]);
 }
 
-export async function deleteCommuteTime(
-  userId: string,
-  fromLocationId: string,
-  toLocationId: string,
-  travelMode = "driving"
-) {
-  await db
-    .delete(commuteTimes)
-    .where(
-      and(
-        eq(commuteTimes.userId, userId),
-        eq(commuteTimes.fromLocationId, fromLocationId),
-        eq(commuteTimes.toLocationId, toLocationId),
-        eq(commuteTimes.travelMode, travelMode)
+/**
+ * Users whose stored commutes don't cover every pair of their pinned
+ * locations — a refresh failed (OSRM down) or predates them. One row per
+ * direction means n pinned locations should have n(n-1) rows.
+ */
+export async function getUsersWithIncompleteCommutes(): Promise<string[]> {
+  const result = await db.execute<{ user_id: string }>(sql`
+    SELECT l.user_id
+    FROM locations l
+    WHERE l.latitude IS NOT NULL AND l.longitude IS NOT NULL
+    GROUP BY l.user_id
+    HAVING count(*) >= 2
+      AND count(*) * (count(*) - 1) <> (
+        SELECT count(*) FROM commute_times c WHERE c.user_id = l.user_id
       )
-    );
+  `);
+  return result.rows.map((r) => r.user_id);
 }
-
-

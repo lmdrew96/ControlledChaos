@@ -35,6 +35,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.84.0",
+    label: "2.84.0",
+    date: "2026-10-04",
+    title: "Commute times fill themselves in",
+    changes: [
+      {
+        kind: "improved",
+        text: "Travel times between your saved locations are now worked out automatically from the map pins whenever you add or move a place. The grid of every pair to fill in is gone.",
+      },
+      {
+        kind: "added",
+        text: "A \"Getting Around\" setting (Drive, Bike or Walk) decides how longer trips are timed. Places under 1 km apart always count as a walk.",
+      },
+    ],
+  },
+  {
     version: "2.83.0",
     label: "2.83.0",
     date: "2026-10-04",
