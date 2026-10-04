@@ -8,13 +8,11 @@ import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
  * /api/version. A tab compares the two to notice it is running stale JS.
  *
  * This has to change on EVERY deploy or the stale-tab update toast goes
- * quiet between version bumps. Vercel handed us VERCEL_GIT_COMMIT_SHA for
- * free; Workers does not, so the git SHA is read directly. Order:
+ * quiet between version bumps. Workers doesn't inject a commit SHA into the
+ * build env the way Vercel did, so it's read directly. Order:
  *   1. Workers Builds (CI) commit SHA
  *   2. local git — the normal path, since deploys run from a working copy
- *   3. Vercel, still live until the DNS cutover completes. Drop this once
- *      the Vercel project is removed.
- *   4. package version, for environments with no git (a bare tarball build)
+ *   3. package version, for environments with no git (a bare tarball build)
  */
 const gitSha = (): string | undefined => {
   try {
@@ -29,7 +27,6 @@ const gitSha = (): string | undefined => {
 const APP_VERSION =
   process.env.WORKERS_CI_COMMIT_SHA?.slice(0, 7) ??
   gitSha() ??
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
   process.env.npm_package_version ??
   "dev";
 

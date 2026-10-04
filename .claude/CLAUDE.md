@@ -64,7 +64,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 ### Calendar Integration
 - Canvas iCal: URL-based import, parsed with `node-ical` — no auth needed
 - Recurrence expansion handled in `src/lib/calendar/expand-recurrence.ts`
-- Re-synced every 15 min via `/api/cron/calendar-sync`
+- Re-synced every 30 min via `/api/cron/calendar-sync` (the same tick retries incomplete commute times)
 - **No Google Calendar integration** — do not add `googleapis` or GCal OAuth without explicit request
 
 ### Client Settings

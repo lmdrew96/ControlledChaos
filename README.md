@@ -48,7 +48,7 @@ No guilt. No streaks. No rigid systems.
 | Animations | Framer Motion |
 | Drag & Drop | dnd-kit |
 | Testing | Vitest |
-| Hosting | Vercel (serverless + cron) |
+| Hosting | Cloudflare Workers (`@opennextjs/cloudflare`) + QStash cron |
 
 ## Getting Started
 
@@ -118,19 +118,18 @@ pnpm dev
 
 ## Cron Jobs
 
-Vercel's Hobby plan only allows daily Cron Jobs, so these run via a GitHub Actions
-scheduled workflow instead: [`.github/workflows/cron-triggers.yml`](.github/workflows/cron-triggers.yml).
+Upstash QStash calls the endpoints under `/api/cron/` (push triggers, calendar
+sync, morning and evening digests). The schedules are defined in
+[`scripts/sync-qstash-schedules.ts`](scripts/sync-qstash-schedules.ts), which is
+the source of truth for each cadence and the reasoning behind it:
 
-| Path | Schedule | Purpose |
-|---|---|---|
-| `/api/cron/calendar-sync` | Every 15 min | Re-fetch Canvas iCal feeds |
-| `/api/cron/push-triggers` | Every 15 min | Fire due push notifications |
-| `/api/cron/morning-digest` | Every 15 min, 06:00–16:59 UTC | Send morning digest emails |
-| `/api/cron/evening-digest` | Every 15 min, 22:00–04:59 UTC | Send evening digest emails |
+| Command | Purpose |
+|---|---|
+| `pnpm cron:check` | Report drift between the repo and live schedules (read-only) |
+| `pnpm cron:sync` | Reconcile live schedules to match the repo |
 
-All cron endpoints require the `CRON_SECRET` bearer token, which must be set both as a
-Vercel env var and as a `CRON_SECRET` secret in the GitHub repo (Settings → Secrets and
-variables → Actions).
+Routes verify the QStash signature, or the `CRON_SECRET` bearer token for manual
+calls (the `Cron Triggers (manual)` GitHub workflow).
 
 ## Project Structure
 
@@ -166,7 +165,7 @@ docs/               # Vision, architecture, specs
 
 ## Deployment
 
-Deployed on Vercel. Pushes to `main` auto-deploy. Set every env var from the table above in the Vercel project settings. Cron scheduling runs via GitHub Actions (see [Cron Jobs](#cron-jobs)) — no Vercel Cron Jobs feature or Pro plan required.
+Deployed on Cloudflare Workers via Workers Builds: pushes to `main` build and deploy. Runtime secrets are Worker secrets; `NEXT_PUBLIC_*` values are compiled in at build time, so they belong in the build configuration's variables (`scripts/check-build-env.ts` fails the build when one is missing). Cron scheduling runs on QStash (see [Cron Jobs](#cron-jobs)).
 
 ## Documentation
 

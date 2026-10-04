@@ -30,15 +30,13 @@ if [ ! -f "$ENV_FILE" ]; then
   cat >&2 <<MSG
 Missing $ENV_FILE
 
-It must hold the PRODUCTION values (the ones Vercel serves), not the dev ones
-in .env.local. At minimum these differ between the two environments:
+It must hold the PRODUCTION values, not the dev ones in .env.local. At minimum these differ between the two environments:
 
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY   pk_live_... (dev is pk_test_...)
   CLERK_SECRET_KEY                    sk_live_... (dev is sk_test_...)
 
-Check every other key too — DATABASE_URL especially.
-
-  vercel env pull $ENV_FILE --environment=production
+Check every other key too — DATABASE_URL especially. Worker secrets can't be
+read back from Cloudflare, so fill it from wherever the production keys are kept.
 
 That file is gitignored by .env*.local. Never commit it.
 MSG
@@ -54,7 +52,7 @@ fi
 
 JSON=$(
   grep -vE '^\s*(#|$)' "$ENV_FILE" \
-  | grep -vE '^(NEXT_PUBLIC_|VERCEL_)' \
+  | grep -vE '^NEXT_PUBLIC_' \
   | python3 -c '
 import json, sys
 out = {}
