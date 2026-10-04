@@ -13,8 +13,7 @@ import {
   getCalendarEventsByDateRange,
   getRecentTaskActivity,
   getActiveCrisisPlans,
-  getUserLocation,
-  isLocationStale,
+  getCurrentLocation,
   getUserGoals,
   getScheduledSessionsInRange,
 } from "@/lib/db/queries";
@@ -175,7 +174,7 @@ export async function buildAIContext(
       options.skipCrises
         ? Promise.resolve([])
         : getActiveCrisisPlans(userId),
-      getUserLocation(userId),
+      getCurrentLocation(userId, timezone),
       getUserGoals(userId, "active"),
       getScheduledSessionsInRange(userId, today.start, today.end),
     ]);
@@ -186,12 +185,8 @@ export async function buildAIContext(
   const timeOfDay = getTimeOfDayBlock(timezone);
   const personalityPrefs = (settings?.personalityPrefs as PersonalityPrefs | null) ?? null;
 
-  // Location — only trust it if the app was foregrounded recently enough that
-  // the position isn't stale (PWAs get no background geolocation).
-  const locationName =
-    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
-      ? userLoc.matchedLocationName
-      : null;
+  // Location — inferred from today's calendar, null when unknown.
+  const locationName = userLoc?.name ?? null;
 
   // Top 5 pending tasks
   const topTasks = pendingTasks.slice(0, 5).map((t) => toTaskFacts(t, goalTitleById));

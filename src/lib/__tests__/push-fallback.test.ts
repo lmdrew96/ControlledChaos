@@ -8,10 +8,9 @@ vi.mock("@/lib/db/queries", () => ({
   getPendingTasks: vi.fn(),
   getRecentTaskActivity: vi.fn(),
   getCalendarEventsByDateRange: vi.fn(),
-  getUserLocation: vi.fn(),
+  getCurrentLocation: vi.fn(),
   getSavedLocations: vi.fn(),
   getCommuteTimes: vi.fn(),
-  isLocationStale: vi.fn(),
   getSessionsStartingBetween: vi.fn(),
 }));
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Mail, Moon, MapPin, Loader2, AlarmClock, Plus, X, Sun } from "lucide-react";
+import { Bell, Mail, Moon, Loader2, AlarmClock, Plus, X, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ import {
 
 const DEFAULT_PREFS: NotificationPrefs = {
   pushEnabled: false,
-  locationNotificationsEnabled: false,
   emailMorningDigest: false,
   emailEveningDigest: false,
   morningDigestTime: "07:30",
@@ -399,65 +398,6 @@ export function NotificationSettings() {
           Send Test Notification
         </Button>
       )}
-
-      {/* Location Suggestions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-sm font-medium">Location Suggestions</p>
-            <p className="text-xs text-muted-foreground">
-              Surface tasks in-app when you&apos;re at a saved location. Only checked while the
-              app is open — phones don&apos;t allow background location for installed web apps,
-              so this can&apos;t work as a push notification.
-            </p>
-          </div>
-        </div>
-        <Switch
-          checked={prefs.locationNotificationsEnabled}
-          onCheckedChange={async (checked) => {
-            if (checked) {
-              // Probe geolocation permission
-              try {
-                await new Promise<void>((resolve, reject) => {
-                  navigator.geolocation.getCurrentPosition(
-                    () => resolve(),
-                    (err) => reject(err),
-                    { enableHighAccuracy: false, timeout: 10000 }
-                  );
-                });
-                const newPrefs = { ...prefs, locationNotificationsEnabled: true };
-                const res = await fetch("/api/settings", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ notificationPrefs: newPrefs }),
-                });
-                if (res.ok) {
-                  setPrefs(newPrefs);
-                  setSavedPrefs(newPrefs);
-                  invalidateSettings();
-                  toast.success("Location suggestions enabled!");
-                }
-              } catch {
-                toast.error(
-                  "Location access was denied. Enable it in your browser settings to use this feature."
-                );
-              }
-            } else {
-              const newPrefs = { ...prefs, locationNotificationsEnabled: false };
-              await fetch("/api/settings", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ notificationPrefs: newPrefs }),
-              });
-              setPrefs(newPrefs);
-              setSavedPrefs(newPrefs);
-              invalidateSettings();
-              toast.success("Location suggestions disabled.");
-            }
-          }}
-        />
-      </div>
 
       <div className="h-px bg-border" />
 

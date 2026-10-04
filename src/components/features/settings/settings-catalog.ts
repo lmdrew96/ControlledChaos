@@ -87,7 +87,7 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
       {
         id: "locations",
         title: "Saved Locations",
-        keywords: "places geofence map address",
+        keywords: "places home map address commute",
         icon: MapPin,
       },
       {

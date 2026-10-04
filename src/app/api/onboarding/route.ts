@@ -81,7 +81,6 @@ export async function POST(request: Request) {
         quietHoursStart: "22:00",
         quietHoursEnd: "07:00",
         assertivenessMode: "balanced",
-        locationNotificationsEnabled: false,
         friendNudgesEnabled: true,
         mutedFriendIds: [],
         celebrationLevel: "full",
@@ -124,7 +123,6 @@ export async function POST(request: Request) {
             name: loc.name.trim(),
             latitude: loc.latitude,
             longitude: loc.longitude,
-            radiusMeters: 200,
           });
         }
       }

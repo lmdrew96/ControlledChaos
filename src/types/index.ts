@@ -216,8 +216,6 @@ export interface UserContext {
   timezone: string;
   location?: {
     name: string;
-    latitude: number;
-    longitude: number;
   };
   currentEvent?: {
     title: string;
@@ -283,7 +281,6 @@ export type DailyCheckInTime = "morning" | "afternoon" | "evening";
 
 export interface NotificationPrefs {
   pushEnabled: boolean;
-  locationNotificationsEnabled: boolean;
   emailMorningDigest: boolean;
   emailEveningDigest: boolean;
   morningDigestTime: string; // "07:30"

@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { updateLocation, deleteLocation } from "@/lib/db/queries";
+import { updateLocation, deleteLocation, setHomeLocation } from "@/lib/db/queries";
 
 export async function PATCH(
   request: Request,
@@ -21,9 +21,15 @@ export async function PATCH(
       data.latitude = body.latitude.toString();
     if (body.longitude !== undefined)
       data.longitude = body.longitude.toString();
-    if (body.radiusMeters !== undefined) data.radiusMeters = body.radiusMeters;
 
-    const updated = await updateLocation(id, userId, data);
+    if (body.isHome !== undefined && typeof body.isHome !== "boolean") {
+      return NextResponse.json({ error: "isHome must be a boolean" }, { status: 400 });
+    }
+
+    let updated = Object.keys(data).length > 0 ? await updateLocation(id, userId, data) : undefined;
+    if (typeof body.isHome === "boolean") {
+      updated = await setHomeLocation(id, userId, body.isHome);
+    }
 
     if (!updated) {
       return NextResponse.json(

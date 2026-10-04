@@ -8,7 +8,7 @@ interface SavedLocation {
   name: string;
   latitude: string | null;
   longitude: string | null;
-  radiusMeters: number | null;
+  isHome: boolean;
 }
 
 interface LocationMapProps {
@@ -18,7 +18,7 @@ interface LocationMapProps {
 
 /**
  * Interactive Leaflet map rendered only on the client (dynamic import required).
- * Shows a pin + radius circle for every saved location.
+ * Shows a pin for every saved location.
  * Clicking a marker fires onSelect so the edit dialog can open.
  */
 export function LocationMap({ locations, onSelect }: LocationMapProps) {
@@ -76,7 +76,6 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
         validLocs.forEach((loc) => {
           const lat = parseFloat(loc.latitude!);
           const lng = parseFloat(loc.longitude!);
-          const radius = loc.radiusMeters ?? 200;
 
           bounds.push([lat, lng]);
 
@@ -113,15 +112,6 @@ export function LocationMap({ locations, onSelect }: LocationMapProps) {
 
           const marker = L.marker([lat, lng], { icon }).addTo(map);
           marker.on("click", () => onSelect(loc));
-
-          // Radius circle
-          L.circle([lat, lng], {
-            radius,
-            color: "hsl(221,83%,54%)",
-            fillColor: "hsl(221,83%,54%)",
-            fillOpacity: 0.08,
-            weight: 1.5,
-          }).addTo(map);
         });
 
         // Fit map to all pins

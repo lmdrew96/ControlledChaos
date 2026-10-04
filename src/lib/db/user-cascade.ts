@@ -25,8 +25,6 @@ export const USER_CHILD_TABLES = [
   "calendar_events",
   "locations",
   "commute_times",
-  "user_locations",
-  "location_notification_log",
   "task_activity",
   "notifications",
   "crisis_plans",

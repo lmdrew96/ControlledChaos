@@ -18,8 +18,7 @@ import {
   getActiveCrisisPlans,
   getRecentTaskActivity,
   createNotification,
-  getUserLocation,
-  isLocationStale,
+  getCurrentLocation,
   getScheduledSessionsInRange,
   getUserGoals,
 } from "@/lib/db/queries";
@@ -88,20 +87,14 @@ async function generateDigestNote(
  * Send the morning digest email for a user.
  */
 export async function sendMorningDigest(userId: string): Promise<boolean> {
-  const [user, settings, userLoc] = await Promise.all([
+  const [user, settings] = await Promise.all([
     getUser(userId),
     getUserSettings(userId),
-    getUserLocation(userId),
   ]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  // Digest is generated on a schedule, not while the app is necessarily open — a
-  // stale (app-not-foregrounded) location is worse than none for the AI's copy.
-  const locationName =
-    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
-      ? userLoc.matchedLocationName
-      : null;
+  const locationName = (await getCurrentLocation(userId, timezone))?.name ?? null;
   const now = new Date();
 
   // Today's events
@@ -177,7 +170,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User's last known location: ${locationName}` : null,
+    locationName ? `User is probably at (from their calendar): ${locationName}` : null,
     `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}${t.locationTags?.length ? ` [at: ${t.locationTags.join(", ")}]` : ""}`).join("; ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
@@ -265,18 +258,14 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
  * Send the evening digest email for a user.
  */
 export async function sendEveningDigest(userId: string): Promise<boolean> {
-  const [user, settings, userLoc] = await Promise.all([
+  const [user, settings] = await Promise.all([
     getUser(userId),
     getUserSettings(userId),
-    getUserLocation(userId),
   ]);
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  const locationName =
-    userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
-      ? userLoc.matchedLocationName
-      : null;
+  const locationName = (await getCurrentLocation(userId, timezone))?.name ?? null;
   const now = new Date();
 
   // Tasks completed today
@@ -345,7 +334,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User's last known location: ${locationName}` : null,
+    locationName ? `User is probably at (from their calendar): ${locationName}` : null,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `${priorityLabel}: ${
       tomorrowPriority

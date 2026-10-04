@@ -68,7 +68,7 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
   });
 
   const locationLine = context.location
-    ? `${context.location.name} (${context.location.latitude}, ${context.location.longitude})`
+    ? `${context.location.name} (inferred from today's calendar)`
     : "Unknown (no location data — do NOT assume any location)";
 
   const currentEventLine = context.currentEvent

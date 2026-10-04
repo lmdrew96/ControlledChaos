@@ -1,12 +1,11 @@
 "use client";
 
 import { useAnnounceGoalFinished } from "@/hooks/use-announce-goal-finished";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useGeolocation } from "@/hooks/use-geolocation";
 import { useRecommendation } from "@/hooks/use-recommendation";
 import { EnergyCheck } from "./energy-check";
 import { RecommendationCard } from "./recommendation-card";
@@ -16,7 +15,6 @@ import type { EnergyLevel } from "@/types";
 
 export function DoThisNext() {
   const announceGoalFinished = useAnnounceGoalFinished();
-  const { latitude, longitude, requestLocation } = useGeolocation();
   const {
     recommendation,
     isLoading,
@@ -40,39 +38,18 @@ export function DoThisNext() {
   const triggerRecommendation = useCallback(() => {
     setHasRequested(true);
     hasFetched.current = true;
-    // Request location — if already available, send it now;
-    // otherwise the useEffect below will re-fetch once coords arrive
-    requestLocation();
-    if (latitude != null && longitude != null) {
-      void fetchRecommendation({ latitude, longitude, energyOverride });
-    } else {
-      // No location yet — fetch without it; re-fetch triggers when location arrives
-      void fetchRecommendation({ energyOverride });
-    }
-  }, [fetchRecommendation, latitude, longitude, energyOverride, requestLocation]);
-
-  // Re-fetch when location arrives (only if user already requested)
-  useEffect(() => {
-    if (latitude != null && longitude != null && hasFetched.current) {
-      void fetchRecommendation({
-        latitude,
-        longitude,
-        energyOverride,
-      });
-    }
-  }, [latitude, longitude]); // eslint-disable-line react-hooks/exhaustive-deps
+    void fetchRecommendation({ energyOverride });
+  }, [fetchRecommendation, energyOverride]);
 
   const refresh = useCallback(
     async (overrideEnergy?: EnergyLevel) => {
       setIsRefreshing(true);
       await fetchRecommendation({
-        latitude: latitude ?? undefined,
-        longitude: longitude ?? undefined,
         energyOverride: overrideEnergy ?? energyOverride,
       });
       setIsRefreshing(false);
     },
-    [fetchRecommendation, latitude, longitude, energyOverride]
+    [fetchRecommendation, energyOverride]
   );
 
   const handleEnergySelect = useCallback(

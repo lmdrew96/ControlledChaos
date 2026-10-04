@@ -162,6 +162,20 @@
       "when": 1790548554857,
       "tag": "0022_event_tentative",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791094996599,
+      "tag": "0023_location_is_home",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791095036663,
+      "tag": "0024_drop_gps_tracking",
+      "breakpoints": true
     }
   ]
 }

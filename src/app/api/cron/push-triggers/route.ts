@@ -5,8 +5,7 @@ import {
   markSnoozedPushSent,
   deleteSnoozedPush,
   type SnoozedPushPayload,
-  getUserLocation,
-  isLocationStale,
+  getCurrentLocation,
   getScheduledSessionsInRange,
   getCalendarEventsByDateRange,
   getPushUser,
@@ -238,13 +237,8 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
   let _locationFetched = false;
   const getLocationName = async () => {
     if (!_locationFetched) {
-      const userLoc = await getUserLocation(userId);
-      // Stale location (app hasn't been foregrounded recently) is worse than no
-      // location — don't let the AI assert a "current" location that's actually hours old.
-      _locationName =
-        userLoc?.matchedLocationName && !isLocationStale(userLoc.updatedAt)
-          ? userLoc.matchedLocationName
-          : undefined;
+      // Inferred from today's calendar; undefined when unknown.
+      _locationName = (await getCurrentLocation(userId, timezone))?.name;
       _locationFetched = true;
     }
     return _locationName;

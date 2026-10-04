@@ -28,8 +28,6 @@ export interface AppSettings {
   /** The scheduling window (hours 0-23). Feeds the dashboard's TimeAnchor. */
   wakeHour: number;
   sleepHour: number;
-  /** Whether the geofence tracker runs (AppShell). */
-  locationNotificationsEnabled: boolean;
 }
 
 export function getBrowserTimezone(): string {
@@ -45,7 +43,6 @@ export function defaultSettings(): AppSettings {
     calendarColors: null,
     wakeHour: DEFAULT_START_HOUR,
     sleepHour: DEFAULT_END_HOUR,
-    locationNotificationsEnabled: false,
   };
 }
 
@@ -81,8 +78,6 @@ export function fetchSettings(): Promise<AppSettings> {
         calendarColors: data.calendarColors ?? null,
         wakeHour: data.wakeTime ?? DEFAULT_START_HOUR,
         sleepHour: data.sleepTime ?? DEFAULT_END_HOUR,
-        locationNotificationsEnabled:
-          data.notificationPrefs?.locationNotificationsEnabled === true,
       };
       cached = settings;
       return settings;

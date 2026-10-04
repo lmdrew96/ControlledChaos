@@ -35,6 +35,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.83.0",
+    label: "2.83.0",
+    date: "2026-10-04",
+    title: "Leave-on-time alerts that actually show up",
+    changes: [
+      {
+        kind: "improved",
+        text: "\"Time to leave\" alerts now work without the app open. ControlledChaos figures out where you are from your calendar (in class at Smith Hall, or home before your first event) instead of asking your phone for GPS.",
+      },
+      {
+        kind: "added",
+        text: "Mark one saved location as home with the house button in Settings. A location already named \"Home\" starts out marked.",
+      },
+      {
+        kind: "improved",
+        text: "No more location tracking or location permission prompts. The Location Suggestions setting and the radius on saved locations are gone, because they only worked while the app was open anyway.",
+      },
+    ],
+  },
+  {
     version: "2.82.2",
     label: "2.82.0 – 2.82.2",
     date: "2026-09-27",

@@ -12,6 +12,7 @@ import {
   Navigation,
   Search,
   Pencil,
+  House,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ interface SavedLocation {
   name: string;
   latitude: string | null;
   longitude: string | null;
-  radiusMeters: number | null;
+  isHome: boolean;
 }
 
 export function SavedLocations() {
@@ -46,6 +47,7 @@ export function SavedLocations() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [homeTogglingId, setHomeTogglingId] = useState<string | null>(null);
   // Bumped each time data changes so the map remounts with fresh pins
   const [mapKey, setMapKey] = useState(0);
 
@@ -53,7 +55,6 @@ export function SavedLocations() {
   const [name, setName] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-  const [radiusMeters, setRadiusMeters] = useState("200");
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -83,7 +84,6 @@ export function SavedLocations() {
     setName("");
     setLatitude("");
     setLongitude("");
-    setRadiusMeters("200");
     setEditingId(null);
     search.setQuery("");
     search.setResults([]);
@@ -98,7 +98,6 @@ export function SavedLocations() {
     setName(loc.name);
     setLatitude(loc.latitude ?? "");
     setLongitude(loc.longitude ?? "");
-    setRadiusMeters(String(loc.radiusMeters ?? 200));
     setEditingId(loc.id);
     search.setQuery("");
     search.setResults([]);
@@ -157,7 +156,6 @@ export function SavedLocations() {
         name: name.trim(),
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
-        radiusMeters: parseInt(radiusMeters) || 200,
       };
 
       const url = editingId
@@ -189,6 +187,24 @@ export function SavedLocations() {
     }
   }
 
+  async function toggleHome(loc: SavedLocation) {
+    setHomeTogglingId(loc.id);
+    try {
+      const res = await fetch(`/api/locations/${loc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHome: !loc.isHome }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success(loc.isHome ? `${loc.name} is no longer home` : `${loc.name} is now home`);
+      void fetchLocations();
+    } catch {
+      toast.error("Failed to update home");
+    } finally {
+      setHomeTogglingId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
@@ -216,7 +232,9 @@ export function SavedLocations() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Save locations for smarter task recommendations.
+          Calendar events match these by name, so travel time and leave-now
+          alerts know where you&apos;re headed. Mark one as home: that&apos;s
+          where you are before your first event of the day.
         </p>
         <Button variant="outline" size="sm" onClick={openAdd}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -251,17 +269,40 @@ export function SavedLocations() {
                 key={loc.id}
                 className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm"
               >
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                {loc.isHome ? (
+                  <House className="h-3.5 w-3.5 shrink-0 text-primary" />
+                ) : (
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                )}
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium truncate block">{loc.name}</span>
+                  <span className="font-medium truncate block">
+                    {loc.name}
+                    {loc.isHome && (
+                      <span className="ml-1.5 text-xs font-normal text-primary">Home</span>
+                    )}
+                  </span>
                   <span className="text-xs text-muted-foreground">
-                    {loc.radiusMeters ?? 200}m radius
                     {loc.latitude && loc.longitude
-                      ? ` · ${parseFloat(loc.latitude).toFixed(4)}, ${parseFloat(loc.longitude).toFixed(4)}`
-                      : " · no coordinates"}
+                      ? `${parseFloat(loc.latitude).toFixed(4)}, ${parseFloat(loc.longitude).toFixed(4)}`
+                      : "No coordinates"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={loc.isHome ? "h-9 w-9 text-primary hover:text-primary" : "h-9 w-9"}
+                    onClick={() => toggleHome(loc)}
+                    disabled={homeTogglingId === loc.id}
+                    aria-label={loc.isHome ? `Unmark ${loc.name} as home` : `Mark ${loc.name} as home`}
+                    aria-pressed={loc.isHome}
+                  >
+                    {homeTogglingId === loc.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <House className="h-4 w-4" />
+                    )}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -369,21 +410,6 @@ export function SavedLocations() {
               )}
               Use Current Position
             </Button>
-
-            <div className="space-y-2">
-              <Label htmlFor="loc-radius">Radius (meters)</Label>
-              <Input
-                id="loc-radius"
-                value={radiusMeters}
-                onChange={(e) => setRadiusMeters(e.target.value)}
-                type="number"
-                min="50"
-                max="5000"
-              />
-              <p className="text-xs text-muted-foreground">
-                How close you need to be to match this location.
-              </p>
-            </div>
 
             <Button
               onClick={handleSave}

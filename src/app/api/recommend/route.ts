@@ -12,7 +12,6 @@ import {
   getCalendarEventsByDateRange,
   getTasksCompletedToday,
   getRecentTaskActivity,
-  getSavedLocations,
   getUserGoals,
   logTaskActivity,
 } from "@/lib/db/queries";
@@ -20,7 +19,6 @@ import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { localDaysRange } from "@/lib/timezone";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { getRecentMoment } from "@/lib/db/queries";
-import { matchLocation } from "@/lib/context/location";
 import type { UserContext, EnergyLevel, MomentType, PersonalityPrefs } from "@/types";
 
 export async function POST(request: Request) {
@@ -31,9 +29,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { latitude, longitude, energyOverride } = body as {
-      latitude?: number;
-      longitude?: number;
+    const { energyOverride } = body as {
       energyOverride?: EnergyLevel;
     };
 
@@ -84,35 +80,10 @@ export async function POST(request: Request) {
     // Get completed today count (needs timezone, so separate call)
     const completedToday = await getTasksCompletedToday(userId, timezone);
 
-    // Match location if coordinates provided
-    let locationContext: UserContext["location"] | undefined;
-    if (latitude != null && longitude != null) {
-      const savedLocations = await getSavedLocations(userId);
-      const match = matchLocation(
-        { latitude, longitude },
-        savedLocations
-      );
-      if (match) {
-        locationContext = {
-          name: match.name,
-          latitude: match.latitude,
-          longitude: match.longitude,
-        };
-      }
-    }
-    // No coordinates with this request: fall back to the (fresh) geofence
-    // match the context block already reports. Otherwise the prompt said
-    // "location unknown" right next to a context block saying "Location: Home".
-    if (!locationContext && aiCtx.locationName) {
-      const saved = (await getSavedLocations(userId)).find((l) => l.name === aiCtx.locationName);
-      if (saved?.latitude != null && saved.longitude != null) {
-        locationContext = {
-          name: saved.name,
-          latitude: Number(saved.latitude),
-          longitude: Number(saved.longitude),
-        };
-      }
-    }
+    // Where the user probably is, inferred from today's calendar (buildAIContext).
+    const locationContext: UserContext["location"] | undefined = aiCtx.locationName
+      ? { name: aiCtx.locationName }
+      : undefined;
 
     // Determine energy level + most recent Moment (for AI prompt context)
     const [energyLevel, recentMomentRow] = await Promise.all([

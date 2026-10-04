@@ -75,8 +75,6 @@ export function useRecommendation() {
 
   const fetchRecommendation = useCallback(
     async (params?: {
-      latitude?: number;
-      longitude?: number;
       energyOverride?: EnergyLevel;
     }) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
@@ -86,8 +84,6 @@ export function useRecommendation() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            latitude: params?.latitude,
-            longitude: params?.longitude,
             energyOverride: params?.energyOverride,
           }),
         });

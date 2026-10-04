@@ -213,7 +213,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     };
   }, [goalScope]);
 
-  // Deep links (push "Start", command palette, geofence arrival) land on
+  // Deep links (push "Start", command palette) land on
   // /tasks?taskId=… — open that task once the list is in, then drop the
   // param so closing the modal doesn't reopen it.
   const deepLinkTaskId = searchParams.get("taskId");

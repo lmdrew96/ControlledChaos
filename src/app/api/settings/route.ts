@@ -131,10 +131,6 @@ export async function PATCH(request: Request) {
         data.notificationPrefs = {
           ...prefs,
           assertivenessMode,
-          locationNotificationsEnabled:
-            typeof prefs.locationNotificationsEnabled === "boolean"
-              ? prefs.locationNotificationsEnabled
-              : false,
           ...(reminderIntervals !== undefined ? { reminderIntervals } : {}),
           ...(deadlineReminderIntervals !== undefined ? { deadlineReminderIntervals } : {}),
           ...(eventReminderIntervals !== undefined ? { eventReminderIntervals } : {}),

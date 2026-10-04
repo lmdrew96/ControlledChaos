@@ -5,10 +5,9 @@ import {
   createNotification,
   getRecentTaskActivity,
   getCalendarEventsByDateRange,
-  getUserLocation,
+  getCurrentLocation,
   getSavedLocations,
   getCommuteTimes,
-  isLocationStale,
   getSessionsStartingBetween,
   getLastMicrotaskCompletion,
 } from "@/lib/db/queries";
@@ -664,8 +663,8 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
  * Generate a push notification message via Claude Haiku.
  * Falls back to a hardcoded string if the AI call fails.
  *
- * @param userLocation - The user's last known matched location name (e.g. "Home", "Campus"),
- *   already filtered by the caller for staleness. When provided, the AI can weave it in
+ * @param userLocation - Where the user probably is (e.g. "Home", "Campus"), inferred from
+ *   today's calendar by getCurrentLocation. When provided, the AI can weave it in
  *   naturally for extra context.
  */
 export async function generatePushMessage(
@@ -739,7 +738,7 @@ export async function generatePushMessage(
 
   // Append the user's last known location so the AI can reference it naturally
   if (userLocation) {
-    userMsg += `\nUser's last known location: "${userLocation}"`;
+    userMsg += `\nUser is probably at (from their calendar): "${userLocation}"`;
   }
 
   // Append schedule/task context so the AI knows what the user's day looks like
@@ -841,7 +840,7 @@ export async function generateNudgeMessage(
 ): Promise<string> {
   try {
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
-    if (userLocation) userMsg += `\nUser's last known location: "${userLocation}"`;
+    if (userLocation) userMsg += `\nUser is probably at (from their calendar): "${userLocation}"`;
     if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
     const [{ callHaiku }, { buildInactivityNudgePrompt }] = await loadAi();
     const { text } = await callHaiku({
@@ -1030,23 +1029,22 @@ export { matchEventLocationToSavedLocation };
  */
 export async function getDepartureAlerts(
   userId: string,
-  _timezone: string
+  timezone: string
 ): Promise<DepartureAlert[]> {
   const now = new Date();
   const lookAheadEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 hours ahead
 
-  const [upcomingEvents, userLoc, savedLocs, allCommutes] = await Promise.all([
+  const [upcomingEvents, savedLocs, allCommutes] = await Promise.all([
     getCalendarEventsByDateRange(userId, now, lookAheadEnd),
-    getUserLocation(userId),
     getSavedLocations(userId),
     getCommuteTimes(userId),
   ]);
+  if (savedLocs.length === 0 || allCommutes.length === 0) return [];
 
-  // Need to know where the user currently is — and trust it only if the app
-  // was foregrounded recently enough that the position isn't stale (PWAs get
-  // no background geolocation, see use-geofence-tracker.ts). A stale match
-  // would compute "time to leave" from wherever the user was last, not now.
-  if (!userLoc?.matchedLocationId || isLocationStale(userLoc.updatedAt)) return [];
+  // Where the user is leaving from, inferred from today's calendar (home
+  // before the first located event). Unknown → no alert rather than a guess.
+  const origin = await getCurrentLocation(userId, timezone, savedLocs);
+  if (!origin) return [];
 
   const alerts: DepartureAlert[] = [];
 
@@ -1061,12 +1059,12 @@ export async function getDepartureAlerts(
     if (!destination) continue;
 
     // Skip if already at the destination
-    if (destination.id === userLoc.matchedLocationId) continue;
+    if (destination.id === origin.id) continue;
 
     // Find commute time from current location to event location
     // Check all travel modes and use the shortest (most likely mode)
     const commuteMinutes = shortestCommuteMinutes(
-      userLoc.matchedLocationId,
+      origin.id,
       destination.id,
       allCommutes
     );

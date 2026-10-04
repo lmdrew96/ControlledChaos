@@ -244,9 +244,8 @@ export async function POST(request: Request) {
 
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
-    // App reports position only while foregrounded (no PWA background geolocation) —
-    // getCommuteSetup drops a stale match, which is worse than none for a
-    // "Leave for [destination]" step.
+    // Where the user is comes from today's calendar (getCommuteSetup); unknown
+    // means no "Leave for [destination]" legs rather than guessed ones.
     const commuteContext = commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes);
 
     const result = await getCrisisPlan({

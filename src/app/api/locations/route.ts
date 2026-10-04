@@ -28,11 +28,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, latitude, longitude, radiusMeters } = body as {
+    const { name, latitude, longitude } = body as {
       name: string;
       latitude: number;
       longitude: number;
-      radiusMeters?: number;
     };
 
     if (!name?.trim()) {
@@ -54,7 +53,6 @@ export async function POST(request: Request) {
       name: name.trim(),
       latitude: latitude.toString(),
       longitude: longitude.toString(),
-      radiusMeters,
     });
 
     return NextResponse.json({ location }, { status: 201 });
