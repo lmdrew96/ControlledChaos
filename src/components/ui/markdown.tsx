@@ -69,6 +69,37 @@ const blockComponents: Components = {
 
 const INLINE_ELEMENTS = ["p", "strong", "em", "code", "a", "del"];
 
+/** Just enough of a hast node to walk the tree. */
+interface HastNode {
+  type: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+}
+
+/**
+ * Number every GFM task-list checkbox in document order (data-index), so a
+ * tick can be stored as "item 3 is done". Runs AFTER rehype-sanitize, which
+ * would otherwise strip the attribute.
+ */
+const rehypeIndexCheckboxes = () => (tree: HastNode) => {
+  let next = 0;
+  const walk = (node: HastNode) => {
+    if (node.tagName === "input" && node.properties?.type === "checkbox") {
+      node.properties.dataIndex = next++;
+    }
+    node.children?.forEach(walk);
+  };
+  walk(tree);
+};
+
+/** Makes `- [ ]` items tickable. State lives with the caller, not in the text. */
+export interface MarkdownChecklist {
+  checked: ReadonlySet<number>;
+  onToggle: (index: number, checked: boolean) => void;
+  disabled?: boolean;
+}
+
 interface MarkdownProps {
   children: string;
   /**
@@ -77,14 +108,50 @@ interface MarkdownProps {
    */
   inline?: boolean;
   className?: string;
+  /** Block mode only. Without it, task-list checkboxes render read-only. */
+  checklist?: MarkdownChecklist;
 }
 
-export function Markdown({ children, inline = false, className }: MarkdownProps) {
+export function Markdown({ children, inline = false, className, checklist }: MarkdownProps) {
+  const interactive = checklist && !inline;
+  const components: Components = interactive
+    ? {
+        ...blockComponents,
+        li: ({ children, className: liClass }) => (
+          <li
+            className={cn(
+              "[&>ol]:mt-1 [&>ul]:mt-1",
+              // Task items drop the bullet; the checkbox is the marker.
+              liClass?.includes("task-list-item") && "-ml-5 list-none"
+            )}
+          >
+            {children}
+          </li>
+        ),
+        input: (props) => {
+          const index = Number((props as Record<string, unknown>)["data-index"]);
+          const isChecked = checklist.checked.has(index);
+          return (
+            <input
+              type="checkbox"
+              checked={isChecked}
+              disabled={checklist.disabled}
+              onChange={(e) => checklist.onToggle(index, e.target.checked)}
+              aria-label={isChecked ? "Mark not done" : "Mark done"}
+              className="mr-2 h-5 w-5 cursor-pointer sm:h-4 sm:w-4 align-[-0.2em] accent-primary"
+            />
+          );
+        },
+      }
+    : inline
+      ? inlineComponents
+      : blockComponents;
+
   const content = (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeSanitize]}
-      components={inline ? inlineComponents : blockComponents}
+      rehypePlugins={interactive ? [rehypeSanitize, rehypeIndexCheckboxes] : [rehypeSanitize]}
+      components={components}
       allowedElements={inline ? INLINE_ELEMENTS : undefined}
       unwrapDisallowed={inline}
     >

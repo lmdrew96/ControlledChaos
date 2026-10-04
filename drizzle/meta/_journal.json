@@ -183,6 +183,13 @@
       "when": 1791096309429,
       "tag": "0025_travel_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791107624754,
+      "tag": "0026_reference_cards",
+      "breakpoints": true
     }
   ]
 }

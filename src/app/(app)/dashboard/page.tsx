@@ -10,6 +10,7 @@ import { Greeting } from "@/components/features/dashboard/greeting";
 import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
 import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
 import { GoalStrip } from "@/components/features/goals/goal-strip";
+import { ReferenceCards } from "@/components/features/reference-cards/reference-cards";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export default function DashboardPage() {
@@ -67,6 +68,9 @@ export default function DashboardPage() {
 
       {/* Microtasks chip zone — small daily prompts, hidden in Crisis Mode */}
       <MicrotasksZone />
+
+      {/* Pinned playbooks and checklists — quiet, hidden in Crisis Mode */}
+      <ReferenceCards />
 
       {/* Top goals and their next steps — quiet, hidden in Crisis Mode */}
       <GoalStrip />

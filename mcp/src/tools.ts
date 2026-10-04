@@ -3433,4 +3433,186 @@ Returns: The reopened task.`,
       return { content: [{ type: "text" as const, text: `↩️ Task reopened.\n\n${formatTask(rows[0], tz)}` }] };
     }
   );
+
+  // ----------------------------------------------------------
+  // Reference cards — pinned markdown playbooks on the dashboard
+  // ----------------------------------------------------------
+  const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour HH:MM");
+
+  // Mirrors effectiveCheckedItems in src/lib/reference-cards.ts: a daily
+  // checklist's ticks from an earlier local day no longer count.
+  const formatReferenceCard = (r: Record<string, unknown>, today: string): string => {
+    const days = r.days_of_week as number[] | null;
+    const ticks =
+      r.checklist_reset === "daily" && r.checked_on !== today ? [] : ((r.checked_items as number[]) ?? []);
+    const schedule = [
+      days ? days.map((d) => DAY_NAMES[d]).join(", ") : "every day",
+      r.show_from || r.show_until ? `${r.show_from ?? "00:00"}–${r.show_until ?? "24:00"}` : "all day",
+    ].join(" · ");
+    return [
+      `**${r.title}**`,
+      `ID: \`${r.id}\``,
+      `Shows: ${schedule} | Checklist resets: ${r.checklist_reset === "daily" ? "every day" : "manually"}${r.collapsed ? " | collapsed" : ""}`,
+      `Ticked today (checklist item indexes, 0-based in document order): ${ticks.length ? ticks.join(", ") : "none"}`,
+      "",
+      "```markdown",
+      String(r.content ?? ""),
+      "```",
+    ].join("\n");
+  };
+
+  server.registerTool(
+    "cc_list_reference_cards",
+    {
+      title: "List Reference Cards",
+      description: `List the user's reference cards: pinned markdown playbooks shown on the dashboard (evening routines, launch-pad checklists, decision defaults).
+
+Each card is returned with its full markdown content, its schedule (which days/times the dashboard shows it), how its checklist resets, and which checklist items are ticked today.
+
+Returns: Markdown list of cards with IDs and raw content.`,
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      const userId = getUserId();
+      const today = todayInTz(await getUserTimezone(userId));
+      const rows = await sql(
+        `SELECT * FROM reference_cards WHERE user_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+        [userId]
+      );
+      if (rows.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "No reference cards yet. Create one with `cc_create_reference_card`." }],
+        };
+      }
+      const text =
+        `## Reference cards (${rows.length})\n\n` +
+        rows.map((r, i) => `### ${i + 1}. ${formatReferenceCard(r, today)}`).join("\n\n---\n\n");
+      return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  const cardFieldsSchema = {
+    content: z
+      .string()
+      .max(20000)
+      .optional()
+      .describe("Markdown body. Lines like `- [ ] Pack bag` become tickable checklist items on the dashboard."),
+    days_of_week: z
+      .array(z.number().int().min(0).max(6))
+      .min(1)
+      .max(7)
+      .nullable()
+      .optional()
+      .describe("Days the dashboard shows the card (0=Sun … 6=Sat). null = every day."),
+    show_from: hhmm.nullable().optional().describe("Local time the card starts showing (HH:MM). null = from midnight."),
+    show_until: hhmm
+      .nullable()
+      .optional()
+      .describe("Local time the card stops showing (HH:MM, exclusive). May be earlier than show_from to wrap past midnight. null = until midnight."),
+    checklist_reset: z
+      .enum(["daily", "manual"])
+      .optional()
+      .describe("daily = ticks clear at local midnight; manual = ticks stay until the user clears them."),
+  };
+
+  server.registerTool(
+    "cc_create_reference_card",
+    {
+      title: "Create Reference Card",
+      description: `Pin a new reference card to the user's dashboard: a markdown playbook, checklist, or set of defaults they look up often.
+
+Args:
+  - title (required)
+  - content, days_of_week, show_from, show_until, checklist_reset: see the field descriptions. Defaults: shown every day, all day, checklist resets daily.
+
+Returns: The new card.`,
+      inputSchema: {
+        title: z.string().min(1).max(200).describe("Card title"),
+        ...cardFieldsSchema,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const today = todayInTz(await getUserTimezone(userId));
+      const rows = await sql(
+        `INSERT INTO reference_cards (user_id, title, content, days_of_week, show_from, show_until, checklist_reset)
+         VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7) RETURNING *`,
+        [
+          userId,
+          params.title.trim(),
+          params.content ?? "",
+          params.days_of_week ? JSON.stringify([...new Set(params.days_of_week)].sort()) : null,
+          params.show_from ?? null,
+          params.show_until ?? null,
+          params.checklist_reset ?? "daily",
+        ]
+      );
+      return { content: [{ type: "text" as const, text: `📌 Reference card created.\n\n${formatReferenceCard(rows[0], today)}` }] };
+    }
+  );
+
+  server.registerTool(
+    "cc_update_reference_card",
+    {
+      title: "Update Reference Card",
+      description: `Update a reference card. Pass only the fields you want to change; omitted fields are left alone. Pass null to clear days_of_week / show_from / show_until.
+
+Changing content replaces the whole markdown body and clears today's ticks (ticks are stored by item position, so they would land on the wrong items). To keep a card in sync with a source document, read it with cc_list_reference_cards first and send the full new content.
+
+Returns: The updated card.`,
+      inputSchema: {
+        card_id: z.string().uuid().describe("Reference card UUID"),
+        title: z.string().min(1).max(200).optional().describe("New title"),
+        collapsed: z.boolean().optional().describe("Collapse or expand the card on the dashboard"),
+        ...cardFieldsSchema,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const today = todayInTz(await getUserTimezone(userId));
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+      const set = (col: string, val: unknown, cast = "") => {
+        sets.push(`${col} = $${idx++}${cast}`);
+        values.push(val);
+      };
+
+      if (params.title !== undefined) set("title", params.title.trim());
+      if (params.content !== undefined) {
+        set("content", params.content);
+        sets.push(`checked_items = '[]'::jsonb`, `checked_on = NULL`);
+      }
+      if (params.collapsed !== undefined) set("collapsed", params.collapsed);
+      if (params.days_of_week !== undefined) {
+        set(
+          "days_of_week",
+          params.days_of_week ? JSON.stringify([...new Set(params.days_of_week)].sort()) : null,
+          "::jsonb"
+        );
+      }
+      if (params.show_from !== undefined) set("show_from", params.show_from);
+      if (params.show_until !== undefined) set("show_until", params.show_until);
+      if (params.checklist_reset !== undefined) set("checklist_reset", params.checklist_reset);
+
+      if (sets.length === 0) {
+        return { content: [{ type: "text" as const, text: "No fields to update." }], isError: true };
+      }
+
+      sets.push("updated_at = now()");
+      values.push(params.card_id, userId);
+      const rows = await sql(
+        `UPDATE reference_cards SET ${sets.join(", ")} WHERE id = $${idx++} AND user_id = $${idx} RETURNING *`,
+        values
+      );
+      if (rows.length === 0) {
+        return { content: [{ type: "text" as const, text: "❌ Reference card not found." }], isError: true };
+      }
+      return { content: [{ type: "text" as const, text: `✅ Reference card updated.\n\n${formatReferenceCard(rows[0], today)}` }] };
+    }
+  );
 }

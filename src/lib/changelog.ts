@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.84.2",
-    label: "2.84.2",
+    version: "2.85.0",
+    label: "2.84.2 – 2.85.0",
     date: "2026-10-04",
-    title: "Edits that stick",
+    title: "Reference cards, and edits that stick",
     changes: [
+      {
+        kind: "added",
+        text: "Reference cards on the dashboard: pin routines you look up a lot, like an evening sequence or a launch-pad checklist. Cards are written in markdown, collapse out of the way, can show only on certain days or times, and their checklists clear themselves each day.",
+      },
       {
         kind: "fixed",
         text: "Changing a planned session while editing a task no longer throws away the other task edits you hadn't saved yet.",

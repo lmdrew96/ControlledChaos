@@ -542,3 +542,32 @@ export const microtaskCompletions = pgTable(
     ),
   ]
 );
+
+// ============================================================
+// Reference Cards — pinned markdown playbooks on the dashboard
+// ============================================================
+export const referenceCards = pgTable(
+  "reference_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    title: text("title").notNull(),
+    content: text("content").default("").notNull(), // markdown; `- [ ]` lines are tickable
+    collapsed: boolean("collapsed").default(false).notNull(),
+    daysOfWeek: jsonb("days_of_week").$type<number[]>(), // 0=Sun..6=Sat; null = every day
+    showFrom: text("show_from"), // "HH:MM" local; null = from midnight
+    showUntil: text("show_until"), // "HH:MM" local; null = until midnight. May wrap past midnight.
+    checklistReset: text("checklist_reset").default("daily").notNull(), // daily | manual
+    checkedItems: jsonb("checked_items")
+      .$type<number[]>()
+      .default(sql`'[]'::jsonb`)
+      .notNull(), // indexes of ticked checklist items, in document order
+    checkedOn: text("checked_on"), // YYYY-MM-DD local date of the last tick (daily reset key)
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_reference_cards_user").on(table.userId)]
+);

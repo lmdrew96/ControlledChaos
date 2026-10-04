@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 
 ## Tools Available
 
-38 tools across 9 feature areas. All scope automatically to your `CC_USER_ID`.
+41 tools across 11 feature areas. All scope automatically to your `CC_USER_ID`.
 
 ### Tasks (10)
 | Tool | What it does |
@@ -53,6 +53,15 @@ Daily repeating prompts — small actions you want to track, separate from tasks
 | `cc_complete_microtask` | Mark a microtask done for today |
 | `cc_uncomplete_microtask` | Undo today's completion of a microtask |
 | `cc_deactivate_microtask` | Soft-deactivate a microtask (preserves history) |
+
+### Reference Cards (3)
+Pinned markdown playbooks on the dashboard — routines, launch-pad checklists, decision defaults.
+
+| Tool | What it does |
+|---|---|
+| `cc_list_reference_cards` | List cards with full markdown, schedule, and today's ticked checklist items |
+| `cc_create_reference_card` | Pin a new card (optional days / time window / checklist reset mode) |
+| `cc_update_reference_card` | Update a card's title, content, schedule, or reset mode |
 
 ### Moments (4)
 Lightweight one-tap behavioral state logs — energy, focus, sleep, tough moments.
