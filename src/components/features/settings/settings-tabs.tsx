@@ -14,6 +14,7 @@ import { TravelModeSettings } from "./travel-mode-settings";
 import { CalendarSettings } from "./calendar-settings";
 import { NotificationSettings } from "./notification-settings";
 import { CrisisDetectionSettings } from "./crisis-detection-settings";
+import { AiConnectSettings } from "./ai-connect-settings";
 import {
   SETTINGS_GROUPS,
   settingMatchesQuery,
@@ -34,6 +35,7 @@ const RENDERERS: Record<string, () => React.ReactNode> = {
   locations: () => <SavedLocations />,
   commute: () => <TravelModeSettings />,
   "crisis-detection": () => <CrisisDetectionSettings />,
+  "connect-ai": () => <AiConnectSettings />,
 };
 
 export function SettingsTabs() {

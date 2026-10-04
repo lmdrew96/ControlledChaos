@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.85.0",
-    label: "2.84.2 – 2.85.0",
+    version: "2.86.0",
+    label: "2.84.2 – 2.86.0",
     date: "2026-10-04",
-    title: "Reference cards, and edits that stick",
+    title: "Reference cards, AI connections, and edits that stick",
     changes: [
+      {
+        kind: "added",
+        text: "Connect ControlledChaos to Claude, ChatGPT, or another AI assistant from Settings → Connections. Paste one link into the app, sign in with your ControlledChaos account, and your assistant can see and update your tasks, calendar, goals and journal.",
+      },
       {
         kind: "added",
         text: "Reference cards on the dashboard: pin routines you look up a lot, like an evening sequence or a launch-pad checklist. Cards are written in markdown, collapse out of the way, can show only on certain days or times, and their checklists clear themselves each day.",

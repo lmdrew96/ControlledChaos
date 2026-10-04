@@ -4,6 +4,7 @@ import {
   Calendar,
   Globe,
   MapPin,
+  Plug,
   Route,
   Siren,
   Sun,
@@ -95,6 +96,18 @@ export const SETTINGS_GROUPS: SettingGroupMeta[] = [
         title: "Getting Around",
         keywords: "travel commute drive walk bike time",
         icon: Route,
+      },
+    ],
+  },
+  {
+    id: "connections",
+    title: "Connections",
+    settings: [
+      {
+        id: "connect-ai",
+        title: "Connect to Claude & other AI",
+        keywords: "mcp claude chatgpt ai assistant connector integration llm",
+        icon: Plug,
       },
     ],
   },

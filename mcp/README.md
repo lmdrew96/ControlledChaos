@@ -173,15 +173,19 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-#### Hosted endpoint (claude.ai connector)
+#### Hosted endpoint (claude.ai, ChatGPT, Claude Code…)
 
-The Vercel deployment serves `/<token>`, where the token is signed with `MCP_TOKEN_SECRET` (set on the Vercel project). A Clerk user id alone gets a 401. Mint a user's connector URL with the same secret:
+Everyone connects to the same URL, `https://controlledchaos-mcp.vercel.app/mcp`, and signs in with their ControlledChaos account. Users find it in the app under **Settings → Connections**.
 
-```bash
-MCP_TOKEN_SECRET=… pnpm mint-url <clerk-user-id> <deployment-base-url>
-```
+Sign-in is OAuth with ControlledChaos's Clerk instance as the authorization server:
 
-Rotating `MCP_TOKEN_SECRET` revokes every connector URL at once.
+- `/mcp` without a valid Bearer token answers 401 with `WWW-Authenticate: Bearer resource_metadata=…`.
+- `/.well-known/oauth-protected-resource/mcp` names the Clerk instance as the authorization server; `/.well-known/oauth-authorization-server` mirrors Clerk's metadata for older clients.
+- Each request's access token is verified with Clerk's Backend API; its subject is the user every query is scoped to.
+
+The Vercel project needs `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY` (the **production** instance's keys), and the Clerk production instance needs both **Publish CIMD support** and **Publish DCR support** turned on (Configure → OAuth applications → Settings → Client onboarding). That's how MCP clients register themselves before sign-in: newer ones (Claude) via CIMD, others (ChatGPT, older clients) via DCR. Don't restrict CIMD to pre-registered clients, or every new app needs manual approval.
+
+**Legacy connector URLs.** `/<token>` still works for connectors made before sign-in existed. The token is signed with `MCP_TOKEN_SECRET`; `MCP_TOKEN_SECRET=… pnpm mint-url <clerk-user-id> <deployment-base-url>` mints one. Don't hand out new ones; point people at `/mcp`.
 
 #### Claude.ai (local HTTP mode)
 

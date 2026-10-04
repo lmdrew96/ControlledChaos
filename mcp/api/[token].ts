@@ -1,10 +1,11 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { registerAllTools } from "../src/tools.js";
 import { verifyToken } from "../src/auth.js";
-import { runAsUser } from "../src/db.js";
+import { serveMcp } from "../src/serve.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+/**
+ * Legacy connector URLs (`/<signed token>`), hand-minted with `pnpm mint-url`.
+ * Kept so existing connections don't break; new ones sign in at `/mcp`.
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secret = process.env.MCP_TOKEN_SECRET;
   if (!secret) {
@@ -30,23 +31,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Scope this request's tool calls to its user. Per-request context, not
-  // process.env: concurrent requests can share one function instance.
-  await runAsUser(userId, async () => {
-    const server = new McpServer({
-      name: "controlledchaos-mcp-server",
-      version: "1.0.0",
-    });
-
-    registerAllTools(server);
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-
-    res.on("close", () => transport.close());
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-  });
+  await serveMcp(userId, req, res, req.body);
 }

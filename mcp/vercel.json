@@ -1,10 +1,13 @@
 {
   "buildCommand": "",
   "rewrites": [
+    { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/.well-known/oauth-protected-resource/:path*", "destination": "/api/oauth-metadata?doc=resource" },
+    { "source": "/.well-known/oauth-authorization-server/:path*", "destination": "/api/oauth-metadata?doc=server" },
     { "source": "/:token", "destination": "/api/:token" }
   ],
   "functions": {
-    "api/[token].ts": {
+    "api/*.ts": {
       "maxDuration": 30,
       "includeFiles": "src/**"
     }

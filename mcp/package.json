@@ -1,6 +1,6 @@
 {
   "name": "controlledchaos-mcp-server",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "MCP server for ControlledChaos ADHD-friendly task manager",
   "type": "module",
   "packageManager": "pnpm@10.17.0",
@@ -13,6 +13,8 @@
     "mint-url": "tsc && node dist/mint-url.js"
   },
   "dependencies": {
+    "@clerk/backend": "^3.22.0",
+    "@clerk/mcp-tools": "^0.6.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@neondatabase/serverless": "^1.0.2",
     "express": "^5.1.0",
