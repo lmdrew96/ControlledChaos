@@ -20,6 +20,7 @@ import {
   findOverriddenBaseKeys,
   isShadowedBaseAssignment,
   isGeneratedCanvasDescription,
+  canvasDeadlineUpdate,
   type CanvasTaskKind,
 } from "@/lib/calendar/canvas-helpers";
 import type { CalendarSyncResult } from "@/types";
@@ -346,19 +347,20 @@ export async function syncCanvasCalendar(
           ) {
             const updates: Parameters<typeof updateTask>[2] = {};
 
-            // Canvas owns the due date, so a moved deadline follows it. Nothing
-            // the user owns is touched: priority, energy, estimate, location
-            // tags, soft target, planned start and status all stay as they are.
+            // Canvas owns the due date, so a moved deadline follows it — unless
+            // the user cleared it (see canvasDeadlineUpdate). Nothing else the
+            // user owns is touched: priority, energy, estimate, location tags,
+            // soft target, planned start and status all stay as they are.
             // A prep task whose prep slot has already passed keeps its deadline
             // rather than jumping to the event time via the fallback above.
-            const canvasDeadline =
+            const movedDeadline = canvasDeadlineUpdate(
+              existing.deadline,
               taskKind === "assessment"
                 ? computePrepDeadline(startDate, timezone)
-                : startDate;
-            const deadlineMoved =
-              canvasDeadline !== null &&
-              existing.deadline?.getTime() !== canvasDeadline.getTime();
-            if (deadlineMoved) updates.deadline = canvasDeadline;
+                : startDate
+            );
+            const deadlineMoved = movedDeadline !== null;
+            if (movedDeadline) updates.deadline = movedDeadline;
 
             if (
               typeof existing.description === "string" &&

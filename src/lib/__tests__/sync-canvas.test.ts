@@ -8,6 +8,7 @@ import {
   findOverriddenBaseKeys,
   isShadowedBaseAssignment,
   isGeneratedCanvasDescription,
+  canvasDeadlineUpdate,
 } from "@/lib/calendar/canvas-helpers";
 
 describe("assignment overrides — one assignment must not become two tasks", () => {
@@ -297,5 +298,28 @@ describe("isEndOfDayDeadline — 11:59 PM is a due time, not an appointment", ()
     for (const tz of [ET, "America/Los_Angeles", "America/Chicago"]) {
       expect(isEndOfDayDeadline(toEndOfDayLocal(allDay, tz), tz)).toBe(true);
     }
+  });
+});
+
+describe("canvasDeadlineUpdate — a cleared deadline stays cleared", () => {
+  const MON = new Date("2026-10-05T03:59:00.000Z");
+  const FRI = new Date("2026-10-10T03:59:00.000Z");
+
+  it("leaves a deadline the user cleared alone, even though Canvas still has one", () => {
+    // The 10/4 repro: cc_update_task cleared the deadline, and the next sync
+    // wrote the old Monday back because null !== Monday read as "moved".
+    expect(canvasDeadlineUpdate(null, MON)).toBeNull();
+  });
+
+  it("follows Canvas when it moves the due date", () => {
+    expect(canvasDeadlineUpdate(MON, FRI)).toEqual(FRI);
+  });
+
+  it("writes nothing when the dates already match", () => {
+    expect(canvasDeadlineUpdate(MON, new Date(MON))).toBeNull();
+  });
+
+  it("writes nothing when there is no Canvas deadline (prep slot already passed)", () => {
+    expect(canvasDeadlineUpdate(MON, null)).toBeNull();
   });
 });

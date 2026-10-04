@@ -185,3 +185,21 @@ export function isEndOfDayDeadline(date: Date, timezone: string): boolean {
   const { hour, minute } = getLocalHourMinute(date, timezone);
   return hour === 23 && minute >= 55;
 }
+
+/**
+ * The deadline a re-sync should write onto an existing Canvas task, or null to
+ * leave it alone.
+ *
+ * Canvas owns the due date, so a moved due date follows it. But a deadline the
+ * user has CLEARED stays cleared: clearing it says nothing external is driving
+ * the task any more (an extension, a group deciding its own pace). Treating
+ * null as "moved" used to write the old Canvas date back on the next 30-minute
+ * sync, so a clear looked like it hadn't saved.
+ */
+export function canvasDeadlineUpdate(
+  existingDeadline: Date | null,
+  canvasDeadline: Date | null
+): Date | null {
+  if (canvasDeadline === null || existingDeadline === null) return null;
+  return existingDeadline.getTime() === canvasDeadline.getTime() ? null : canvasDeadline;
+}

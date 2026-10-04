@@ -35,6 +35,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.84.2",
+    label: "2.84.2",
+    date: "2026-10-04",
+    title: "Edits that stick",
+    changes: [
+      {
+        kind: "fixed",
+        text: "Changing a planned session while editing a task no longer throws away the other task edits you hadn't saved yet.",
+      },
+      {
+        kind: "fixed",
+        text: "Clearing the due date on a Canvas assignment now stays cleared. The next calendar sync used to put the old date back.",
+      },
+    ],
+  },
+  {
     version: "2.84.1",
     label: "2.84.0 – 2.84.1",
     date: "2026-10-04",

@@ -187,17 +187,18 @@ export function TaskDetailModal({
     }
   }, []);
 
-  // Reset form and step index when task changes
+  // Reset step index and sittings when task changes. The form is NOT reset
+  // here: a session write calls onUpdate, the list refetches and hands us a
+  // fresh task object, and resetting on that wiped whatever the user had typed
+  // into the form but not saved yet. The form loads from the task when Edit is
+  // pressed (startEdit) and when the edit is cancelled.
   useEffect(() => {
     if (task) {
-      setForm(formFromTask(task, timezone));
       setLocalStepIndex(task.currentStepIndex ?? 0);
       setNewSessionAt("");
       void loadSessions(task.id);
     }
-    // timezone is a dep: useTimezone starts on the browser zone and re-renders
-    // with the stored one, and the datetime-local strings are built from it.
-  }, [task, timezone, loadSessions]);
+  }, [task, loadSessions]);
 
   // Keyed on the id, not the object: the list refetches after every write and
   // hands us a fresh object, which must not kick the user out of the form.
@@ -389,6 +390,15 @@ export function TaskDetailModal({
     Boolean(form.targetDate) &&
     Boolean(form.deadline) &&
     new Date(form.targetDate) > new Date(form.deadline);
+
+  // Built from the task as it is right now, so the timezone (which resolves
+  // after mount) and any write made from the read view are both reflected.
+  function startEdit() {
+    if (!task) return;
+    setForm(formFromTask(task, timezone));
+    setTitleError(null);
+    setMode("edit");
+  }
 
   function cancelEdit() {
     if (!task) return;
@@ -968,7 +978,7 @@ export function TaskDetailModal({
               </Button>
             )}
             {mode === "view" ? (
-              <Button size="sm" onClick={() => setMode("edit")}>
+              <Button size="sm" onClick={startEdit}>
                 <Pencil className="mr-1.5 h-3.5 w-3.5" />
                 Edit
               </Button>
