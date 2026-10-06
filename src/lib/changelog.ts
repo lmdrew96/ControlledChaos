@@ -35,14 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.88.0",
-    label: "2.86.1 – 2.88.0",
+    version: "2.88.1",
+    label: "2.86.1 – 2.88.1",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
       {
         kind: "improved",
         text: "Rescue pings now ask before they push. ControlledChaos can't see work you do outside the app, so instead of doing worst-case math at you, a deadline-collision ping asks \"Already working on this?\" Tap it and say \"Yes, I'm on it\" and the pings stop, apart from one encouraging heads-up right before the deadline. Checking off a rescue step counts too. Opening the app on its own doesn't.",
+      },
+      {
+        kind: "fixed",
+        text: "Rescue no longer counts time twice. An evening event that ran into your sleep hours, or two events that overlapped, were each subtracted in full, so deadline warnings and rescue plans thought you had less time than you did.",
       },
       {
         kind: "improved",

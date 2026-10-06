@@ -28,7 +28,7 @@ import {
   recordDroppedAlert,
   type PushSkipReason,
 } from "@/lib/notifications/triggers";
-import { getSleepBlockedMinutes } from "./time-math";
+import { getBlockedMinutes, getSleepBlockedMinutes } from "./time-math";
 import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
 import { formatForAI, formatForDisplay, todayInTimezone, DISPLAY_DATETIME } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
@@ -489,6 +489,14 @@ async function generateAutoTriagePlan(
     currentTime: formatForAI(now, timezone),
     minutesUntilDeadline: Math.round(minutesUntilDeadline),
     sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
+    blockedMinutes: getBlockedMinutes(
+      toBusyRows(calendarRows),
+      wakeTime,
+      sleepTime,
+      now,
+      firstDeadline,
+      timezone
+    ),
     // calendarRows spans the full 48h detection window, not this task's
     // deadline — clip to [now, firstDeadline] so events past THIS deadline
     // (e.g. tomorrow's classes) don't get counted as blocking it.

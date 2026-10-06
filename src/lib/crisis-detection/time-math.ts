@@ -74,23 +74,26 @@ export function getCalendarBlockedMinutes(
   return Math.round(totalBlocked);
 }
 
+interface Interval {
+  start: number;
+  end: number;
+}
+
 /**
- * Calculate total minutes blocked by sleep within a time window.
+ * Each night's sleep, clipped to the window, as ms intervals.
  * Handles the overnight wrap (e.g., sleep at 22:00, wake at 07:00).
- *
- * Iterates each night that could overlap with the window and sums the overlap.
  */
-export function getSleepBlockedMinutes(
+function getSleepIntervals(
   wakeTime: number,
   sleepTime: number,
   windowStart: Date,
   windowEnd: Date,
   timezone: string
-): number {
+): Interval[] {
   // If wake and sleep are the same, user is "always awake" — no sleep blocked
-  if (wakeTime === sleepTime) return 0;
+  if (wakeTime === sleepTime) return [];
 
-  let totalBlocked = 0;
+  const intervals: Interval[] = [];
   const dayMs = 24 * 60 * 60 * 1000;
   const maxDays = Math.ceil((windowEnd.getTime() - windowStart.getTime()) / dayMs) + 1;
 
@@ -106,18 +109,74 @@ export function getSleepBlockedMinutes(
     const nextDateStr = nextDate.toLocaleDateString("en-CA", { timeZone: timezone });
     const sleepEnd = localHourToDate(nextDateStr, wakeTime, timezone);
 
-    // Skip if sleep period doesn't overlap with our window
-    if (sleepEnd <= windowStart || sleepStart >= windowEnd) continue;
-
-    const overlapStart = sleepStart > windowStart ? sleepStart : windowStart;
-    const overlapEnd = sleepEnd < windowEnd ? sleepEnd : windowEnd;
-
-    if (overlapStart < overlapEnd) {
-      totalBlocked += (overlapEnd.getTime() - overlapStart.getTime()) / 60_000;
-    }
+    const start = Math.max(sleepStart.getTime(), windowStart.getTime());
+    const end = Math.min(sleepEnd.getTime(), windowEnd.getTime());
+    if (start < end) intervals.push({ start, end });
   }
 
-  return Math.round(totalBlocked);
+  return intervals;
+}
+
+/** Total minutes covered by a set of intervals, overlaps counted once. */
+function unionMinutes(intervals: Interval[]): number {
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  let total = 0;
+  let curStart = -Infinity;
+  let curEnd = -Infinity;
+  for (const { start, end } of sorted) {
+    if (start > curEnd) {
+      if (curEnd > curStart) total += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    } else if (end > curEnd) {
+      curEnd = end;
+    }
+  }
+  if (curEnd > curStart) total += curEnd - curStart;
+  return Math.round(total / 60_000);
+}
+
+/**
+ * Calculate total minutes blocked by sleep within a time window.
+ * Iterates each night that could overlap with the window and sums the overlap.
+ */
+export function getSleepBlockedMinutes(
+  wakeTime: number,
+  sleepTime: number,
+  windowStart: Date,
+  windowEnd: Date,
+  timezone: string
+): number {
+  return unionMinutes(getSleepIntervals(wakeTime, sleepTime, windowStart, windowEnd, timezone));
+}
+
+/**
+ * Minutes in the window that can't be worked: sleep plus calendar events,
+ * as a UNION. Adding the two separately counted a late event that runs into
+ * sleep (or two overlapping events) twice, and pushed available time toward
+ * a false "no time left".
+ */
+export function getBlockedMinutes(
+  events: CalendarBlock[],
+  wakeTime: number,
+  sleepTime: number,
+  windowStart: Date,
+  windowEnd: Date,
+  timezone: string
+): number {
+  const ws = windowStart.getTime();
+  const we = windowEnd.getTime();
+  const eventIntervals = events
+    .filter((e) => !e.isAllDay)
+    .map((e) => ({
+      start: Math.max(e.startTime.getTime(), ws),
+      end: Math.min(e.endTime.getTime(), we),
+    }))
+    .filter((i) => i.start < i.end);
+  return unionMinutes([
+    ...eventIntervals,
+    ...getSleepIntervals(wakeTime, sleepTime, windowStart, windowEnd, timezone),
+  ]);
 }
 
 /**
@@ -132,8 +191,6 @@ export function getAvailableMinutes(
   timezone: string
 ): number {
   const totalMinutes = (windowEnd.getTime() - windowStart.getTime()) / 60_000;
-  const calendarBlocked = getCalendarBlockedMinutes(events, windowStart, windowEnd);
-  const sleepBlocked = getSleepBlockedMinutes(wakeTime, sleepTime, windowStart, windowEnd, timezone);
-
-  return Math.max(0, Math.round(totalMinutes - calendarBlocked - sleepBlocked));
+  const blocked = getBlockedMinutes(events, wakeTime, sleepTime, windowStart, windowEnd, timezone);
+  return Math.max(0, Math.round(totalMinutes - blocked));
 }

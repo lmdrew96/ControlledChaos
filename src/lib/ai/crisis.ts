@@ -15,6 +15,12 @@ export interface CrisisParams {
   /** null when there is no hard deadline — do not coerce to 0, that reads as maximum urgency. */
   minutesUntilDeadline: number | null;
   sleepSchedule?: { wakeTime: number; sleepTime: number; sleepMinutesBlocked: number };
+  /**
+   * Minutes before the deadline taken by events AND sleep, overlaps counted
+   * once (getBlockedMinutes). Not events + sleep: a late event that runs into
+   * sleep would be subtracted twice.
+   */
+  blockedMinutes: number;
   upcomingEvents: Array<{ title: string; startTime: string; endTime: string; durationMinutes: number }>;
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
@@ -56,9 +62,8 @@ function buildUserPrompt(params: CrisisParams): string {
           .join("\n")
       : "None";
 
-  const totalEventMinutes = params.upcomingEvents.reduce((sum, e) => sum + e.durationMinutes, 0);
   const sleepMinutes = params.sleepSchedule?.sleepMinutesBlocked ?? 0;
-  const totalBlockedMinutes = totalEventMinutes + sleepMinutes;
+  const totalBlockedMinutes = params.blockedMinutes;
   // With no hard deadline there is no countdown to subtract from — the concept
   // of "minutes available before it's too late" simply doesn't apply.
   const availableMinutes =
@@ -79,7 +84,7 @@ function buildUserPrompt(params: CrisisParams): string {
   const timeBudgetLine =
     availableMinutes === null
       ? "\nTime budget: not bounded by a deadline — pace this by the user's energy, not by a countdown."
-      : `\nTime budget: ${params.minutesUntilDeadline} min total – ${totalEventMinutes} min events – ${sleepMinutes} min sleep = ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h) of actual work time`;
+      : `\nTime budget: ${params.minutesUntilDeadline} min total – ${totalBlockedMinutes} min of events and sleep (overlaps counted once) = ${availableMinutes} min (${(availableMinutes / 60).toFixed(1)}h) of actual work time`;
 
   const crisesText =
     params.activeCrises && params.activeCrises.length > 0

@@ -16,7 +16,7 @@ import {
   restoreCrisisPlan,
   engageDetectionForPlan,
 } from "@/lib/db/queries";
-import { toBusyRows } from "@/lib/crisis-detection";
+import { getBlockedMinutes, getSleepBlockedMinutes, toBusyRows } from "@/lib/crisis-detection";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
@@ -26,8 +26,6 @@ import {
   formatForDisplay,
   DISPLAY_DATETIME,
   DISPLAY_FULL_DATETIME,
-  getHourInTimezone,
-  startOfDayInTimezone,
 } from "@/lib/timezone";
 
 function formatEventsForAI(
@@ -40,77 +38,6 @@ function formatEventsForAI(
     endTime: formatForDisplay(e.endTime, timezone, DISPLAY_DATETIME),
     durationMinutes: Math.round((e.endTime.getTime() - e.startTime.getTime()) / 60_000),
   }));
-}
-
-/**
- * Calculate total minutes of sleep blocked between `start` and `end`,
- * given the user's sleep window (sleepTime → wakeTime in their timezone).
- * E.g., sleepTime=22, wakeTime=7 means 10 PM–7 AM = 9 hours of sleep per night.
- */
-function getSleepMinutesBlocked(
-  start: Date,
-  end: Date,
-  sleepTime: number,
-  wakeTime: number,
-  timezone: string
-): number {
-  // Get the user's current local hour
-  const localHour = getHourInTimezone(start, timezone);
-
-  // Calculate sleep duration per night in minutes
-  const sleepDurationMin =
-    sleepTime > wakeTime
-      ? (24 - sleepTime + wakeTime) * 60 // Overnight: e.g., 22→7 = 9h
-      : (wakeTime - sleepTime) * 60;      // Same-day (unusual): e.g., 2→9 = 7h
-
-  const totalMinutes = (end.getTime() - start.getTime()) / 60_000;
-  if (totalMinutes <= 0) return 0;
-
-  // Walk through each night's sleep window between start and end
-  // Use a simple approach: count how many full sleep periods fit
-  let blocked = 0;
-  const cursor = new Date(start);
-
-  // Find the next sleep start time in the user's timezone
-  const getNextSleepStart = (from: Date): Date => {
-    const currentH = getHourInTimezone(from, timezone);
-
-    // If we haven't passed sleep time today, sleep starts today
-    // If we have, sleep starts tomorrow
-    const targetDate = currentH < sleepTime
-      ? from
-      : new Date(from.getTime() + 86_400_000);
-    const midnight = startOfDayInTimezone(targetDate, timezone);
-    return new Date(midnight.getTime() + sleepTime * 3_600_000);
-  };
-
-  // Check if we're currently IN a sleep window
-  const isInSleep = sleepTime > wakeTime
-    ? (localHour >= sleepTime || localHour < wakeTime)
-    : (localHour >= sleepTime && localHour < wakeTime);
-
-  if (isInSleep) {
-    // We're in sleep now — calculate remaining sleep minutes
-    const minutesToWake = wakeTime > localHour
-      ? (wakeTime - localHour) * 60
-      : (24 - localHour + wakeTime) * 60;
-    const sleepEnd = new Date(start.getTime() + minutesToWake * 60_000);
-    const effectiveEnd = sleepEnd < end ? sleepEnd : end;
-    blocked += (effectiveEnd.getTime() - start.getTime()) / 60_000;
-    cursor.setTime(effectiveEnd.getTime());
-  }
-
-  // Walk through remaining nights
-  for (let i = 0; i < 10; i++) { // max 10 nights safety
-    const sleepStart = getNextSleepStart(cursor);
-    if (sleepStart >= end) break;
-    const sleepEnd = new Date(sleepStart.getTime() + sleepDurationMin * 60_000);
-    const effectiveEnd = sleepEnd < end ? sleepEnd : end;
-    blocked += (effectiveEnd.getTime() - sleepStart.getTime()) / 60_000;
-    cursor.setTime(sleepEnd.getTime());
-  }
-
-  return Math.round(blocked);
 }
 
 // GET — return all active (in-progress) crisis plans
@@ -222,7 +149,9 @@ export async function POST(request: Request) {
       0,
       Math.round((deadlineDate.getTime() - now.getTime()) / 60000)
     );
-    const sleepMinutesBlocked = getSleepMinutesBlocked(now, deadlineDate, sleepTime, wakeTime, timezone);
+    const busyRows = toBusyRows(upcomingEvents);
+    const sleepMinutesBlocked = getSleepBlockedMinutes(wakeTime, sleepTime, now, deadlineDate, timezone);
+    const blockedMinutes = getBlockedMinutes(busyRows, wakeTime, sleepTime, now, deadlineDate, timezone);
 
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
@@ -233,7 +162,8 @@ export async function POST(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(toBusyRows(upcomingEvents), timezone),
+      blockedMinutes,
+      upcomingEvents: formatEventsForAI(busyRows, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
@@ -336,7 +266,9 @@ export async function PUT(request: Request) {
     const timezone = user?.timezone ?? "America/New_York";
     const wakeTime = (settings?.wakeTime as number) ?? 7;
     const sleepTime = (settings?.sleepTime as number) ?? 22;
-    const sleepMinutesBlocked = getSleepMinutesBlocked(now, planningHorizonEnd, sleepTime, wakeTime, timezone);
+    const busyRows = toBusyRows(upcomingEvents);
+    const sleepMinutesBlocked = getSleepBlockedMinutes(wakeTime, sleepTime, now, planningHorizonEnd, timezone);
+    const blockedMinutes = getBlockedMinutes(busyRows, wakeTime, sleepTime, now, planningHorizonEnd, timezone);
 
     // Calculate current progress based on task index
     const totalTasks = (plan.tasks as unknown[]).length;
@@ -365,7 +297,8 @@ export async function PUT(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(toBusyRows(upcomingEvents), timezone),
+      blockedMinutes,
+      upcomingEvents: formatEventsForAI(busyRows, timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
