@@ -355,7 +355,8 @@ Canvas rejects requests without a User-Agent, so the sync sends one.
 │  so the cron and the status check agree.         │
 │  Logged sitting minutes come off estimates.      │
 │  Tiers: watch (badge only), nudge (push),        │
-│  auto_triage (push + auto-built plan).           │
+│  auto_triage (push; "Not yet" builds a plan on   │
+│  request via /api/crisis-detection/plan).        │
 │  Soft-target-only overload = "drift": one calm   │
 │  push, never crisis-styled.                      │
 │                                                  │
@@ -424,7 +425,7 @@ Source of truth: `src/app/api/**/route.ts`. Every route except the cron routes, 
   GET, POST, PUT, PATCH, DELETE /api/crisis   → list, create, reassess, progress, abandon
   GET, POST          /api/crisis/:id/chat
 /api/crisis-detection/
-  GET  /status   POST /dismiss   POST /engage
+  GET  /status   POST /dismiss   POST /engage   POST /plan
 
 /api/microtasks/     GET, POST;  PATCH /:id;  POST, DELETE /:id/complete
 /api/moments/        POST;  DELETE /:id

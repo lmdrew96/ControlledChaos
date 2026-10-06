@@ -7,7 +7,6 @@ import { detectCrisis } from "./detect";
 import {
   getActiveDetectionForUser,
   createCrisisDetection,
-  createCrisisPlan,
   updateCrisisDetection,
   resolveCrisisDetection,
   resolveStaleDetections,
@@ -19,8 +18,6 @@ import {
   getRecentMoments,
 } from "@/lib/db/queries";
 import { toBusyRows } from "./time-math";
-import { getCrisisPlan } from "@/lib/ai/crisis";
-import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import {
   generatePushMessage,
@@ -28,9 +25,8 @@ import {
   recordDroppedAlert,
   type PushSkipReason,
 } from "@/lib/notifications/triggers";
-import { getBlockedMinutes, getSleepBlockedMinutes } from "./time-math";
 import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
-import { formatForAI, formatForDisplay, todayInTimezone, DISPLAY_DATETIME } from "@/lib/timezone";
+import { todayInTimezone } from "@/lib/timezone";
 import type { CrisisDetectionResult, CrisisDetectionTier, MomentType, NotificationPrefs, PersonalityPrefs, NotificationAssertiveness } from "@/types";
 
 interface CronContext {
@@ -233,27 +229,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       `tasks=${result.involvedTaskNames.join(", ")} tier=${tier}`
     );
 
-    // Auto-Triage: generate a plan in the background
-    if (tier === "auto_triage") {
-      try {
-        const planId = await generateAutoTriagePlan(
-          userId,
-          detection.id,
-          result,
-          busyRows,
-          userTimezone,
-          wakeTime,
-          sleepTime,
-          allTasks.length
-        );
-        if (planId) {
-          console.log(`[CrisisDetection] Auto-triage plan=${planId} generated for detection=${detection.id}`);
-        }
-      } catch (err) {
-        console.error(`[CrisisDetection] Auto-triage plan generation failed for detection=${detection.id}:`, err);
-      }
-    }
-
     // Send notification for Nudge and Auto-Triage tiers
     if (tier === "nudge" || tier === "auto_triage") {
       notificationSent = await sendCrisisNotification(detection.id, result, ctx);
@@ -263,33 +238,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   }
 
   // --- Crisis detected, existing detection → check for worsening ---
-
-  // The row may have been created by the in-app status check rather than by
-  // this cron, in which case the new-detection branch above never ran and no
-  // auto plan exists yet. One try, on the first tick after the row appears:
-  // the AI can answer with strategies instead of a plan, and retrying that
-  // every tick would be a paid call every ten minutes.
-  const FRESH_ROW_MS = 20 * 60_000;
-  if (
-    tier === "auto_triage" &&
-    !existing.crisisPlanId &&
-    now.getTime() - new Date(existing.createdAt).getTime() < FRESH_ROW_MS
-  ) {
-    try {
-      await generateAutoTriagePlan(
-        userId,
-        existing.id,
-        result,
-        busyRows,
-        userTimezone,
-        wakeTime,
-        sleepTime,
-        allTasks.length
-      );
-    } catch (err) {
-      console.error(`[CrisisDetection] Auto-triage plan generation failed for detection=${existing.id}:`, err);
-    }
-  }
 
   const oldRatio = Number(existing.crisisRatio);
   const newRatio = result.crisisRatio;
@@ -449,119 +397,4 @@ async function sendCrisisNotification(
     bypassQuietHours: false,
     lane: "app",
   });
-}
-
-/**
- * Generate an auto-triage plan for an auto_triage tier detection.
- * Calls getCrisisPlan() and saves the result with source: "auto".
- */
-async function generateAutoTriagePlan(
-  userId: string,
-  detectionId: string,
-  result: CrisisDetectionResult,
-  calendarRows: Array<{ title: string; startTime: Date | string; endTime: Date | string; isAllDay: boolean | null }>,
-  timezone: string,
-  wakeTime: number,
-  sleepTime: number,
-  totalPendingTaskCount: number
-): Promise<string | null> {
-  const now = new Date();
-  const firstDeadline = result.firstDeadline;
-  const minutesUntilDeadline = Math.max(0, (firstDeadline.getTime() - now.getTime()) / 60_000);
-
-  // Calculate sleep blocked between now and deadline
-  const sleepMinutesBlocked = getSleepBlockedMinutes(
-    wakeTime,
-    sleepTime,
-    now,
-    firstDeadline,
-    timezone
-  );
-
-  // Build CrisisParams for the AI — all dates must be localized before being
-  // interpolated into the prompt (see api/crisis/route.ts's identical pattern),
-  // otherwise the model reads raw UTC as the user's own local clock time.
-  const taskName = result.involvedTaskNames.join(" + ");
-  const params: CrisisParams = {
-    taskName,
-    deadline: formatForDisplay(firstDeadline, timezone, DISPLAY_DATETIME),
-    completionPct: 0, // Unknown for auto-detected crises
-    currentTime: formatForAI(now, timezone),
-    minutesUntilDeadline: Math.round(minutesUntilDeadline),
-    sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-    blockedMinutes: getBlockedMinutes(
-      toBusyRows(calendarRows),
-      wakeTime,
-      sleepTime,
-      now,
-      firstDeadline,
-      timezone
-    ),
-    // calendarRows spans the full 48h detection window, not this task's
-    // deadline — clip to [now, firstDeadline] so events past THIS deadline
-    // (e.g. tomorrow's classes) don't get counted as blocking it.
-    upcomingEvents: calendarRows
-      .filter((e) => !e.isAllDay)
-      .filter((e) => new Date(e.startTime) < firstDeadline && new Date(e.endTime) > now)
-      .map((e) => {
-        const clippedStart = new Date(Math.max(new Date(e.startTime).getTime(), now.getTime()));
-        const clippedEnd = new Date(Math.min(new Date(e.endTime).getTime(), firstDeadline.getTime()));
-        return {
-          title: e.title,
-          startTime: formatForDisplay(clippedStart, timezone, DISPLAY_DATETIME),
-          endTime: formatForDisplay(clippedEnd, timezone, DISPLAY_DATETIME),
-          durationMinutes: Math.round((clippedEnd.getTime() - clippedStart.getTime()) / 60_000),
-        };
-      }),
-    existingPendingTaskCount: totalPendingTaskCount,
-  };
-
-  const crisisResult = await getCrisisPlan(params);
-
-  // Only handle single-plan results (not strategy multi-choice — that requires user input)
-  if (crisisResult.type !== "plan") {
-    console.log(`[CrisisDetection] Auto-triage returned strategies, skipping auto-save`);
-    return null;
-  }
-
-  const plan = crisisResult.plan;
-  const dataHash = computeDataHash(result.involvedTaskIds, result.requiredMinutes, calendarRows.length);
-
-  const saved = await createCrisisPlan({
-    userId,
-    taskName,
-    // Tied to the task only when there's exactly one: completing it then
-    // closes the plan. A multi-task plan closes when the detection resolves.
-    taskId: result.involvedTaskIds.length === 1 ? result.involvedTaskIds[0] : null,
-    deadline: firstDeadline,
-    completionPct: 0,
-    panicLevel: plan.panicLevel,
-    panicLabel: plan.panicLabel,
-    summary: plan.summary,
-    tasks: plan.tasks,
-    source: "auto",
-    dataHash,
-  });
-
-  // Link the plan to the detection
-  await updateCrisisDetection(detectionId, { crisisPlanId: saved.id });
-
-  return saved.id;
-}
-
-/**
- * Simple hash of detection input data for staleness comparison.
- */
-function computeDataHash(taskIds: string[], requiredMinutes: number, eventCount: number): string {
-  const payload = JSON.stringify({
-    taskIds: [...taskIds].sort(),
-    requiredMinutes,
-    eventCount,
-  });
-  let hash = 0;
-  for (let i = 0; i < payload.length; i++) {
-    hash = ((hash << 5) - hash) + payload.charCodeAt(i);
-    hash |= 0;
-  }
-  return hash.toString(36);
 }

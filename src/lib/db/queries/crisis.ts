@@ -237,6 +237,22 @@ export async function getActiveDetectionForUser(userId: string) {
   return rows[0] ?? null;
 }
 
+/** One unresolved detection the user owns, or null. */
+export async function getActiveDetectionById(userId: string, detectionId: string) {
+  const rows = await db
+    .select()
+    .from(crisisDetections)
+    .where(
+      and(
+        eq(crisisDetections.id, detectionId),
+        eq(crisisDetections.userId, userId),
+        isNull(crisisDetections.resolvedAt)
+      )
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** Create a new crisis detection record. */
 export async function createCrisisDetection(params: {
   userId: string;

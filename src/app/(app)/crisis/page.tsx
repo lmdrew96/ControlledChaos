@@ -87,6 +87,36 @@ function progressPct(plan: ActivePlanData): number {
   );
 }
 
+interface PlanRow {
+  id: string;
+  taskName: string;
+  deadline: string | Date | null;
+  targetDate?: string | Date | null;
+  panicLevel: PanicLevel;
+  panicLabel: string;
+  summary: string;
+  tasks: CrisisPlan["tasks"];
+  currentTaskIndex: number;
+}
+
+function toActivePlanData(p: PlanRow): ActivePlanData {
+  return {
+    id: p.id,
+    taskName: p.taskName,
+    deadline: p.deadline ? new Date(p.deadline).toISOString() : null,
+    targetDate: p.targetDate ? new Date(p.targetDate).toISOString() : null,
+    panicLevel: p.panicLevel,
+    panicLabel: p.panicLabel,
+    plan: {
+      panicLevel: p.panicLevel,
+      panicLabel: p.panicLabel,
+      summary: p.summary,
+      tasks: p.tasks,
+      currentTaskIndex: p.currentTaskIndex ?? 0,
+    },
+  };
+}
+
 // -------------------------------------------------------
 // Component
 // -------------------------------------------------------
@@ -123,33 +153,7 @@ export default function CrisisPage() {
       if (!crisisRes.ok) throw new Error(`GET /api/crisis ${crisisRes.status}`);
       const data = await crisisRes.json();
 
-      const mapped: ActivePlanData[] = (data.plans ?? []).map(
-        (p: {
-          id: string;
-          taskName: string;
-          deadline: string | Date | null;
-          targetDate?: string | Date | null;
-          panicLevel: PanicLevel;
-          panicLabel: string;
-          summary: string;
-          tasks: CrisisPlan["tasks"];
-          currentTaskIndex: number;
-        }) => ({
-          id: p.id,
-          taskName: p.taskName,
-          deadline: p.deadline ? new Date(p.deadline).toISOString() : null,
-          targetDate: p.targetDate ? new Date(p.targetDate).toISOString() : null,
-          panicLevel: p.panicLevel,
-          panicLabel: p.panicLabel,
-          plan: {
-            panicLevel: p.panicLevel,
-            panicLabel: p.panicLabel,
-            summary: p.summary,
-            tasks: p.tasks,
-            currentTaskIndex: p.currentTaskIndex ?? 0,
-          },
-        })
-      );
+      const mapped: ActivePlanData[] = (data.plans ?? []).map(toActivePlanData);
 
       // Load detection status (for auto-triage proposal banner)
       if (detectionRes.ok) {
@@ -168,34 +172,7 @@ export default function CrisisPage() {
       }
 
       // Load history (completed/abandoned plans)
-      const historyMapped: ActivePlanData[] = (data.history ?? []).map(
-        (p: {
-          id: string;
-          taskName: string;
-          deadline: string | Date | null;
-          targetDate?: string | Date | null;
-          panicLevel: PanicLevel;
-          panicLabel: string;
-          summary: string;
-          tasks: CrisisPlan["tasks"];
-          currentTaskIndex: number;
-          completedAt: string | Date;
-        }) => ({
-          id: p.id,
-          taskName: p.taskName,
-          deadline: p.deadline ? new Date(p.deadline).toISOString() : null,
-          targetDate: p.targetDate ? new Date(p.targetDate).toISOString() : null,
-          panicLevel: p.panicLevel,
-          panicLabel: p.panicLabel,
-          plan: {
-            panicLevel: p.panicLevel,
-            panicLabel: p.panicLabel,
-            summary: p.summary,
-            tasks: p.tasks,
-            currentTaskIndex: p.currentTaskIndex ?? 0,
-          },
-        })
-      );
+      const historyMapped: ActivePlanData[] = (data.history ?? []).map(toActivePlanData);
 
       setPlans(mapped);
       setHistory(historyMapped);
@@ -395,10 +372,51 @@ export default function CrisisPage() {
     toast.success("Got it. I'll stay quiet — just one heads-up near the deadline.");
   }
 
-  function handleCheckInShowPlan() {
-    setCheckInId(null);
-    const linkedPlan = plans.find((p) => p.id === detectionStatus?.crisisPlanId);
-    if (linkedPlan) handleEnterWarRoom(linkedPlan);
+  /**
+   * "Not yet". On Auto-Triage this is where the plan gets built — the cron no
+   * longer builds one in the background. Elsewhere it just shows Rescue.
+   */
+  async function handleCheckInNotYet() {
+    const status = detectionStatus;
+    if (!checkInId || status?.tier !== "auto_triage") {
+      setCheckInId(null);
+      return;
+    }
+
+    // No single plan fits, or the build failed: same form the horizon card
+    // opens, prefilled.
+    const openIntake = () => {
+      setCheckInId(null);
+      setIntakePrefill({
+        taskName: status.involvedTaskNames?.join(" + "),
+        deadline: status.firstDeadline,
+      });
+      setPhase("intake");
+    };
+
+    try {
+      const res = await fetch("/api/crisis-detection/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ detectionId: checkInId }),
+      });
+      if (res.status === 422) {
+        toast("There's more than one way to play this. Tell me a bit more and I'll build it.");
+        openIntake();
+        return;
+      }
+      if (!res.ok) throw new Error(`POST /api/crisis-detection/plan ${res.status}`);
+      const body: { plan: PlanRow } = await res.json();
+      const plan = toActivePlanData(body.plan);
+      setPlans((prev) => (prev.some((p) => p.id === plan.id) ? prev : [plan, ...prev]));
+      setDetectionStatus((prev) => (prev ? { ...prev, crisisPlanId: plan.id } : prev));
+      setCheckInId(null);
+      handleEnterWarRoom(plan);
+    } catch (err) {
+      console.error("Failed to build rescue plan:", err);
+      toast.error("Couldn't build a plan just now. You can start one here.");
+      openIntake();
+    }
   }
 
   function handleDoneNext() {
@@ -592,7 +610,12 @@ export default function CrisisPage() {
         open={showCheckIn}
         taskNames={detectionStatus?.involvedTaskNames ?? []}
         onConfirmEngaged={handleConfirmEngaged}
-        onShowPlan={handleCheckInShowPlan}
+        notYetLabel={
+          detectionStatus?.tier === "auto_triage"
+            ? "Not yet, show me the plan"
+            : "Not yet, take me to Rescue"
+        }
+        onNotYet={handleCheckInNotYet}
         onClose={() => setCheckInId(null)}
       />
       <PageHeader

@@ -35,14 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.88.4",
-    label: "2.86.1 – 2.88.4",
+    version: "2.89.0",
+    label: "2.86.1 – 2.89.0",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
       {
         kind: "improved",
         text: "Rescue pings now ask before they push. ControlledChaos can't see work you do outside the app, so instead of doing worst-case math at you, a deadline-collision ping asks \"Already working on this?\" Tap it and say \"Yes, I'm on it\" and the pings stop, apart from one encouraging heads-up right before the deadline. Checking off a rescue step counts too. Opening the app on its own doesn't.",
+      },
+      {
+        kind: "improved",
+        text: "Auto-Triage no longer builds a rescue plan behind your back. When a ping asks whether you're on it and you tap \"Not yet, show me the plan\", that's when the plan gets built. If you're already working, no plan appears.",
       },
       {
         kind: "fixed",

@@ -30,8 +30,7 @@ const TIER_OPTIONS: Array<{
   {
     value: "auto_triage",
     label: "Auto-Triage",
-    description:
-      "Build a plan for me in the background and let me know it's ready.",
+    description: "Notify me, and if I'm not on it yet, build me a plan when I ask.",
   },
 ];
 

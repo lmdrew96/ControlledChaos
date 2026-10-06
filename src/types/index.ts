@@ -566,4 +566,6 @@ export interface CrisisDetectionStatus {
   dismissed?: boolean;
   /** User said "Yes, I'm on it" (or checked off a rescue step). Escalation has stopped. */
   engaged?: boolean;
+  /** Decides the check-in's second button: Auto-Triage builds a plan on request. */
+  tier?: CrisisDetectionTier;
 }
