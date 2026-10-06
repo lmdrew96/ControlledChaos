@@ -14,6 +14,7 @@ import {
   updateCrisisPlanProgress,
   completeCrisisPlan,
   restoreCrisisPlan,
+  engageDetectionForPlan,
 } from "@/lib/db/queries";
 import { toBusyRows } from "@/lib/crisis-detection";
 import { getUser } from "@/lib/db/queries";
@@ -461,6 +462,10 @@ export async function PATCH(request: Request) {
 
     if (currentTaskIndex !== undefined) {
       const updated = await updateCrisisPlanProgress(planId, currentTaskIndex);
+      // Checking off a step is explicit progress: stop escalating pings.
+      if (currentTaskIndex > plan.currentTaskIndex) {
+        await engageDetectionForPlan(userId, planId);
+      }
       return NextResponse.json({ plan: updated });
     }
 

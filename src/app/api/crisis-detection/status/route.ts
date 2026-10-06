@@ -145,6 +145,7 @@ export async function GET() {
         crisisPlanId: null,
         stale: false,
         dismissed: false,
+        engaged: false,
       } satisfies CrisisDetectionStatus);
     }
 
@@ -179,6 +180,7 @@ export async function GET() {
       // A plan built for a different set of tasks no longer matches reality.
       stale: taskSetChanged && existing.crisisPlanId !== null,
       dismissed: existing.dismissedAt !== null,
+      engaged: existing.engagedAt !== null,
     } satisfies CrisisDetectionStatus);
   } catch (error) {
     console.error("[API] GET /api/crisis-detection/status error:", error);

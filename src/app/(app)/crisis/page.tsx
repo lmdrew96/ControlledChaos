@@ -17,6 +17,7 @@ import { CrisisDone } from "@/components/features/crisis/crisis-done";
 import { cn } from "@/lib/utils";
 import { CrisisDetectionExplainer } from "@/components/features/crisis/crisis-detection-explainer";
 import { CrisisHorizonAlert } from "@/components/features/crisis/crisis-horizon-alert";
+import { CrisisCheckInSheet } from "@/components/features/crisis/crisis-checkin-sheet";
 import { LoadErrorStrip } from "@/components/ui/load-error-strip";
 import type { CrisisPlan, CrisisStrategy, CrisisFileAttachment, CrisisDetectionStatus, PanicLevel } from "@/types";
 
@@ -104,6 +105,9 @@ export default function CrisisPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [intakePrefill, setIntakePrefill] = useState<{ taskName?: string; deadline?: string }>({});
+  // Detection id from a crisis push's ?checkin= link. Arriving here writes
+  // nothing; only the sheet's "Yes, I'm on it" does.
+  const [checkInId, setCheckInId] = useState<string | null>(null);
 
   // -------------------------------------------------------
   // Load all active plans
@@ -151,6 +155,16 @@ export default function CrisisPage() {
       if (detectionRes.ok) {
         const detection: CrisisDetectionStatus = await detectionRes.json();
         setDetectionStatus(detection);
+      }
+
+      // Pick up the push's check-in link once, then drop it from the URL so
+      // a reload doesn't reopen the sheet.
+      const url = new URL(window.location.href);
+      const checkin = url.searchParams.get("checkin");
+      if (checkin) {
+        setCheckInId(checkin);
+        url.searchParams.delete("checkin");
+        window.history.replaceState(null, "", url.pathname + url.search);
       }
 
       // Load history (completed/abandoned plans)
@@ -368,6 +382,25 @@ export default function CrisisPage() {
     }
   }
 
+  async function handleConfirmEngaged() {
+    if (!checkInId) return;
+    const res = await fetch("/api/crisis-detection/engage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ detectionId: checkInId }),
+    });
+    if (!res.ok) throw new Error(`POST /api/crisis-detection/engage ${res.status}`);
+    setDetectionStatus((prev) => (prev ? { ...prev, engaged: true } : prev));
+    setCheckInId(null);
+    toast.success("Got it. I'll stay quiet — just one heads-up near the deadline.");
+  }
+
+  function handleCheckInShowPlan() {
+    setCheckInId(null);
+    const linkedPlan = plans.find((p) => p.id === detectionStatus?.crisisPlanId);
+    if (linkedPlan) handleEnterWarRoom(linkedPlan);
+  }
+
   function handleDoneNext() {
     setPhase("dashboard");
     setCompletedTaskName(null);
@@ -545,8 +578,23 @@ export default function CrisisPage() {
   // -------------------------------------------------------
   // Dashboard — all active plans
   // -------------------------------------------------------
+  // The sheet only shows for the detection the push was about, while it's
+  // still live and not already confirmed.
+  const showCheckIn =
+    checkInId !== null &&
+    detectionStatus?.active === true &&
+    detectionStatus.detectionId === checkInId &&
+    !detectionStatus.engaged;
+
   return (
     <div className="mx-auto max-w-lg space-y-6">
+      <CrisisCheckInSheet
+        open={showCheckIn}
+        taskNames={detectionStatus?.involvedTaskNames ?? []}
+        onConfirmEngaged={handleConfirmEngaged}
+        onShowPlan={handleCheckInShowPlan}
+        onClose={() => setCheckInId(null)}
+      />
       <PageHeader
         title="Rescue"
         description={`${plans.length} active plan${plans.length !== 1 ? "s" : ""}`}

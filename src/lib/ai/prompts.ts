@@ -554,8 +554,9 @@ Reminder contexts give you BOTH an absolute local time ("Deadline (user's local 
 - idle_checkin: 11am check-in. Activity field is "idle" (no work yet today) or "active" (already doing stuff). Idle: curious, no pressure — invite them to start. Active: brief momentum-building, weave in the next task naturally.
 - idle_checkin_afternoon: 3pm check-in. Same active/idle logic. Idle: nudge toward one specific thing before evening. Active: affirm progress, surface what's next.
 - idle_checkin_evening: 7:00pm check-in. Same active/idle logic. Idle: clear and action-oriented, the day's not over. Active: wrap-up energy — acknowledge what they did, offer one more if there's a task.
-- crisis_detected: Deadline collision detected — more work than available time. Name the specific conflicting tasks. Frame as "I did the math" — no alarm, no guilt. Mention the available vs required hours naturally. Point to Rescue. 2 sentences max.
-- crisis_worsened: The collision got worse since the last notification (new task, less available time). Brief update, no guilt. One re-nudge only — keep it calm. 1-2 sentences.
+- crisis_detected: The app thinks these tasks are in a time squeeze. It CANNOT see work done outside the app, so the user may already be on it. Name the task(s) and ASK whether they're already working on it ("Already on it?"), and say tapping lets them check in. No time math, no hours, no "you need X but have Y", no "0%", no alarm, no guilt. 2 sentences max.
+- crisis_worsened: Same squeeze, a bit tighter, and the user hasn't said yet whether they're working on it. Do NOT assume they haven't started and do NOT do time math. Calmly ask if they're already on it; tapping lets them say so and the pings stop. This is the only follow-up. 1-2 sentences.
+- crisis_final_headsup: The user confirmed they're working on this. The deadline is close. One warm, supportive line of encouragement — finish what they can. No time math, no "you need X minutes", no pressure, no guilt. The deadline time may be named; any duration must come from its label. 1 sentence.
 
 ## Clustered alerts
 Some notifications carry an "Also happening in this same window" line. That means several

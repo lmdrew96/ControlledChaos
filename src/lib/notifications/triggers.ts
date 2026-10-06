@@ -621,8 +621,12 @@ export type PushNotificationContext =
   | { type: "idle_checkin"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
-  | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
-  | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
+  // No hours or ratio on the crisis types: the app can't see work done off
+  // the app, so time math on them assumed 0% and escalated at someone who was
+  // already working. These pushes ask instead.
+  | { type: "crisis_detected"; taskNames: string[] }
+  | { type: "crisis_worsened"; taskNames: string[] }
+  | { type: "crisis_final_headsup"; taskNames: string[]; minutesUntil: number; at: Date };
 
 // Lives in lib/timezone so the user snapshot can share it; re-exported for
 // existing callers and tests.
@@ -636,8 +640,9 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
-  crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Rescue if you want it.",
-  crisis_worsened: "Things just got tighter. Your rescue plan is still waiting in Rescue.",
+  crisis_detected: "Looks like a tight squeeze coming up. Already working on it? Tap to check in.",
+  crisis_worsened: "Still looking tight. Already on it? Tap to let me know and I'll stay quiet.",
+  crisis_final_headsup: "Almost there. You've got this — finish what you can.",
 };
 
 /**
@@ -683,12 +688,10 @@ export async function generatePushMessage(
     if (ctx.topTask) {
       userMsg += `\nTop pending task: "${ctx.topTask.title}"${describeTaskDetail(ctx.topTask, timezone)}`;
     }
-  } else if (ctx.type === "crisis_detected") {
-    const names = ctx.taskNames.join(" and ");
-    userMsg = `Type: crisis_detected\nConflicting tasks: ${names}\nAvailable work time: ${ctx.availableHours.toFixed(1)} hours\nRequired work time: ${ctx.requiredHours.toFixed(1)} hours`;
-  } else if (ctx.type === "crisis_worsened") {
-    const names = ctx.taskNames.join(" and ");
-    userMsg = `Type: crisis_worsened\nConflicting tasks: ${names}\nNew crisis ratio: ${ctx.newRatio.toFixed(2)} (higher = worse)`;
+  } else if (ctx.type === "crisis_detected" || ctx.type === "crisis_worsened") {
+    userMsg = `Type: ${ctx.type}\nTasks: ${ctx.taskNames.join(" and ")}`;
+  } else if (ctx.type === "crisis_final_headsup") {
+    userMsg = `Type: crisis_final_headsup\nTasks: ${ctx.taskNames.join(" and ")}\nDeadline (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until deadline: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
   } else {
     // Every context type has its own branch above; a new type that forgets
     // one fails to compile here instead of sending a title-only prompt.

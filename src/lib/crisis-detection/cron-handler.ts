@@ -301,6 +301,16 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     requiredMinutes: result.requiredMinutes,
   });
 
+  // The user said they're on it. No more escalation — the app can't see
+  // off-app work, so a worsening ratio here says nothing about their progress.
+  // One supportive heads-up near the deadline, and that's all.
+  if (existing.engagedAt) {
+    if (tier === "nudge" || tier === "auto_triage") {
+      notificationSent = await sendFinalHeadsUp(existing.id, result, ctx);
+    }
+    return { detected: true, notificationSent };
+  }
+
   // The first push for this detection may never have gone out: quiet hours
   // held it back on the tick that created the detection, and every later
   // tick lands here, not in the new-detection branch above. A push dropped
@@ -324,7 +334,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         {
           type: "crisis_worsened",
           taskNames: result.involvedTaskNames,
-          newRatio,
         },
         ctx.personalityPrefs,
         ctx.timezone,
@@ -335,7 +344,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       const sent = await sendPushToUser(userId, {
         title: "ControlledChaos",
         body: message,
-        url: "/crisis",
+        url: checkInUrl(existing.id),
         tag: dedupKey,
         bypassQuietHours: false,
         lane: "app",
@@ -355,8 +364,60 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   return { detected: true, notificationSent };
 }
 
+/** Tapping a crisis push opens the "Already working on this?" check-in. */
+function checkInUrl(detectionId: string): string {
+  return `/crisis?checkin=${detectionId}`;
+}
+
 /**
- * Send the initial crisis detection notification.
+ * How close to the deadline an engaged crisis gets its one heads-up. Wider
+ * than the cron interval, so a tick always lands inside it.
+ */
+const FINAL_HEADSUP_MINUTES = 15;
+
+/**
+ * The one push an engaged crisis gets: a supportive line shortly before the
+ * deadline. Deduped per detection, so it can only ever go out once.
+ */
+async function sendFinalHeadsUp(
+  detectionId: string,
+  result: CrisisDetectionResult,
+  ctx: CronContext
+): Promise<boolean> {
+  const minutesUntil = Math.round((result.firstDeadline.getTime() - Date.now()) / 60_000);
+  if (minutesUntil <= 0 || minutesUntil > FINAL_HEADSUP_MINUTES) return false;
+
+  const dedupKey = `crisis-final-${detectionId}`;
+  if ((await hasEverBeenNotified(ctx.userId, dedupKey)) || !(await mayPushNow(ctx, dedupKey))) {
+    return false;
+  }
+
+  const message = await generatePushMessage(
+    {
+      type: "crisis_final_headsup",
+      taskNames: result.involvedTaskNames,
+      minutesUntil,
+      at: result.firstDeadline,
+    },
+    ctx.personalityPrefs,
+    ctx.timezone,
+    ctx.assertivenessMode,
+    await ctx.getSnapshot()
+  );
+
+  return sendPushToUser(ctx.userId, {
+    title: "ControlledChaos",
+    body: message,
+    url: "/crisis",
+    tag: dedupKey,
+    bypassQuietHours: false,
+    lane: "app",
+  });
+}
+
+/**
+ * Send the initial crisis detection notification. It asks whether the user
+ * is already on it rather than assuming they haven't started.
  */
 async function sendCrisisNotification(
   detectionId: string,
@@ -373,8 +434,6 @@ async function sendCrisisNotification(
     {
       type: "crisis_detected",
       taskNames: result.involvedTaskNames,
-      availableHours: result.availableMinutes / 60,
-      requiredHours: result.requiredMinutes / 60,
     },
     ctx.personalityPrefs,
     ctx.timezone,
@@ -385,7 +444,7 @@ async function sendCrisisNotification(
   return sendPushToUser(ctx.userId, {
     title: "ControlledChaos",
     body: message,
-    url: "/crisis",
+    url: checkInUrl(detectionId),
     tag: dedupKey,
     bypassQuietHours: false,
     lane: "app",

@@ -564,4 +564,6 @@ export interface CrisisDetectionStatus {
   stale?: boolean;
   /** User dismissed the proposal banner. Row stays active — badge/re-nudge unaffected. */
   dismissed?: boolean;
+  /** User said "Yes, I'm on it" (or checked off a rescue step). Escalation has stopped. */
+  engaged?: boolean;
 }

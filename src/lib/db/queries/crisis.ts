@@ -365,6 +365,46 @@ export async function dismissActiveDetection(userId: string): Promise<string | n
   return result[0]?.id ?? null;
 }
 
+/**
+ * Mark a detection engaged: the user said "Yes, I'm on it". Escalation stops
+ * from here on. Only unresolved rows they own. Returns false when there was
+ * no such active row.
+ */
+export async function engageDetection(userId: string, detectionId: string): Promise<boolean> {
+  const now = new Date();
+  const result = await db
+    .update(crisisDetections)
+    .set({ engagedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(crisisDetections.id, detectionId),
+        eq(crisisDetections.userId, userId),
+        isNull(crisisDetections.resolvedAt)
+      )
+    )
+    .returning({ id: crisisDetections.id });
+  return result.length > 0;
+}
+
+/**
+ * Checking off a rescue step is explicit progress, so it engages the active
+ * detection that plan was built for.
+ */
+export async function engageDetectionForPlan(userId: string, planId: string): Promise<void> {
+  const now = new Date();
+  await db
+    .update(crisisDetections)
+    .set({ engagedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(crisisDetections.userId, userId),
+        eq(crisisDetections.crisisPlanId, planId),
+        isNull(crisisDetections.resolvedAt),
+        isNull(crisisDetections.engagedAt)
+      )
+    );
+}
+
 /** Get the crisis detection tier for a user (defaults to "nudge"). */
 export async function getCrisisDetectionTier(userId: string): Promise<CrisisDetectionTier> {
   const rows = await db
