@@ -3301,7 +3301,9 @@ Returns: Markdown with timezone, the scheduling window, the calendar display ran
       const userId = getUserId();
       const s = await getUserSettings(userId);
 
+      // calendar_end_hour can be 24 (end of day), which "h < 12" read as noon.
       const hour = (h: number) => {
+        if (h === 24) return "midnight";
         const suffix = h < 12 ? "AM" : "PM";
         const display = h % 12 === 0 ? 12 : h % 12;
         return `${display} ${suffix}`;

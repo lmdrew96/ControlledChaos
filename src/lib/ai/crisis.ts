@@ -72,6 +72,7 @@ function buildUserPrompt(params: CrisisParams): string {
       : Math.max(0, params.minutesUntilDeadline - totalBlockedMinutes);
 
   const fmtHour = (h: number) => {
+    if (h === 24) return "midnight";
     const period = h >= 12 ? "PM" : "AM";
     const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
     return `${display} ${period}`;

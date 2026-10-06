@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.88.2",
-    label: "2.86.1 – 2.88.2",
+    version: "2.88.3",
+    label: "2.86.1 – 2.88.3",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
@@ -50,7 +50,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "fixed",
-        text: "AI assistants connected to ControlledChaos now see all-day events in your daily stats as \"All day\" instead of \"12:00 AM – 12:00 AM\".",
+        text: "AI assistants connected to ControlledChaos now see all-day events in your daily stats as \"All day\" instead of \"12:00 AM – 12:00 AM\", and a calendar that ends at midnight no longer reads as ending at noon.",
       },
       {
         kind: "improved",
