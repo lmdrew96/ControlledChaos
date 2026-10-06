@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchEventLocationToSavedLocation } from "@/lib/notifications/triggers";
+import { matchEventLocationToSavedLocation } from "@/lib/calendar/commute-buffers";
 
 const saved = [
   { id: "home", name: "Home" },

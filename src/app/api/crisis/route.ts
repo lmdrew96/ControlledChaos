@@ -16,7 +16,7 @@ import {
   restoreCrisisPlan,
   getCommuteSetup,
 } from "@/lib/db/queries";
-import { commuteContextFrom, travelBuffers } from "@/lib/calendar/commute-buffers";
+import { travelBuffers } from "@/lib/calendar/commute-buffers";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
@@ -40,10 +40,7 @@ function eventsWithTravel(
   commute: Awaited<ReturnType<typeof getCommuteSetup>>,
   now: Date
 ) {
-  const travel = travelBuffers(events, commute.savedLocations, commute.commutes, {
-    startLocationId: commute.currentLocationId,
-    now,
-  }).map((b) => ({ title: `Travel to ${b.destination}`, startTime: b.start, endTime: b.end }));
+  const travel = travelBuffers(events, commute.savedLocations, commute.commutes, { now }).map((b) => ({ title: `Travel to ${b.destination}`, startTime: b.start, endTime: b.end }));
   return [...events, ...travel].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 }
 
@@ -244,10 +241,6 @@ export async function POST(request: Request) {
 
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
-    // Where the user is comes from today's calendar (getCommuteSetup); unknown
-    // means no "Leave for [destination]" legs rather than guessed ones.
-    const commuteContext = commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes);
-
     const result = await getCrisisPlan({
       taskName,
       deadline: formatForDisplay(deadlineDate, timezone, DISPLAY_DATETIME),
@@ -265,8 +258,6 @@ export async function POST(request: Request) {
         panicLevel: c.panicLevel,
         progressPct: Math.round((c.currentTaskIndex / (c.tasks as unknown[]).length) * 100),
       })),
-      currentLocation: commute.currentLocationName,
-      commuteContext,
       files,
       aiContextBlock: aiCtx.formatted,
     });
@@ -374,7 +365,6 @@ export async function PUT(request: Request) {
     const currentTime = formatForDisplay(now, timezone, DISPLAY_FULL_DATETIME);
 
     const otherCrises = existingCrises.filter((c) => c.id !== planId);
-    const commuteContext = commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes);
 
     // Preserve completed steps — only regenerate remaining work
     const existingTasks = plan.tasks as CrisisTask[];
@@ -402,8 +392,6 @@ export async function PUT(request: Request) {
         progressPct: Math.round(((c.currentTaskIndex ?? 0) / (c.tasks as unknown[]).length) * 100),
       })),
       completedSteps: completedStepTitles,
-      currentLocation: commute.currentLocationName,
-      commuteContext,
       aiContextBlock: aiCtx.formatted,
     });
 

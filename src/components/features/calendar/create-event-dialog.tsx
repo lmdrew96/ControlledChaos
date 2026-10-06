@@ -336,7 +336,7 @@ export function CreateEventDialog({
                   onChange={(e) => setLocation(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Add saved locations in Settings for time-to-leave alerts
+                  Add saved locations in Settings to count travel time between events
                 </p>
               </div>
             )}

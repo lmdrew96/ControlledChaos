@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { updateLocation, deleteLocation, setHomeLocation } from "@/lib/db/queries";
+import { updateLocation, deleteLocation } from "@/lib/db/queries";
 import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
 
 export async function PATCH(
@@ -23,14 +23,7 @@ export async function PATCH(
     if (body.longitude !== undefined)
       data.longitude = body.longitude.toString();
 
-    if (body.isHome !== undefined && typeof body.isHome !== "boolean") {
-      return NextResponse.json({ error: "isHome must be a boolean" }, { status: 400 });
-    }
-
-    let updated = Object.keys(data).length > 0 ? await updateLocation(id, userId, data) : undefined;
-    if (typeof body.isHome === "boolean") {
-      updated = await setHomeLocation(id, userId, body.isHome);
-    }
+    const updated = Object.keys(data).length > 0 ? await updateLocation(id, userId, data) : undefined;
 
     if (!updated) {
       return NextResponse.json(

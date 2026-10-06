@@ -121,10 +121,7 @@ export async function buildPlanningContext(
       ...events.map(serializeEvent),
       // Getting between events at different saved locations takes time too.
       ...travelBuffersAsBusyIntervals(
-        travelBuffers(events, commute.savedLocations, commute.commutes, {
-          startLocationId: commute.currentLocationId,
-          now: new Date(),
-        })
+        travelBuffers(events, commute.savedLocations, commute.commutes, { now: new Date() })
       ),
       ...planBlocksAsBusyIntervals(
         scheduled.map((t) => ({

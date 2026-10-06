@@ -225,8 +225,8 @@ const FEATURES = [
     icon: <Zap className="w-5 h-5" />,
     title: "Do This Next",
     description:
-      "One recommendation. Not a list. Based on your energy level, location, and how long you have until your next commitment.",
-    extras: ["Energy-aware", "Location-aware", "Reasoning included"],
+      "One recommendation. Not a list. Based on your energy level, your deadlines, and how long you have until your next commitment.",
+    extras: ["Energy-aware", "Deadline-aware", "Reasoning included"],
   },
   {
     icon: <CalendarDays className="w-5 h-5" />,

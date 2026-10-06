@@ -77,10 +77,7 @@ export async function POST(_req: Request, context: RouteContext) {
     ]);
     // Travel between events at different saved locations is busy time too.
     const travel = travelBuffersAsBusyIntervals(
-      travelBuffers(existingEvents, commute.savedLocations, commute.commutes, {
-        startLocationId: commute.currentLocationId,
-        now,
-      })
+      travelBuffers(existingEvents, commute.savedLocations, commute.commutes, { now })
     );
 
     const serializedEvents = existingEvents.map((e) => ({

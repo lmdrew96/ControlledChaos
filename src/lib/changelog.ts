@@ -35,6 +35,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.86.1",
+    date: "2026-10-06",
+    title: "No more guessing where you are",
+    changes: [
+      {
+        kind: "fixed",
+        text: "Reminders no longer claim to know where you are. ControlledChaos can't see your location, and it used to guess (\"you're still at home\") while you were already on the way. Reminders now say where the event is, never where you are.",
+      },
+      {
+        kind: "fixed",
+        text: "Rescue plans and deadline-collision warnings no longer count a trip from a guessed starting point, which made available time look shorter than it was. Travel between back-to-back events at different saved places still counts.",
+      },
+      {
+        kind: "improved",
+        text: "\"Time to leave\" alerts are gone. They could only work from a guess about where you were starting, so they were often wrong. Your event reminders still fire as before. The \"mark as home\" toggle in Saved Locations is gone too, since home only fed that guess.",
+      },
+    ],
+  },
+  {
     version: "2.86.0",
     label: "2.84.2 – 2.86.0",
     date: "2026-10-04",

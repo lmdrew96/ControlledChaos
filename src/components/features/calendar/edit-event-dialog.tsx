@@ -396,7 +396,7 @@ export function EditEventDialog({
                   placeholder="Add location..."
                 />
                 <p className="text-xs text-muted-foreground">
-                  Add saved locations in Settings for time-to-leave alerts
+                  Add saved locations in Settings to count travel time between events
                 </p>
               </div>
             )}

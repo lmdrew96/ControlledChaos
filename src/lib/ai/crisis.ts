@@ -19,8 +19,6 @@ export interface CrisisParams {
   existingPendingTaskCount: number;
   activeCrises?: Array<{ taskName: string; deadline: string; panicLevel: string; progressPct: number }>;
   completedSteps?: string[];
-  currentLocation?: string | null;
-  commuteContext?: Array<{ to: string; minutes: number }>;
   files?: CrisisFileAttachment[];
   /** Supplementary context (energy, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
@@ -95,14 +93,6 @@ function buildUserPrompt(params: CrisisParams): string {
       ? `\n\nSteps already completed (DO NOT regenerate these — only plan the REMAINING work):\n${params.completedSteps.map((s, i) => `${i + 1}. ✅ ${s}`).join("\n")}`
       : "";
 
-  let locationLine = "";
-  if (params.currentLocation) {
-    const commuteInfo = params.commuteContext && params.commuteContext.length > 0
-      ? `\nKnown commute times from ${params.currentLocation}: ${params.commuteContext.map((c) => `→ ${c.to}: ${c.minutes} min`).join(", ")}.`
-      : "";
-    locationLine = `\nUser's last known location: ${params.currentLocation}. If the task requires being somewhere else, you MUST include a "Leave for [destination]" step with the commute time. The user needs to arrive BEFORE the deadline, not at the deadline.${commuteInfo}`;
-  }
-
   return `Task: ${params.taskName}
 Deadline: ${params.deadline}
 Current time: ${params.currentTime}
@@ -110,7 +100,8 @@ ${params.minutesUntilDeadline === null
   ? "Minutes until deadline: N/A — there is NO hard deadline on this work. Do not manufacture urgency and do not suggest contacting anyone about it."
   : `Minutes until deadline: ${params.minutesUntilDeadline}`}
 Already completed: ~${params.completionPct}%
-Other pending tasks (context): ${params.existingPendingTaskCount}${locationLine}
+Other pending tasks (context): ${params.existingPendingTaskCount}
+The user's current location is unknown: never assume it, and don't add a step about when to leave.
 
 Other active crisis plans this user is juggling:
 ${crisesText}

@@ -8,7 +8,6 @@ interface SavedLocation {
   name: string;
   latitude: string | null;
   longitude: string | null;
-  isHome: boolean;
 }
 
 interface LocationMapProps {

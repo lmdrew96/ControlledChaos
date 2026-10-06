@@ -13,7 +13,6 @@ import {
   getCalendarEventsByDateRange,
   getRecentTaskActivity,
   getActiveCrisisPlans,
-  getCurrentLocation,
   getUserGoals,
   getScheduledSessionsInRange,
 } from "@/lib/db/queries";
@@ -39,9 +38,6 @@ export interface AIContext {
   /** Most recent energy signal from Moments, or null if none logged recently. */
   energyLevel: EnergyLevel | null;
   personalityPrefs: PersonalityPrefs | null;
-
-  // Location
-  locationName: string | null;
 
   // Tasks
   pendingTaskCount: number;
@@ -163,7 +159,7 @@ export async function buildAIContext(
   // the AI sees upcoming Canvas assessments (quizzes/exams/assignments) that
   // would otherwise fall outside today's window.
   const today = localDaysRange(now, timezone);
-  const [pendingTasks, completedToday, horizonEvents, recentActivity, crisisPlans, userLoc, activeGoals, todaySessions] =
+  const [pendingTasks, completedToday, horizonEvents, recentActivity, crisisPlans, activeGoals, todaySessions] =
     await Promise.all([
       getPendingTasks(userId),
       getTasksCompletedToday(userId, timezone),
@@ -174,7 +170,6 @@ export async function buildAIContext(
       options.skipCrises
         ? Promise.resolve([])
         : getActiveCrisisPlans(userId),
-      getCurrentLocation(userId, timezone),
       getUserGoals(userId, "active"),
       getScheduledSessionsInRange(userId, today.start, today.end),
     ]);
@@ -184,9 +179,6 @@ export async function buildAIContext(
   const energyLevel = await getCurrentEnergy(userId, timezone, options.energyOverride);
   const timeOfDay = getTimeOfDayBlock(timezone);
   const personalityPrefs = (settings?.personalityPrefs as PersonalityPrefs | null) ?? null;
-
-  // Location — inferred from today's calendar, null when unknown.
-  const locationName = userLoc?.name ?? null;
 
   // Top 5 pending tasks
   const topTasks = pendingTasks.slice(0, 5).map((t) => toTaskFacts(t, goalTitleById));
@@ -308,7 +300,6 @@ export async function buildAIContext(
     currentDate,
     timeOfDay,
     energyLevel,
-    locationName,
     pendingTaskCount: pendingTasks.length,
     completedTodayCount: completedToday.length,
     topTasks,
@@ -328,7 +319,6 @@ export async function buildAIContext(
     timeOfDay,
     energyLevel,
     personalityPrefs,
-    locationName,
     pendingTaskCount: pendingTasks.length,
     completedTodayCount: completedToday.length,
     topTasks,
@@ -412,7 +402,6 @@ function formatContextBlock(ctx: Omit<AIContext, "formatted">): string {
   lines.push(
     `- Energy level: ${ctx.energyLevel ?? "not logged recently"}`
   );
-  lines.push(`- Location: ${ctx.locationName ?? "Unknown"}`);
 
   // Tasks summary
   lines.push(`- Pending tasks: ${ctx.pendingTaskCount}`);

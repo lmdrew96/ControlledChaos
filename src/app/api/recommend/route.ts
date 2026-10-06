@@ -80,11 +80,6 @@ export async function POST(request: Request) {
     // Get completed today count (needs timezone, so separate call)
     const completedToday = await getTasksCompletedToday(userId, timezone);
 
-    // Where the user probably is, inferred from today's calendar (buildAIContext).
-    const locationContext: UserContext["location"] | undefined = aiCtx.locationName
-      ? { name: aiCtx.locationName }
-      : undefined;
-
     // Determine energy level + most recent Moment (for AI prompt context)
     const [energyLevel, recentMomentRow] = await Promise.all([
       getCurrentEnergy(userId, timezone, energyOverride),
@@ -143,7 +138,6 @@ export async function POST(request: Request) {
     const context: UserContext = {
       currentTime: localTime,
       timezone,
-      location: locationContext,
       currentEvent: currentEvent
         ? {
             title: currentEvent.title,
@@ -218,7 +212,6 @@ export async function POST(request: Request) {
       action: "recommended",
       context: {
         energy: energyLevel,
-        location: locationContext?.name ?? null,
         time_of_day: context.currentTime,
         time_available: minutesUntil ?? null,
       },
@@ -241,7 +234,6 @@ export async function POST(request: Request) {
       },
       context: {
         energyLevel,
-        location: locationContext?.name ?? null,
         minutesUntilNextEvent: minutesUntil ?? null,
         pendingTaskCount: pendingTasks.length,
       },

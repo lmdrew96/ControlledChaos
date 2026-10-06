@@ -85,7 +85,7 @@ const ASSERTIVENESS_OPTIONS: Array<{
     value: "balanced",
     label: "Balanced",
     description:
-      "Your own reminders always come through, plus up to 6 app nudges a day. Departure nudges included. Neutral language.",
+      "Your own reminders always come through, plus up to 6 app nudges a day. Neutral language.",
   },
   {
     value: "assertive",
@@ -568,9 +568,8 @@ export function NotificationSettings() {
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">
           No push notifications during these hours — including deadline
-          reminders, no matter how close the deadline is. The only exception is
-          a &ldquo;time to leave now&rdquo; alert for an event you would
-          otherwise miss. Email digests are unaffected.
+          reminders, no matter how close the deadline is. Email digests are
+          unaffected.
         </p>
         <div className="flex flex-wrap items-center gap-2 sm:pl-6">
           <input

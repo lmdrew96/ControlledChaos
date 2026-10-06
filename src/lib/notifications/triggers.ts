@@ -5,9 +5,6 @@ import {
   createNotification,
   getRecentTaskActivity,
   getCalendarEventsByDateRange,
-  getCurrentLocation,
-  getSavedLocations,
-  getCommuteTimes,
   getSessionsStartingBetween,
   getLastMicrotaskCompletion,
 } from "@/lib/db/queries";
@@ -20,10 +17,6 @@ import {
   describeFromNow,
   DISPLAY_TIME,
 } from "@/lib/timezone";
-import {
-  matchEventLocationToSavedLocation,
-  shortestCommuteMinutes,
-} from "@/lib/calendar/commute-buffers";
 /**
  * The Anthropic SDK and the prompt builders load lazily, not at module scope.
  * Every cron route reaches this module, but only a small fraction of ticks
@@ -296,10 +289,7 @@ export async function getTargetReminders(
 /**
  * Check for upcoming calendar events that need push reminders.
  *
- * Skipped:
- * - All-day events (start time is midnight in user's timezone — reminders fire at odd hours).
- * - Events whose location matches a saved location (handled by getDepartureAlerts instead,
- *   to avoid double-firing time-to-leave + reminder within the same window).
+ * Skipped: all-day events (start time is midnight in user's timezone — reminders fire at odd hours).
  */
 /** Reminders this far out or further are "the day before". */
 const DAY_AHEAD_MINUTES = 1440;
@@ -342,11 +332,6 @@ export async function getEventReminders(
 
   for (const event of events) {
     if (event.isAllDay) continue;
-    // Events at a saved location used to be skipped here on the assumption
-    // that getDepartureAlerts covers them. It often doesn't: it returns nothing
-    // without a commute_times row for the current route or with a stale
-    // location, so those events got no reminder at all. Time-to-leave is now
-    // an extra alert on top of these, not a replacement for them.
 
     const startMs = new Date(event.startTime).getTime();
     const diff = startMs - nowMs;
@@ -636,8 +621,6 @@ export type PushNotificationContext =
   | { type: "idle_checkin"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_afternoon"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
   | { type: "idle_checkin_evening"; topTask?: TopPendingTask; activityLevel: "active" | "idle" }
-  | { type: "time_to_leave_soon"; eventTitle: string; minutesUntilLeave: number; destination: string; commuteMinutes: number }
-  | { type: "time_to_leave_now"; eventTitle: string; destination: string; commuteMinutes: number }
   | { type: "crisis_detected"; taskNames: string[]; availableHours: number; requiredHours: number }
   | { type: "crisis_worsened"; taskNames: string[]; newRatio: number };
 
@@ -653,8 +636,6 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
   idle_checkin: "Got anything on your mind? Quick brain dump?",
   idle_checkin_afternoon: "Afternoon's ticking. One small thing is better than nothing.",
   idle_checkin_evening: "It's 7:00 and today's still open. Want to close one task before tonight?",
-  time_to_leave_soon: "Time to start wrapping up — you need to head out soon.",
-  time_to_leave_now: "Time to leave! You need to go now to make it.",
   crisis_detected: "Some of your deadlines are on a collision course. There's a plan in Rescue if you want it.",
   crisis_worsened: "Things just got tighter. Your rescue plan is still waiting in Rescue.",
 };
@@ -663,16 +644,14 @@ const PUSH_FALLBACKS: Record<PushNotificationContext["type"], string> = {
  * Generate a push notification message via Claude Haiku.
  * Falls back to a hardcoded string if the AI call fails.
  *
- * @param userLocation - Where the user probably is (e.g. "Home", "Campus"), inferred from
- *   today's calendar by getCurrentLocation. When provided, the AI can weave it in
- *   naturally for extra context.
+ * No line about where the user is: the app has no live position, and a guess
+ * ("still at home") read as fact while they were already on the way.
  */
 export async function generatePushMessage(
   ctx: PushNotificationContext,
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
   mode: NotificationAssertiveness = "balanced",
-  userLocation?: string,
   scheduleContext?: string
 ): Promise<string> {
   let userMsg: string;
@@ -681,9 +660,8 @@ export async function generatePushMessage(
     if (ctx.inProgress) userMsg += `\nTask state: ALREADY IN PROGRESS`;
   } else if (ctx.type === "event_reminder") {
     userMsg = `Type: event_reminder\nEvent: "${ctx.eventTitle}"\nStarts (user's local time): ${formatForAI(ctx.at, timezone)}\nTime until event: ${formatReminderInterval(ctx.minutesUntil)} (${ctx.minutesUntil} min)`;
-    // The event's own location was already loaded for the time-to-leave match
-    // but never reached the writer, so "your class starts in 10" could never
-    // say where.
+    // Where the event is, so "your class starts in 10" can say where. Never
+    // where the user is: that's unknown.
     if (ctx.location) userMsg += `\nLocation: "${ctx.location}"`;
     if (ctx.tentative) userMsg += `\nCommitment: TENTATIVE (the user may or may not go)`;
   } else if (ctx.type === "target_reminder") {
@@ -705,10 +683,6 @@ export async function generatePushMessage(
     if (ctx.topTask) {
       userMsg += `\nTop pending task: "${ctx.topTask.title}"${describeTaskDetail(ctx.topTask, timezone)}`;
     }
-  } else if (ctx.type === "time_to_leave_soon") {
-    userMsg = `Type: time_to_leave_soon\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nMinutes until you need to leave: ${ctx.minutesUntilLeave}\nCommute time: ${ctx.commuteMinutes} min`;
-  } else if (ctx.type === "time_to_leave_now") {
-    userMsg = `Type: time_to_leave_now\nEvent: "${ctx.eventTitle}"\nDestination: "${ctx.destination}"\nCommute time: ${ctx.commuteMinutes} min`;
   } else if (ctx.type === "crisis_detected") {
     const names = ctx.taskNames.join(" and ");
     userMsg = `Type: crisis_detected\nConflicting tasks: ${names}\nAvailable work time: ${ctx.availableHours.toFixed(1)} hours\nRequired work time: ${ctx.requiredHours.toFixed(1)} hours`;
@@ -734,11 +708,6 @@ export async function generatePushMessage(
           `"${a.title}" (${formatForDisplay(a.at, timezone, DISPLAY_TIME)}, ${describeFromNow(a.at)})`
       )
       .join(", ")}`;
-  }
-
-  // Append the user's last known location so the AI can reference it naturally
-  if (userLocation) {
-    userMsg += `\nUser is probably at (from their calendar): "${userLocation}"`;
   }
 
   // Append schedule/task context so the AI knows what the user's day looks like
@@ -835,12 +804,10 @@ export async function generateNudgeMessage(
   prefs: PersonalityPrefs | null = null,
   timezone: string = "America/New_York",
   mode: NotificationAssertiveness = "balanced",
-  userLocation?: string,
   scheduleContext?: string
 ): Promise<string> {
   try {
     let userMsg = `Tier: ${tier}\nHours inactive: ${Math.round(hoursInactive)}`;
-    if (userLocation) userMsg += `\nUser is probably at (from their calendar): "${userLocation}"`;
     if (scheduleContext) userMsg += `\n\n${scheduleContext}`;
     const [{ callHaiku }, { buildInactivityNudgePrompt }] = await loadAi();
     const { text } = await callHaiku({
@@ -868,24 +835,9 @@ export interface TopPendingTask extends AlertingTaskDetail {
 /**
  * Returns the top pending task to surface in idle check-ins.
  * getPendingTasks already sorts deadline-first (nearest deadline → no deadline → newest).
- *
- * When the user's current location is known, prefer a task tagged for that
- * location (still respecting deadline ordering within matched tasks).
  */
-export async function getTopPendingTask(
-  userId: string,
-  locationName?: string
-): Promise<TopPendingTask | undefined> {
-  const pending = await getPendingTasks(userId);
-
-  const locationTask = locationName
-    ? pending.find((t) =>
-        t.locationTags?.some(
-          (tag) => tag.toLowerCase() === locationName.toLowerCase()
-        )
-      )
-    : undefined;
-  const task = locationTask ?? pending[0];
+export async function getTopPendingTask(userId: string): Promise<TopPendingTask | undefined> {
+  const [task] = await getPendingTasks(userId);
   if (!task) return undefined;
 
   return {
@@ -999,113 +951,4 @@ export async function getInactivityNudgeTier(
   const tier: NudgeTier = hoursInactive >= 120 ? 3 : hoursInactive >= 96 ? 2 : 1;
 
   return { tier, streakKey, hoursInactive };
-}
-
-// ============================================================
-// Time to Leave — departure alerts for upcoming calendar events
-// ============================================================
-
-export interface DepartureAlert {
-  eventId: string;
-  eventTitle: string;
-  eventStartTime: Date;
-  destination: string; // matched saved location name
-  commuteMinutes: number;
-  leaveByTime: Date; // when user needs to leave
-  minutesUntilLeave: number; // from now
-  level: "soon" | "now"; // "soon" = 10-20 min out, "now" = 0-10 min out
-}
-
-const DEPARTURE_BUFFER_MINUTES = 5; // Extra buffer on top of commute time
-
-// Location matching lives with the other commute helpers; re-exported so
-// existing importers keep working.
-export { matchEventLocationToSavedLocation };
-
-/**
- * Get departure alerts for a user's upcoming events.
- * Compares event locations to saved locations and calculates when
- * the user needs to leave based on commute times.
- */
-export async function getDepartureAlerts(
-  userId: string,
-  timezone: string
-): Promise<DepartureAlert[]> {
-  const now = new Date();
-  const lookAheadEnd = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 hours ahead
-
-  const [upcomingEvents, savedLocs, allCommutes] = await Promise.all([
-    getCalendarEventsByDateRange(userId, now, lookAheadEnd),
-    getSavedLocations(userId),
-    getCommuteTimes(userId),
-  ]);
-  if (savedLocs.length === 0 || allCommutes.length === 0) return [];
-
-  // Where the user is leaving from, inferred from today's calendar (home
-  // before the first located event). Unknown → no alert rather than a guess.
-  const origin = await getCurrentLocation(userId, timezone, savedLocs);
-  if (!origin) return [];
-
-  const alerts: DepartureAlert[] = [];
-
-  for (const event of upcomingEvents) {
-    if (event.isAllDay) continue;
-    // "You need to leave now" is exactly the obligation a maybe mustn't carry.
-    if (event.isTentative) continue;
-    if (!event.location) continue;
-
-    // Match event location to a saved location
-    const destination = matchEventLocationToSavedLocation(event.location, savedLocs);
-    if (!destination) continue;
-
-    // Skip if already at the destination
-    if (destination.id === origin.id) continue;
-
-    // Find commute time from current location to event location
-    // Check all travel modes and use the shortest (most likely mode)
-    const commuteMinutes = shortestCommuteMinutes(
-      origin.id,
-      destination.id,
-      allCommutes
-    );
-    if (commuteMinutes === null) continue;
-
-    // Calculate when user needs to leave
-    const eventStart = new Date(event.startTime);
-    const leaveByTime = new Date(
-      eventStart.getTime() - (commuteMinutes + DEPARTURE_BUFFER_MINUTES) * 60_000
-    );
-    const minutesUntilLeave = Math.round(
-      (leaveByTime.getTime() - now.getTime()) / 60_000
-    );
-
-    // Skip if leave time already passed by more than 5 min
-    if (minutesUntilLeave < -5) continue;
-
-    // Determine alert level
-    let level: "soon" | "now";
-    if (minutesUntilLeave <= 0) {
-      level = "now"; // Need to leave NOW
-    } else if (minutesUntilLeave <= 20) {
-      level = "soon"; // Need to leave in 10-20 min
-    } else {
-      continue; // Too far out, skip
-    }
-
-    alerts.push({
-      eventId: event.id,
-      eventTitle: event.title,
-      eventStartTime: eventStart,
-      destination: destination.name,
-      commuteMinutes,
-      leaveByTime,
-      minutesUntilLeave: Math.max(0, minutesUntilLeave),
-      level,
-    });
-  }
-
-  // Sort by most urgent first
-  alerts.sort((a, b) => a.minutesUntilLeave - b.minutesUntilLeave);
-
-  return alerts;
 }

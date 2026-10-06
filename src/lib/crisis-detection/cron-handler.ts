@@ -19,7 +19,7 @@ import {
   getRecentMoments,
   getCommuteSetup,
 } from "@/lib/db/queries";
-import { commuteContextFrom, travelBuffers } from "@/lib/calendar/commute-buffers";
+import { travelBuffers } from "@/lib/calendar/commute-buffers";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
@@ -42,7 +42,6 @@ interface CronContext {
   notificationPrefs: NotificationPrefs | null;
   assertivenessMode: NotificationAssertiveness;
   getSnapshot: () => Promise<string | undefined>;
-  getLocationName: () => Promise<string | undefined>;
   /**
    * Why an app-lane push can't go out this tick, or null if it can. Crisis
    * pushes are app-initiated, so the daily cap and tick budget apply.
@@ -129,10 +128,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   // buffers (api/crisis/route.ts eventsWithTravel), so both see one number.
   const busyRows = [
     ...calendarRows,
-    ...travelBuffers(calendarRows, commute.savedLocations, commute.commutes, {
-      startLocationId: commute.currentLocationId,
-      now,
-    }).map((b) => ({
+    ...travelBuffers(calendarRows, commute.savedLocations, commute.commutes, { now }).map((b) => ({
       title: `Travel to ${b.destination}`,
       startTime: b.start,
       endTime: b.end,
@@ -203,7 +199,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       ctx.personalityPrefs,
       userTimezone,
       ctx.assertivenessMode,
-      await ctx.getLocationName(),
       await ctx.getSnapshot()
     );
 
@@ -264,8 +259,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
           userTimezone,
           wakeTime,
           sleepTime,
-          allTasks.length,
-          commute
+          allTasks.length
         );
         if (planId) {
           console.log(`[CrisisDetection] Auto-triage plan=${planId} generated for detection=${detection.id}`);
@@ -305,8 +299,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         userTimezone,
         wakeTime,
         sleepTime,
-        allTasks.length,
-        commute
+        allTasks.length
       );
     } catch (err) {
       console.error(`[CrisisDetection] Auto-triage plan generation failed for detection=${existing.id}:`, err);
@@ -351,7 +344,6 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
         ctx.personalityPrefs,
         ctx.timezone,
         ctx.assertivenessMode,
-        await ctx.getLocationName(),
         await ctx.getSnapshot()
       );
 
@@ -402,7 +394,6 @@ async function sendCrisisNotification(
     ctx.personalityPrefs,
     ctx.timezone,
     ctx.assertivenessMode,
-    await ctx.getLocationName(),
     await ctx.getSnapshot()
   );
 
@@ -428,8 +419,7 @@ async function generateAutoTriagePlan(
   timezone: string,
   wakeTime: number,
   sleepTime: number,
-  totalPendingTaskCount: number,
-  commute: Awaited<ReturnType<typeof getCommuteSetup>>
+  totalPendingTaskCount: number
 ): Promise<string | null> {
   const now = new Date();
   const firstDeadline = result.firstDeadline;
@@ -472,10 +462,6 @@ async function generateAutoTriagePlan(
         };
       }),
     existingPendingTaskCount: totalPendingTaskCount,
-    // Same location lines the manual route sends, so a plan that needs the
-    // user somewhere else gets its "Leave for" step either way.
-    currentLocation: commute.currentLocationName,
-    commuteContext: commuteContextFrom(commute.currentLocationId, commute.savedLocations, commute.commutes),
   };
 
   const crisisResult = await getCrisisPlan(params);

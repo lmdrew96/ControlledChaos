@@ -291,8 +291,8 @@ export const locations = pgTable("locations", {
   name: text("name").notNull(),
   latitude: decimal("latitude", { precision: 10, scale: 8 }),
   longitude: decimal("longitude", { precision: 11, scale: 8 }),
-  // Where the user is assumed to be before their first located event of the
-  // day (inferCurrentLocation). At most one per user; setHomeLocation enforces it.
+  // Unused since v2.86.1: it seeded a guess of where the user was ("home until
+  // the first event"), and the app no longer guesses. Kept until a migration drops it.
   isHome: boolean("is_home").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

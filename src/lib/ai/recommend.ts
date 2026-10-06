@@ -67,10 +67,6 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
     };
   });
 
-  const locationLine = context.location
-    ? `${context.location.name} (inferred from today's calendar)`
-    : "Unknown (no location data — do NOT assume any location)";
-
   const currentEventLine = context.currentEvent
     ? `\n- CURRENTLY IN: "${context.currentEvent.title}" — free in ${context.currentEvent.minutesUntilFree} minutes`
     : "";
@@ -184,7 +180,6 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   return `## Current Context
 - Time of day: ${timeOfDay}
-- Location: ${locationLine}
 - Current energy level: ${context.energyLevel ?? "Unknown"}${recentMomentLine}${currentEventLine}
 - Next event: ${eventLine}${availableTimeLine}
 - Tasks completed today: ${context.recentActivity?.tasksCompletedToday ?? 0}

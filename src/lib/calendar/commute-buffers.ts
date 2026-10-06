@@ -1,9 +1,8 @@
 /**
  * Travel time between calendar events at different saved locations.
  *
- * Leave-now pushes always knew about commutes; the scheduler and crisis
- * detection didn't, so a plan could put a sitting in the 15 minutes the user
- * spends walking from one building to the next. These helpers turn "class at
+ * Without them, a plan could put a sitting in the 15 minutes the user spends
+ * walking from one building to the next. These helpers turn "class at
  * Smith Hall, then a meeting at Home" into a busy "Travel to Home" interval
  * that every busy-time calculation can treat like any other event.
  *
@@ -87,63 +86,6 @@ export function shortestCommuteMinutes(
   return best;
 }
 
-/** How long after a located event ends we still assume the user is there. */
-const STILL_THERE_AFTER_EVENT_MS = 2 * 60 * 60 * 1000;
-
-/**
- * Where the user probably is right now, read off today's calendar. There is
- * no live position: installed web apps get no background geolocation, so a
- * GPS fix was stale for exactly the hours it mattered.
- *
- * - In an event at a saved location, or under 2h past its end → there.
- * - No located event yet today → home (the location marked isHome, if any).
- * - Otherwise (long gap, or last event somewhere unrecognised) → unknown.
- *   An unknown location skips the commute rather than guessing one.
- *
- * `events` should be today's committed events, already filtered of tentative
- * ones: you may not have gone to a maybe.
- */
-export function inferCurrentLocation(
-  events: LocatedEvent[],
-  savedLocations: Array<SavedLocation & { isHome?: boolean | null }>,
-  now: Date,
-  dayStart: Date
-): SavedLocation | null {
-  const home = savedLocations.find((l) => l.isHome) ?? null;
-
-  const located = events
-    .filter((e) => !e.isAllDay && e.location?.trim())
-    .map((e) => ({ start: new Date(e.startTime), end: new Date(e.endTime), location: e.location }))
-    .filter((e) => e.start <= now && e.end > dayStart)
-    .sort((a, b) => a.start.getTime() - b.start.getTime() || a.end.getTime() - b.end.getTime());
-
-  const last = located[located.length - 1];
-  if (!last) return home;
-
-  const match = matchEventLocationToSavedLocation(last.location, savedLocations);
-  if (!match) return null;
-
-  return now.getTime() - last.end.getTime() <= STILL_THERE_AFTER_EVENT_MS ? match : null;
-}
-
-/**
- * The commute legs from where the user is now, for the crisis prompt's
- * "Leave for [destination]" rule. One row per destination.
- */
-export function commuteContextFrom(
-  fromLocationId: string | null,
-  savedLocations: SavedLocation[],
-  commutes: CommuteRow[]
-): Array<{ to: string; minutes: number }> {
-  if (!fromLocationId) return [];
-  return savedLocations
-    .filter((l) => l.id !== fromLocationId)
-    .flatMap((l) => {
-      const minutes = shortestCommuteMinutes(fromLocationId, l.id, commutes);
-      return minutes === null ? [] : [{ to: l.name, minutes }];
-    });
-}
-
 /**
  * Travel intervals the user needs between events.
  *
@@ -156,14 +98,16 @@ export function commuteContextFrom(
  * - An event with no location doesn't move the user.
  * - An event at an unrecognised location means we no longer know where they
  *   are, so no buffer is guessed for the next hop.
- * - `startLocationId` (inferCurrentLocation) seeds the first hop, and
- *   `now` floors that first buffer so it never lands in the past.
+ * - The first located event gets no buffer: there's no live position, and
+ *   guessing an origin (e.g. "home until the first event") made pushes claim
+ *   "you're still at home" while the user was already driving there.
+ * - `now` floors every buffer so none lands in the past.
  */
 export function travelBuffers(
   events: LocatedEvent[],
   savedLocations: SavedLocation[],
   commutes: CommuteRow[],
-  opts: { startLocationId?: string | null; now?: Date } = {}
+  opts: { now?: Date } = {}
 ): TravelBuffer[] {
   if (savedLocations.length === 0 || commutes.length === 0) return [];
 
@@ -177,7 +121,7 @@ export function travelBuffers(
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const buffers: TravelBuffer[] = [];
-  let lastLocationId: string | null = opts.startLocationId ?? null;
+  let lastLocationId: string | null = null;
   let lastEndMs = opts.now?.getTime() ?? -Infinity;
 
   for (const e of timed) {

@@ -214,9 +214,6 @@ export type RecapEntry =
 export interface UserContext {
   currentTime: string;
   timezone: string;
-  location?: {
-    name: string;
-  };
   currentEvent?: {
     title: string;
     endTime: string;

@@ -8,9 +8,6 @@ vi.mock("@/lib/db/queries", () => ({
   getPendingTasks: vi.fn(),
   getRecentTaskActivity: vi.fn(),
   getCalendarEventsByDateRange: vi.fn(),
-  getCurrentLocation: vi.fn(),
-  getSavedLocations: vi.fn(),
-  getCommuteTimes: vi.fn(),
 }));
 
 const { formatReminderInterval } = await import("@/lib/notifications/triggers");

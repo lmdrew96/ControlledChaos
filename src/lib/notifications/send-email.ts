@@ -18,7 +18,6 @@ import {
   getActiveCrisisPlans,
   getRecentTaskActivity,
   createNotification,
-  getCurrentLocation,
   getScheduledSessionsInRange,
   getUserGoals,
 } from "@/lib/db/queries";
@@ -94,7 +93,6 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  const locationName = (await getCurrentLocation(userId, timezone))?.name ?? null;
   const now = new Date();
 
   // Today's events
@@ -170,7 +168,6 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User is probably at (from their calendar): ${locationName}` : null,
     `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
     `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}${t.locationTags?.length ? ` [at: ${t.locationTags.join(", ")}]` : ""}`).join("; ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
@@ -265,7 +262,6 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   if (!user?.email) return false;
 
   const timezone = user.timezone ?? "America/New_York";
-  const locationName = (await getCurrentLocation(userId, timezone))?.name ?? null;
   const now = new Date();
 
   // Tasks completed today
@@ -334,7 +330,6 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    locationName ? `User is probably at (from their calendar): ${locationName}` : null,
     `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
     `${priorityLabel}: ${
       tomorrowPriority

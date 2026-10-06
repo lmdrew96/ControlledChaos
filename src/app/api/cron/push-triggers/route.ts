@@ -5,7 +5,6 @@ import {
   markSnoozedPushSent,
   deleteSnoozedPush,
   type SnoozedPushPayload,
-  getCurrentLocation,
   getScheduledSessionsInRange,
   getCalendarEventsByDateRange,
   getPushUser,
@@ -31,7 +30,6 @@ import {
   getDailyPushCap,
   getAssertivenessMode,
   getScheduledTaskAlerts,
-  getDepartureAlerts,
   getAppPushesSentToday,
   CHECK_IN_START_HOUR,
   shouldSendIdleCheckin,
@@ -232,18 +230,6 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
   // that sendPushToUser would silently suppress anyway.
   const quietHoursActive = notificationPrefs ? isQuietHours(notificationPrefs, timezone) : false;
 
-  // Lazy location fetch — only hits DB on first call, cached for this user
-  let _locationName: string | undefined;
-  let _locationFetched = false;
-  const getLocationName = async () => {
-    if (!_locationFetched) {
-      // Inferred from today's calendar; undefined when unknown.
-      _locationName = (await getCurrentLocation(userId, timezone))?.name;
-      _locationFetched = true;
-    }
-    return _locationName;
-  };
-
   // Build user context snapshot once per user — shared across all notification types
   let _snapshot: { formatted: string; scheduleOnly: string } | undefined;
   let _snapshotFetched = false;
@@ -312,19 +298,13 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
    * Why a push may not go out this tick, or null if it may.
    *
    * Two lanes. USER-lane pushes (reminders the user configured, planned
-   * starts, the check-in, time-to-leave) are never blocked by the daily cap.
+   * starts, the check-in) are never blocked by the daily cap.
    * APP-lane pushes (inactivity nudges, missed-session follow-ups, crisis)
    * are the only ones the cap and pacing govern. Quiet hours and the per-tick
    * budget apply to both.
    */
-  const refusal = (
-    lane: PushLane,
-    priority: "high" | "normal",
-    bypassesQuietHours = false,
-    urgent = false
-  ): SkipReason | null => {
-    if (quietHoursActive && !bypassesQuietHours) return "quiet_hours";
-    if (urgent) return null;
+  const refusal = (lane: PushLane, priority: "high" | "normal"): SkipReason | null => {
+    if (quietHoursActive) return "quiet_hours";
     // The app's own pushes never ride along behind another one in the same
     // tick: two at once is the burst, one ten minutes later is the beat.
     if (lane === "app" && userSent > 0) return "tick_budget";
@@ -355,8 +335,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
   // already notified, group what's left by situation, and send one push per
   // group. See lib/notifications/cluster.ts for the grouping rules.
   //
-  // Time-to-leave and crisis alerts stay out of this on purpose (below):
-  // "leave now" must never be buried inside a merged message.
+  // Crisis alerts stay out of this on purpose (below).
   const candidates: Candidate[] = [];
 
   for (const r of await getDeadlineReminders(userId, notificationPrefs)) {
@@ -615,7 +594,6 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       personalityPrefs,
       timezone,
       mode,
-      await getLocationName(),
       await getReminderSnapshot()
     );
     const sent = await sendPushToUser(userId, {
@@ -665,43 +643,9 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
     }
   }
 
-  // A fire is about one moment's reminders. Leave-now, check-ins, nudges and
+  // A fire is about one moment's reminders. Check-ins, nudges and
   // crisis detection are window-based and stay on the tick.
   if (scope === "fire") return userSent;
-
-  // --- Time to Leave Alerts ---
-  const departureAlerts = await getDepartureAlerts(userId, timezone);
-  for (const alert of departureAlerts) {
-    // "Leave now" is the one alert where being late is unrecoverable, so it
-    // bypasses the tick budget and the daily cap outright.
-    if (refusal("user", "high", alert.level === "now", alert.level === "now")) continue;
-
-    const dedupKey = `time-to-leave-${alert.eventId}-${alert.level}`;
-    if (await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
-
-    const notifCtx = alert.level === "now"
-      ? { type: "time_to_leave_now" as const, eventTitle: alert.eventTitle, destination: alert.destination, commuteMinutes: alert.commuteMinutes }
-      : { type: "time_to_leave_soon" as const, eventTitle: alert.eventTitle, minutesUntilLeave: alert.minutesUntilLeave, destination: alert.destination, commuteMinutes: alert.commuteMinutes };
-
-    const message = await generatePushMessage(
-      notifCtx,
-      personalityPrefs,
-      timezone,
-      mode,
-      await getLocationName(),
-      await getReminderSnapshot()
-    );
-    const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
-      body: message,
-      url: "/calendar",
-      tag: dedupKey,
-      dedupKeys: [dedupKey, ...(await checkInFoldKeys())],
-      bypassQuietHours: alert.level === "now",
-      lane: "user",
-    });
-    if (sent) markSent("user");
-  }
 
   // --- Daily Idle Check-in (at most one per day, in user's chosen window) ---
   const checkInRefusal = refusal("user", "normal");
@@ -716,8 +660,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
     if (!status.shouldSend) {
       console.log(`[Push][CheckIn] skip user=${userId} reason=outside_window_or_not_due window=${checkInConfig.window}`);
     } else {
-      const locName = await getLocationName();
-      const topTask = await getTopPendingTask(userId, locName);
+      const topTask = await getTopPendingTask(userId);
       const messageType =
         checkInConfig.window === "morning"
           ? "idle_checkin"
@@ -729,7 +672,6 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         personalityPrefs,
         timezone,
         mode,
-        locName,
         await getSnapshot()
       );
       const sent = await sendPushToUser(userId, {
@@ -767,7 +709,6 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         personalityPrefs,
         timezone,
         mode,
-        await getLocationName(),
         await getSnapshot()
       );
       const sent = await sendPushToUser(userId, {
@@ -793,7 +734,6 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         notificationPrefs,
         assertivenessMode: mode,
         getSnapshot,
-        getLocationName,
         appPushRefusal: () => refusal("app", "high"),
       });
       if (crisisResult.notificationSent) markSent("app");
