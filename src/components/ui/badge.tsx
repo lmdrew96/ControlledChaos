@@ -19,7 +19,7 @@ const badgeVariants = cva(
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
         sticky:
-          "rounded-[2px] border-transparent bg-adhd-sage text-adhd-dark shadow-sm font-semibold",
+          "rounded-[2px] border-transparent bg-salmon text-indigo shadow-sm font-semibold",
       },
     },
     defaultVariants: {

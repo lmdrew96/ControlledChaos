@@ -15,7 +15,7 @@ export function WashiTape({ className, rotate = -7 }: WashiTapeProps) {
       className={cn("pointer-events-none absolute h-6 w-16 shadow-sm", className)}
       style={{
         background:
-          "repeating-linear-gradient(45deg, var(--adhd-green) 0 6px, color-mix(in srgb, var(--adhd-amber) 55%, var(--adhd-green)) 6px 12px)",
+          "repeating-linear-gradient(45deg, var(--light-peach) 0 6px, color-mix(in srgb, var(--coral) 55%, var(--light-peach)) 6px 12px)",
         opacity: 0.85,
         transform: `rotate(${rotate}deg)`,
       }}

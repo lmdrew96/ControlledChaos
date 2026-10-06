@@ -43,8 +43,8 @@ export function CrisisDone({ taskName }: Props) {
         /* Horizontal beams */
         .laser-h {
           left: -5%; right: -5%; height: 2px;
-          background: linear-gradient(90deg, transparent 0%, var(--adhd-lavender) 30%, var(--adhd-purple) 60%, var(--adhd-green) 80%, transparent 100%);
-          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--adhd-lavender) 38%, transparent);
+          background: linear-gradient(90deg, transparent 0%, var(--lavender) 30%, var(--plum) 60%, var(--light-peach) 80%, transparent 100%);
+          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--lavender) 38%, transparent);
           border-radius: 2px;
         }
         @keyframes laser-h-flash {
@@ -56,8 +56,8 @@ export function CrisisDone({ taskName }: Props) {
         /* Vertical beams */
         .laser-v {
           top: -5%; bottom: -5%; width: 2px;
-          background: linear-gradient(180deg, transparent 0%, var(--adhd-amber) 30%, var(--adhd-green) 60%, var(--adhd-sage) 80%, transparent 100%);
-          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--adhd-amber) 38%, transparent);
+          background: linear-gradient(180deg, transparent 0%, var(--coral) 30%, var(--light-peach) 60%, var(--salmon) 80%, transparent 100%);
+          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--coral) 38%, transparent);
           border-radius: 2px;
           animation-name: laser-v-flash;
         }
@@ -74,14 +74,14 @@ export function CrisisDone({ taskName }: Props) {
           animation-name: laser-d-flash;
         }
         .laser-d1 {
-          background: linear-gradient(90deg, transparent, var(--adhd-purple), var(--adhd-lavender), transparent);
-          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--adhd-purple) 31%, transparent);
+          background: linear-gradient(90deg, transparent, var(--plum), var(--lavender), transparent);
+          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--plum) 31%, transparent);
           transform: rotate(25deg);
           transform-origin: center;
         }
         .laser-d2 {
-          background: linear-gradient(90deg, transparent, var(--adhd-green), var(--adhd-sage), transparent);
-          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--adhd-sage) 31%, transparent);
+          background: linear-gradient(90deg, transparent, var(--light-peach), var(--salmon), transparent);
+          box-shadow: 0 0 10px 3px color-mix(in srgb, var(--salmon) 31%, transparent);
           transform: rotate(-25deg);
           transform-origin: center;
         }

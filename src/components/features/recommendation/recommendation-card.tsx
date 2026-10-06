@@ -136,8 +136,8 @@ export function RecommendationCard({
 
           {/* Current step display — when task has progress steps */}
           {hasSteps && currentStep && (
-            <div className="rounded-lg border-l-4 border-l-adhd-teal bg-background/50 p-3 dark:border-l-adhd-sage">
-              <p className="text-xs font-medium text-adhd-teal mb-1 dark:text-adhd-sage">
+            <div className="rounded-lg border-l-4 border-l-deep-purple bg-background/50 p-3 dark:border-l-salmon">
+              <p className="text-xs font-medium text-deep-purple mb-1 dark:text-salmon">
                 Step {(task.currentStepIndex ?? 0) + 1} of {steps.length}
               </p>
               <p className="text-sm font-medium">{currentStep.title}</p>
@@ -165,7 +165,7 @@ export function RecommendationCard({
               onClick={() => onAccept(task.id)}
               disabled={isRefreshing}
               size="sm"
-              className="shadow-[2px_2px_0_var(--adhd-teal)] transition-[transform,box-shadow] hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_var(--adhd-teal)]"
+              className="shadow-[2px_2px_0_var(--deep-purple)] transition-[transform,box-shadow] hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_var(--deep-purple)]"
             >
               {isRefreshing ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />

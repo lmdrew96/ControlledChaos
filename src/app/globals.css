@@ -32,17 +32,17 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
-  /* Brand palette — direct utility access (e.g. bg-adhd-teal/15) */
-  --color-adhd-bg: var(--adhd-bg);
-  --color-adhd-dark: var(--adhd-dark);
-  --color-adhd-lavender: var(--adhd-lavender);
-  --color-adhd-purple: var(--adhd-purple);
-  --color-adhd-amber: var(--adhd-amber);
-  --color-adhd-olive: var(--adhd-olive);
-  --color-adhd-sage: var(--adhd-sage);
-  --color-adhd-teal: var(--adhd-teal);
-  --color-adhd-green: var(--adhd-green);
-  --color-adhd-clay: var(--adhd-clay);
+  /* Brand palette — direct utility access (e.g. bg-deep-purple/15) */
+  --color-peach-paper: var(--peach-paper);
+  --color-indigo: var(--indigo);
+  --color-lavender: var(--lavender);
+  --color-plum: var(--plum);
+  --color-coral: var(--coral);
+  --color-dark-plum: var(--dark-plum);
+  --color-salmon: var(--salmon);
+  --color-deep-purple: var(--deep-purple);
+  --color-light-peach: var(--light-peach);
+  --color-rose: var(--rose);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -67,114 +67,112 @@
 :root {
   --radius: 0.625rem;
 
-  /* ── ADHDesigns brand tokens — ControlledChaos-only sunset palette ── */
-  /* Values swapped from the shared ADHDesigns brand palette (see global
-     CLAUDE.md) to the sunset-palette.png set below. Token NAMES are kept
-     as-is (~15 components reference the adhd-prefixed utility classes
-     directly) — only the underlying hex values changed, so this is scoped
-     to ControlledChaos and doesn't touch any other ADHDesigns app.
+  /* ── Sunset palette — ControlledChaos only ── */
+  /* ControlledChaos doesn't use the shared ADHDesigns brand palette; it uses
+     the sunset-palette.png set below, and the tokens are named after it.
+     (Until v2.89.1 these were --adhd-purple, --adhd-sage etc., names left
+     over from the brand palette that no longer matched the colors.)
 
-       plum #5F4D75 · lavender #9378A1 · coral #FF5675 · peach #FBA09B
-       deep-purple #433358 · indigo #16131A · salmon #FF9295
-       light-peach #FFC7AC · dark-plum #45294F · rose #DE4A6C
+     Tailwind also ships rose-* and indigo-* scales. bg-rose / bg-indigo
+     (no shade) are these tokens; bg-rose-500 / bg-indigo-500 are Tailwind's
+     and aren't part of this palette.
 
      No true light-neutral or green exists in this set (verified via WCAG
-     contrast check). --adhd-bg is synthesized (white + a peach tint)
+     contrast check). --peach-paper is synthesized (white + a peach tint)
      since nothing in the palette is light enough alone to serve as a
-     comfortable reading background. --adhd-clay/amber (destructive/
-     accent) use rose/coral, which fail AA-normal as light text on white
-     (down to ~2.1:1) — they're paired with --adhd-dark text everywhere,
-     never light text, which is why --destructive-foreground below points
-     at --adhd-dark instead of --adhd-bg like the old brand palette did. */
-  --adhd-lavender: #9378A1;
-  --adhd-bg:       color-mix(in srgb, white 96%, #FBA09B);
-  --adhd-dark:     #16131A;
-  --adhd-purple:   #5F4D75;
-  --adhd-amber:    #FF5675;
-  --adhd-olive:    #45294F;
-  --adhd-sage:     #FF9295;
-  --adhd-teal:     #433358;
-  --adhd-green:    #FFC7AC;
-  --adhd-clay:     #DE4A6C;
+     comfortable reading background. --rose and --coral (destructive /
+     accent) fail AA-normal as light text on white (down to ~2.1:1), so
+     they're paired with --indigo text everywhere, never light text, which
+     is why --destructive-foreground below points at --indigo. */
+  --plum:         #5F4D75;
+  --lavender:     #9378A1;
+  --coral:        #FF5675;
+  --peach-paper:  color-mix(in srgb, white 96%, #FBA09B); /* white + peach #FBA09B */
+  --deep-purple:  #433358;
+  --indigo:       #16131A;
+  --salmon:       #FF9295;
+  --light-peach:  #FFC7AC;
+  --dark-plum:    #45294F;
+  --rose:         #DE4A6C;
 
   /* ── shadcn semantic mapping — paper mode ── */
   /* Page = off-white. Card = warm paper that lifts off the page.
      Cards visibly separate without needing heavy borders. */
-  --background:             var(--adhd-bg);
-  --foreground:             var(--adhd-dark);
-  --card:                   color-mix(in srgb, white 94%, var(--adhd-amber));
-  --card-foreground:        var(--adhd-dark);
-  --popover:                color-mix(in srgb, white 94%, var(--adhd-amber));
-  --popover-foreground:     var(--adhd-dark);
-  --primary:                var(--adhd-purple);
-  --primary-foreground:     var(--adhd-bg);
-  --secondary:              color-mix(in srgb, var(--adhd-bg) 88%, var(--adhd-lavender));
-  --secondary-foreground:   var(--adhd-dark);
-  --muted:                  color-mix(in srgb, var(--adhd-lavender) 50%, white);
-  --muted-foreground:       var(--adhd-purple);
-  --accent:                 var(--adhd-purple);
-  --accent-foreground:      var(--adhd-bg);
-  --destructive:            var(--adhd-clay);
-  --destructive-foreground: var(--adhd-dark);
-  --border:                 color-mix(in srgb, var(--adhd-dark) 10%, transparent);
-  --input:                  color-mix(in srgb, var(--adhd-dark) 8%, transparent);
-  --ring:                   var(--adhd-purple);
+  --background:             var(--peach-paper);
+  --foreground:             var(--indigo);
+  --card:                   color-mix(in srgb, white 94%, var(--coral));
+  --card-foreground:        var(--indigo);
+  --popover:                color-mix(in srgb, white 94%, var(--coral));
+  --popover-foreground:     var(--indigo);
+  --primary:                var(--plum);
+  --primary-foreground:     var(--peach-paper);
+  --secondary:              color-mix(in srgb, var(--peach-paper) 88%, var(--lavender));
+  --secondary-foreground:   var(--indigo);
+  --muted:                  color-mix(in srgb, var(--lavender) 50%, white);
+  --muted-foreground:       var(--plum);
+  --accent:                 var(--plum);
+  --accent-foreground:      var(--peach-paper);
+  --destructive:            var(--rose);
+  --destructive-foreground: var(--indigo);
+  --border:                 color-mix(in srgb, var(--indigo) 10%, transparent);
+  --input:                  color-mix(in srgb, var(--indigo) 8%, transparent);
+  --ring:                   var(--plum);
 
-  --success:                var(--adhd-olive);
-  --success-foreground:     var(--adhd-bg);
-  --warning:                var(--adhd-amber);
-  --warning-foreground:     var(--adhd-dark);
+  --success:                var(--dark-plum);
+  --success-foreground:     var(--peach-paper);
+  --warning:                var(--coral);
+  --warning-foreground:     var(--indigo);
 
-  --chart-1: var(--adhd-purple);
-  --chart-2: var(--adhd-amber);
-  --chart-3: var(--adhd-olive);
-  --chart-4: var(--adhd-sage);
-  --chart-5: var(--adhd-teal);
+  --chart-1: var(--plum);
+  --chart-2: var(--coral);
+  --chart-3: var(--dark-plum);
+  --chart-4: var(--salmon);
+  --chart-5: var(--deep-purple);
 
-  --sidebar:                      var(--adhd-dark);
-  --sidebar-foreground:           var(--adhd-bg);
-  --sidebar-primary:              var(--adhd-amber);
-  --sidebar-primary-foreground:   var(--adhd-dark);
-  --sidebar-accent:               color-mix(in srgb, var(--adhd-bg) 10%, transparent);
-  --sidebar-accent-foreground:    var(--adhd-bg);
-  --sidebar-border:               color-mix(in srgb, var(--adhd-bg) 12%, transparent);
-  --sidebar-ring:                 var(--adhd-amber);
+  --sidebar:                      var(--indigo);
+  --sidebar-foreground:           var(--peach-paper);
+  --sidebar-primary:              var(--coral);
+  --sidebar-primary-foreground:   var(--indigo);
+  --sidebar-accent:               color-mix(in srgb, var(--peach-paper) 10%, transparent);
+  --sidebar-accent-foreground:    var(--peach-paper);
+  --sidebar-border:               color-mix(in srgb, var(--peach-paper) 12%, transparent);
+  --sidebar-ring:                 var(--coral);
 }
 
 .dark {
-  --background:             var(--adhd-dark);
-  --foreground:             var(--adhd-bg);
-  --card:                   color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
-  --card-foreground:        var(--adhd-bg);
-  --popover:                color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
-  --popover-foreground:     var(--adhd-bg);
-  --primary:                var(--adhd-purple);
-  --primary-foreground:     var(--adhd-bg);
-  --secondary:              color-mix(in srgb, var(--adhd-dark) 85%, var(--adhd-purple));
-  --secondary-foreground:   var(--adhd-bg);
-  --muted:                  color-mix(in srgb, var(--adhd-dark) 80%, var(--adhd-purple));
-  --muted-foreground:       var(--adhd-lavender);
-  --accent:                 var(--adhd-amber);
-  --accent-foreground:      var(--adhd-dark);
-  --destructive:            var(--adhd-clay);
-  --destructive-foreground: var(--adhd-dark);
-  --border:                 color-mix(in srgb, var(--adhd-bg) 12%, transparent);
-  --input:                  color-mix(in srgb, var(--adhd-bg) 15%, transparent);
-  --ring:                   var(--adhd-amber);
+  --background:             var(--indigo);
+  --foreground:             var(--peach-paper);
+  --card:                   color-mix(in srgb, var(--indigo) 85%, var(--plum));
+  --card-foreground:        var(--peach-paper);
+  --popover:                color-mix(in srgb, var(--indigo) 85%, var(--plum));
+  --popover-foreground:     var(--peach-paper);
+  --primary:                var(--plum);
+  --primary-foreground:     var(--peach-paper);
+  --secondary:              color-mix(in srgb, var(--indigo) 85%, var(--plum));
+  --secondary-foreground:   var(--peach-paper);
+  --muted:                  color-mix(in srgb, var(--indigo) 80%, var(--plum));
+  --muted-foreground:       var(--lavender);
+  --accent:                 var(--coral);
+  --accent-foreground:      var(--indigo);
+  --destructive:            var(--rose);
+  --destructive-foreground: var(--indigo);
+  --border:                 color-mix(in srgb, var(--peach-paper) 12%, transparent);
+  --input:                  color-mix(in srgb, var(--peach-paper) 15%, transparent);
+  --ring:                   var(--coral);
 
-  --success:                var(--adhd-green);
-  --success-foreground:     var(--adhd-dark);
-  --warning:                var(--adhd-amber);
-  --warning-foreground:     var(--adhd-dark);
+  --success:                var(--light-peach);
+  --success-foreground:     var(--indigo);
+  --warning:                var(--coral);
+  --warning-foreground:     var(--indigo);
 
-  --sidebar:                      var(--adhd-dark);
-  --sidebar-foreground:           var(--adhd-bg);
-  --sidebar-primary:              var(--adhd-amber);
-  --sidebar-primary-foreground:   var(--adhd-dark);
-  --sidebar-accent:               color-mix(in srgb, var(--adhd-bg) 8%, transparent);
-  --sidebar-accent-foreground:    var(--adhd-bg);
-  --sidebar-border:               color-mix(in srgb, var(--adhd-bg) 10%, transparent);
-  --sidebar-ring:                 var(--adhd-amber);
+  --sidebar:                      var(--indigo);
+  --sidebar-foreground:           var(--peach-paper);
+  --sidebar-primary:              var(--coral);
+  --sidebar-primary-foreground:   var(--indigo);
+  --sidebar-accent:               color-mix(in srgb, var(--peach-paper) 8%, transparent);
+  --sidebar-accent-foreground:    var(--peach-paper);
+  --sidebar-border:               color-mix(in srgb, var(--peach-paper) 10%, transparent);
+  --sidebar-ring:                 var(--coral);
 }
 
 @layer base {
@@ -221,9 +219,9 @@
 .greeting-gradient {
   background: linear-gradient(
     135deg,
-    var(--adhd-purple) 0%,
-    var(--adhd-amber) 50%,
-    var(--adhd-olive) 100%
+    var(--plum) 0%,
+    var(--coral) 50%,
+    var(--dark-plum) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -233,9 +231,9 @@
 .dark .greeting-gradient {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--adhd-purple) 80%, white) 0%,
-    var(--adhd-amber) 50%,
-    var(--adhd-green) 100%
+    color-mix(in srgb, var(--plum) 80%, white) 0%,
+    var(--coral) 50%,
+    var(--light-peach) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -270,7 +268,7 @@
    List rows (tasks, microtasks). Dashed perforation reads as "tear off
    when done" — pairs with a strikethrough on completion, never color alone. */
 .ticket-row {
-  border-left: 3px dashed var(--adhd-clay) !important;
+  border-left: 3px dashed var(--rose) !important;
   border-radius: 0 0.75rem 0.75rem 0 !important;
 }
 
@@ -285,7 +283,7 @@
   content: "";
   position: absolute;
   inset: 6% 2%;
-  background: color-mix(in srgb, var(--adhd-sage) 55%, transparent);
+  background: color-mix(in srgb, var(--salmon) 55%, transparent);
   transform: rotate(-1.4deg) skewX(-6deg);
   z-index: -1;
   border-radius: 3px 9px 3px 9px;
@@ -293,11 +291,11 @@
 
 /* ---- Dashboard: day progress fill ---- */
 .day-progress-fill {
-  background: linear-gradient(90deg, var(--adhd-purple) 0%, var(--adhd-olive) 100%);
+  background: linear-gradient(90deg, var(--plum) 0%, var(--dark-plum) 100%);
 }
 
 .dark .day-progress-fill {
-  background: linear-gradient(90deg, var(--adhd-purple) 0%, var(--adhd-green) 100%);
+  background: linear-gradient(90deg, var(--plum) 0%, var(--light-peach) 100%);
 }
 
 /* ---- Calendar: current time pulse ---- */
@@ -306,7 +304,7 @@
   position: absolute;
   inset: -3px;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--adhd-amber) 40%, transparent);
+  background: color-mix(in srgb, var(--coral) 40%, transparent);
   animation: time-pulse 2s ease-in-out infinite;
 }
 

@@ -49,7 +49,7 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     label: "Events",
     icon: Calendar,
     tintClassName:
-      "text-adhd-teal bg-adhd-teal/10 border-adhd-teal/30 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
+      "text-deep-purple bg-deep-purple/10 border-deep-purple/30 dark:text-lavender dark:bg-lavender/10",
     href: (entry, timezone) =>
       `/calendar?date=${toDateKeyInTimezone(new Date(entry.at), timezone)}`,
   },
@@ -57,7 +57,7 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     label: "Dumps",
     icon: Brain,
     tintClassName:
-      "text-adhd-purple bg-adhd-purple/10 border-adhd-purple/30 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
+      "text-plum bg-plum/10 border-plum/30 dark:text-lavender dark:bg-lavender/10",
     href: (entry) => `/dump?dumpId=${entry.id}`,
   },
   journal: {
@@ -65,7 +65,7 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     icon: BookOpen,
     // Shares color with dumps, differentiated by icon + label
     tintClassName:
-      "text-adhd-purple bg-adhd-purple/10 border-adhd-purple/50 dark:text-adhd-lavender dark:bg-adhd-lavender/10",
+      "text-plum bg-plum/10 border-plum/50 dark:text-lavender dark:bg-lavender/10",
     href: (entry) => `/dump?category=junk_journal&dumpId=${entry.id}`,
   },
   rescue: {

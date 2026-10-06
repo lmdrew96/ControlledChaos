@@ -216,7 +216,7 @@ export function TimeAnchor() {
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 text-xs text-muted-foreground sm:max-w-[220px]">
           {nextEvent!.isPlanned ? (
             <Sparkles
-              className="h-3 w-3 shrink-0 text-adhd-purple dark:text-adhd-lavender"
+              className="h-3 w-3 shrink-0 text-plum dark:text-lavender"
               aria-label="Planned time"
             />
           ) : (

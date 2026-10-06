@@ -385,7 +385,7 @@ export function TaskCard({
       key: "target",
       Icon: Target,
       label: `Target ${formatForDisplay(new Date(task.targetDate), timezone, DISPLAY_DATE)}`,
-      tone: "text-adhd-purple dark:text-adhd-lavender",
+      tone: "text-plum dark:text-lavender",
     });
   }
 
@@ -605,7 +605,7 @@ export function TaskCard({
               {isInProgress && (
                 <Badge
                   variant="outline"
-                  className="bg-adhd-lavender/20 text-adhd-lavender border-adhd-lavender/40"
+                  className="bg-lavender/20 text-lavender border-lavender/40"
                 >
                   <PlayCircle className="h-3 w-3" />
                   In Progress
@@ -699,7 +699,7 @@ export function TaskCard({
                   }}
                   aria-expanded={isExpanded}
                   aria-label={isExpanded ? "Collapse steps" : "Expand steps"}
-                  className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-adhd-teal hover:bg-adhd-teal/10 transition-colors dark:text-adhd-sage dark:hover:bg-adhd-sage/10"
+                  className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs font-medium text-deep-purple hover:bg-deep-purple/10 transition-colors dark:text-salmon dark:hover:bg-salmon/10"
                 >
                   <span className="inline-flex gap-0.5">
                     {steps.map((_, i) => (
@@ -708,8 +708,8 @@ export function TaskCard({
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
                           i < localStepIndex
-                            ? "bg-adhd-teal dark:bg-adhd-sage"
-                            : "bg-adhd-teal/25 dark:bg-adhd-sage/30"
+                            ? "bg-deep-purple dark:bg-salmon"
+                            : "bg-deep-purple/25 dark:bg-salmon/30"
                         )}
                       />
                     ))}
@@ -729,7 +729,7 @@ export function TaskCard({
 
         {steps && steps.length > 0 && isExpanded && (
           <div
-            className="mt-3 space-y-2 rounded-md border border-adhd-teal/20 bg-adhd-teal/5 p-3 dark:border-adhd-sage/30 dark:bg-adhd-sage/5"
+            className="mt-3 space-y-2 rounded-md border border-deep-purple/20 bg-deep-purple/5 p-3 dark:border-salmon/30 dark:bg-salmon/5"
             onClick={(e) => e.stopPropagation()}
           >
             <ul className="space-y-1.5">
@@ -741,16 +741,16 @@ export function TaskCard({
                     key={i}
                     className={cn(
                       "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
-                      isCurrent && "bg-background border-l-4 border-l-adhd-teal shadow-sm dark:border-l-adhd-sage"
+                      isCurrent && "bg-background border-l-4 border-l-deep-purple shadow-sm dark:border-l-salmon"
                     )}
                   >
                     <span
                       className={cn(
                         "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
                         isDone
-                          ? "border-adhd-teal bg-adhd-teal text-white dark:border-adhd-sage dark:bg-adhd-sage dark:text-adhd-dark"
+                          ? "border-deep-purple bg-deep-purple text-white dark:border-salmon dark:bg-salmon dark:text-indigo"
                           : isCurrent
-                            ? "border-adhd-teal bg-adhd-teal/20 dark:border-adhd-sage dark:bg-adhd-sage/30"
+                            ? "border-deep-purple bg-deep-purple/20 dark:border-salmon dark:bg-salmon/30"
                             : "border-muted-foreground/30"
                       )}
                     >

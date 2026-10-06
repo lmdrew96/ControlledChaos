@@ -468,20 +468,20 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                             href={`/tasks?taskId=${item.plan.taskId}`}
                             className={cn(
                               "block w-full rounded-lg border-2 border-dashed px-3 py-2.5 text-left transition-colors",
-                              "border-adhd-purple/55 bg-adhd-purple/[0.07] hover:bg-adhd-purple/[0.12]",
-                              "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10] dark:hover:bg-adhd-lavender/[0.16]",
+                              "border-plum/55 bg-plum/[0.07] hover:bg-plum/[0.12]",
+                              "dark:border-lavender/55 dark:bg-lavender/[0.10] dark:hover:bg-lavender/[0.16]",
                               "outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                             )}
                           >
                             <div className="flex items-baseline gap-3">
-                              <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums text-adhd-purple/80 dark:text-adhd-lavender/80">
+                              <span className="min-w-[3.5rem] shrink-0 text-xs font-medium tabular-nums text-plum/80 dark:text-lavender/80">
                                 {formatTimeTz(new Date(item.plan.startTime), timezone)}
                               </span>
                               <Tooltip delayDuration={TOOLTIP_DELAY_MS}>
                                 <TooltipTrigger asChild>
                                   {/* The link around it takes keyboard focus, so
                                       the tooltip also opens from the link. */}
-                                  <span className="flex-1 truncate text-sm font-medium text-adhd-purple dark:text-adhd-lavender">
+                                  <span className="flex-1 truncate text-sm font-medium text-plum dark:text-lavender">
                                     {item.plan.title}
                                   </span>
                                 </TooltipTrigger>
@@ -494,7 +494,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                                 </TooltipContent>
                               </Tooltip>
                             </div>
-                            <p className="ml-[3.875rem] mt-0.5 text-[11px] text-adhd-purple/70 dark:text-adhd-lavender/70">
+                            <p className="ml-[3.875rem] mt-0.5 text-[11px] text-plum/70 dark:text-lavender/70">
                               Planned session · {item.plan.minutes} min
                             </p>
                           </Link>

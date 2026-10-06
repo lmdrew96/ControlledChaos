@@ -709,7 +709,7 @@ export function TaskDetailModal({
               hint="When you want it done. Reminders about a target stay gentle."
             >
               {targetAfterDeadline && (
-                <p className="flex items-center gap-1 text-xs text-adhd-amber">
+                <p className="flex items-center gap-1 text-xs text-coral">
                   <AlertCircle className="h-3 w-3 shrink-0" />
                   Your target is after the due date. That still saves — just
                   double-check it&apos;s what you meant.
@@ -816,7 +816,7 @@ export function TaskDetailModal({
 
           {/* Progress Steps — step-through UI */}
           {hasSteps && !allStepsDone && currentStep && (
-            <div className="space-y-3 rounded-lg border border-adhd-teal/20 bg-adhd-teal/5 p-4 dark:border-adhd-sage/30 dark:bg-adhd-sage/5">
+            <div className="space-y-3 rounded-lg border border-deep-purple/20 bg-deep-purple/5 p-4 dark:border-salmon/30 dark:bg-salmon/5">
               {/* Breadcrumb dots */}
               <div className="flex items-center gap-1.5">
                 {steps.map((_, i) => (
@@ -825,9 +825,9 @@ export function TaskDetailModal({
                     className={cn(
                       "h-2.5 w-2.5 rounded-full transition-colors",
                       i < localStepIndex
-                        ? "bg-adhd-teal dark:bg-adhd-sage"
+                        ? "bg-deep-purple dark:bg-salmon"
                         : i === localStepIndex
-                          ? "bg-adhd-teal/60 ring-2 ring-adhd-teal ring-offset-1 ring-offset-background dark:bg-adhd-sage/60 dark:ring-adhd-sage"
+                          ? "bg-deep-purple/60 ring-2 ring-deep-purple ring-offset-1 ring-offset-background dark:bg-salmon/60 dark:ring-salmon"
                           : "border border-border bg-transparent"
                     )}
                   />
@@ -838,8 +838,8 @@ export function TaskDetailModal({
               </div>
 
               {/* Current step card */}
-              <div className="rounded-lg border-l-4 border-l-adhd-teal bg-card p-3 shadow-sm dark:border-l-adhd-sage">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-adhd-teal dark:text-adhd-sage">
+              <div className="rounded-lg border-l-4 border-l-deep-purple bg-card p-3 shadow-sm dark:border-l-salmon">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-deep-purple dark:text-salmon">
                   Do this now
                 </p>
                 <p className="mb-2 text-base font-semibold">{currentStep.title}</p>

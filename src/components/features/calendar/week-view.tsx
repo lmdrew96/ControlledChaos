@@ -990,14 +990,14 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                   // z comes from the cascade (inline); hover or
                                   // focus lifts a buried block to the front.
                                   "absolute overflow-hidden rounded-md hover:z-30! focus-visible:z-30!",
-                                  "border-2 border-dashed border-adhd-purple/55 bg-adhd-purple/[0.07]",
+                                  "border-2 border-dashed border-plum/55 bg-plum/[0.07]",
                                   "px-1.5 py-1 text-left outline-none",
                                   "focus-visible:ring-2 focus-visible:ring-primary/60",
-                                  "dark:border-adhd-lavender/55 dark:bg-adhd-lavender/[0.10]",
+                                  "dark:border-lavender/55 dark:bg-lavender/[0.10]",
                                   // Grabbable only while Rearrange is on, matching events.
                                   isEditMode
                                     ? "cursor-grab touch-none active:cursor-grabbing"
-                                    : "cursor-pointer hover:bg-adhd-purple/[0.12] dark:hover:bg-adhd-lavender/[0.16]",
+                                    : "cursor-pointer hover:bg-plum/[0.12] dark:hover:bg-lavender/[0.16]",
                                   dragTarget?.kind === "plan" &&
                                     dragTarget.block.sessionId === block.sessionId &&
                                     "opacity-40"
@@ -1013,13 +1013,13 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                 }}
                               >
                                 {tile.compact ? (
-                                  <p className="truncate text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender">
+                                  <p className="truncate text-[11px] font-medium leading-tight text-plum dark:text-lavender">
                                     {shortTileTitle(block.title)} ·{" "}
                                     {formatTimeTz(new Date(block.startTime), timezone)}
                                   </p>
                                 ) : (
                                   <p
-                                    className="text-[11px] font-medium leading-tight text-adhd-purple dark:text-adhd-lavender"
+                                    className="text-[11px] font-medium leading-tight text-plum dark:text-lavender"
                                     style={{
                                       display: "-webkit-box",
                                       WebkitBoxOrient: "vertical",

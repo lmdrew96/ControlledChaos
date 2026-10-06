@@ -54,7 +54,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
       "Intensity = how rested you feel (1-5). Drop hours in the note: “7h”, “6h 30m”, “restless night”.",
     icon: Moon,
     tintClassName:
-      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-lavender/40 dark:bg-adhd-lavender/10 dark:text-adhd-lavender",
+      "border-deep-purple/40 bg-deep-purple/10 text-deep-purple dark:border-lavender/40 dark:bg-lavender/10 dark:text-lavender",
   },
   energy_high: {
     label: "Energy high",
@@ -86,7 +86,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "What are you focusing on? (optional)",
     icon: Target,
     tintClassName:
-      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-sage/40 dark:bg-adhd-sage/10 dark:text-adhd-sage",
+      "border-deep-purple/40 bg-deep-purple/10 text-deep-purple dark:border-salmon/40 dark:bg-salmon/10 dark:text-salmon",
   },
   focus_end: {
     label: "Focus end",
@@ -94,7 +94,7 @@ export const MOMENT_COPY: Record<MomentType, MomentCopy> = {
     detailHint: "Wrapping up a focus block. Nice.",
     icon: CircleStop,
     tintClassName:
-      "border-adhd-teal/40 bg-adhd-teal/10 text-adhd-teal dark:border-adhd-sage/40 dark:bg-adhd-sage/10 dark:text-adhd-sage",
+      "border-deep-purple/40 bg-deep-purple/10 text-deep-purple dark:border-salmon/40 dark:bg-salmon/10 dark:text-salmon",
   },
   tough_moment: {
     label: "Tough moment",

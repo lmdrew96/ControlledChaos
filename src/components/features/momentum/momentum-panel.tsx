@@ -195,7 +195,7 @@ function MomentumDetails({
                   <div
                     className={`w-full max-w-10 rounded-md transition-all ${
                       d.count > 0
-                        ? "bg-adhd-amber/80"
+                        ? "bg-coral/80"
                         : "bg-secondary"
                     }`}
                     style={{ height: barHeight }}
@@ -230,20 +230,20 @@ function MomentumDetails({
         <CardContent className="p-5">
           <h3 className="mb-3 text-sm font-medium">Energy spent</h3>
           <div className="flex gap-3">
-            <div className="flex-1 rounded-lg bg-adhd-sage/15 p-3 text-center">
-              <p className="text-xl font-bold text-adhd-teal dark:text-adhd-sage">
+            <div className="flex-1 rounded-lg bg-salmon/15 p-3 text-center">
+              <p className="text-xl font-bold text-deep-purple dark:text-salmon">
                 {stats.byEnergy.low}
               </p>
               <p className="text-xs text-muted-foreground">Low</p>
             </div>
-            <div className="flex-1 rounded-lg bg-adhd-amber/15 p-3 text-center">
-              <p className="text-xl font-bold text-adhd-amber">
+            <div className="flex-1 rounded-lg bg-coral/15 p-3 text-center">
+              <p className="text-xl font-bold text-coral">
                 {stats.byEnergy.medium}
               </p>
               <p className="text-xs text-muted-foreground">Medium</p>
             </div>
-            <div className="flex-1 rounded-lg bg-adhd-clay/15 p-3 text-center">
-              <p className="text-xl font-bold text-adhd-clay">
+            <div className="flex-1 rounded-lg bg-rose/15 p-3 text-center">
+              <p className="text-xl font-bold text-rose">
                 {stats.byEnergy.high}
               </p>
               <p className="text-xs text-muted-foreground">High</p>

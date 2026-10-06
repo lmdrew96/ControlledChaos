@@ -302,7 +302,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
             hint="When you want it done. Reminders about a target stay gentle."
           >
             {targetAfterDeadline && (
-              <p className="flex items-center gap-1 text-xs text-adhd-amber">
+              <p className="flex items-center gap-1 text-xs text-coral">
                 <AlertCircle className="h-3 w-3 shrink-0" />
                 Your target is after the due date. That still saves — just
                 double-check it&apos;s what you meant.

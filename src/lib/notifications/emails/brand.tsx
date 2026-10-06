@@ -1,20 +1,20 @@
 import { Font, Section, Text } from "@react-email/components";
 
 // ControlledChaos runs its own "sunset" palette, distinct from the shared
-// ADHDesigns brand tokens — see the comment above --adhd-* in src/app/globals.css.
+// ADHDesigns brand tokens — see the sunset palette comment in src/app/globals.css.
 // Colors below are static hex equivalents of those CSS custom properties
 // (email clients don't support var()/color-mix()) so this stays in sync with
 // how the app itself actually looks.
 export const emailColors = {
-  pageBg: "#FFF6F4", // ~ --adhd-bg
+  pageBg: "#FFF6F4", // ~ --peach-paper
   cardBg: "#FFFFFF",
-  headerBg: "#16131A", // --adhd-dark
+  headerBg: "#16131A", // --indigo
   headerText: "#FFF6F4",
-  accent: "#FF5675", // --adhd-amber (coral)
-  textPrimary: "#16131A", // --adhd-dark
-  textMuted: "#5F4D75", // --adhd-purple (== --muted-foreground in the app)
-  aiNoteBg: "#F2EFF4", // --adhd-lavender tinted into white
-  aiNoteBorder: "#9378A1", // --adhd-lavender
+  accent: "#FF5675", // --coral
+  textPrimary: "#16131A", // --indigo
+  textMuted: "#5F4D75", // --plum (== --muted-foreground in the app)
+  aiNoteBg: "#F2EFF4", // --lavender tinted into white
+  aiNoteBorder: "#9378A1", // --lavender
   border: "#E6DCE8",
   footerText: "#8B7D93",
 };

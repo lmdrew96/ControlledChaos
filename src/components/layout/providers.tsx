@@ -34,7 +34,7 @@ function ClerkProviderWithTheme({
           // Clerk's embedded UI (sign-in/sign-up, user profile) stays in sync
           // with ControlledChaos's own sunset palette and flips with .dark
           // the same way the rest of the app does.
-          colorPrimary: "var(--adhd-purple)",
+          colorPrimary: "var(--plum)",
           colorPrimaryForeground: "var(--primary-foreground)",
           colorBackground: "var(--card)",
           colorForeground: "var(--foreground)",
@@ -47,7 +47,7 @@ function ClerkProviderWithTheme({
           colorDanger: "var(--destructive)",
           colorSuccess: "var(--success)",
           colorWarning: "var(--warning)",
-          colorNeutral: "var(--adhd-lavender)",
+          colorNeutral: "var(--lavender)",
           fontFamily: "var(--font-plex-sans)",
           fontFamilyButtons: "var(--font-plex-sans)",
           borderRadius: "var(--radius)",

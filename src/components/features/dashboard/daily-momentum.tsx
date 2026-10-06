@@ -68,7 +68,7 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
             <div key={d.date} className="flex flex-col items-center gap-0.5">
               <div
                 className={`w-2 rounded-sm transition-all duration-300 ${
-                  d.count > 0 ? "bg-adhd-amber/80" : "bg-muted-foreground/15"
+                  d.count > 0 ? "bg-coral/80" : "bg-muted-foreground/15"
                 }`}
                 style={{ height: barHeight, transitionDelay: `${i * 30}ms` }}
               />
@@ -87,7 +87,7 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
         <Badge variant="sticky" className="-rotate-2 tabular-nums">
           {stats.completedToday} today
         </Badge>
-        <Badge variant="sticky" className="rotate-1 bg-adhd-lavender tabular-nums">
+        <Badge variant="sticky" className="rotate-1 bg-lavender tabular-nums">
           {stats.completedThisWeek} this week
         </Badge>
       </div>

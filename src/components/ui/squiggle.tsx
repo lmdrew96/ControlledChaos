@@ -5,7 +5,7 @@ interface SquiggleProps {
 
 // Fixed hand-drawn underline path — same shape every render, used in place
 // of a border under section/greeting headers.
-export function Squiggle({ className, color = "var(--adhd-clay)" }: SquiggleProps) {
+export function Squiggle({ className, color = "var(--rose)" }: SquiggleProps) {
   return (
     <svg
       viewBox="0 0 200 10"

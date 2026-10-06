@@ -259,8 +259,8 @@ export function MonthView({ initialDate, onDayClick }: MonthViewProps) {
                           key={`plan-${block.taskId}`}
                           className={cn(
                             "flex w-full items-center gap-1 truncate rounded border border-dashed px-1 py-0.5 text-[10px]",
-                            "border-adhd-purple/60 text-adhd-purple",
-                            "dark:border-adhd-lavender/60 dark:text-adhd-lavender"
+                            "border-plum/60 text-plum",
+                            "dark:border-lavender/60 dark:text-lavender"
                           )}
                         >
                           <span className="truncate">{block.title}</span>
