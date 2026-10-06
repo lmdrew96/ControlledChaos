@@ -44,7 +44,6 @@ No guilt. No streaks. No rigid systems.
 | Email | Resend + React Email |
 | Push | Web Push (VAPID) |
 | Calendar | `node-ical` (Canvas import) |
-| Maps | Leaflet + react-leaflet |
 | Animations | Framer Motion |
 | Drag & Drop | dnd-kit |
 | Testing | Vitest |

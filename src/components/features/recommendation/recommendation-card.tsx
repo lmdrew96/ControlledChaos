@@ -6,7 +6,6 @@ import {
   Clock,
   Pause,
   Shuffle,
-  MapPin,
   Calendar,
   Loader2,
   Layers,
@@ -125,13 +124,6 @@ export function RecommendationCard({
               <Badge variant="secondary" className="text-xs">
                 {task.category}
               </Badge>
-            )}
-
-            {task.locationTags && task.locationTags.length > 0 && (
-              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground break-words">
-                <MapPin className="h-3 w-3 shrink-0" />
-                <span className="break-words">{task.locationTags.join(", ")}</span>
-              </span>
             )}
 
             {task.deadline && (

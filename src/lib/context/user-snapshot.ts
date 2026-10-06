@@ -104,7 +104,6 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
     // "start" work they had already started.
     status: t.status,
     estimatedMinutes: t.estimatedMinutes ?? null,
-    locationTags: t.locationTags ?? null,
     note: summarizeNote(t.description),
     deadline: t.deadline?.toISOString() ?? null,
     targetDate: t.targetDate?.toISOString() ?? null,
@@ -168,9 +167,6 @@ export async function buildUserSnapshot(userId: string): Promise<UserSnapshot> {
         );
       }
       if (t.estimatedMinutes) times.push(`~${t.estimatedMinutes} min of work`);
-      if (t.locationTags?.length) {
-        times.push(`only doable at: ${t.locationTags.join(" or ")}`);
-      }
       const state = t.status === "in_progress" ? " ALREADY IN PROGRESS" : "";
       const suffix = times.length > 0 ? ` (${times.join("; ")})` : "";
       const note = t.note ? `\n      note: ${t.note}` : "";

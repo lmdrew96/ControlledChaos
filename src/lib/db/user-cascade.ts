@@ -23,8 +23,6 @@ export const USER_CHILD_TABLES = [
   "moments",
   "tasks",
   "calendar_events",
-  "locations",
-  "commute_times",
   "task_activity",
   "notifications",
   "crisis_plans",

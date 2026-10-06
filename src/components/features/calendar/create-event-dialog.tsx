@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, MapPin } from "lucide-react";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,11 +28,6 @@ import { useTimezone } from "@/hooks/use-timezone";
 import type { EventCategory } from "@/types";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-interface SavedLocation {
-  id: string;
-  name: string;
-}
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -85,17 +80,7 @@ export function CreateEventDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
-  const [locationMode, setLocationMode] = useState<"none" | "saved" | "custom">("none");
   const timezone = useTimezone();
-
-  useEffect(() => {
-    if (!open) return;
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data) => setSavedLocations(data.locations ?? []))
-      .catch(() => setSavedLocations([]));
-  }, [open]);
 
   function resetForm() {
     const now = defaultDate ?? new Date();
@@ -115,7 +100,6 @@ export function CreateEventDialog({
     setCategory("personal");
     setShowDescription(false);
     setError(null);
-    setLocationMode("none");
   }
 
   function toggleDay(day: number) {
@@ -285,61 +269,12 @@ export function CreateEventDialog({
           {/* Location */}
           <div className="space-y-2">
             <Label>Location (optional)</Label>
-            {savedLocations.length > 0 ? (
-              <>
-                <Select
-                  value={locationMode === "saved" ? location : locationMode}
-                  onValueChange={(v) => {
-                    if (v === "none") {
-                      setLocationMode("none");
-                      setLocation("");
-                    } else if (v === "custom") {
-                      setLocationMode("custom");
-                      setLocation("");
-                    } else {
-                      setLocationMode("saved");
-                      setLocation(v);
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No location</SelectItem>
-                    {savedLocations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.name}>
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          {loc.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Other...</SelectItem>
-                  </SelectContent>
-                </Select>
-                {locationMode === "custom" && (
-                  <Input
-                    placeholder="e.g., Zoom, Room 204"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    autoFocus
-                  />
-                )}
-              </>
-            ) : (
-              <div className="space-y-1.5">
-                <Input
-                  id="event-location"
-                  placeholder="e.g., Room 204"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Add saved locations in Settings to count travel time between events
-                </p>
-              </div>
-            )}
+            <Input
+              id="event-location"
+              placeholder="e.g., Room 204"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
           </div>
 
           {/* Category */}

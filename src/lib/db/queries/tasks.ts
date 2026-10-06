@@ -42,7 +42,6 @@ export async function createTask(
     energyLevel?: string;
     estimatedMinutes?: number | null;
     category?: string | null;
-    locationTags?: string[] | null;
     deadline?: Date | null;
     targetDate?: Date | null;
     goalId?: string | null;
@@ -59,7 +58,6 @@ export async function createTask(
       energyLevel: params.energyLevel ?? "medium",
       estimatedMinutes: params.estimatedMinutes ?? null,
       category: params.category ?? null,
-      locationTags: params.locationTags?.length ? params.locationTags : null,
       deadline: params.deadline ?? null,
       targetDate: params.targetDate ?? null,
       goalId: params.goalId ?? null,
@@ -112,7 +110,6 @@ export async function createTasksFromDump(
     energyLevel: task.energyLevel,
     estimatedMinutes: task.estimatedMinutes ?? null,
     category: task.category ?? null,
-    locationTags: task.locationTags?.length ? task.locationTags : null,
     deadline: task.deadline ? new Date(task.deadline) : null,
     targetDate: task.targetDate ? new Date(task.targetDate) : null,
     goalId: task.goalConnection
@@ -199,7 +196,6 @@ export async function updateTask(
     energyLevel: string;
     estimatedMinutes: number | null;
     category: string | null;
-    locationTags: string[] | null;
     deadline: Date | null;
     targetDate: Date | null;
     snoozedUntil: Date | null;

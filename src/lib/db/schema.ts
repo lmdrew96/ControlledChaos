@@ -57,7 +57,6 @@ export const userSettings = pgTable(
     calendarColors: jsonb("calendar_colors"), // {canvas: "blue", controlledchaos: "purple"} — event color per source
     crisisDetectionTier: text("crisis_detection_tier").default("nudge"), // "off" | "watch" | "nudge" | "auto_triage"
     canvasSelectedCourses: jsonb("canvas_selected_courses"), // string[] of course codes (e.g. "ENGL204") to sync; null = sync all courses (default)
-    travelMode: text("travel_mode").default("driving").notNull(), // "driving" | "walking" | "cycling" — commutes over SHORT_HOP_METERS use it
   },
   (table) => ({
     // One settings row per user. Closes the onboarding double-submit race
@@ -151,7 +150,6 @@ export const tasks = pgTable(
     energyLevel: text("energy_level").default("medium").notNull(), // low, medium, high
     estimatedMinutes: integer("estimated_minutes"),
     category: text("category"), // school, work, personal, errands, health
-    locationTags: jsonb("location_tags").$type<string[]>(), // ["home", "campus"] — null or [] = anywhere
     // HARD wall — externally imposed (Canvas, an instructor, the world). Never inferred.
     deadline: timestamp("deadline"),
     // SOFT aim — self-imposed buffer ("done by Wed even though it's due Fri").
@@ -276,52 +274,6 @@ export const calendarEvents = pgTable(
       table.userId,
       table.source,
       table.externalId
-    ),
-  ]
-);
-
-// ============================================================
-// Saved Locations
-// ============================================================
-export const locations = pgTable("locations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .references(() => users.id)
-    .notNull(),
-  name: text("name").notNull(),
-  latitude: decimal("latitude", { precision: 10, scale: 8 }),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }),
-  // Unused since v2.86.1: it seeded a guess of where the user was ("home until
-  // the first event"), and the app no longer guesses. Kept until a migration drops it.
-  isHome: boolean("is_home").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// ============================================================
-// Commute Times (travel minutes between saved locations)
-// ============================================================
-export const commuteTimes = pgTable(
-  "commute_times",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
-      .references(() => users.id)
-      .notNull(),
-    fromLocationId: uuid("from_location_id")
-      .references(() => locations.id, { onDelete: "cascade" })
-      .notNull(),
-    toLocationId: uuid("to_location_id")
-      .references(() => locations.id, { onDelete: "cascade" })
-      .notNull(),
-    travelMode: text("travel_mode").notNull().default("driving"),
-    travelMinutes: integer("travel_minutes").notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("idx_commute_pair_mode").on(
-      table.fromLocationId,
-      table.toLocationId,
-      table.travelMode
     ),
   ]
 );

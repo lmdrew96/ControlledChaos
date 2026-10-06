@@ -14,9 +14,8 @@ import {
   updateCrisisPlanProgress,
   completeCrisisPlan,
   restoreCrisisPlan,
-  getCommuteSetup,
 } from "@/lib/db/queries";
-import { withTravelBuffers } from "@/lib/calendar/commute-buffers";
+import { toBusyRows } from "@/lib/crisis-detection";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
@@ -206,13 +205,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid deadline date" }, { status: 400 });
     }
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, deadlineDate, { committedOnly: true }),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
-      getCommuteSetup(userId),
       buildAIContext(userId, { skipCalendar: true, skipCrises: true }), // calendar + crises fetched separately with custom ranges
     ]);
 
@@ -234,7 +232,7 @@ export async function POST(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(withTravelBuffers(upcomingEvents, commute, now), timezone),
+      upcomingEvents: formatEventsForAI(toBusyRows(upcomingEvents), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
@@ -325,13 +323,12 @@ export async function PUT(request: Request) {
     const planningHorizonEnd =
       deadlineDate ?? new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const [user, settings, upcomingEvents, pendingTasks, existingCrises, commute, aiCtx] = await Promise.all([
+    const [user, settings, upcomingEvents, pendingTasks, existingCrises, aiCtx] = await Promise.all([
       getUser(userId),
       getUserSettings(userId),
       getCalendarEventsByDateRange(userId, now, planningHorizonEnd, { committedOnly: true }),
       getPendingTasks(userId),
       getActiveCrisisPlans(userId),
-      getCommuteSetup(userId),
       buildAIContext(userId, { skipCalendar: true, skipCrises: true }),
     ]);
 
@@ -367,7 +364,7 @@ export async function PUT(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(withTravelBuffers(upcomingEvents, commute, now), timezone),
+      upcomingEvents: formatEventsForAI(toBusyRows(upcomingEvents), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,

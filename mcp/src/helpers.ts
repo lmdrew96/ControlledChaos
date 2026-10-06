@@ -159,16 +159,6 @@ export function formatTask(task: Record<string, unknown>, tz?: string): string {
   } else if (task.scheduled_for) {
     parts.push(`Planned start (not a due date): ${fmtLocal(task.scheduled_for, tz)}`);
   }
-  if (task.location_tags) {
-    try {
-      const tags = Array.isArray(task.location_tags)
-        ? task.location_tags
-        : JSON.parse(task.location_tags as string);
-      if (tags.length > 0) parts.push(`Location: ${tags.join(", ")}`);
-    } catch {
-      /* ignore parse errors */
-    }
-  }
   if (task.completed_at) parts.push(`Completed: ${fmtLocal(task.completed_at, tz)}`);
   return parts.join("\n");
 }

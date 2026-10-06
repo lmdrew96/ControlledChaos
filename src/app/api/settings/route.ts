@@ -2,8 +2,6 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getUser, getUserSettings, updateUser, updateUserSettings } from "@/lib/db/queries";
 import { isValidTimeZone } from "@/lib/timezone";
-import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
-import { TRAVEL_MODES } from "@/types";
 import type { CalendarColorKey, CalendarColors, CrisisDetectionTier, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 const VALID_ASSERTIVENESS_MODES = new Set(["gentle", "balanced", "assertive"]);
@@ -35,7 +33,6 @@ export async function GET() {
       personalityPrefs: settings?.personalityPrefs ?? null,
       calendarColors: settings?.calendarColors ?? null,
       crisisDetectionTier: settings?.crisisDetectionTier ?? "nudge",
-      travelMode: settings?.travelMode ?? "driving",
     });
   } catch (error) {
     console.error("[API] GET /api/settings error:", error);
@@ -166,13 +163,6 @@ export async function PATCH(request: Request) {
       }
     }
 
-    if (body.travelMode !== undefined) {
-      if (!TRAVEL_MODES.includes(body.travelMode)) {
-        return NextResponse.json({ error: "Invalid travel mode" }, { status: 400 });
-      }
-      data.travelMode = body.travelMode;
-    }
-
     if (body.crisisDetectionTier !== undefined) {
       if (VALID_CRISIS_DETECTION_TIERS.has(body.crisisDetectionTier)) {
         data.crisisDetectionTier = body.crisisDetectionTier;
@@ -198,13 +188,6 @@ export async function PATCH(request: Request) {
       return NextResponse.json(
         { error: "Settings not found" },
         { status: 404 }
-      );
-    }
-
-    // Commutes are stored in one mode, so a new mode means new times.
-    if (data.travelMode !== undefined) {
-      await refreshCommuteTimes(userId).catch((err) =>
-        console.error("[API] PATCH /api/settings commute refresh failed:", err)
       );
     }
 

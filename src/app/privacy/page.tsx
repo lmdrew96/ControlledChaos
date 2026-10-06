@@ -186,11 +186,9 @@ export default function PrivacyPolicyPage() {
             to your authenticated account.
           </p>
           <p>
-            Location data (if you enable location-based task recommendations)
-            is processed in your browser only. Your coordinates are compared
-            client-side against your saved location labels &mdash; only the
-            matching label (e.g. &ldquo;home&rdquo; or &ldquo;campus&rdquo;) is
-            sent to the server. Your precise location is never stored.
+            ControlledChaos never asks for, tracks, or stores where you are. The
+            only places it keeps are the ones attached to your calendar events
+            (like &ldquo;Room 204&rdquo;), which you type in or Canvas sends.
           </p>
         </section>
 

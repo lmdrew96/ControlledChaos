@@ -169,7 +169,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
     `Today's events: ${events.map((e) => `${eventTimeLabel(e, timezone)} ${e.title}`).join(", ") || "None"}`,
-    `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}${t.locationTags?.length ? ` [at: ${t.locationTags.join(", ")}]` : ""}`).join("; ") || "None"}`,
+    `Top tasks: ${topTasks.map((t) => `${describeTaskFacts(toTaskFacts(t, goalTitleById), timezone)}`).join("; ") || "None"}`,
     `HARD deadlines this week (real external consequences): ${withDeadlines.map((t) => `${t.title} due ${formatDate(t.deadline!, timezone)}`).join(", ") || "None"}`,
     pastDue.length > 0
       ? `Past due, still open (the date has passed — don't call these "this week"): ${pastDue.map((t) => `${t.title}, was due ${formatDate(t.deadline!, timezone)}`).join(", ")}`

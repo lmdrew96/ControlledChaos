@@ -248,7 +248,6 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
           task.title,
           task.description ?? "",
           task.category ?? "",
-          ...(task.locationTags ?? []),
         ]
           .join(" ")
           .toLowerCase();

@@ -7,7 +7,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Preferences, integrations, and locations."
+        description="Preferences and integrations."
       />
 
       <Suspense>

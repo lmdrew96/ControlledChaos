@@ -56,7 +56,6 @@ export async function POST(request: Request) {
       energyLevel: task.energyLevel as Task["energyLevel"],
       estimatedMinutes: task.estimatedMinutes ?? null,
       category: task.category ?? null,
-      locationTags: (task.locationTags as string[] | null) ?? null,
       deadline: task.deadline ? task.deadline.toISOString() : null,
       targetDate: task.targetDate ? task.targetDate.toISOString() : null,
       scheduledFor: task.scheduledFor ? task.scheduledFor.toISOString() : null,

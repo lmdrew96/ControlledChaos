@@ -29,7 +29,6 @@ const FIELD_PARSERS = {
   priority: parseEnum(TASK_PRIORITIES),
   energyLevel: parseEnum(ENERGY_LEVELS),
   category: parseNullableEnum(TASK_CATEGORIES),
-  locationTags: parseNullableStringArray,
   estimatedMinutes: parseNullableInt,
   deadline: parseNullableDate,
   targetDate: parseNullableDate,
@@ -139,17 +138,6 @@ function parseNullableUuid(value: unknown, key: string): string | null {
     throw new FieldError(`${key} must be a UUID`);
   }
   return str;
-}
-
-function parseNullableStringArray(
-  value: unknown,
-  key: string
-): string[] | null {
-  if (value === null) return null;
-  if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
-    throw new FieldError(`${key} must be an array of strings or null`);
-  }
-  return value.length ? (value as string[]) : null;
 }
 
 function parseInt_(value: unknown, key: string): number {

@@ -11,7 +11,6 @@ import {
   createGoal,
   getPendingTasks,
   getCalendarEventsByDateRange,
-  getSavedLocations,
   createBrainDump,
   createTasksFromDump,
   createCalendarEventsFromDump,
@@ -84,12 +83,11 @@ export async function commitParsedDump(params: {
 
   // Context for anti-hallucination grounding.
   const today = allDayRange(toDateKeyInTimezone(new Date(), timezone), timezone);
-  const [activeGoals, existingTasks, todayEvents, savedLocs, settings, aiCtx] = await Promise.all([
+  const [activeGoals, existingTasks, todayEvents, settings, aiCtx] = await Promise.all([
     // Active only: a task shouldn't be linked to a goal that's finished or paused.
     getUserGoals(userId, "active"),
     getPendingTasks(userId),
     getCalendarEventsByDateRange(userId, new Date(today.startISO), new Date(today.endISO)),
-    getSavedLocations(userId),
     getUserSettings(userId),
     buildAIContext(userId, { skipCalendar: true }), // calendar already fetched above
   ]);
@@ -115,7 +113,6 @@ export async function commitParsedDump(params: {
     existingGoals: activeGoals.map((g) => ({ title: g.title })),
     existingTasks: existingTasks.map((t) => ({ title: t.title })),
     calendarSummary,
-    savedLocationNames: savedLocs.map((l) => l.name),
     personalityPrefs: (settings?.personalityPrefs as PersonalityPrefs | null) ?? null,
     aiContextBlock: aiCtx.formatted,
   });

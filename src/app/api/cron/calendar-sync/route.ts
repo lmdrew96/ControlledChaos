@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllUsersWithCalendars, getUserSettings, getUsersWithIncompleteCommutes } from "@/lib/db/queries";
-import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
+import { getAllUsersWithCalendars, getUserSettings } from "@/lib/db/queries";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { hasBeenNotifiedToday, recordDroppedAlert } from "@/lib/notifications/triggers";
@@ -83,23 +82,10 @@ export async function POST(request: Request) {
       `[Cron] Calendar sync complete: ${synced} synced, ${failed} failed`
     );
 
-    // Commutes are computed when locations change; a failed OSRM call there
-    // leaves pairs missing, so retry those users here.
-    let commutesFilled = 0;
-    for (const userId of await getUsersWithIncompleteCommutes()) {
-      try {
-        await refreshCommuteTimes(userId);
-        commutesFilled++;
-      } catch (err) {
-        console.error(`[Cron] Commute refresh failed for ${userId}:`, err);
-      }
-    }
-
     return NextResponse.json({
       success: true,
       synced,
       failed,
-      commutesFilled,
       usersChecked: usersWithCalendars.length,
     });
   } catch (error) {

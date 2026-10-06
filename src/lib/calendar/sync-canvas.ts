@@ -349,7 +349,7 @@ export async function syncCanvasCalendar(
 
             // Canvas owns the due date, so a moved deadline follows it — unless
             // the user cleared it (see canvasDeadlineUpdate). Nothing else the
-            // user owns is touched: priority, energy, estimate, location tags,
+            // user owns is touched: priority, energy, estimate,
             // soft target, planned start and status all stay as they are.
             // A prep task whose prep slot has already passed keeps its deadline
             // rather than jumping to the event time via the fallback above.

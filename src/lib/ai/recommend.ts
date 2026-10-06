@@ -58,7 +58,6 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
       energyLevel: t.energyLevel,
       estimatedMinutes: t.estimatedMinutes,
       category: t.category,
-      locationTags: t.locationTags,
       deadlineIn: relativeTime(t.deadline),
       targetIn: relativeTime(t.targetDate),
       plannedIn: relativeTime(t.scheduledFor),

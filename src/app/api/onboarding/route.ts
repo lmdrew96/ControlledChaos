@@ -7,9 +7,7 @@ import {
   createUserSettings,
   updateUserSettings,
   updateUser,
-  createLocation,
 } from "@/lib/db/queries";
-import { refreshCommuteTimes } from "@/lib/calendar/commute-estimate";
 import type { PersonalityPrefs, NotificationPrefs } from "@/types";
 
 export async function POST(request: Request) {
@@ -26,7 +24,6 @@ export async function POST(request: Request) {
       canvasIcalUrl,
       personalityPrefs,
       notificationPrefs,
-      locations,
     } = body as {
       displayName?: string;
       timezone?: string;
@@ -37,7 +34,6 @@ export async function POST(request: Request) {
         emailMorningDigest: boolean;
         emailEveningDigest: boolean;
       };
-      locations?: Array<{ name: string; latitude: string; longitude: string }>;
     };
 
     if (!displayName?.trim()) {
@@ -113,24 +109,6 @@ export async function POST(request: Request) {
       if (Object.keys(extraSettings).length > 0) {
         await updateUserSettings(userId, extraSettings);
       }
-    }
-
-    // Create locations, then their commutes (failure is logged; the
-    // calendar-sync cron fills missing pairs).
-    if (locations && Array.isArray(locations)) {
-      for (const loc of locations) {
-        if (loc.name?.trim() && loc.latitude && loc.longitude) {
-          await createLocation({
-            userId,
-            name: loc.name.trim(),
-            latitude: loc.latitude,
-            longitude: loc.longitude,
-          });
-        }
-      }
-      await refreshCommuteTimes(userId).catch((err) =>
-        console.error("[API] onboarding commute refresh failed:", err)
-      );
     }
 
     return NextResponse.json({ success: true });

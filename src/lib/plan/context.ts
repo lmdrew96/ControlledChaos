@@ -4,13 +4,11 @@ import {
   getPendingTasks,
   getCalendarEventsByDateRange,
   getScheduledSessionsInRange,
-  getCommuteSetup,
 } from "@/lib/db/queries";
 import { buildAIContext } from "@/lib/ai/context";
 import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
 import { getCurrentEnergy } from "@/lib/context/energy";
 import { planBlocksAsBusyIntervals, todayPlanningWindow } from "@/lib/calendar/plan-blocks";
-import { travelBuffers, travelBuffersAsBusyIntervals } from "@/lib/calendar/commute-buffers";
 import type { CalendarEvent, PersonalityPrefs, Task } from "@/types";
 
 type TaskRow = Awaited<ReturnType<typeof getPendingTasks>>[number];
@@ -26,7 +24,6 @@ export function serializeTask(t: TaskRow): Task {
     energyLevel: t.energyLevel,
     estimatedMinutes: t.estimatedMinutes,
     category: t.category,
-    locationTags: t.locationTags,
     deadline: t.deadline?.toISOString() ?? null,
     targetDate: t.targetDate?.toISOString() ?? null,
     scheduledFor: t.scheduledFor?.toISOString() ?? null,
@@ -110,19 +107,14 @@ export async function buildPlanningContext(
   let alreadyPlannedIds = new Set<string>();
 
   if (window) {
-    const [events, scheduled, commute] = await Promise.all([
+    const [events, scheduled] = await Promise.all([
       getCalendarEventsByDateRange(userId, window.start, window.end, { committedOnly: true }),
       getScheduledSessionsInRange(userId, window.start, window.end),
-      getCommuteSetup(userId),
     ]);
 
     alreadyPlannedIds = new Set(scheduled.map((t) => t.id));
     busyIntervals = [
       ...events.map(serializeEvent),
-      // Getting between events at different saved locations takes time too.
-      ...travelBuffersAsBusyIntervals(
-        travelBuffers(events, commute.savedLocations, commute.commutes, { now: new Date() })
-      ),
       ...planBlocksAsBusyIntervals(
         scheduled.map((t) => ({
           id: t.id,

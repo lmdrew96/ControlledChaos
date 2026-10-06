@@ -12,7 +12,6 @@ export interface Task {
   energyLevel: string;
   estimatedMinutes: number | null;
   category: string | null;
-  locationTags: string[] | null;
   deadline: string | null;
   targetDate: string | null;
   scheduledFor: string | null;
@@ -58,7 +57,6 @@ export type TaskCategory =
   | "errands"
   | "health";
 
-export type LocationTag = string;
 
 // ============================================================
 // Brain Dump Types
@@ -73,7 +71,6 @@ export interface ParsedTask {
   energyLevel: EnergyLevel;
   estimatedMinutes?: number;
   category?: TaskCategory;
-  locationTags?: LocationTag[];
   deadline?: string;
   targetDate?: string;
   goalConnection?: string;
@@ -315,10 +312,6 @@ export interface NotificationPrefs {
 
 // Deadlines and events are now tuned independently. They start identical so
 // the split changes nobody's behavior; adjust either list on its own.
-/** How the user usually gets between saved locations (refreshCommuteTimes). */
-export type TravelMode = "driving" | "walking" | "cycling";
-export const TRAVEL_MODES: TravelMode[] = ["driving", "walking", "cycling"];
-
 export const DEFAULT_DEADLINE_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 export const DEFAULT_EVENT_REMINDER_INTERVALS: number[] = [1440, 60, 10];
 /**

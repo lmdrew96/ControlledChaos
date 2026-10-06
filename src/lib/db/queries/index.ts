@@ -10,7 +10,6 @@ export * from "./sessions";
 export * from "./goals";
 export * from "./momentum";
 export * from "./calendar";
-export * from "./locations";
 export * from "./notifications";
 export * from "./crisis";
 export * from "./microtasks";

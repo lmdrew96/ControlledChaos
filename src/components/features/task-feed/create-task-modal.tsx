@@ -38,7 +38,6 @@ interface FormState {
   priority: string;
   energyLevel: string;
   category: string;
-  locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
   targetDate: string;
@@ -56,7 +55,6 @@ const DEFAULT_FORM: FormState = {
   priority: "normal",
   energyLevel: "medium",
   category: "",
-  locationTags: [],
   estimatedMinutes: "",
   deadline: "",
   targetDate: "",
@@ -67,15 +65,10 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; title: string }[]>([]);
   const timezone = useTimezone();
 
   useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data) => setSavedLocations(data.locations ?? []))
-      .catch(() => {});
     fetch("/api/goals?status=active")
       .then((r) => r.json())
       .then((data) => setGoals(data.goals ?? []))
@@ -131,7 +124,6 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
           energyLevel: form.energyLevel,
           estimatedMinutes: form.estimatedMinutes || null,
           category: form.category || null,
-          locationTags: form.locationTags.length ? form.locationTags : null,
           // toUTC (the app's timezone SETTING), not new Date().toISOString()
           // (the BROWSER's timezone). task-detail-modal already used toUTC —
           // when the two disagree, create → edit silently moved the deadline.
@@ -230,7 +222,7 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
             </div>
           </div>
 
-          {/* Category + Location */}
+          {/* Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Category</Label>
@@ -250,43 +242,6 @@ export function CreateTaskModal({ open, onClose, onCreated }: CreateTaskModalPro
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Location</Label>
-              {savedLocations.length === 0 ? (
-                <p className="text-xs text-muted-foreground pt-1">
-                  No saved locations. Add them in Settings.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-3 pt-1">
-                  {savedLocations.map((loc) => {
-                    const checked = form.locationTags.includes(loc.name);
-                    return (
-                      <label
-                        key={loc.id}
-                        className="flex items-center gap-1.5 text-sm cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            const next = checked
-                              ? form.locationTags.filter((t) => t !== loc.name)
-                              : [...form.locationTags, loc.name];
-                            updateField("locationTags", next);
-                          }}
-                          className="accent-primary h-4 w-4 rounded"
-                        />
-                        {loc.name}
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                None checked = can be done anywhere
-              </p>
             </div>
           </div>
 

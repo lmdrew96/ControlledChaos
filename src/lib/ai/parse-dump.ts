@@ -13,7 +13,6 @@ export interface BrainDumpContext {
   existingGoals: Array<{ title: string }>;
   existingTasks: Array<{ title: string }>;
   calendarSummary?: string;
-  savedLocationNames?: string[];
   personalityPrefs?: PersonalityPrefs | null;
   /** Pre-formatted AI context block (energy, crises, behavior patterns) */
   aiContextBlock?: string;
@@ -64,12 +63,6 @@ export async function parseBrainDump(
     );
   } else {
     sections.push("\n## Current Pending Tasks\nNone");
-  }
-
-  if (context?.savedLocationNames && context.savedLocationNames.length > 0) {
-    sections.push(
-      `\n## User's Saved Locations\n${context.savedLocationNames.map((n) => `- ${n}`).join("\n")}`
-    );
   }
 
   if (context?.calendarSummary) {
@@ -177,17 +170,6 @@ export async function parseBrainDump(
             task.category,
             ["school", "work", "personal", "errands", "health"],
             undefined
-          )
-        : undefined,
-      locationTags: Array.isArray(task.locationTags)
-        ? task.locationTags.filter(
-            (t: string) =>
-              typeof t === "string" &&
-              t.length > 0 &&
-              (!context?.savedLocationNames?.length ||
-                context.savedLocationNames.some(
-                  (n) => n.toLowerCase() === t.toLowerCase()
-                ))
           )
         : undefined,
       // AI outputs a naive local clock time (no "Z"), same as event times —

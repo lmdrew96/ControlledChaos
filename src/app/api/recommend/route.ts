@@ -178,7 +178,6 @@ export async function POST(request: Request) {
       energyLevel: t.energyLevel,
       estimatedMinutes: t.estimatedMinutes,
       category: t.category,
-      locationTags: t.locationTags,
       deadline: t.deadline?.toISOString() ?? null,
       targetDate: t.targetDate?.toISOString() ?? null,
       scheduledFor: t.scheduledFor?.toISOString() ?? null,

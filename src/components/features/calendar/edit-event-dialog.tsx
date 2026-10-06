@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Trash2, MapPin } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -26,11 +26,6 @@ import type { CalendarEvent, EventCategory } from "@/types";
 import { allDayRange, toUTC, toUserLocal } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { SourceBackBadge } from "@/components/shared/source-back-badge";
-
-interface SavedLocation {
-  id: string;
-  name: string;
-}
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -99,16 +94,6 @@ export function EditEventDialog({
   const [initialForm, setInitialForm] = useState<FormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
-  const [locationMode, setLocationMode] = useState<"none" | "saved" | "custom">("none");
-
-  useEffect(() => {
-    if (!event) return;
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data) => setSavedLocations(data.locations ?? []))
-      .catch(() => setSavedLocations([]));
-  }, [event]);
 
   useEffect(() => {
     if (event) {
@@ -128,16 +113,8 @@ export function EditEventDialog({
       };
       setForm(opened);
       setInitialForm(opened);
-
-      if (!loc) {
-        setLocationMode("none");
-      } else if (savedLocations.some((s) => s.name === loc)) {
-        setLocationMode("saved");
-      } else {
-        setLocationMode("custom");
-      }
     }
-  }, [event, savedLocations, timezone]);
+  }, [event, timezone]);
 
   if (!event) return null;
 
@@ -347,59 +324,11 @@ export function EditEventDialog({
           {/* Location */}
           <div className="space-y-2">
             <Label>Location</Label>
-            {savedLocations.length > 0 ? (
-              <>
-                <Select
-                  value={locationMode === "saved" ? form.location : locationMode}
-                  onValueChange={(v) => {
-                    if (v === "none") {
-                      setLocationMode("none");
-                      updateField("location", "");
-                    } else if (v === "custom") {
-                      setLocationMode("custom");
-                      updateField("location", "");
-                    } else {
-                      setLocationMode("saved");
-                      updateField("location", v);
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No location</SelectItem>
-                    {savedLocations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.name}>
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          {loc.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Other...</SelectItem>
-                  </SelectContent>
-                </Select>
-                {locationMode === "custom" && (
-                  <Input
-                    value={form.location}
-                    onChange={(e) => updateField("location", e.target.value)}
-                    placeholder="e.g., Zoom, Room 204"
-                  />
-                )}
-              </>
-            ) : (
-              <div className="space-y-1.5">
-                <Input
-                  value={form.location}
-                  onChange={(e) => updateField("location", e.target.value)}
-                  placeholder="Add location..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Add saved locations in Settings to count travel time between events
-                </p>
-              </div>
-            )}
+            <Input
+              value={form.location}
+              onChange={(e) => updateField("location", e.target.value)}
+              placeholder="e.g., Room 204"
+            />
           </div>
 
           {/* Category */}

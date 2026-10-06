@@ -78,7 +78,6 @@ interface FormState {
   priority: string;
   energyLevel: string;
   category: string;
-  locationTags: string[];
   estimatedMinutes: string;
   deadline: string;
   targetDate: string;
@@ -111,7 +110,6 @@ function formFromTask(task: Task, timezone: string): FormState {
     priority: task.priority,
     energyLevel: task.energyLevel,
     category: task.category ?? "",
-    locationTags: task.locationTags ?? [],
     estimatedMinutes: task.estimatedMinutes?.toString() ?? "",
     deadline: task.deadline ? toDatetimeLocal(task.deadline, timezone) : "",
     targetDate: task.targetDate
@@ -135,7 +133,6 @@ export function TaskDetailModal({
     priority: "normal",
     energyLevel: "medium",
     category: "",
-    locationTags: [],
     estimatedMinutes: "",
     deadline: "",
     targetDate: "",
@@ -148,7 +145,6 @@ export function TaskDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isChunking, setIsChunking] = useState(false);
   const [localStepIndex, setLocalStepIndex] = useState(0);
-  const [savedLocations, setSavedLocations] = useState<{ id: string; name: string }[]>([]);
   const [goals, setGoals] = useState<{ id: string; title: string; status: string }[]>([]);
   // Every planned sitting for this task. All of them are editable in place —
   // the plan is a list, so no single one of them is privileged.
@@ -161,12 +157,8 @@ export function TaskDetailModal({
   // on a read view; Edit swaps the same modal into the form.
   const [mode, setMode] = useState<"view" | "edit">("view");
 
-  // Fetch user's saved locations and goals
+  // Fetch user's goals
   useEffect(() => {
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((data) => setSavedLocations(data.locations ?? []))
-      .catch(() => {});
     // Every goal, not just active ones: a task linked to a paused or
     // finished goal still has to show it, in the read view and the picker.
     fetch("/api/goals")
@@ -375,12 +367,7 @@ export function TaskDetailModal({
   // Dirty check — has form changed from original task?
   const original = formFromTask(task, timezone);
   const hasChanges = (Object.keys(original) as (keyof FormState)[]).some(
-    (key) => {
-      if (key === "locationTags") {
-        return JSON.stringify(form.locationTags) !== JSON.stringify(original.locationTags);
-      }
-      return form[key] !== original[key];
-    }
+    (key) => form[key] !== original[key]
   );
 
   // Advisory only — a target after the due date still saves. We warn instead of
@@ -430,8 +417,6 @@ export function TaskDetailModal({
         payload.energyLevel = form.energyLevel;
       if (form.category !== original.category)
         payload.category = form.category || null;
-      if (JSON.stringify(form.locationTags) !== JSON.stringify(original.locationTags))
-        payload.locationTags = form.locationTags.length ? form.locationTags : null;
       if (form.estimatedMinutes !== original.estimatedMinutes)
         payload.estimatedMinutes = form.estimatedMinutes
           ? parseInt(form.estimatedMinutes)
@@ -647,7 +632,7 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            {/* Category + Location */}
+            {/* Category */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Category</Label>
@@ -669,43 +654,6 @@ export function TaskDetailModal({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Location</Label>
-                {savedLocations.length === 0 ? (
-                  <p className="text-xs text-muted-foreground pt-1">
-                    No saved locations. Add them in Settings.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-3 pt-1">
-                    {savedLocations.map((loc) => {
-                      const checked = form.locationTags.includes(loc.name);
-                      return (
-                        <label
-                          key={loc.id}
-                          className="flex items-center gap-1.5 text-sm cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => {
-                              const next = checked
-                                ? form.locationTags.filter((t) => t !== loc.name)
-                                : [...form.locationTags, loc.name];
-                              updateField("locationTags", next);
-                            }}
-                            className="accent-primary h-4 w-4 rounded"
-                          />
-                          {loc.name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  None checked = can be done anywhere
-                </p>
               </div>
             </div>
 
@@ -1068,11 +1016,6 @@ function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }:
             {task.category}
           </Badge>
         )}
-        {(task.locationTags ?? []).map((loc) => (
-          <Badge key={loc} variant="outline">
-            {loc}
-          </Badge>
-        ))}
         {statusLabel[task.status] && (
           <Badge variant="secondary">{statusLabel[task.status]}</Badge>
         )}

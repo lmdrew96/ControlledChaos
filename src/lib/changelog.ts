@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.86.2",
-    label: "2.86.1 – 2.86.2",
+    version: "2.87.0",
+    label: "2.86.1 – 2.87.0",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
+      {
+        kind: "improved",
+        text: "Locations are gone. ControlledChaos can't see where you are unless the app is open, so Saved Locations, Getting Around, the onboarding home step, and location tags on tasks have all been removed, along with the travel time they added between events. Your events still keep their own place (\"Room 204\"), and reminders still say where an event is.",
+      },
       {
         kind: "fixed",
         text: "The Rescue badge no longer blinks on and off. Opening the app checked your deadlines without counting travel between events, so it cleared warnings the background check had just raised, and the next check raised them again. Both now count your time the same way.",

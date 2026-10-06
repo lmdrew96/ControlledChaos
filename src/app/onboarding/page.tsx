@@ -21,14 +21,13 @@ import { cn } from "@/lib/utils";
 import type { PersonalityPrefs } from "@/types";
 import { Logo } from "@/components/ui/logo";
 import { LegalFooter } from "@/components/layout/legal-footer";
-import { OnboardingLocationStep } from "@/components/features/onboarding/onboarding-location-step";
 import { OnboardingNotificationStep } from "@/components/features/onboarding/onboarding-notification-step";
 
 // ============================================================
 // Constants
 // ============================================================
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 const TIMEZONES = [
   { value: "America/New_York", label: "Eastern (New York)" },
@@ -64,7 +63,6 @@ const PERSONALITY_AXES = [
 const STEP_TITLES = [
   "What should I call you?",
   "How should I talk to you?",
-  "Where are you usually?",
   "How do you want to be reminded?",
   "One more thing (optional)",
 ];
@@ -124,16 +122,13 @@ export default function OnboardingPage() {
     language: 1,
   });
 
-  // Step 3: Locations
-  const [homeLocation, setHomeLocation] = useState<{ name: string; latitude: string; longitude: string } | null>(null);
-  const [secondLocation, setSecondLocation] = useState<{ name: string; latitude: string; longitude: string } | null>(null);
 
-  // Step 4: Notifications
+  // Step 3: Notifications
   const [pushEnabled, setPushEnabled] = useState(false);
   const [morningDigest, setMorningDigest] = useState(true);
   const [eveningDigest, setEveningDigest] = useState(false);
 
-  // Step 5: Canvas
+  // Step 4: Canvas
   const [canvasIcalUrl, setCanvasIcalUrl] = useState("");
 
   // Auto-detect timezone + prefill name
@@ -175,10 +170,6 @@ export default function OnboardingPage() {
             emailMorningDigest: morningDigest,
             emailEveningDigest: eveningDigest,
           },
-          locations: [
-            homeLocation,
-            secondLocation,
-          ].filter(Boolean),
         }),
       });
 
@@ -296,18 +287,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 3: Locations */}
+            {/* Step 3: Notifications */}
             {step === 3 && (
-              <OnboardingLocationStep
-                homeLocation={homeLocation}
-                onHomeChange={setHomeLocation}
-                secondLocation={secondLocation}
-                onSecondChange={setSecondLocation}
-              />
-            )}
-
-            {/* Step 4: Notifications */}
-            {step === 4 && (
               <OnboardingNotificationStep
                 pushEnabled={pushEnabled}
                 onPushChange={setPushEnabled}
@@ -318,8 +299,8 @@ export default function OnboardingPage() {
               />
             )}
 
-            {/* Step 5: Canvas iCal */}
-            {step === 5 && (
+            {/* Step 4: Canvas iCal */}
+            {step === 4 && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
                   If you use Canvas, paste your calendar feed URL to sync your class schedule.
@@ -353,7 +334,7 @@ export default function OnboardingPage() {
 
               <div className="flex gap-2">
                 {/* Skip button for optional steps */}
-                {(step === 3 || step === 4) && (
+                {step === 3 && (
                   <Button variant="ghost" size="sm" onClick={handleNext}>
                     Skip
                   </Button>

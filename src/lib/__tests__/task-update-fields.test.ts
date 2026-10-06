@@ -45,7 +45,6 @@ describe("parseTaskUpdate", () => {
         priority: "normal",
         energyLevel: "medium",
         category: "school",
-        locationTags: ["home"],
         estimatedMinutes: 30,
         deadline: "2026-09-05T16:00:00.000Z",
         targetDate: "2026-09-03T16:00:00.000Z",
@@ -60,7 +59,6 @@ describe("parseTaskUpdate", () => {
       expect(result.data.deadline).toBeInstanceOf(Date);
       expect(result.data.targetDate).toBeInstanceOf(Date);
       expect(result.data.scheduledFor).toBeInstanceOf(Date);
-      expect(result.data.locationTags).toEqual(["home"]);
     });
 
     it("accepts the task-card status-only payload", () => {
@@ -91,12 +89,6 @@ describe("parseTaskUpdate", () => {
       expect(result.data.scheduledFor).toBeNull();
       expect(result.data.description).toBeNull();
       expect(result.data.estimatedMinutes).toBeNull();
-    });
-
-    it("normalizes an empty locationTags array to null", () => {
-      const result = parseTaskUpdate({ locationTags: [] });
-      expect(result.ok).toBe(true);
-      if (result.ok) expect(result.data.locationTags).toBeNull();
     });
 
     it("rejects an unparseable date rather than writing Invalid Date", () => {

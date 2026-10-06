@@ -20,7 +20,7 @@ interface SchedulingInput {
   wakeTime?: number; // Hour 0-23, defaults to 7
   sleepTime?: number; // Hour 0-23, defaults to 22
   personalityPrefs?: PersonalityPrefs | null;
-  /** Supplementary context (location, crises, behavior patterns) from buildAIContext() */
+  /** Supplementary context (crises, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
 }
 
@@ -139,7 +139,6 @@ function buildSchedulingPrompt(
     energyLevel: t.energyLevel,
     estimatedMinutes: t.estimatedMinutes,
     category: t.category,
-    locationTags: t.locationTags,
     deadline: fmtDeadline(t.deadline),
     targetDate: fmtDeadline(t.targetDate),
     scheduledFor: fmtDeadline(t.scheduledFor),
@@ -283,7 +282,7 @@ interface SingleTaskSchedulingInput {
   wakeTime?: number;
   sleepTime?: number;
   personalityPrefs?: PersonalityPrefs | null;
-  /** Supplementary context (location, crises, behavior patterns) from buildAIContext() */
+  /** Supplementary context (crises, behavior patterns) from buildAIContext() */
   aiContextBlock?: string;
   /**
    * How many days ahead to search. Defaults to 5 for the standalone

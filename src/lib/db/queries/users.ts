@@ -1,7 +1,7 @@
 import { db } from "../index";
 import { users, userSettings } from "../schema";
 import { eq, and, sql } from "drizzle-orm";
-import type { CalendarColors, EnergyProfile, NotificationPrefs, PersonalityPrefs, TravelMode } from "@/types";
+import type { CalendarColors, EnergyProfile, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 // ============================================================
 // Users
@@ -165,7 +165,6 @@ export async function updateUserSettings(
     calendarColors: CalendarColors | null;
     autoAddCanvasTasks: boolean;
     canvasSelectedCourses: string[] | null;
-    travelMode: TravelMode;
   }>
 ) {
   const [updated] = await db

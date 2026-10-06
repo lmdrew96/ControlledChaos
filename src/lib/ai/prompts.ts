@@ -115,7 +115,6 @@ For each NEW task (not a duplicate), output:
 - energyLevel: "low" | "medium" | "high"
 - estimatedMinutes: Integer estimate (REQUIRED — always provide your best guess, even if rough. Use 30 for ambiguous tasks.)
 - category: "school" | "work" | "personal" | "errands" | "health"
-- locationTags: Array of exact names from the user's saved locations list. Use [] if doable anywhere.
 - deadline: Local datetime string ("YYYY-MM-DDTHH:MM:SS", no "Z") ONLY if mentioned or clearly inferable. Omit if uncertain.
 - targetDate: Local datetime string (same format) ONLY when the user states a SELF-IMPOSED goal that is clearly distinct from a real due date — "I want this done by Wednesday", "aiming to finish Tuesday", "I'd like it out of the way before the weekend". NEVER calculate it from the deadline. If the user mentions only ONE date, that date is the deadline and you must omit targetDate entirely.
 - goalConnection: Exact title from the provided goals list, or omit.
@@ -163,10 +162,10 @@ Input: "okay so I have my bio exam thursday at 2, also I have work tuesday 9 to 
 
 Output:
 { "tasks": [
-  { "title": "Study for Bio exam", "priority": "urgent", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "locationTags": [], "deadline": "2026-04-02T22:00:00" },
-  { "title": "Write ENGL essay", "priority": "important", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "locationTags": [], "deadline": "2026-04-03T23:59:00" },
-  { "title": "Email Dr. Chen about extension", "priority": "important", "energyLevel": "low", "estimatedMinutes": 10, "category": "school", "locationTags": [] },
-  { "title": "Pick up prescription from CVS", "priority": "normal", "energyLevel": "low", "estimatedMinutes": 20, "category": "errands", "locationTags": [] }
+  { "title": "Study for Bio exam", "priority": "urgent", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "deadline": "2026-04-02T22:00:00" },
+  { "title": "Write ENGL essay", "priority": "important", "energyLevel": "high", "estimatedMinutes": 120, "category": "school", "deadline": "2026-04-03T23:59:00" },
+  { "title": "Email Dr. Chen about extension", "priority": "important", "energyLevel": "low", "estimatedMinutes": 10, "category": "school" },
+  { "title": "Pick up prescription from CVS", "priority": "normal", "energyLevel": "low", "estimatedMinutes": 20, "category": "errands" }
 ], "events": [
   { "title": "Work", "startTime": "2026-04-01T09:00:00", "endTime": "2026-04-01T17:00:00", "isAllDay": false },
   { "title": "Bio exam", "startTime": "2026-04-03T14:00:00", "endTime": "2026-04-03T15:00:00", "isAllDay": false }
@@ -228,7 +227,7 @@ Use your scratchpad to work through these checks IN ORDER. First eliminate, then
 - The taskId you return MUST EXACTLY match one from the Pending Tasks list. A non-existent taskId will crash the system.
 - Your reasoning MUST reference ONLY data explicitly provided in the context. Do NOT invent or assume any facts.
 - NEVER mention specific dates, days of the week, or clock times in your reasoning. Use ONLY the pre-computed relative fields ("due in 3 hours", "OVERDUE", etc.).
-- You do NOT know where the user is right now. Never say or imply it ("since you're home", "while you're on campus"). A task's locationTags say where the task gets done, not where the user is; never skip a task because of them. You may mention the place as part of the task ("next time you're at CVS").
+- You do NOT know where the user is right now. Never say or imply it ("since you're home", "while you're on campus").
 - If Next event is "None upcoming" — do NOT reference any class, meeting, or time constraint in your reasoning. The user has an open schedule.
 - NEVER mention events, time blocks, or schedule items not in the "Upcoming Calendar" section.
 - The "Upcoming Calendar" is grouped by TODAY and TOMORROW. NEVER treat a TOMORROW event as if it's happening today.

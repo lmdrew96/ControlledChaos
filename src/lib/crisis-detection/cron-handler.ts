@@ -17,9 +17,8 @@ import {
   getUserSettings,
   getUser,
   getRecentMoments,
-  getCommuteSetup,
 } from "@/lib/db/queries";
-import { withTravelBuffers } from "@/lib/calendar/commute-buffers";
+import { toBusyRows } from "./time-math";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
@@ -110,7 +109,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   });
 
   // Fetch calendar events for the window and recent Moments for augmentation
-  const [calendarRows, recentMomentRows, loggedMinutes, commute] = await Promise.all([
+  const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
     getCalendarEventsByDateRange(userId, now, windowEnd, { committedOnly: true }),
     // 2-hour window is the widest any Moment augmentation rule cares about
     getRecentMoments(userId, 120, [
@@ -120,13 +119,11 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     // Work already logged in sittings. A task that's half done needs half
     // its estimate, not all of it, or the collision math cries wolf.
     getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),
-    getCommuteSetup(userId),
   ]);
 
-  // Travel between events at different saved locations is time the user
-  // can't work, same as the events. The status route and manual rescue build
-  // busy time through the same helper, so all three see one number.
-  const busyRows = withTravelBuffers(calendarRows, commute, now);
+  // The status route and manual rescue build busy time through the same
+  // helper, so all three see one number.
+  const busyRows = toBusyRows(calendarRows);
 
   // A drift warning stands for the day it was sent. Feeding that back in gives
   // the detector its hysteresis band, so a workload parked near the threshold

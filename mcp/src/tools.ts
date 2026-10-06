@@ -380,7 +380,6 @@ Args:
   - target_date: SOFT target the user set for THEMSELVES, usually to leave buffer. ISO 8601 UTC.
   - scheduled_for: When the user plans to START working on it, as ONE sitting. A "when", not a "by when". ISO 8601 UTC.
   - sessions: The planned sittings, when the work is split across more than one: [{ start, minutes? }]. Use instead of scheduled_for, never both.
-  - location_tags: Array of location tags like ["home", "campus"].
 
 ## deadline vs target_date — pick deliberately
 
@@ -415,7 +414,6 @@ Returns: The created task with its ID and session IDs.`,
           .max(20)
           .optional()
           .describe("Planned sittings when the work is split up, e.g. [{start: '2026-09-27T16:45:00Z', minutes: 90}, {start: '2026-09-28T14:30:00Z'}]. Not with scheduled_for."),
-        location_tags: z.array(z.string()).optional().describe("Location tags"),
         goal_id: z.string().uuid().optional().describe("Goal this task works toward (from cc_list_goals)"),
       },
       annotations: {
@@ -441,8 +439,8 @@ Returns: The created task with its ID and session IDs.`,
         if (goalError) return { content: [{ type: "text" as const, text: goalError }] };
       }
       const rows = await sql(
-        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags, goal_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO tasks (user_id, title, description, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, goal_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           userId,
@@ -455,7 +453,6 @@ Returns: The created task with its ID and session IDs.`,
           params.deadline ? new Date(params.deadline).toISOString() : null,
           params.target_date ? new Date(params.target_date).toISOString() : null,
           params.scheduled_for ? new Date(params.scheduled_for).toISOString() : null,
-          params.location_tags?.length ? JSON.stringify(params.location_tags) : null,
           params.goal_id ?? null,
         ]
       );
@@ -497,7 +494,7 @@ Returns: The created task with its ID and session IDs.`,
 
 Args:
   - task_id (required): UUID of the task to update.
-  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, location_tags, goal_id: Fields to update.
+  - title, description, status, priority, energy_level, estimated_minutes, category, deadline, target_date, scheduled_for, goal_id: Fields to update.
 
 ## The three times a task can carry
 
@@ -530,7 +527,6 @@ Returns: The updated task.`,
         deadline: z.string().nullable().optional().describe("New HARD deadline, imposed from outside (ISO 8601 UTC). Pass null to clear it."),
         target_date: z.string().nullable().optional().describe("New SOFT self-imposed target (ISO 8601 UTC). Pass null to clear it."),
         scheduled_for: z.string().nullable().optional().describe("Moves the task's first unchecked sitting — not a due date (ISO 8601 UTC). Other sittings are left alone. Pass null to take the task off the schedule."),
-        location_tags: z.array(z.string()).optional().describe("New location tags"),
         goal_id: z.string().uuid().nullable().optional().describe("Goal this task works toward. Pass null to unlink it from its goal."),
       },
       annotations: {
@@ -565,7 +561,6 @@ Returns: The updated task.`,
         ["deadline", "deadline", timeField(params.deadline)],
         ["target_date", "target_date", timeField(params.target_date)],
         ["scheduled_for", "scheduled_for", timeField(params.scheduled_for)],
-        ["location_tags", "location_tags", params.location_tags ? JSON.stringify(params.location_tags) : undefined],
         ["goal_id", "goal_id", params.goal_id],
       ];
 
@@ -2973,7 +2968,6 @@ Optional filters narrow the candidate pool before ranking.
 Args:
   - energy_level: Only suggest tasks matching this energy level (low, medium, high).
   - time_available_minutes: Only suggest tasks whose estimated_minutes fits in this window.
-  - location_tag: Only suggest tasks tagged for this location (e.g., "home", "office").
 
 Weigh it the way the app's own recommendation does:
   - Energy: the latest energy Moment from the last 2 hours. Low energy → favour low-energy tasks unless a hard deadline can't wait.
@@ -2985,7 +2979,6 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
       inputSchema: {
         energy_level: z.enum(["low", "medium", "high"]).optional().describe("Match this energy level"),
         time_available_minutes: z.number().int().positive().optional().describe("Only tasks fitting in this many minutes"),
-        location_tag: z.string().optional().describe("Only tasks tagged for this location"),
       },
       annotations: {
         readOnlyHint: true,
@@ -3016,11 +3009,6 @@ Returns: Markdown with a Recommendations section (top tasks, each with its goal 
       if (params.time_available_minutes != null) {
         conditions.push(`(estimated_minutes IS NULL OR estimated_minutes <= $${paramIdx})`);
         values.push(params.time_available_minutes);
-        paramIdx++;
-      }
-      if (params.location_tag) {
-        conditions.push(`location_tags::jsonb @> $${paramIdx}::jsonb`);
-        values.push(JSON.stringify([params.location_tag]));
         paramIdx++;
       }
 

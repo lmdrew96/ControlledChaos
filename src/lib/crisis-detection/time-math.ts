@@ -11,6 +11,34 @@ interface CalendarBlock {
   isAllDay: boolean;
 }
 
+export interface BusyRow {
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  isAllDay: boolean;
+}
+
+/**
+ * Calendar rows as crisis busy time, in start order.
+ *
+ * The one place crisis busy time is built: the cron, the in-app status check
+ * and the manual rescue route all call this. When the status check built its
+ * own list (v2.86.1 and earlier), it disagreed with the cron and resolved
+ * every detection the cron had just created.
+ */
+export function toBusyRows(
+  events: Array<{ title: string; startTime: Date | string; endTime: Date | string; isAllDay?: boolean | null }>
+): BusyRow[] {
+  return events
+    .map((e) => ({
+      title: e.title,
+      startTime: new Date(e.startTime),
+      endTime: new Date(e.endTime),
+      isAllDay: e.isAllDay ?? false,
+    }))
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
 /**
  * Convert a local hour on a specific date string to a UTC Date object.
  * Reuses the project's toUTC() utility from timezone.ts.

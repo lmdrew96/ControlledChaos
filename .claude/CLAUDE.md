@@ -24,7 +24,6 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 | **AI** | Claude Haiku 4.5 (`@anthropic-ai/sdk`) | Task parsing, scheduling, crisis support |
 | **Speech-to-Text** | Groq (`groq-sdk`) | Whisper — brain dump voice input |
 | **File Storage** | Cloudflare R2 (`@aws-sdk/client-s3`) | Brain dump photos/audio |
-| **Maps** | Leaflet + react-leaflet | Location features |
 | **Animations** | Framer Motion | Micro-interactions, transitions |
 | **Notifications** | Web Push (`web-push`) | Push notification scheduling |
 | **Email** | Resend + React Email | Digest emails |
@@ -37,7 +36,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 
 - **Cloudflare Workers (workerd)** — the limit is CPU time, not wall-clock, so waiting on Neon/Anthropic/Resend is free. (The Vercel-era `maxDuration` exports were removed in v2.67.3; don't add them back.)
 - **`NEXT_PUBLIC_*` are inlined at build time** — a Worker secret cannot supply one, because secrets are runtime-only and a Workers Builds container cannot read them. They belong in Build configuration → Variables. `scripts/check-build-env.ts` fails the build when a required one is missing.
-- **Neon serverless driver (`neon-http`)** — `db.transaction(...)` **throws** ("No transactions support in neon-http driver"). For atomic multi-statement writes use `db.batch([q1, q2, ...])`, which sends the built queries as one HTTP transaction (see `reorderTasks` and `deleteLocation` in `src/lib/db/queries/`). The queries are built up front, so nothing can branch on an earlier query's result. When you need that (interactive transactions), fall back to sequential plain queries with manual rollback logic.
+- **Neon serverless driver (`neon-http`)** — `db.transaction(...)` **throws** ("No transactions support in neon-http driver"). For atomic multi-statement writes use `db.batch([q1, q2, ...])`, which sends the built queries as one HTTP transaction (see `reorderTasks` and `deleteGoal` in `src/lib/db/queries/`). The queries are built up front, so nothing can branch on an earlier query's result. When you need that (interactive transactions), fall back to sequential plain queries with manual rollback logic.
 - **No Node.js-specific APIs in edge routes** — if a route uses `export const runtime = 'edge'`, stick to Web APIs only
 
 ---
@@ -64,7 +63,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 ### Calendar Integration
 - Canvas iCal: URL-based import, parsed with `node-ical` — no auth needed
 - Recurrence expansion handled in `src/lib/calendar/expand-recurrence.ts`
-- Re-synced every 30 min via `/api/cron/calendar-sync` (the same tick retries incomplete commute times)
+- Re-synced every 30 min via `/api/cron/calendar-sync`
 - **No Google Calendar integration** — do not add `googleapis` or GCal OAuth without explicit request
 
 ### Client Settings
