@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.88.1",
-    label: "2.86.1 – 2.88.1",
+    version: "2.88.2",
+    label: "2.86.1 – 2.88.2",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
@@ -47,6 +47,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "Rescue no longer counts time twice. An evening event that ran into your sleep hours, or two events that overlapped, were each subtracted in full, so deadline warnings and rescue plans thought you had less time than you did.",
+      },
+      {
+        kind: "fixed",
+        text: "AI assistants connected to ControlledChaos now see all-day events in your daily stats as \"All day\" instead of \"12:00 AM – 12:00 AM\".",
       },
       {
         kind: "improved",

@@ -1390,7 +1390,7 @@ Returns: Markdown-formatted daily stats summary.`,
 
       // Today's events
       const todaysEvents = await sql(
-        `SELECT title, start_time, end_time, is_tentative FROM calendar_events
+        `SELECT title, start_time, end_time, is_all_day, is_tentative FROM calendar_events
          WHERE user_id = $1
          AND start_time >= $2
          AND start_time < $3
@@ -1400,9 +1400,12 @@ Returns: Markdown-formatted daily stats summary.`,
 
       const eventsText = todaysEvents.length > 0
         ? todaysEvents.map(e => {
-            const start = fmtTimeLocal(e.start_time, tz);
-            const end = fmtTimeLocal(e.end_time, tz);
-            return `  - ${e.title} (${start} – ${end})${e.is_tentative ? " (tentative)" : ""}`;
+            // All-day rows are stored midnight to midnight; printing those
+            // times read as "12:00 AM – 12:00 AM".
+            const when = e.is_all_day
+              ? "All day"
+              : `${fmtTimeLocal(e.start_time, tz)} – ${fmtTimeLocal(e.end_time, tz)}`;
+            return `  - ${e.title} (${when})${e.is_tentative ? " (tentative)" : ""}`;
           }).join("\n")
         : "  No events today";
 
