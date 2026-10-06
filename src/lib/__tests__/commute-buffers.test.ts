@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { travelBuffers, shortestCommuteMinutes } from "@/lib/calendar/commute-buffers";
+import { travelBuffers, shortestCommuteMinutes, withTravelBuffers } from "@/lib/calendar/commute-buffers";
 
 const saved = [
   { id: "home", name: "Home" },
@@ -96,5 +96,34 @@ describe("travelBuffers", () => {
         commutes
       )
     ).toHaveLength(1);
+  });
+});
+
+describe("withTravelBuffers", () => {
+  const titled = (start: string, end: string, location: string | null, title: string) => ({
+    ...ev(start, end, location),
+    title,
+  });
+
+  it("adds the trip between located events, in start order", () => {
+    const rows = withTravelBuffers(
+      [titled("12:00", "13:00", "Home", "Lunch"), titled("09:00", "10:00", "Smith Hall", "Class")],
+      { savedLocations: saved, commutes },
+      at("08:00")
+    );
+    expect(rows.map((r) => r.title)).toEqual(["Class", "Travel to Home", "Lunch"]);
+    expect(rows[1].startTime).toEqual(at("11:40"));
+    expect(rows[1].endTime).toEqual(at("12:00"));
+    expect(rows.every((r) => r.isAllDay === false)).toBe(true);
+  });
+
+  it("returns just the events when no trip is known", () => {
+    const rows = withTravelBuffers(
+      [titled("09:00", "10:00", "Smith Hall", "Class")],
+      { savedLocations: saved, commutes: [] },
+      at("08:00")
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].startTime).toBeInstanceOf(Date);
   });
 });

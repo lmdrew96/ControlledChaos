@@ -19,7 +19,7 @@ import {
   getRecentMoments,
   getCommuteSetup,
 } from "@/lib/db/queries";
-import { travelBuffers } from "@/lib/calendar/commute-buffers";
+import { withTravelBuffers } from "@/lib/calendar/commute-buffers";
 import { getCrisisPlan } from "@/lib/ai/crisis";
 import type { CrisisParams } from "@/lib/ai/crisis";
 import { sendPushToUser } from "@/lib/notifications/send-push";
@@ -124,17 +124,9 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   ]);
 
   // Travel between events at different saved locations is time the user
-  // can't work, same as the events. The manual crisis route adds the same
-  // buffers (api/crisis/route.ts eventsWithTravel), so both see one number.
-  const busyRows = [
-    ...calendarRows,
-    ...travelBuffers(calendarRows, commute.savedLocations, commute.commutes, { now }).map((b) => ({
-      title: `Travel to ${b.destination}`,
-      startTime: b.start,
-      endTime: b.end,
-      isAllDay: false,
-    })),
-  ].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  // can't work, same as the events. The status route and manual rescue build
+  // busy time through the same helper, so all three see one number.
+  const busyRows = withTravelBuffers(calendarRows, commute, now);
 
   // A drift warning stands for the day it was sent. Feeding that back in gives
   // the detector its hysteresis band, so a workload parked near the threshold
@@ -160,11 +152,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
       // A woken snooze is open work again.
       status: t.status === "snoozed" ? "pending" : t.status,
     })),
-    calendarEvents: busyRows.map((e) => ({
-      startTime: new Date(e.startTime),
-      endTime: new Date(e.endTime),
-      isAllDay: e.isAllDay ?? false,
-    })),
+    calendarEvents: busyRows,
     recentMoments: recentMomentRows.map((m) => ({
       type: m.type as MomentType,
       intensity: m.intensity,

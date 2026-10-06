@@ -12,8 +12,10 @@ import {
   getUser,
   getRecentMoments,
   getLoggedMinutesForTasks,
+  getCommuteSetup,
 } from "@/lib/db/queries";
 import { detectCrisis } from "@/lib/crisis-detection";
+import { withTravelBuffers } from "@/lib/calendar/commute-buffers";
 import { DEFAULT_PLAN_BLOCK_MINUTES } from "@/lib/calendar/plan-blocks";
 import type { CrisisDetectionStatus, MomentType } from "@/types";
 
@@ -64,11 +66,12 @@ export async function GET() {
 
     if (tasksWithDeadlines.length > 0) {
       // Fetch calendar events for the detection window + recent Moments for augmentation
-      const [calendarRows, recentMomentRows, loggedMinutes] = await Promise.all([
+      const [calendarRows, recentMomentRows, loggedMinutes, commute] = await Promise.all([
         getCalendarEventsByDateRange(userId, now, windowEnd, { committedOnly: true }),
         getRecentMoments(userId, 120, ["tough_moment", "energy_crash"]),
         // Same as the cron: logged sitting work comes off the estimate.
         getLoggedMinutesForTasks(tasksWithDeadlines.map((t) => t.id), userId),
+        getCommuteSetup(userId),
       ]);
 
       result = detectCrisis({
@@ -84,11 +87,9 @@ export async function GET() {
           ),
           status: t.status === "snoozed" ? "pending" : t.status,
         })),
-        calendarEvents: calendarRows.map((e) => ({
-          startTime: new Date(e.startTime),
-          endTime: new Date(e.endTime),
-          isAllDay: e.isAllDay ?? false,
-        })),
+        // Same busy time as the cron, travel included. Without the travel
+        // this check resolved each detection the cron had just created.
+        calendarEvents: withTravelBuffers(calendarRows, commute, now),
         recentMoments: recentMomentRows.map((m) => ({
           type: m.type as MomentType,
           intensity: m.intensity,

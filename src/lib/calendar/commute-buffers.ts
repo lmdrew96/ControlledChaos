@@ -153,6 +153,38 @@ export function travelBuffers(
   return buffers;
 }
 
+export interface BusyRow {
+  title: string;
+  startTime: Date;
+  endTime: Date;
+  isAllDay: boolean;
+}
+
+/**
+ * Events plus the travel between them, as one start-ordered busy list.
+ *
+ * The one place crisis busy time is built: the cron, the in-app status check
+ * and the manual rescue route all call this. The status check used to skip
+ * the travel, so it resolved every detection the cron had just created and
+ * the next tick re-created it.
+ */
+export function withTravelBuffers(
+  events: Array<LocatedEvent & { title: string }>,
+  commute: { savedLocations: SavedLocation[]; commutes: CommuteRow[] },
+  now: Date
+): BusyRow[] {
+  const rows: BusyRow[] = events.map((e) => ({
+    title: e.title,
+    startTime: new Date(e.startTime),
+    endTime: new Date(e.endTime),
+    isAllDay: e.isAllDay ?? false,
+  }));
+  for (const b of travelBuffers(events, commute.savedLocations, commute.commutes, { now })) {
+    rows.push({ title: `Travel to ${b.destination}`, startTime: b.start, endTime: b.end, isAllDay: false });
+  }
+  return rows.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+}
+
 /**
  * Travel buffers in the CalendarEvent shape the scheduler's busy set uses.
  * Titled "Travel to X" so a conflict message names what's in the way.

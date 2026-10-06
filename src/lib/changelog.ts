@@ -35,10 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.86.1",
+    version: "2.86.2",
+    label: "2.86.1 – 2.86.2",
     date: "2026-10-06",
     title: "No more guessing where you are",
     changes: [
+      {
+        kind: "fixed",
+        text: "The Rescue badge no longer blinks on and off. Opening the app checked your deadlines without counting travel between events, so it cleared warnings the background check had just raised, and the next check raised them again. Both now count your time the same way.",
+      },
       {
         kind: "fixed",
         text: "Reminders no longer claim to know where you are. ControlledChaos can't see your location, and it used to guess (\"you're still at home\") while you were already on the way. Reminders now say where the event is, never where you are.",

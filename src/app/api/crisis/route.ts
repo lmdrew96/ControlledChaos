@@ -16,7 +16,7 @@ import {
   restoreCrisisPlan,
   getCommuteSetup,
 } from "@/lib/db/queries";
-import { travelBuffers } from "@/lib/calendar/commute-buffers";
+import { withTravelBuffers } from "@/lib/calendar/commute-buffers";
 import { getUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { crisisPlans } from "@/lib/db/schema";
@@ -29,20 +29,6 @@ import {
   getHourInTimezone,
   startOfDayInTimezone,
 } from "@/lib/timezone";
-
-/**
- * Events plus the travel between them, as the crisis prompt reads them.
- * Auto-triage (crisis-detection/cron-handler.ts) builds the same list, so a
- * manual and an automatic plan see the same busy time.
- */
-function eventsWithTravel(
-  events: Array<{ title: string; startTime: Date; endTime: Date; isAllDay: boolean | null; location: string | null }>,
-  commute: Awaited<ReturnType<typeof getCommuteSetup>>,
-  now: Date
-) {
-  const travel = travelBuffers(events, commute.savedLocations, commute.commutes, { now }).map((b) => ({ title: `Travel to ${b.destination}`, startTime: b.start, endTime: b.end }));
-  return [...events, ...travel].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-}
 
 function formatEventsForAI(
   events: Array<{ title: string; startTime: Date; endTime: Date }>,
@@ -248,7 +234,7 @@ export async function POST(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(eventsWithTravel(upcomingEvents, commute, now), timezone),
+      upcomingEvents: formatEventsForAI(withTravelBuffers(upcomingEvents, commute, now), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: existingCrises.map((c) => ({
         taskName: c.taskName,
@@ -381,7 +367,7 @@ export async function PUT(request: Request) {
       currentTime,
       minutesUntilDeadline,
       sleepSchedule: { wakeTime, sleepTime, sleepMinutesBlocked },
-      upcomingEvents: formatEventsForAI(eventsWithTravel(upcomingEvents, commute, now), timezone),
+      upcomingEvents: formatEventsForAI(withTravelBuffers(upcomingEvents, commute, now), timezone),
       existingPendingTaskCount: pendingTasks.length,
       activeCrises: otherCrises.map((c) => ({
         taskName: c.taskName,
