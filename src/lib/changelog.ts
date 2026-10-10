@@ -35,14 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.90.0",
-    label: "2.89.2 – 2.90.0",
+    version: "2.90.1",
+    label: "2.89.2 – 2.90.1",
     date: "2026-10-09",
     title: "A wrap-up that sees your whole day",
     changes: [
       {
         kind: "improved",
         text: "The evening wrap-up now looks at your whole day, not just tasks checked off. It starts with what your calendar had, names exams and quizzes, and only calls a day quiet when nothing was on it. The line under the note says what the day held instead of \"No tasks checked off.\"",
+      },
+      {
+        kind: "fixed",
+        text: "The \"new\" dot on What's New is big enough to actually see now, on your avatar and in the menu.",
       },
       {
         kind: "fixed",

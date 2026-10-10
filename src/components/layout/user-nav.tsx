@@ -55,8 +55,21 @@ export function UserNav({ onOpenWhatsNew }: { onOpenWhatsNew: () => void }) {
               onClick={() => setTheme(isDark ? "light" : "dark")}
             />
             <UserButton.Action
-              label={hasNew ? "What's new ·" : "What's new"}
-              labelIcon={<Sparkles className="h-4 w-4" />}
+              label="What's new"
+              // Clerk renders the label as plain text, so the "new" marker
+              // rides on the icon. It used to be a "·" in the label, which
+              // was nearly invisible.
+              labelIcon={
+                <span className="relative inline-flex">
+                  <Sparkles className="h-4 w-4" />
+                  {hasNew && (
+                    <span
+                      className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card"
+                      aria-label="New updates"
+                    />
+                  )}
+                </span>
+              }
               onClick={() => {
                 onOpenWhatsNew();
                 markSeen();
@@ -66,7 +79,7 @@ export function UserNav({ onOpenWhatsNew }: { onOpenWhatsNew: () => void }) {
         </UserButton>
         {hasNew && (
           <span
-            className="pointer-events-none absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-success ring-2 ring-card"
+            className="pointer-events-none absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-success ring-2 ring-card"
             aria-hidden
           />
         )}
