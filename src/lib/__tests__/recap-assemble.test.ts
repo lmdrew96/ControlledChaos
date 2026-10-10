@@ -212,3 +212,42 @@ describe("assembleRecapEntries — rescue plans", () => {
     expect(out[1]).toMatchObject({ kind: "rescue", finished: false });
   });
 });
+
+describe("assembleRecapEntries — sittings", () => {
+  const sitting = (id: string, status: string | null, at: Date, actualMinutes: number | null) => ({
+    id,
+    taskId: "task-1",
+    title: "McNair hours",
+    startsAt: at,
+    status,
+    actualMinutes,
+  });
+
+  it("lists done and partly sittings at their start, never skipped ones", () => {
+    const entries = assembleRecapEntries({
+      ...emptyInput(),
+      sittings: [
+        sitting("s1", "done", T1, 45),
+        sitting("s2", "partial", T3, 20),
+        sitting("s3", "skipped", T2, 0),
+      ],
+    });
+    expect(entries.map((e) => e.id)).toEqual(["s2", "s1"]);
+    expect(entries[1]).toMatchObject({
+      kind: "sitting",
+      at: T1.toISOString(),
+      taskId: "task-1",
+      status: "done",
+      minutes: 45,
+    });
+  });
+
+  it("respects the filter", () => {
+    const entries = assembleRecapEntries({
+      ...emptyInput(),
+      sittings: [sitting("s1", "done", T1, 45)],
+      typeFilters: ["task"],
+    });
+    expect(entries).toEqual([]);
+  });
+});

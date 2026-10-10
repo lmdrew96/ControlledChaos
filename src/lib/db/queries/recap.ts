@@ -1,6 +1,6 @@
 import { db } from "../index";
-import { crisisPlans, microtaskCompletions, microtasks, tasks } from "../schema";
-import { eq, and, gte, lt, isNull } from "drizzle-orm";
+import { crisisPlans, microtaskCompletions, microtasks, tasks, taskSessions } from "../schema";
+import { eq, and, gte, lt, isNull, inArray } from "drizzle-orm";
 import type { RecapEntry, RecapKind } from "@/types";
 import { assembleRecapEntries } from "@/lib/recap/assemble";
 import { getCalendarEventsByDateRange } from "./calendar";
@@ -12,8 +12,8 @@ import { listMoments } from "./moments";
 // ============================================================
 
 /**
- * Fetch a day's worth of activity across tasks, events, brain dumps,
- * junk journal entries, and moments. Runs all source queries in
+ * Fetch a day's worth of activity across tasks, worked sittings, events,
+ * brain dumps, junk journal entries, and moments. Runs all source queries in
  * parallel and merges into a single array sorted by `at` descending
  * (most recent first). Respects `typeFilters` — unspecified kinds are
  * skipped entirely (no wasted DB round-trip).
@@ -26,7 +26,16 @@ export async function getRecapDay(
 ): Promise<RecapEntry[]> {
   const want = (k: RecapKind) => !typeFilters || typeFilters.includes(k);
 
-  const [completedTasks, dayEvents, dayDumps, dayJournal, dayMoments, dayMicrotasks, dayRescues] =
+  const [
+    completedTasks,
+    dayEvents,
+    dayDumps,
+    dayJournal,
+    dayMoments,
+    dayMicrotasks,
+    dayRescues,
+    daySittings,
+  ] =
     await Promise.all([
       want("task")
         ? db
@@ -85,6 +94,30 @@ export async function getRecapDay(
               )
             )
         : Promise.resolve([]),
+      // Sittings checked in as worked. A sitting logged before it began was
+      // moved to when the work happened, so its start is the real time.
+      want("sitting")
+        ? db
+            .select({
+              id: taskSessions.id,
+              taskId: tasks.id,
+              title: tasks.title,
+              startsAt: taskSessions.startsAt,
+              status: taskSessions.status,
+              actualMinutes: taskSessions.actualMinutes,
+            })
+            .from(taskSessions)
+            .innerJoin(tasks, eq(tasks.id, taskSessions.taskId))
+            .where(
+              and(
+                eq(taskSessions.userId, userId),
+                inArray(taskSessions.status, ["done", "partial"]),
+                gte(taskSessions.startsAt, dayStart),
+                lt(taskSessions.startsAt, dayEnd),
+                isNull(tasks.deletedAt)
+              )
+            )
+        : Promise.resolve([]),
     ]);
 
   return assembleRecapEntries({
@@ -95,6 +128,7 @@ export async function getRecapDay(
     moments: dayMoments,
     microtasks: dayMicrotasks,
     rescues: dayRescues,
+    sittings: daySittings,
     typeFilters,
   });
 }

@@ -152,6 +152,7 @@ export interface RecentMoment {
 // ============================================================
 export type RecapKind =
   | "task"
+  | "sitting"
   | "microtask"
   | "event"
   | "dump"
@@ -170,6 +171,14 @@ export type RecapEntry =
       kind: "task";
       title: string;
       category: string | null;
+    })
+  | (RecapEntryBase & {
+      /** A planned sitting checked in as done or partly: work that happened. */
+      kind: "sitting";
+      taskId: string;
+      title: string;
+      status: "done" | "partial";
+      minutes: number | null;
     })
   | (RecapEntryBase & {
       kind: "event";

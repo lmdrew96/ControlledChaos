@@ -17,6 +17,16 @@ export interface TaskRow {
   completedAt: Date | null;
 }
 
+export interface SittingRow {
+  /** The session's id. */
+  id: string;
+  taskId: string;
+  title: string;
+  startsAt: Date;
+  status: string | null;
+  actualMinutes: number | null;
+}
+
 export interface EventRow {
   id: string;
   title: string;
@@ -70,6 +80,7 @@ export interface AssembleInput {
   moments: MomentRow[];
   microtasks?: MicrotaskRow[];
   rescues?: RescueRow[];
+  sittings?: SittingRow[];
   /** Optional kind filter. When omitted, all kinds are included. */
   typeFilters?: RecapKind[];
 }
@@ -94,6 +105,22 @@ export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
         at: t.completedAt.toISOString(),
         title: t.title,
         category: t.category,
+      });
+    }
+  }
+
+  if (want("sitting")) {
+    for (const s of input.sittings ?? []) {
+      // Skipped (or unanswered) isn't work that happened.
+      if (s.status !== "done" && s.status !== "partial") continue;
+      entries.push({
+        kind: "sitting",
+        id: s.id,
+        at: s.startsAt.toISOString(),
+        taskId: s.taskId,
+        title: s.title,
+        status: s.status,
+        minutes: s.actualMinutes,
       });
     }
   }

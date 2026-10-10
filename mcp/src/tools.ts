@@ -2329,16 +2329,16 @@ Returns: Updated moment.`,
     "cc_get_mirror_day",
     {
       title: "Get Mirror Day",
-      description: `Read the chronological timeline for a single day — completed tasks, calendar events, brain dumps, journal entries, and moments, merged and sorted in reverse-chronological order. Day boundaries are computed in the user's timezone.
+      description: `Read the chronological timeline for a single day — completed tasks, task sittings checked in as done or partly (work on a task, finished or not), calendar events, brain dumps, journal entries, and moments, merged and sorted in reverse-chronological order. Day boundaries are computed in the user's timezone.
 
 Args:
   - date (required): YYYY-MM-DD for the local day to render.
-  - kinds: Optional array filter — subset of ["task","event","dump","journal","moment"]. Omit for all kinds.
+  - kinds: Optional array filter — subset of ["task","sitting","event","dump","journal","moment"]. Omit for all kinds.
 
 Returns: Markdown timeline with times in the user's timezone.`,
       inputSchema: {
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Local date YYYY-MM-DD"),
-        kinds: z.array(z.enum(["task", "event", "dump", "journal", "moment"])).optional(),
+        kinds: z.array(z.enum(["task", "sitting", "event", "dump", "journal", "moment"])).optional(),
       },
       annotations: {
         readOnlyHint: true,
@@ -2350,7 +2350,7 @@ Returns: Markdown timeline with times in the user's timezone.`,
     async (params) => {
       const userId = getUserId();
       const tz = await getUserTimezone(userId);
-      type MirrorKind = "task" | "event" | "dump" | "journal" | "moment";
+      type MirrorKind = "task" | "sitting" | "event" | "dump" | "journal" | "moment";
       const want = (k: MirrorKind) => !params.kinds || params.kinds.includes(k);
       const toIso = (v: unknown): string =>
         v instanceof Date ? v.toISOString() : String(v);
@@ -2362,13 +2362,23 @@ Returns: Markdown timeline with times in the user's timezone.`,
 
       const { start, end } = await localDayWindow(params.date, tz);
 
-      const [tasksRows, eventRows, dumpRows, journalRows, momentRows] = await Promise.all([
+      const [tasksRows, sittingRows, eventRows, dumpRows, journalRows, momentRows] = await Promise.all([
         want("task")
           ? sql(
               `SELECT id, title, category, completed_at AS at
                FROM tasks
                WHERE user_id = $1 AND status = 'completed' AND deleted_at IS NULL
                  AND completed_at >= $2 AND completed_at < $3`,
+              [userId, start, end]
+            )
+          : Promise.resolve([]),
+        want("sitting")
+          ? sql(
+              `SELECT s.id, s.status, s.actual_minutes, s.starts_at AS at, t.title
+               FROM task_sessions s
+               JOIN tasks t ON t.id = s.task_id AND t.deleted_at IS NULL
+               WHERE s.user_id = $1 AND s.status IN ('done', 'partial')
+                 AND s.starts_at >= $2 AND s.starts_at < $3`,
               [userId, start, end]
             )
           : Promise.resolve([]),
@@ -2414,6 +2424,9 @@ Returns: Markdown timeline with times in the user's timezone.`,
 
       for (const r of tasksRows) {
         entries.push({ kind: "task", id: r.id, at: toIso(r.at), title: r.title, category: r.category });
+      }
+      for (const r of sittingRows) {
+        entries.push({ kind: "sitting", id: r.id, at: toIso(r.at), title: r.title, status: r.status, minutes: r.actual_minutes });
       }
       for (const r of eventRows) {
         entries.push({ kind: "event", id: r.id, at: toIso(r.at), endAt: toIso(r.end_at), title: r.title, location: r.location, isAllDay: r.is_all_day });

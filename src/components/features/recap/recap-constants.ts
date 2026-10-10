@@ -5,6 +5,7 @@ import {
   BookOpen,
   Sparkles,
   CircleCheck,
+  Layers,
   Siren,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ export interface RecapKindMeta {
 
 export const RECAP_KINDS: RecapKind[] = [
   "task",
+  "sitting",
   "microtask",
   "event",
   "dump",
@@ -36,6 +38,13 @@ export const RECAP_KIND_META: Record<RecapKind, RecapKindMeta> = {
     icon: ListTodo,
     tintClassName: "text-success bg-success/15 border-success/40",
     href: (entry) => `/tasks?taskId=${entry.id}`,
+  },
+  sitting: {
+    label: "Sittings",
+    icon: Layers,
+    // Work on a task, so the task color, a shade lighter: progress, not the finish.
+    tintClassName: "text-success bg-success/10 border-success/30",
+    href: (entry) => (entry.kind === "sitting" ? `/tasks?taskId=${entry.taskId}` : null),
   },
   microtask: {
     label: "Microtasks",

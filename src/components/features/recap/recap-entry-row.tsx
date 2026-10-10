@@ -80,6 +80,14 @@ function describe(
   switch (entry.kind) {
     case "task":
       return { label: entry.title, snippet: entry.category };
+    case "sitting": {
+      const amount = entry.minutes ? ` · ${entry.minutes} min` : "";
+      return {
+        label: entry.title,
+        // Same words as the task's sitting list.
+        snippet: `${entry.status === "done" ? "Done" : "Partly"}${amount}`,
+      };
+    }
     case "rescue":
       return {
         label: `Rescue plan: ${entry.taskName}`,

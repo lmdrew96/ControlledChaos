@@ -219,6 +219,11 @@ export function formatMirrorEntry(
   switch (entry.kind) {
     case "task":
       return `✓ ${when} — **Task completed**: ${entry.title}`;
+    case "sitting": {
+      const amount = typeof entry.minutes === "number" && entry.minutes > 0 ? ` · ${entry.minutes} min` : "";
+      const how = entry.status === "partial" ? "partly" : "done";
+      return `⏱ ${when} — **Sitting** (${how}${amount}): ${entry.title}`;
+    }
     case "event": {
       const endTime = fmtTimeLocal(entry.endAt, tz);
       const loc = entry.location ? ` @ ${entry.location}` : "";
