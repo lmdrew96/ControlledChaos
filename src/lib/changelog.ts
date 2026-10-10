@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.90.4",
-    label: "2.89.2 – 2.90.4",
+    version: "2.90.5",
+    label: "2.89.2 – 2.90.5",
     date: "2026-10-09",
     title: "A wrap-up that sees your whole day",
     changes: [
@@ -51,6 +51,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "The \"new\" dot on What's New is big enough to actually see now, on your avatar and in the menu.",
+      },
+      {
+        kind: "fixed",
+        text: "Clearer wording on the Daily Check-in setting: it's one nudge a day at the time you pick. The evening wrap-up only comes if you choose Evening.",
       },
       {
         kind: "fixed",

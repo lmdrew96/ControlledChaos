@@ -502,8 +502,8 @@ export function NotificationSettings() {
           />
         </div>
         <p className="text-xs text-muted-foreground sm:pl-6">
-          At most one nudge per day. Morning and afternoon only fire if you&apos;ve been idle;
-          evening fires as a gentle wrap-up regardless.
+          One nudge a day, at the time you pick. Morning or afternoon only nudges if
+          you&apos;ve been idle. Evening always comes, as a gentle wrap-up.
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:pl-6">
           {CHECK_IN_TIME_OPTIONS.map((option) => {
