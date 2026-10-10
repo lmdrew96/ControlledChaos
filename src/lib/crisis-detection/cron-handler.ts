@@ -276,45 +276,28 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     !existing.reNudgeSent &&
     (tier === "nudge" || tier === "auto_triage")
   ) {
-    const dedupKey = `crisis-renudge-${existing.id}`;
-    if (!(await hasEverBeenNotified(userId, dedupKey)) && (await mayPushNow(ctx, dedupKey))) {
-      const message = await generatePushMessage(
-        {
-          type: "crisis_worsened",
-          taskNames: result.involvedTaskNames,
-        },
-        ctx.personalityPrefs,
-        ctx.timezone,
-        ctx.assertivenessMode,
-        await ctx.getSnapshot()
+    if (await sendReNudge(existing.id, result, ctx)) {
+      await updateCrisisDetection(existing.id, { reNudgeSent: true });
+      notificationSent = true;
+      console.log(
+        `[CrisisDetection] Re-nudge sent for detection=${existing.id} user=${userId} ` +
+        `oldRatio=${oldRatio} newRatio=${newRatio}`
       );
-
-      const sent = await sendPushToUser(userId, {
-        title: "ControlledChaos",
-        body: message,
-        url: checkInUrl(existing.id),
-        tag: dedupKey,
-        bypassQuietHours: false,
-        lane: "app",
-      });
-
-      if (sent) {
-        await updateCrisisDetection(existing.id, { reNudgeSent: true });
-        notificationSent = true;
-        console.log(
-          `[CrisisDetection] Re-nudge sent for detection=${existing.id} user=${userId} ` +
-          `oldRatio=${oldRatio} newRatio=${newRatio}`
-        );
-      }
     }
   }
 
   return { detected: true, notificationSent };
 }
 
-/** Same involved tasks on the same local day → same key, whatever the detection row. */
-export const crisisTaskSetKey = (taskIds: string[], dateKey: string): string =>
-  `crisis-tasks-${[...new Set(taskIds)].sort().join(",")}-${dateKey}`;
+/**
+ * Same involved tasks on the same local day → same key, whatever the detection
+ * row. `prefix` keeps the first ping and the re-nudge on separate keys.
+ */
+export const crisisTaskSetKey = (
+  taskIds: string[],
+  dateKey: string,
+  prefix: "crisis-tasks" | "crisis-renudge-tasks" = "crisis-tasks"
+): string => `${prefix}-${[...new Set(taskIds)].sort().join(",")}-${dateKey}`;
 
 /** Tapping a crisis push opens the "Already working on this?" check-in. */
 function checkInUrl(detectionId: string): string {
@@ -398,6 +381,53 @@ export async function sendCrisisNotification(
   const message = await generatePushMessage(
     {
       type: "crisis_detected",
+      taskNames: result.involvedTaskNames,
+    },
+    ctx.personalityPrefs,
+    ctx.timezone,
+    ctx.assertivenessMode,
+    await ctx.getSnapshot()
+  );
+
+  return sendPushToUser(ctx.userId, {
+    title: "ControlledChaos",
+    body: message,
+    url: checkInUrl(detectionId),
+    tag: dedupKey,
+    dedupKeys: taskSetKey ? [dedupKey, taskSetKey] : [dedupKey],
+    bypassQuietHours: false,
+    lane: "app",
+  });
+}
+
+/**
+ * The one "it got worse" push for a crisis. Like the first ping, it's held to
+ * one per task set per local day, so a detection that flaps (resolves, then
+ * comes back as a new row) can't re-nudge again just because its fresh row
+ * has reNudgeSent=false.
+ */
+export async function sendReNudge(
+  detectionId: string,
+  result: CrisisDetectionResult,
+  ctx: CronContext
+): Promise<boolean> {
+  const dedupKey = `crisis-renudge-${detectionId}`;
+  const taskSetKey =
+    result.involvedTaskIds.length > 0
+      ? crisisTaskSetKey(result.involvedTaskIds, todayInTimezone(ctx.timezone), "crisis-renudge-tasks")
+      : null;
+
+  if (
+    (await hasEverBeenNotified(ctx.userId, dedupKey)) ||
+    (taskSetKey !== null && (await hasEverBeenNotified(ctx.userId, taskSetKey))) ||
+    !(await mayPushNow(ctx, dedupKey))
+  ) {
+    return false;
+  }
+
+  const message = await generatePushMessage(
+    {
+      type: "crisis_worsened",
       taskNames: result.involvedTaskNames,
     },
     ctx.personalityPrefs,

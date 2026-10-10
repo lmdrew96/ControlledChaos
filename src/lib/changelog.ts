@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.90.2",
-    label: "2.89.2 – 2.90.2",
+    version: "2.90.3",
+    label: "2.89.2 – 2.90.3",
     date: "2026-10-09",
     title: "A wrap-up that sees your whole day",
     changes: [
@@ -46,7 +46,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "fixed",
-        text: "A deadline-collision ping now goes out at most once a day for the same set of tasks, even if the app re-spots the same crunch several times.",
+        text: "A deadline-collision ping, and its "this got tighter" follow-up, now each go out at most once a day for the same set of tasks, even if the app re-spots the same crunch several times.",
       },
       {
         kind: "fixed",

@@ -28,7 +28,7 @@ vi.mock("@/lib/notifications/triggers", async (importOriginal) => ({
   generatePushMessage: async () => "Already working on this?",
 }));
 
-const { sendCrisisNotification, crisisTaskSetKey } = await import(
+const { sendCrisisNotification, sendReNudge, crisisTaskSetKey } = await import(
   "@/lib/crisis-detection/cron-handler"
 );
 
@@ -85,6 +85,27 @@ describe("crisis_detected push dedup across detection rows", () => {
   it("keeps each row's own check-in link on the push it sends", async () => {
     await sendCrisisNotification("det-1", result(["a"]), ctx);
     expect(sendPushToUser.mock.calls[0][1]).toMatchObject({ url: "/crisis?checkin=det-1" });
+  });
+});
+
+describe("crisis_worsened re-nudge dedup across detection rows", () => {
+  it("re-nudges once when a flapped row worsens again the same day", async () => {
+    expect(await sendReNudge("det-1", result(["a", "b"]), ctx)).toBe(true);
+    vi.setSystemTime(new Date(NOW.getTime() + 10 * 60_000));
+    expect(await sendReNudge("det-2", result(["b", "a"]), ctx)).toBe(false);
+    expect(sendPushToUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("still re-nudges for a different task set", async () => {
+    await sendReNudge("det-1", result(["a"]), ctx);
+    expect(await sendReNudge("det-2", result(["c"]), ctx)).toBe(true);
+  });
+
+  it("doesn't share a key with the first ping", async () => {
+    // A first ping for the set must not count as its re-nudge, or a crisis
+    // that genuinely worsens would never get the follow-up.
+    await sendCrisisNotification("det-1", result(["a"]), ctx);
+    expect(await sendReNudge("det-1", result(["a"]), ctx)).toBe(true);
   });
 });
 
