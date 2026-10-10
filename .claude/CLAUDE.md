@@ -21,7 +21,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 | **Database** | Neon Postgres (`@neondatabase/serverless`) | Serverless driver, NOT full `pg` |
 | **ORM** | Drizzle ORM (`drizzle-kit`) | Type-safe queries, push/migrate/generate |
 | **Auth** | Clerk (`@clerk/nextjs`) | Email + social providers |
-| **AI** | Claude Haiku 4.5 (`@anthropic-ai/sdk`) | Task parsing, scheduling, crisis support |
+| **AI** | Claude Haiku 5.5 + Sonnet 5.5 (`@anthropic-ai/sdk`) | Task parsing, scheduling, crisis support |
 | **Speech-to-Text** | Groq (`groq-sdk`) | Whisper — brain dump voice input |
 | **File Storage** | Cloudflare R2 (`@aws-sdk/client-s3`) | Brain dump photos/audio |
 | **Animations** | Framer Motion | Micro-interactions, transitions |
@@ -50,7 +50,7 @@ ControlledChaos is an ADHD-friendly productivity app — task management, calend
 - `pnpm db:studio` opens Drizzle Studio for visual DB browsing
 
 ### AI Integration
-- AI calls go through `@anthropic-ai/sdk`. **Haiku 4.5 is the default** — task parsing from brain dumps, schedule recommendations, push/nudge copy, crisis support. Keep calls cheap and cache when possible.
+- AI calls go through `@anthropic-ai/sdk`. **Haiku 5.5 is the default** (thinking off — see `callHaiku` in `src/lib/ai/index.ts`) — task parsing from brain dumps, schedule recommendations, push/nudge copy, crisis support. Keep calls cheap and cache when possible.
 - **Digest emails are a deliberate exception and use Sonnet** (`callSonnet` in `src/lib/notifications/send-email.ts`). Nae chose this on purpose: a digest is one long-form call per user per day, where quality is worth the price. Do NOT "optimize" it down to Haiku.
 - `@/lib/ai` is the Anthropic SDK, so importing it at module scope puts the whole SDK in that route's cold-start cost. In cron/background routes, load it lazily at the call site (see `loadAi()` in `src/lib/notifications/triggers.ts`).
 

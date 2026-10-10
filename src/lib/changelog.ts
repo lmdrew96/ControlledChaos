@@ -35,13 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.89.2",
+    version: "2.89.3",
+    label: "2.89.2 – 2.89.3",
     date: "2026-10-09",
     title: "Line breaks stay put",
     changes: [
       {
         kind: "fixed",
         text: "Line breaks in task, event, and goal descriptions now show up as line breaks. Before, lines typed one under another ran together into a single paragraph unless you left a blank line between them.",
+      },
+      {
+        kind: "improved",
+        text: "The AI behind brain dumps, scheduling, crisis help, and your digest emails moved to newer Claude models.",
       },
     ],
   },

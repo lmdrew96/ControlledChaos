@@ -2,8 +2,8 @@ import Anthropic, { APIError } from "@anthropic-ai/sdk";
 
 // --- Centralized model constants ---
 // Change these once to update every AI call across the codebase.
-export const MODEL_HAIKU = "claude-haiku-4-5-20251001";
-export const MODEL_SONNET = "claude-sonnet-5";
+export const MODEL_HAIKU = "claude-haiku-5-5";
+export const MODEL_SONNET = "claude-sonnet-5-5";
 
 let client: Anthropic | null = null;
 
@@ -152,7 +152,8 @@ function extractText(content: Anthropic.ContentBlock[]): string {
 async function callModel(
   model: string,
   modelName: string,
-  params: AICallParams
+  params: AICallParams,
+  thinking?: Anthropic.ThinkingConfigParam
 ): Promise<AICallResult> {
   const start = Date.now();
 
@@ -163,6 +164,7 @@ async function callModel(
       system: params.system,
       messages: resolveMessages(params),
       ...(params.tools?.length ? { tools: params.tools } : {}),
+      ...(thinking ? { thinking } : {}),
     })
   );
 
@@ -185,6 +187,12 @@ async function callModel(
         response.usage.output_tokens
       );
     }
+  }
+
+  // Haiku 5.5 and Sonnet 5.5 run safety classifiers that can decline a
+  // request (HTTP 200, no text). Name it, so it isn't mistaken for a blank reply.
+  if (response.stop_reason === "refusal") {
+    console.warn(`[AI] ${modelName}${site} declined the request (stop_reason=refusal)`);
   }
 
   const text = extractText(response.content);
@@ -211,8 +219,14 @@ async function callModel(
 
 // --- Haiku (fast, cheap — parsing, scheduling, chunking) ---
 
+// Haiku 5.5 thinks by default where Haiku 4.5 never did. Thinking counts
+// toward max_tokens, and several Haiku routes cap at 80–200 tokens, so keep it
+// off: same behavior, cost, and latency as before. (Accepted at Haiku 5.5's
+// default `medium` effort; it 400s only at xhigh/max.)
+const HAIKU_THINKING: Anthropic.ThinkingConfigParam = { type: "disabled" };
+
 export async function callHaiku(params: AICallParams): Promise<AICallResult> {
-  return callModel(MODEL_HAIKU, "Haiku", params);
+  return callModel(MODEL_HAIKU, "Haiku", params, HAIKU_THINKING);
 }
 
 // --- Sonnet (personality, sass — notifications, digests, crisis) ---
