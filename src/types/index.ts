@@ -174,6 +174,10 @@ export type RecapEntry =
       title: string;
       location: string | null;
       isAllDay: boolean;
+      /** Occurrence label like "📝 Quiz" — how exams get flagged by hand. */
+      badge: string | null;
+      /** Something they MIGHT go to (office hours, a sit-in). */
+      isTentative: boolean;
     })
   | (RecapEntryBase & {
       kind: "dump";

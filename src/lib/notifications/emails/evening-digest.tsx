@@ -16,6 +16,8 @@ interface EveningDigestProps {
   /** Null when generation failed — the static copy below carries the email. */
   aiNote: string | null;
   completedTasks: Array<{ title: string }>;
+  /** Shown when nothing was checked off: what the day held instead (see dayLoadSubtitle). */
+  daySubtitle: string;
   /** Heading for the priority: it can be due tonight or already past due. */
   priorityLabel?: string;
   tomorrowPriority: {
@@ -32,6 +34,7 @@ export function EveningDigestEmail({
   userName,
   aiNote,
   completedTasks,
+  daySubtitle,
   priorityLabel = "Tomorrow's Top Priority",
   tomorrowPriority,
   settingsUrl,
@@ -69,7 +72,7 @@ export function EveningDigestEmail({
             {completedTasks.length === 0 && (
               <Section>
                 <Text style={emailStyles.gentleNote}>
-                  No tasks checked off today — and that&apos;s completely fine. Tomorrow&apos;s a fresh start.
+                  {daySubtitle}
                 </Text>
               </Section>
             )}

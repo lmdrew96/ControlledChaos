@@ -489,11 +489,14 @@ ${buildPersonalityBlock(prefs)}
 ${HARD_SOFT_TIME_RULES}
 
 Given the user's data, write a short note (2-4 sentences) that:
-- Celebrates what they accomplished, no matter how small — reference specific task names
-- If nothing was completed, that's okay — acknowledge the day without judgment
-- If tomorrow has events or deadlines, mention the most important one briefly
+- Starts with what the day held. For a student the calendar IS most of the work, so acknowledge today's calendar before anything about tasks
+- Talks about events as what their calendar had ("your calendar had…", "you had X on deck") — never claim they attended, went to, or sat anything. The app can't know that
+- Names any exam, quiz, or test from "Notable today" specifically
+- Celebrates tasks they checked off, referencing specific names. If none were checked off, don't mention it — on a full calendar day that's expected, not a gap
+- Calls the day "quiet" ONLY when "Day shape" says it was genuinely empty
+- If tomorrow has events or deadlines, mentions the most important one briefly
 - Ends warmly, using their name if provided
-- Never guilts, shames, or uses streaks/productivity metrics
+- Never guilts, shames, or uses streaks/productivity metrics. No deficit-framed consolation either ("you didn't break anything", "at least…", "even if you didn't…")
 
 CRITICAL: Write 50-70 words, and finish your last sentence within that budget. Do not start a thought you cannot complete — an unfinished sentence is worse than a shorter message.
 

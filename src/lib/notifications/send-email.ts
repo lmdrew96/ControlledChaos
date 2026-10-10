@@ -13,15 +13,16 @@ import {
   getUser,
   getUserSettings,
   getPendingTasks,
-  getTasksCompletedToday,
   getCalendarEventsByDateRange,
   getActiveCrisisPlans,
   getRecentTaskActivity,
   createNotification,
   getScheduledSessionsInRange,
   getUserGoals,
+  getRecapDay,
 } from "@/lib/db/queries";
 import { toTaskFacts, describeTaskFacts } from "@/lib/ai/context";
+import { summarizeDayLoad, dayLoadSubtitle, type DayLoad } from "@/lib/recap/day-load";
 import { MorningDigestEmail } from "./emails/morning-digest";
 import { EveningDigestEmail } from "./emails/evening-digest";
 import type { PersonalityPrefs } from "@/types";
@@ -268,8 +269,10 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const timezone = user.timezone ?? "America/New_York";
   const now = new Date();
 
-  // Tasks completed today
-  const completed = await getTasksCompletedToday(userId, timezone);
+  // What today held, read off the Mirror timeline — the calendar first, then
+  // anything checked off or logged. Tasks alone called an exam day "quiet".
+  const { start: todayStart, end: todayEnd } = localDaysRange(now, timezone);
+  const dayLoad = summarizeDayLoad(await getRecapDay(userId, todayStart, todayEnd));
 
   // Pending tasks for tomorrow's priority — soonest of the three times first,
   // then priority.
@@ -334,7 +337,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
   const context = [
     `Current date/time: ${formatCurrentDateTime(timezone)}`,
     `User's name: ${user.displayName ?? "there"}`,
-    `Tasks completed today: ${completed.map((t) => t.title).join(", ") || "None"}`,
+    ...describeDayLoad(dayLoad, timezone),
     `${priorityLabel}: ${
       tomorrowPriority
         ? describeTaskFacts(toTaskFacts(tomorrowPriority, goalTitleById), timezone)
@@ -360,7 +363,8 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     EveningDigestEmail({
       userName: user.displayName ?? "",
       aiNote,
-      completedTasks: completed.map((t) => ({ title: t.title })),
+      completedTasks: dayLoad.tasksDone.map((title) => ({ title })),
+      daySubtitle: dayLoadSubtitle(dayLoad),
       priorityLabel,
       tomorrowPriority: tomorrowPriority
         ? {
@@ -405,6 +409,53 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 }
 
 // --- Helpers ---
+
+/**
+ * Today's Mirror as context lines for the evening note. Events are what the
+ * calendar HAD — CC can't know attendance — and exams are flagged so the note
+ * names them.
+ */
+function describeDayLoad(load: DayLoad, timezone: string): string[] {
+  const lines: string[] = [];
+
+  if (load.events.length > 0) {
+    const hours = Math.round((load.scheduledMinutes / 60) * 2) / 2;
+    const items = load.events.map((e) => {
+      const tags = [
+        e.isNotable ? "exam/assessment" : null,
+        e.isTentative ? "tentative — they might have gone" : null,
+      ].filter(Boolean);
+      return `${eventTimeLabel(e, timezone)} ${e.title}${tags.length ? ` (${tags.join(", ")})` : ""}`;
+    });
+    lines.push(
+      `Today's calendar had ${load.events.length} event${load.events.length === 1 ? "" : "s"}` +
+        (hours > 0 ? `, about ${hours} hour${hours === 1 ? "" : "s"} scheduled` : "") +
+        `: ${items.join("; ")}`
+    );
+    const notable = load.events.filter((e) => e.isNotable).map((e) => e.title);
+    if (notable.length > 0) lines.push(`Notable today (name these): ${notable.join(", ")}`);
+  } else {
+    lines.push("Today's calendar: nothing scheduled");
+  }
+
+  lines.push(`Tasks completed today: ${load.tasksDone.join(", ") || "None"}`);
+
+  const logged = [
+    load.microtasksDone && `${load.microtasksDone} microtask${load.microtasksDone === 1 ? "" : "s"} done`,
+    load.moments && `${load.moments} moment${load.moments === 1 ? "" : "s"} logged`,
+    load.journals && `${load.journals} journal entr${load.journals === 1 ? "y" : "ies"}`,
+    load.dumps && `${load.dumps} brain dump${load.dumps === 1 ? "" : "s"}`,
+    load.rescues && `${load.rescues} rescue plan${load.rescues === 1 ? "" : "s"} wrapped up`,
+  ].filter(Boolean);
+  if (logged.length > 0) lines.push(`Also logged today: ${logged.join(", ")}`);
+
+  lines.push(
+    load.isEmpty
+      ? "Day shape: genuinely empty — nothing on the calendar, nothing done or logged"
+      : "Day shape: NOT a quiet day — do not call it quiet"
+  );
+  return lines;
+}
 
 /**
  * Order a day's events for display: all-day events first, then timed ones in

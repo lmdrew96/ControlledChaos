@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.89.4",
-    label: "2.89.2 – 2.89.4",
+    version: "2.90.0",
+    label: "2.89.2 – 2.90.0",
     date: "2026-10-09",
-    title: "Line breaks stay put",
+    title: "A wrap-up that sees your whole day",
     changes: [
+      {
+        kind: "improved",
+        text: "The evening wrap-up now looks at your whole day, not just tasks checked off. It starts with what your calendar had, names exams and quizzes, and only calls a day quiet when nothing was on it. The line under the note says what the day held instead of \"No tasks checked off.\"",
+      },
       {
         kind: "fixed",
         text: "Line breaks in task, event, and goal descriptions now show up as line breaks. Before, lines typed one under another ran together into a single paragraph unless you left a blank line between them.",

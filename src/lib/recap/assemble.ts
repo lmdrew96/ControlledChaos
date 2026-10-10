@@ -24,6 +24,8 @@ export interface EventRow {
   startTime: Date;
   endTime: Date;
   isAllDay: boolean | null;
+  badge?: string | null;
+  isTentative?: boolean;
 }
 
 export interface DumpRow {
@@ -119,6 +121,8 @@ export function assembleRecapEntries(input: AssembleInput): RecapEntry[] {
         title: e.title,
         location: e.location,
         isAllDay: e.isAllDay ?? false,
+        badge: e.badge ?? null,
+        isTentative: e.isTentative ?? false,
       });
     }
   }
