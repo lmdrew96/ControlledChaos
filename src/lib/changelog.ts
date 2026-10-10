@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.90.5",
-    label: "2.89.2 – 2.90.5",
+    version: "2.90.6",
+    label: "2.89.2 – 2.90.6",
     date: "2026-10-09",
     title: "A wrap-up that sees your whole day",
     changes: [
@@ -51,6 +51,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "The \"new\" dot on What's New is big enough to actually see now, on your avatar and in the menu.",
+      },
+      {
+        kind: "fixed",
+        text: "The dropdowns in Settings and on reference cards match the rest of the app now, with the arrow sitting where it should instead of jammed against the edge.",
       },
       {
         kind: "fixed",

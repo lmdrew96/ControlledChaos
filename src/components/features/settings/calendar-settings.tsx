@@ -21,6 +21,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CALENDAR_COLOR_OPTIONS, DEFAULT_CALENDAR_COLORS, EVENT_CATEGORIES } from "@/lib/calendar/colors";
 import { cn } from "@/lib/utils";
 import type { CalendarColors } from "@/types";
@@ -426,45 +433,45 @@ export function CalendarSettings() {
             <label htmlFor="week-start" className="text-xs text-muted-foreground">
               Week starts on
             </label>
-            <select
-              id="week-start"
-              value={weekStartDay}
-              onChange={(e) => setWeekStartDay(Number(e.target.value))}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
-            >
-              <option value={0}>Sunday</option>
-              <option value={1}>Monday</option>
-            </select>
+            <Select value={String(weekStartDay)} onValueChange={(v) => setWeekStartDay(Number(v))}>
+              <SelectTrigger id="week-start" className="w-full sm:w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Sunday</SelectItem>
+                <SelectItem value="1">Monday</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="calendar-start" className="text-xs text-muted-foreground">
               Show from
             </label>
-            <select
-              id="calendar-start"
-              value={calendarStartHour}
-              onChange={(e) => setCalendarStartHour(Number(e.target.value))}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
-            >
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
+            <Select value={String(calendarStartHour)} onValueChange={(v) => setCalendarStartHour(Number(v))}>
+              <SelectTrigger id="calendar-start" className="w-full sm:w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {Array.from({ length: 24 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="calendar-end" className="text-xs text-muted-foreground">
               Show until
             </label>
-            <select
-              id="calendar-end"
-              value={calendarEndHour}
-              onChange={(e) => setCalendarEndHour(Number(e.target.value))}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
-            >
-              {Array.from({ length: 25 }, (_, h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
+            <Select value={String(calendarEndHour)} onValueChange={(v) => setCalendarEndHour(Number(v))}>
+              <SelectTrigger id="calendar-end" className="w-full sm:w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {Array.from({ length: 25 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {calendarDirty && (
             <Button
@@ -545,31 +552,31 @@ export function CalendarSettings() {
             <label htmlFor="wake-time" className="text-xs text-muted-foreground">
               Earliest
             </label>
-            <select
-              id="wake-time"
-              value={wakeTime}
-              onChange={(e) => setWakeTime(Number(e.target.value))}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
-            >
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
+            <Select value={String(wakeTime)} onValueChange={(v) => setWakeTime(Number(v))}>
+              <SelectTrigger id="wake-time" className="w-full sm:w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {Array.from({ length: 24 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="w-full space-y-1.5 sm:w-auto">
             <label htmlFor="sleep-time" className="text-xs text-muted-foreground">
               Latest
             </label>
-            <select
-              id="sleep-time"
-              value={sleepTime}
-              onChange={(e) => setSleepTime(Number(e.target.value))}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:w-[120px]"
-            >
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>{formatHour(h)}</option>
-              ))}
-            </select>
+            <Select value={String(sleepTime)} onValueChange={(v) => setSleepTime(Number(v))}>
+              <SelectTrigger id="sleep-time" className="w-full sm:w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {Array.from({ length: 24 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {scheduleDirty && (
             <Button

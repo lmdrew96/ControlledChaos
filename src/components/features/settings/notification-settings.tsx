@@ -5,6 +5,13 @@ import { Bell, Mail, Moon, Loader2, AlarmClock, Plus, X, Sun } from "lucide-reac
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
 import { invalidateSettings } from "@/lib/settings-cache";
 import {
@@ -182,16 +189,16 @@ function ReminderIntervalEditor({
           onChange={(e) => setValue(e.target.value)}
           className="h-8 w-24 rounded-md border border-input bg-background px-2 text-xs"
         />
-        <select
-          value={unit}
-          aria-label={`${label} reminder unit`}
-          onChange={(e) => setUnit(e.target.value as ReminderUnit)}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-        >
-          <option value="minutes">minutes</option>
-          <option value="hours">hours</option>
-          <option value="days">days</option>
-        </select>
+        <Select value={unit} onValueChange={(v) => setUnit(v as ReminderUnit)}>
+          <SelectTrigger size="sm" aria-label={`${label} reminder unit`} className="text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="minutes">minutes</SelectItem>
+            <SelectItem value="hours">hours</SelectItem>
+            <SelectItem value="days">days</SelectItem>
+          </SelectContent>
+        </Select>
         <span className="text-xs text-muted-foreground">before</span>
         <Button
           type="button"

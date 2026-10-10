@@ -7,6 +7,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Markdown } from "@/components/ui/markdown";
 import { LoadErrorStrip } from "@/components/ui/load-error-strip";
 import { useCrisisDetection } from "@/hooks/use-crisis-detection";
@@ -454,17 +461,21 @@ function CardEditor({
             className="w-32"
           />
         </label>
-        <label className="space-y-1 text-xs text-muted-foreground">
+        <div className="space-y-1 text-xs text-muted-foreground">
           <span className="block">Checklist resets</span>
-          <select
+          <Select
             value={draft.checklistReset}
-            onChange={(e) => update("checklistReset", e.target.value as ChecklistReset)}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+            onValueChange={(v) => update("checklistReset", v as ChecklistReset)}
           >
-            <option value="daily">Every day</option>
-            <option value="manual">Only when I clear it</option>
-          </select>
-        </label>
+            <SelectTrigger aria-label="Checklist resets" className="text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Every day</SelectItem>
+              <SelectItem value="manual">Only when I clear it</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
