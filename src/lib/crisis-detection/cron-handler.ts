@@ -312,6 +312,10 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
   return { detected: true, notificationSent };
 }
 
+/** Same involved tasks on the same local day → same key, whatever the detection row. */
+export const crisisTaskSetKey = (taskIds: string[], dateKey: string): string =>
+  `crisis-tasks-${[...new Set(taskIds)].sort().join(",")}-${dateKey}`;
+
 /** Tapping a crisis push opens the "Already working on this?" check-in. */
 function checkInUrl(detectionId: string): string {
   return `/crisis?checkin=${detectionId}`;
@@ -367,14 +371,27 @@ async function sendFinalHeadsUp(
  * Send the initial crisis detection notification. It asks whether the user
  * is already on it rather than assuming they haven't started.
  */
-async function sendCrisisNotification(
+export async function sendCrisisNotification(
   detectionId: string,
   result: CrisisDetectionResult,
   ctx: CronContext
 ): Promise<boolean> {
   const dedupKey = `crisis-detect-${detectionId}`;
+  // When detections flap (resolve, then get re-created), each new row has a
+  // fresh id, so the per-row key alone re-announced the same crisis every
+  // tick (LING 202, 5 pings in 40 min on 10/6). The task-set key holds it to
+  // one push per local day. The new row's check-in link still works; only the
+  // push is skipped.
+  const taskSetKey =
+    result.involvedTaskIds.length > 0
+      ? crisisTaskSetKey(result.involvedTaskIds, todayInTimezone(ctx.timezone))
+      : null;
 
-  if ((await hasEverBeenNotified(ctx.userId, dedupKey)) || !(await mayPushNow(ctx, dedupKey))) {
+  if (
+    (await hasEverBeenNotified(ctx.userId, dedupKey)) ||
+    (taskSetKey !== null && (await hasEverBeenNotified(ctx.userId, taskSetKey))) ||
+    !(await mayPushNow(ctx, dedupKey))
+  ) {
     return false;
   }
 
@@ -394,6 +411,7 @@ async function sendCrisisNotification(
     body: message,
     url: checkInUrl(detectionId),
     tag: dedupKey,
+    dedupKeys: taskSetKey ? [dedupKey, taskSetKey] : [dedupKey],
     bypassQuietHours: false,
     lane: "app",
   });

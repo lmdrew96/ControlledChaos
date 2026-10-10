@@ -35,14 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.90.1",
-    label: "2.89.2 – 2.90.1",
+    version: "2.90.2",
+    label: "2.89.2 – 2.90.2",
     date: "2026-10-09",
     title: "A wrap-up that sees your whole day",
     changes: [
       {
         kind: "improved",
         text: "The evening wrap-up now looks at your whole day, not just tasks checked off. It starts with what your calendar had, names exams and quizzes, and only calls a day quiet when nothing was on it. The line under the note says what the day held instead of \"No tasks checked off.\"",
+      },
+      {
+        kind: "fixed",
+        text: "A deadline-collision ping now goes out at most once a day for the same set of tasks, even if the app re-spots the same crunch several times.",
       },
       {
         kind: "fixed",
