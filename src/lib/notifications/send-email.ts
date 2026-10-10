@@ -53,7 +53,11 @@ async function generateDigestNote(
     result = await callSonnet({
       system,
       user: context,
-      maxTokens: 512,
+      // Sonnet 5.5 thinks before writing, and thinking counts toward this cap.
+      // A 50-70 word note runs ~700-850 tokens all in; at 512 the thinking ate
+      // the whole budget and the note came back empty. The prompt's word
+      // limit, not this cap, is what keeps the note short.
+      maxTokens: 4096,
       label: `digest-${label}`,
     });
   } catch (err) {
