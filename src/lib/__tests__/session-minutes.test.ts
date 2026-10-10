@@ -69,4 +69,19 @@ describe("sessionMarkers", () => {
     expect(r.nextAt).toBeNull();
     expect(r.passedAt).toEqual(at(9));
   });
+
+  it("a sitting checked in early is neither next nor passed", () => {
+    const r = sessionMarkers(
+      [
+        { id: "a", startsAt: at(9, 45), minutes: 30 },
+        { id: "b", startsAt: at(19, 30), minutes: 30, status: "skipped" as const },
+        { id: "c", startsAt: at(21), minutes: 30 },
+      ],
+      at(17)
+    );
+    expect(r.next?.id).toBe("c");
+    expect(r.nextAt).toEqual(at(21));
+    // The earlier unanswered sitting still gets its prompt.
+    expect(r.passed?.id).toBe("a");
+  });
 });

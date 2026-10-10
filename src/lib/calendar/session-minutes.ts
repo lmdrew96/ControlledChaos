@@ -77,22 +77,26 @@ const DEFAULT_SITTING_MINUTES = 30;
  * read time. A stored "next" goes stale the moment a sitting ends.
  *
  * - `nextAt`: the first sitting that hasn't ENDED yet (one underway counts).
+ * - `next`: that sitting, so the card can offer to check it in early.
  * - `passed`: the most recent sitting that has ended, with its outcome, so
  *   the card can offer to log how it went.
+ *
+ * A sitting checked in before its end is settled, not upcoming: it's neither
+ * next nor passed, so it can't hide an earlier sitting that's still unanswered.
  */
 export function sessionMarkers<S extends { id?: string; startsAt: Date; minutes: number | null; status?: SessionOutcome | null }>(
   sessions: S[],
   now: Date = new Date()
-): { nextAt: Date | null; passedAt: Date | null; passed: S | null } {
-  let nextAt: Date | null = null;
+): { nextAt: Date | null; next: S | null; passedAt: Date | null; passed: S | null } {
+  let next: S | null = null;
   let passed: S | null = null;
   for (const s of [...sessions].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())) {
     const endMs = s.startsAt.getTime() + (s.minutes ?? DEFAULT_SITTING_MINUTES) * 60_000;
     if (endMs > now.getTime()) {
-      nextAt ??= s.startsAt;
+      if (!s.status) next ??= s;
     } else {
       passed = s;
     }
   }
-  return { nextAt, passedAt: passed?.startsAt ?? null, passed };
+  return { nextAt: next?.startsAt ?? null, next, passedAt: passed?.startsAt ?? null, passed };
 }

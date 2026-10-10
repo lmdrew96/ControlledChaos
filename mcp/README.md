@@ -18,6 +18,7 @@ An MCP (Model Context Protocol) server that gives Claude direct access to your C
 | `cc_search_tasks` | Search tasks by text across titles/descriptions |
 | `cc_add_task_session` | Plan another sitting for a task, keeping its others |
 | `cc_update_task_session` | Move or resize one sitting |
+| `cc_check_in_task_session` | Log how one sitting went (done / partial / skipped), even before it ends |
 | `cc_delete_task_session` | Remove one sitting (checked-in sittings stay) |
 
 ### Calendar (4)

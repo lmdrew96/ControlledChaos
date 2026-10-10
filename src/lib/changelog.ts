@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.91.0",
+    date: "2026-10-10",
+    title: "Check in a sitting early",
+    changes: [
+      {
+        kind: "added",
+        text: "Finished a sitting ahead of plan? You can say how it went right away, from the task card or the task's details, instead of waiting for its end time. Its \"time to start\" ping won't go out, and if you mark it done before it was due to start, it moves to the time you actually did it.",
+      },
+    ],
+  },
+  {
     version: "2.90.6",
     label: "2.89.2 – 2.90.6",
     date: "2026-10-09",

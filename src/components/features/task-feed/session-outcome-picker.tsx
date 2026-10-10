@@ -14,6 +14,11 @@ interface SessionOutcomePickerProps {
   plannedMinutes?: number | null;
   /** Called after a successful write so the parent can refetch. */
   onLogged?: (status: SessionOutcome) => void;
+  /**
+   * Start as a small link with this label that opens the buttons. For a
+   * sitting that hasn't ended: the option should be there without asking.
+   */
+  collapsedLabel?: string;
 }
 
 /**
@@ -22,14 +27,17 @@ interface SessionOutcomePickerProps {
  *
  * Deliberately a set of buttons rather than a timer or a percent slider: it
  * asks about something that already happened, in the moment you notice it.
- * Leaving it unanswered is fine.
+ * Leaving it unanswered is fine. It can be answered early too: finishing
+ * before the planned end shouldn't mean coming back later to say so.
  */
 export function SessionOutcomePicker({
   taskId,
   sessionId,
   plannedMinutes,
   onLogged,
+  collapsedLabel,
 }: SessionOutcomePickerProps) {
+  const [expanded, setExpanded] = useState(!collapsedLabel);
   const [busy, setBusy] = useState<SessionOutcome | null>(null);
   const [askingMinutes, setAskingMinutes] = useState(false);
   const [minutes, setMinutes] = useState("");
@@ -50,6 +58,21 @@ export function SessionOutcomePicker({
     } finally {
       setBusy(null);
     }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(true);
+        }}
+        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        {collapsedLabel}
+      </button>
+    );
   }
 
   if (askingMinutes) {
@@ -119,6 +142,17 @@ export function SessionOutcomePicker({
         {busy === "skipped" ? <Loader2 className="animate-spin" /> : <SkipForward />}
         Skipped
       </Button>
+      {collapsedLabel && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={busy !== null}
+          onClick={() => setExpanded(false)}
+        >
+          Not yet
+        </Button>
+      )}
     </div>
   );
 }

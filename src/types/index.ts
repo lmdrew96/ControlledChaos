@@ -17,6 +17,9 @@ export interface Task {
   scheduledFor: string | null;
   /** Next sitting that hasn't ended, derived at read time (withNextSession). */
   nextSessionAt?: string | null;
+  /** That sitting's id, when it's a real session row it can be checked in early on. */
+  nextSessionId?: string | null;
+  nextSessionMinutes?: number | null;
   /** Most recent sitting that has already ended. */
   passedSessionAt?: string | null;
   /** That sitting's id, when it's a real session row an outcome can go on. */

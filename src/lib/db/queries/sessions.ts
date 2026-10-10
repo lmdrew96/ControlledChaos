@@ -194,6 +194,9 @@ export async function withNextSession<
   Array<
     T & {
       nextSessionAt: Date | null;
+      /** Set for a real session row, so it can be checked in early. */
+      nextSessionId: string | null;
+      nextSessionMinutes: number | null;
       passedSessionAt: Date | null;
       /** Set for a real session row, so its outcome can be logged. */
       passedSessionId: string | null;
@@ -212,6 +215,8 @@ export async function withNextSession<
       return {
         ...r,
         nextSessionAt: past ? null : r.scheduledFor,
+        nextSessionId: null,
+        nextSessionMinutes: null,
         passedSessionAt: past ? r.scheduledFor : null,
         passedSessionId: null,
         passedSessionStatus: null,
@@ -219,7 +224,7 @@ export async function withNextSession<
       };
     }
     const lengths = resolveSessionMinutes(r.estimatedMinutes, list);
-    const { nextAt, passedAt, passed } = sessionMarkers(
+    const { nextAt, next, passedAt, passed } = sessionMarkers(
       list.map((s) => ({
         id: s.id,
         startsAt: s.startsAt,
@@ -232,6 +237,8 @@ export async function withNextSession<
       ...r,
       scheduledFor: nextAt ?? passedAt ?? r.scheduledFor,
       nextSessionAt: nextAt,
+      nextSessionId: next?.id ?? null,
+      nextSessionMinutes: next?.minutes ?? null,
       passedSessionAt: passedAt,
       passedSessionId: passed?.id ?? null,
       passedSessionStatus: passed?.status ?? null,
@@ -391,7 +398,7 @@ export async function setSessionOutcome(
   partialMinutes?: number
 ): Promise<{ taskId: string; status: SessionOutcome | null; actualMinutes: number | null } | null> {
   const [row] = await db
-    .select({ taskId: taskSessions.taskId })
+    .select({ taskId: taskSessions.taskId, startsAt: taskSessions.startsAt })
     .from(taskSessions)
     .where(and(eq(taskSessions.id, sessionId), eq(taskSessions.userId, userId)))
     .limit(1);
@@ -420,10 +427,20 @@ export async function setSessionOutcome(
       DEFAULT_PLAN_BLOCK_MINUTES;
   }
 
+  // Worked before the sitting even began: the work happened just now, not in
+  // the planned slot, so the block moves to end now. The calendar and the
+  // day's recap then show when it really happened. Skipped keeps its slot.
+  const now = new Date();
+  const movedStart =
+    (outcome === "done" || outcome === "partial") && actualMinutes && row.startsAt > now
+      ? new Date(now.getTime() - actualMinutes * 60_000)
+      : null;
+
   await db
     .update(taskSessions)
-    .set({ status: outcome, actualMinutes })
+    .set({ status: outcome, actualMinutes, ...(movedStart && { startsAt: movedStart }) })
     .where(and(eq(taskSessions.id, sessionId), eq(taskSessions.userId, userId)));
+  if (movedStart) await syncTaskScheduledFor(row.taskId, userId);
 
   return { taskId: row.taskId, status: outcome, actualMinutes };
 }
@@ -739,6 +756,7 @@ async function selectOrphanScheduledTasks(
  * sittings stay on the calendar, so without this the push undoes the snooze.
  * Cancelled tasks are out too — MCP cc_update_task and the detail modal both
  * set that status, and a cancelled task's sittings don't get deleted.
+ * A sitting already checked in (logged early) is out: it's done with.
  */
 export async function getSessionsStartingBetween(
   userId: string,
@@ -768,6 +786,7 @@ export async function getSessionsStartingBetween(
         ne(tasks.status, "in_progress"),
         ne(tasks.status, "cancelled"),
         or(isNull(tasks.snoozedUntil), lte(tasks.snoozedUntil, new Date())),
+        isNull(taskSessions.status),
         gte(taskSessions.startsAt, start),
         lt(taskSessions.startsAt, end)
       )

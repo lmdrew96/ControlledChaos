@@ -408,6 +408,17 @@ export function TaskCard({
     Boolean(task.passedSessionId) &&
     !task.passedSessionStatus;
 
+  // Today's upcoming or underway sitting can be checked in early, so finishing
+  // ahead of plan doesn't mean coming back at its end time. One prompt at a
+  // time: the passed sitting's question comes first.
+  const canLogNextSitting =
+    !isClosed &&
+    !canLogPassedSitting &&
+    Boolean(task.nextSessionId) &&
+    nextSession != null &&
+    toDateKeyInTimezone(new Date(nextSession), timezone) ===
+      toDateKeyInTimezone(new Date(), timezone);
+
   if (nextSession) {
     const next = formatForDisplay(new Date(nextSession), timezone, DISPLAY_DATETIME);
     temporalChips.push({
@@ -686,6 +697,18 @@ export function TaskCard({
                     sessionId={task.passedSessionId!}
                     plannedMinutes={task.passedSessionMinutes}
                     onLogged={onUpdate}
+                  />
+                </div>
+              )}
+
+              {canLogNextSitting && (
+                <div className="basis-full pt-1">
+                  <SessionOutcomePicker
+                    taskId={task.id}
+                    sessionId={task.nextSessionId!}
+                    plannedMinutes={task.nextSessionMinutes}
+                    onLogged={onUpdate}
+                    collapsedLabel={`Check in the ${formatForDisplay(new Date(nextSession!), timezone, DISPLAY_TIME)} sitting early`}
                   />
                 </div>
               )}

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sql, getUserId, getUserTimezone, getUserSettings } from "./db.js";
-import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal } from "./helpers.js";
+import { formatTask, formatEvent, formatGoal, formatBrainDump, formatMoment, formatMirrorEntry, formatMicrotask, fmtTimeLocal, fmtLocal, resolveSessionMinutes, type SessionRow } from "./helpers.js";
 import { expandRecurrence, getZonedParts, zonedToUtc } from "./expand-recurrence.js";
 
 /**
@@ -790,7 +790,7 @@ Args:
   - start: New start (ISO 8601 UTC).
   - minutes: New length. Pass null to go back to an even share of the task's estimate.
 
-Pass at least one of start / minutes. A sitting the user has already checked in (done, partial or skipped) is a record of work that happened and can't be changed here.
+Pass at least one of start / minutes. A sitting the user has already checked in (done, partial or skipped) is a record of work that happened and can't be changed here. To log how a sitting went, use cc_check_in_task_session.
 
 All datetimes must be in UTC. Convert the user's local time to UTC before calling.
 
@@ -851,6 +851,100 @@ Returns: The task with all its sittings.`,
       const task = await fetchTaskWithSessions(userId, taskId);
       const body = task ? `\n\n${formatTask(task, tz)}` : "";
       return { content: [{ type: "text" as const, text: `✅ Sitting updated.${body}` }] };
+    }
+  );
+
+  // ----------------------------------------------------------
+  // 5b2. cc_check_in_task_session
+  // ----------------------------------------------------------
+  server.registerTool(
+    "cc_check_in_task_session",
+    {
+      title: "Check In Task Session",
+      description: `Log how ONE sitting of a task went: done, partial or skipped. Works on any sitting, including one that hasn't started or ended yet ("I already did tonight's McNair sitting").
+
+Args:
+  - session_id (required): Session UUID, from cc_list_tasks, cc_search_tasks or cc_list_calendar.
+  - outcome (required): "done", "partial" or "skipped". Pass null to clear a check-in.
+  - minutes: Minutes actually worked. Required for "partial"; ignored otherwise.
+
+Done counts the sitting's planned length; skipped counts 0 and its time rolls into the task's other sittings. Logged work comes off the task's estimate before the remaining sittings split it. Checking in early stops that sitting's "time to start" push. Done or partial on a sitting that hasn't started yet moves it to end now, so the calendar shows when the work really happened.
+
+This logs one sitting, not the task. Use cc_complete_task when the whole task is finished.
+
+Returns: The task with all its sittings.`,
+      inputSchema: {
+        session_id: z.string().uuid().describe("Session ID to check in"),
+        outcome: z.enum(["done", "partial", "skipped"]).nullable().describe("How it went, or null to clear"),
+        minutes: z.number().int().min(1).max(1440).optional().describe("Minutes worked (required for partial)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params) => {
+      const userId = getUserId();
+      const tz = await getUserTimezone(userId);
+      if (params.outcome === "partial" && params.minutes === undefined) {
+        return { content: [{ type: "text" as const, text: "A partial check-in needs minutes: about how long was worked." }] };
+      }
+
+      const found = await sql(
+        `SELECT s.task_id, s.starts_at, t.estimated_minutes FROM task_sessions s
+           JOIN tasks t ON t.id = s.task_id AND t.deleted_at IS NULL
+          WHERE s.id = $1 AND s.user_id = $2`,
+        [params.session_id, userId]
+      );
+      if (found.length === 0) {
+        return { content: [{ type: "text" as const, text: `Session \`${params.session_id}\` not found.` }] };
+      }
+      const taskId = String(found[0].task_id);
+
+      // Mirrors the app's setSessionOutcome (src/lib/db/queries/sessions.ts).
+      let actualMinutes: number | null = null;
+      if (params.outcome === "partial") {
+        actualMinutes = params.minutes!;
+      } else if (params.outcome === "skipped") {
+        actualMinutes = 0;
+      } else if (params.outcome === "done") {
+        const sessions = (await sql(
+          `SELECT id, starts_at, minutes, status, actual_minutes FROM task_sessions
+            WHERE task_id = $1 AND user_id = $2`,
+          [taskId, userId]
+        )) as unknown as SessionRow[];
+        const asIfOpen = sessions.map((s) =>
+          s.id === params.session_id ? { ...s, status: null, actual_minutes: null } : s
+        );
+        const estimate = found[0].estimated_minutes == null ? null : Number(found[0].estimated_minutes);
+        actualMinutes = resolveSessionMinutes(estimate, asIfOpen).get(params.session_id) ?? 30;
+      }
+
+      // Worked before the sitting began: move it to end now, as the app does.
+      const now = Date.now();
+      const movedStart =
+        (params.outcome === "done" || params.outcome === "partial") &&
+        actualMinutes &&
+        new Date(String(found[0].starts_at)).getTime() > now
+          ? new Date(now - actualMinutes * 60_000).toISOString()
+          : null;
+
+      await sql(
+        `UPDATE task_sessions
+            SET status = $3, actual_minutes = $4, starts_at = COALESCE($5, starts_at)
+          WHERE id = $1 AND user_id = $2`,
+        [params.session_id, userId, params.outcome, actualMinutes, movedStart]
+      );
+      if (movedStart) await syncScheduledFor(userId, taskId);
+
+      const task = await fetchTaskWithSessions(userId, taskId);
+      const body = task ? `\n\n${formatTask(task, tz)}` : "";
+      const said = params.outcome
+        ? `✅ Sitting checked in: ${params.outcome}${actualMinutes ? ` (${actualMinutes} min)` : ""}.`
+        : "✅ Check-in cleared.";
+      return { content: [{ type: "text" as const, text: `${said}${body}` }] };
     }
   );
 

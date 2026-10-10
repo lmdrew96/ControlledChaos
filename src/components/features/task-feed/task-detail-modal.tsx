@@ -978,8 +978,9 @@ interface TaskReadViewProps {
 
 /**
  * Everything about a task at a glance, nothing to accidentally change. Logging
- * how a past sitting went is the one action here: it's a "doing" step, and
- * hiding it behind Edit would bury the prompt the sitting exists for.
+ * how a sitting went (a past one, or one finished early) is the one action
+ * here: it's a "doing" step, and hiding it behind Edit would bury the prompt
+ * the sitting exists for.
  */
 function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }: TaskReadViewProps) {
   // Read once per open: "next sitting" doesn't need to tick while you look.
@@ -1066,12 +1067,13 @@ function TaskReadView({ task, timezone, sittings, goalTitle, onOutcomeChanged }:
                       {outcome ?? (s.resolvedMinutes != null ? `${s.resolvedMinutes} min` : "")}
                     </span>
                   </div>
-                  {ended && !outcome && s.id !== LEGACY_SESSION_ID && (
+                  {!outcome && s.id !== LEGACY_SESSION_ID && (
                     <SessionOutcomePicker
                       taskId={task.id}
                       sessionId={s.id}
                       plannedMinutes={s.resolvedMinutes}
                       onLogged={onOutcomeChanged}
+                      collapsedLabel={ended ? undefined : "Check in early"}
                     />
                   )}
                 </li>
@@ -1223,7 +1225,7 @@ function SittingRow({
         )}
       </Button>
       </div>
-      {!isLegacy && hasEnded && (
+      {!isLegacy && (
         session.status ? (
           <p className="flex items-center gap-2 pl-6 text-xs text-muted-foreground">
             {session.status === "done"
@@ -1246,6 +1248,7 @@ function SittingRow({
               sessionId={session.id}
               plannedMinutes={session.resolvedMinutes}
               onLogged={onOutcomeChanged}
+              collapsedLabel={hasEnded ? undefined : "Check in early"}
             />
           </div>
         )

@@ -502,7 +502,10 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
           title: c.title,
           kind: c.kind as WakeSummaryItem["kind"],
         })),
-      ...sittings.map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
+      ...sittings
+        // Checked in early: already done with, so not part of the day ahead.
+        .filter((t) => t.sessionStatus == null)
+        .map((t) => ({ at: t.scheduledFor, title: t.title, kind: "session" as const })),
       ...todaysEvents
         .filter((e) => !e.isAllDay)
         .map((e) => ({
