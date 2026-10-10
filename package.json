@@ -1,6 +1,6 @@
 {
   "name": "controlled-chaos",
-  "version": "2.89.1",
+  "version": "2.89.2",
   "private": true,
   "packageManager": "pnpm@10.17.0",
   "scripts": {
@@ -51,6 +51,7 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "rehype-sanitize": "^6.0.0",
+    "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "resend": "^6.9.2",
     "sonner": "^2.0.7",

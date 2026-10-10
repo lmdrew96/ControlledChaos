@@ -1,5 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
@@ -149,7 +150,10 @@ export function Markdown({ children, inline = false, className, checklist }: Mar
 
   const content = (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      // Block mode keeps single newlines as line breaks: descriptions are typed
+      // (and written over MCP) line by line, and CommonMark would join them.
+      // Inline mode skips it, since <br> isn't an allowed inline element.
+      remarkPlugins={inline ? [remarkGfm] : [remarkGfm, remarkBreaks]}
       rehypePlugins={interactive ? [rehypeSanitize, rehypeIndexCheckboxes] : [rehypeSanitize]}
       components={components}
       allowedElements={inline ? INLINE_ELEMENTS : undefined}
