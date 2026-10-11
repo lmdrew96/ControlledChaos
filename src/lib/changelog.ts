@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.91.1",
-    label: "2.91.0 – 2.91.1",
+    version: "2.91.2",
+    label: "2.91.0 – 2.91.2",
     date: "2026-10-10",
     title: "Check in a sitting early",
     changes: [
+      {
+        kind: "fixed",
+        text: "The evening wrap-up email now counts the sittings you worked today, done or partly, alongside finished tasks, and its note knows about them too.",
+      },
       {
         kind: "fixed",
         text: "Daily Recap now shows the sittings you worked, done or partly, with how long, not just finished tasks and events. Pick \"Sittings\" in the filters to see only those.",

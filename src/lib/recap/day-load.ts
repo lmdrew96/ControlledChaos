@@ -13,6 +13,13 @@ import { isAssessmentTitle } from "@/lib/calendar/assessments";
  */
 
 type EventEntry = Extract<RecapEntry, { kind: "event" }>;
+type SittingEntry = Extract<RecapEntry, { kind: "sitting" }>;
+
+export interface DayLoadSitting {
+  title: string;
+  status: "done" | "partial";
+  minutes: number | null;
+}
 
 export interface DayLoadEvent {
   /** Display label: title without its Canvas course tag, plus any badge. */
@@ -31,6 +38,8 @@ export interface DayLoad {
   /** Union of timed, non-tentative events, so overlaps don't double-count. All-day excluded. */
   scheduledMinutes: number;
   tasksDone: string[];
+  /** Planned sittings checked in as done or partly: real work on a task, finished or not. */
+  sittingsWorked: DayLoadSitting[];
   microtasksDone: number;
   moments: number;
   journals: number;
@@ -106,6 +115,10 @@ export const summarizeDayLoad = (entries: RecapEntry[]): DayLoad => {
       .filter((e): e is Extract<RecapEntry, { kind: "task" }> => e.kind === "task")
       .sort((a, b) => a.at.localeCompare(b.at))
       .map((t) => t.title),
+    sittingsWorked: entries
+      .filter((e): e is SittingEntry => e.kind === "sitting")
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .map((s) => ({ title: s.title, status: s.status, minutes: s.minutes })),
     microtasksDone: count("microtask"),
     moments: count("moment"),
     journals: count("journal"),

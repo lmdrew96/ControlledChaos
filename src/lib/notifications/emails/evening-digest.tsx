@@ -16,7 +16,9 @@ interface EveningDigestProps {
   /** Null when generation failed — the static copy below carries the email. */
   aiNote: string | null;
   completedTasks: Array<{ title: string }>;
-  /** Shown when nothing was checked off: what the day held instead (see dayLoadSubtitle). */
+  /** Planned sittings worked today; detail is "Done · 45 min" / "Partly". */
+  sittingsWorked: Array<{ title: string; detail: string }>;
+  /** Shown when nothing was checked off or worked: what the day held instead (see dayLoadSubtitle). */
   daySubtitle: string;
   /** Heading for the priority: it can be due tonight or already past due. */
   priorityLabel?: string;
@@ -34,6 +36,7 @@ export function EveningDigestEmail({
   userName,
   aiNote,
   completedTasks,
+  sittingsWorked,
   daySubtitle,
   priorityLabel = "Tomorrow's Top Priority",
   tomorrowPriority,
@@ -58,7 +61,7 @@ export function EveningDigestEmail({
               </Section>
             )}
 
-            {completedTasks.length > 0 && (
+            {(completedTasks.length > 0 || sittingsWorked.length > 0) && (
               <Section>
                 <Text style={emailStyles.sectionTitle}>What You Got Done Today</Text>
                 {completedTasks.map((task, i) => (
@@ -66,10 +69,16 @@ export function EveningDigestEmail({
                     ✓ {task.title}
                   </Text>
                 ))}
+                {sittingsWorked.map((sitting, i) => (
+                  <Text key={`s${i}`} style={emailStyles.listItem}>
+                    ◐ {sitting.title}
+                    <span style={emailStyles.deadlineStyle}> · {sitting.detail}</span>
+                  </Text>
+                ))}
               </Section>
             )}
 
-            {completedTasks.length === 0 && (
+            {completedTasks.length === 0 && sittingsWorked.length === 0 && (
               <Section>
                 <Text style={emailStyles.gentleNote}>
                   {daySubtitle}

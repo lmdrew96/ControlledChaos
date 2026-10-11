@@ -364,6 +364,11 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
       userName: user.displayName ?? "",
       aiNote,
       completedTasks: dayLoad.tasksDone.map((title) => ({ title })),
+      sittingsWorked: dayLoad.sittingsWorked.map((s) => ({
+        title: s.title,
+        // Same words as the Mirror's sitting rows.
+        detail: `${s.status === "done" ? "Done" : "Partly"}${s.minutes ? ` · ${s.minutes} min` : ""}`,
+      })),
       daySubtitle: dayLoadSubtitle(dayLoad),
       priorityLabel,
       tomorrowPriority: tomorrowPriority
@@ -439,6 +444,13 @@ function describeDayLoad(load: DayLoad, timezone: string): string[] {
   }
 
   lines.push(`Tasks completed today: ${load.tasksDone.join(", ") || "None"}`);
+  if (load.sittingsWorked.length > 0) {
+    lines.push(
+      `Planned sittings they worked today (real progress on a task): ${load.sittingsWorked
+        .map((s) => `${s.title} (${s.status === "done" ? "done" : "partly"}${s.minutes ? `, ${s.minutes} min` : ""})`)
+        .join(", ")}`
+    );
+  }
 
   const logged = [
     load.microtasksDone && `${load.microtasksDone} microtask${load.microtasksDone === 1 ? "" : "s"} done`,
