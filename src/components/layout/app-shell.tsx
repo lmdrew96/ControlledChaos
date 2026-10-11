@@ -313,6 +313,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SheetContent
             side="bottom"
             className="rounded-t-2xl pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden"
+            // Clerk's account menu is portaled outside the Sheet. With a mouse
+            // (a narrow desktop window), Radix dismisses on pointerdown, which
+            // closed the Sheet before the menu item's click landed, so "What's
+            // new" never opened. Touch waits for the click, which is why phones
+            // worked. Clicks inside that menu aren't "outside" the Sheet.
+            onInteractOutside={(event) => {
+              const target = event.target as Element | null;
+              if (target?.closest?.('[class*="cl-userButtonPopover"]')) event.preventDefault();
+            }}
           >
             <SheetHeader className="pb-2">
               <SheetTitle>More</SheetTitle>

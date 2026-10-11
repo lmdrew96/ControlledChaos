@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.92.0",
-    label: "2.91.0 – 2.92.0",
+    version: "2.92.1",
+    label: "2.91.0 – 2.92.1",
     date: "2026-10-10",
     title: "Check in a sitting early",
     changes: [
+      {
+        kind: "fixed",
+        text: "\"What's new\" opens from the More menu in a narrow desktop window, where it used to close the menu without opening anything.",
+      },
       {
         kind: "improved",
         text: "Momentum counts the sittings you work, done or partly, not just finished tasks. A day spent chipping away at something big now shows up in your bars, your totals, and your shape.",
