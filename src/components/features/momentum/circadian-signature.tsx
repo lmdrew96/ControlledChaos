@@ -110,7 +110,7 @@ export function CircadianSignature({
         <CardContent className="p-5">
           <h3 className="mb-1 text-sm font-medium">Your shape</h3>
           <p className="text-xs text-muted-foreground">
-            Your shape is still forming — complete a few tasks and check back.
+            Your shape is still forming — finish a few tasks or sittings and check back.
           </p>
         </CardContent>
       </Card>
@@ -169,7 +169,7 @@ export function CircadianSignature({
             <div
               className="grid grid-cols-12 gap-[2px]"
               role="img"
-              aria-label={`All-time task completion heatmap, ${totalCompletions} tasks across 7 days and 12 two-hour blocks`}
+              aria-label={`All-time heatmap of tasks and sittings done, ${totalCompletions} across 7 days and 12 two-hour blocks`}
             >
               {grid12.map((row, dayIdx) =>
                 row.map((count, blockIdx) => (
@@ -180,7 +180,7 @@ export function CircadianSignature({
                       height: 20,
                       backgroundColor: `rgba(249, 115, 22, ${opacityFor(count, max12)})`,
                     }}
-                    title={`${DAY_NAMES[dayIdx]} ${hourRangeLabel(blockIdx * 2)} — ${count} task${count === 1 ? "" : "s"}`}
+                    title={`${DAY_NAMES[dayIdx]} ${hourRangeLabel(blockIdx * 2)} — ${count} done`}
                   />
                 ))
               )}
@@ -218,7 +218,7 @@ export function CircadianSignature({
               className="grid gap-[2px]"
               style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
               role="img"
-              aria-label={`All-time task completion heatmap, ${totalCompletions} tasks across 7 days and 24 hours`}
+              aria-label={`All-time heatmap of tasks and sittings done, ${totalCompletions} across 7 days and 24 hours`}
             >
               {grid24.map((row, dayIdx) =>
                 row.map((count, hour) => (
@@ -229,7 +229,7 @@ export function CircadianSignature({
                       height: 30,
                       backgroundColor: `rgba(249, 115, 22, ${opacityFor(count, max24)})`,
                     }}
-                    title={`${DAY_NAMES[dayIdx]} ${hourLabel(hour)} — ${count} task${count === 1 ? "" : "s"}`}
+                    title={`${DAY_NAMES[dayIdx]} ${hourLabel(hour)} — ${count} done`}
                   />
                 ))
               )}

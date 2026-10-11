@@ -1,6 +1,5 @@
 import { db } from "../index";
-import { tasks } from "../schema";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { CalendarColors } from "@/types";
 import { DEFAULT_CALENDAR_COLORS, categoryLabel } from "@/lib/calendar/colors";
 import {
@@ -16,6 +15,7 @@ import { getUserSettings } from "./users";
 // ============================================================
 
 export interface MomentumStats {
+  /** These counts (and daily, biggestDay, avg, heatmap) are finished tasks plus worked sittings. */
   completedToday: number;
   completedThisWeek: number;
   completedAllTime: number;
@@ -100,6 +100,26 @@ export async function getMomentumStats(
   const fourteenDaysAgo = new Date(startOfDay);
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
 
+  // Everything that counts as getting something done: a finished task at its
+  // completion, and a sitting checked in as done or partly at its start (the
+  // Mirror's rule). Checking in a sitting never completes its task, so the
+  // two never describe the same act.
+  const doneMoments = sql`(
+    SELECT completed_at AS done_at
+    FROM tasks
+    WHERE user_id = ${userId}
+      AND status = 'completed'
+      AND completed_at IS NOT NULL
+      AND deleted_at IS NULL
+    UNION ALL
+    SELECT s.starts_at AS done_at
+    FROM task_sessions s
+    JOIN tasks t ON t.id = s.task_id
+    WHERE s.user_id = ${userId}
+      AND s.status IN ('done', 'partial')
+      AND t.deleted_at IS NULL
+  ) AS done`;
+
   // All queries in parallel
   const [
     dailyRows,
@@ -118,26 +138,20 @@ export async function getMomentumStats(
     // 1. Daily breakdown (14 days)
     db.execute<{ date: string | Date; count: number }>(
       sql`SELECT
-        DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
+        DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
-      FROM tasks
-      WHERE user_id = ${userId}
-        AND status = 'completed'
-        AND completed_at >= ${fourteenDaysAgo}
-        AND deleted_at IS NULL
+      FROM ${doneMoments}
+      WHERE done_at >= ${fourteenDaysAgo}
       GROUP BY date
       ORDER BY date ASC`
     ),
     // 2. Hourly heatmap (all-time, 7 days × 24 hours)
     db.execute<{ day_of_week: number; hour: number; count: number }>(
       sql`SELECT
-        (EXTRACT(ISODOW FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
-        EXTRACT(HOUR FROM completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int AS hour,
+        (EXTRACT(ISODOW FROM done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
+        EXTRACT(HOUR FROM done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int AS hour,
         COUNT(*)::int AS count
-      FROM tasks
-      WHERE user_id = ${userId}
-        AND status = 'completed'
-        AND deleted_at IS NULL
+      FROM ${doneMoments}
       GROUP BY day_of_week, hour`
     ),
     // 2a. Marination — active tasks bucketed by current age (top-level only)
@@ -224,10 +238,9 @@ export async function getMomentumStats(
     // 5. Biggest day (all-time)
     db.execute<{ date: string | Date; count: number }>(
       sql`SELECT
-        DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
+        DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
         COUNT(*)::int AS count
-      FROM tasks
-      WHERE user_id = ${userId} AND status = 'completed' AND deleted_at IS NULL
+      FROM ${doneMoments}
       GROUP BY date
       ORDER BY count DESC
       LIMIT 1`
@@ -237,16 +250,12 @@ export async function getMomentumStats(
       sql`SELECT COALESCE(AVG(daily_count), 0)::float AS avg
       FROM (
         SELECT COUNT(*)::int AS daily_count
-        FROM tasks
-        WHERE user_id = ${userId} AND status = 'completed' AND deleted_at IS NULL
-        GROUP BY DATE(completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
+        FROM ${doneMoments}
+        GROUP BY DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
       ) AS daily_counts`
     ),
     // 7. All-time count
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.status, "completed"), isNull(tasks.deletedAt))),
+    db.execute<{ count: number }>(sql`SELECT COUNT(*)::int AS count FROM ${doneMoments}`),
     // 8. User settings (for calendarColors)
     getUserSettings(userId),
     // 9. Deadline tasks (current week) — for wins heuristic
@@ -287,7 +296,7 @@ export async function getMomentumStats(
     .filter((d) => d.date >= startOfWeekStr)
     .reduce((sum, d) => sum + d.count, 0);
 
-  const completedAllTime = allTimeRows[0]?.count ?? 0;
+  const completedAllTime = Number(allTimeRows.rows[0]?.count ?? 0);
 
   // Biggest day
   const biggestDayRow = biggestDayRows.rows[0];
@@ -378,7 +387,8 @@ export async function getMomentumStats(
       wins.push({
         icon: "\u26A1",
         title: "New personal best",
-        subtitle: `${biggestDay.count} ${biggestDay.count === 1 ? "task" : "tasks"} in a single day`,
+        // Tasks and sittings both count, so the noun stays out of it.
+        subtitle: `${biggestDay.count} done in a single day`,
       });
     }
   }
@@ -412,7 +422,7 @@ export async function getMomentumStats(
     wins.push({
       icon: "\uD83D\uDD25",
       title: "Double digits this week",
-      subtitle: `${completedThisWeek} tasks completed`,
+      subtitle: `${completedThisWeek} done so far`,
     });
   }
 
