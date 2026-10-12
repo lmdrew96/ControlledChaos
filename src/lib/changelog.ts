@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.92.1",
-    label: "2.91.0 – 2.92.1",
-    date: "2026-10-10",
+    version: "2.93.0",
+    label: "2.91.0 – 2.93.0",
+    date: "2026-10-11",
     title: "Check in a sitting early",
     changes: [
+      {
+        kind: "added",
+        text: "Marking a sitting done gets a little moment: the button lights up and cheers you on for a second before it settles.",
+      },
       {
         kind: "fixed",
         text: "\"What's new\" opens from the More menu in a narrow desktop window, where it used to close the menu without opening anything.",

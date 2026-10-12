@@ -349,8 +349,23 @@
   }
 }
 
+/* Session marked Done: one quick pop. The color and phrase still change
+   under reduced motion; only the bounce is dropped. */
+.done-pop {
+  animation: done-pop 200ms ease-out;
+}
+
+@keyframes done-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
+  .done-pop {
+    animation: none;
+  }
+
   .waveform-bar {
     animation: none;
   }

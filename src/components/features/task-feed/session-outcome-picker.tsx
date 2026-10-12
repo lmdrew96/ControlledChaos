@@ -1,11 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, SkipForward, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { SessionOutcome } from "@/lib/calendar/session-minutes";
+
+/** What the Done button says for a moment after it lands. Add freely. */
+const DONE_PHRASES = [
+  "Nice! 😎",
+  "Nailed it 🎯",
+  "Look at you go ✨",
+  "Done and done 🙌",
+  "Brain: 1, Chaos: 0 🧠",
+];
+
+/** How long the celebration holds before the row settles into "Done". */
+const CELEBRATE_MS = 1500;
+
+// Module-level so back-to-back sittings (even in different rows) never repeat.
+let lastPhrase: string | null = null;
+
+const pickPhrase = (): string => {
+  const pool = DONE_PHRASES.filter((p) => p !== lastPhrase);
+  lastPhrase = pool[Math.floor(Math.random() * pool.length)];
+  return lastPhrase;
+};
 
 interface SessionOutcomePickerProps {
   taskId: string;
@@ -41,6 +62,27 @@ export function SessionOutcomePicker({
   const [busy, setBusy] = useState<SessionOutcome | null>(null);
   const [askingMinutes, setAskingMinutes] = useState(false);
   const [minutes, setMinutes] = useState("");
+  const [celebrating, setCelebrating] = useState<string | null>(null);
+
+  // Telling the parent swaps this picker out for the logged row, so a Done
+  // holds the celebration first and reports when it settles. If the picker
+  // goes away mid-celebration (dialog closed), report then so nothing's stale.
+  const onLoggedRef = useRef(onLogged);
+  onLoggedRef.current = onLogged;
+  useEffect(() => {
+    if (!celebrating) return;
+    let reported = false;
+    const report = () => {
+      if (reported) return;
+      reported = true;
+      onLoggedRef.current?.("done");
+    };
+    const timer = setTimeout(report, CELEBRATE_MS);
+    return () => {
+      clearTimeout(timer);
+      report();
+    };
+  }, [celebrating]);
 
   async function log(status: SessionOutcome, partial?: number) {
     setBusy(status);
@@ -52,12 +94,30 @@ export function SessionOutcomePicker({
       });
       if (!res.ok) throw new Error();
       setAskingMinutes(false);
-      onLogged?.(status);
+      if (status === "done") setCelebrating(pickPhrase());
+      else onLogged?.(status);
     } catch {
       toast.error("Couldn't log that session");
     } finally {
       setBusy(null);
     }
+  }
+
+  if (celebrating) {
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <Button
+          type="button"
+          size="sm"
+          tabIndex={-1}
+          aria-live="polite"
+          className="done-pop pointer-events-none border border-success bg-success text-success-foreground"
+        >
+          <Check />
+          {celebrating}
+        </Button>
+      </div>
+    );
   }
 
   if (!expanded) {
