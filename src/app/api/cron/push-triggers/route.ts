@@ -113,6 +113,11 @@ function bandOpenedMs(c: { at: Date; intervalMinutes?: number; kind: string }): 
   return c.at.getTime();
 }
 
+/** The soonest moment a reminder push is about: past it, the push is stale. */
+function earliestAt(members: { at: Date }[]): Date {
+  return new Date(Math.min(...members.map((m) => m.at.getTime())));
+}
+
 /** Who a push is for: see refusal() in processUser. */
 type PushLane = "user" | "app";
 
@@ -609,6 +614,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       actions: primary.actions,
       bypassQuietHours: members.some((m) => m.bypassQuietHours),
       lane: "user",
+      staleAt: earliestAt(members),
     });
     if (sent) {
       markSent("user", priority);
@@ -639,6 +645,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       dedupKeys: [...due.flatMap((c) => c.dedupKeys), ...(await checkInFoldKeys())],
       actions: EVENT_ACTIONS,
       lane: "user",
+      staleAt: earliestAt(members),
     });
     if (sent) {
       markSent("user", members.some((m) => m.priority === "high") ? "high" : "normal");

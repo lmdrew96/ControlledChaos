@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.93.1",
-    label: "2.91.0 – 2.93.1",
+    version: "2.93.2",
+    label: "2.91.0 – 2.93.2",
     date: "2026-10-14",
     title: "Check in a sitting early",
     changes: [
+      {
+        kind: "fixed",
+        text: "Reminders now ask your phone to show them right away, and one that gets held up past the thing it's about is dropped instead of arriving an hour late saying you've got 10 minutes.",
+      },
       {
         kind: "fixed",
         text: "Tapping into a text box on your phone no longer zooms the page in.",

@@ -38,7 +38,18 @@ interface PushPayload {
    * cap; see getAppPushesSentToday. Defaults to "user".
    */
   lane?: "user" | "app";
+  /**
+   * When this push stops being true ("starts in 10 minutes" is wrong once it
+   * starts). Set → sent at high urgency and expires then. Without it the push
+   * service holds a push up to four weeks at normal urgency, and Apple may sit
+   * on a normal push to save battery: a 5:50 reminder for a 6:00 dinner landed
+   * at 7:00 on 10/13 still saying "about 10 minutes".
+   */
+  staleAt?: Date;
 }
+
+/** Push services treat a TTL of 0 as "now or never"; give a fresh push a minute. */
+const MIN_TTL_SECONDS = 60;
 
 
 /**
@@ -96,6 +107,16 @@ export async function sendPushToUser(
     actions,
   });
 
+  const sendOptions = payload.staleAt
+    ? {
+        urgency: "high" as const,
+        TTL: Math.max(
+          MIN_TTL_SECONDS,
+          Math.floor((payload.staleAt.getTime() - Date.now()) / 1000)
+        ),
+      }
+    : undefined;
+
   let sent = false;
   const webpush = getWebPush();
 
@@ -109,7 +130,8 @@ export async function sendPushToUser(
             auth: sub.keysAuth,
           },
         },
-        pushPayload
+        pushPayload,
+        sendOptions
       );
       sent = true;
     } catch (err: unknown) {
