@@ -35,11 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.94.0",
-    label: "2.93.1 – 2.94.0",
+    version: "2.95.0",
+    label: "2.93.1 – 2.95.0",
     date: "2026-10-14",
     title: "Today, at a glance",
     changes: [
+      {
+        kind: "added",
+        text: "The clock bar on the dashboard is now a little map of your day: classes and events as solid blocks, planned sittings outlined, maybes dashed, and your free stretches marked with how long they are. Tap a block for its time and place. Tap a free stretch and you'll get a pick that fits in it.",
+      },
       {
         kind: "added",
         text: "A Today card on the dashboard shows what's overdue, what's due today, and the sittings you planned, without opening your task list. Tick things off right there. When there's more than fits, \"+ more\" opens your tasks filtered to today.",

@@ -29,9 +29,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { energyOverride } = body as {
+    const { energyOverride, availableMinutes: rawAvailable } = body as {
       energyOverride?: EnergyLevel;
+      availableMinutes?: unknown;
     };
+    // From a tapped free gap on the dashboard timeline. Anything that isn't a
+    // sane whole number of minutes is ignored rather than rejected.
+    const availableMinutes =
+      typeof rawAvailable === "number" && Number.isInteger(rawAvailable) && rawAvailable > 0 && rawAvailable <= 24 * 60
+        ? rawAvailable
+        : undefined;
 
     // Always sync calendar before reasoning so the AI sees the latest data
     const settings = await getUserSettings(userId);
@@ -152,6 +159,7 @@ export async function POST(request: Request) {
             minutesUntil: minutesUntil!,
           }
         : undefined,
+      availableMinutes,
       upcomingEvents: upcomingEvents.map((e) => ({
         title: e.title,
         startTime: e.startTime.toISOString(),
@@ -212,7 +220,7 @@ export async function POST(request: Request) {
       context: {
         energy: energyLevel,
         time_of_day: context.currentTime,
-        time_available: minutesUntil ?? null,
+        time_available: availableMinutes ?? minutesUntil ?? null,
       },
     });
 

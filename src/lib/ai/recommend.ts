@@ -91,7 +91,10 @@ function buildRecommendationPrompt(input: RecommendationInput): string {
 
   // Pre-compute available minutes so the AI doesn't derive it from event times
   let availableTimeLine: string;
-  if (context.currentEvent && context.nextEvent) {
+  if (context.availableMinutes !== undefined) {
+    // The user tapped a free stretch on their timeline and asked what fits it.
+    availableTimeLine = `\n- Available time: ${formatMinutes(context.availableMinutes)} (the user picked this free stretch of their day — recommend something that fits in it)`;
+  } else if (context.currentEvent && context.nextEvent) {
     // Currently in an event — available time is from when current event ends to next event
     const freeAt = new Date(context.currentEvent.endTime).getTime();
     const nextAt = new Date(context.nextEvent.startTime).getTime();

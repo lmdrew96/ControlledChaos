@@ -1,7 +1,7 @@
 "use client";
 
 import { useAnnounceGoalFinished } from "@/hooks/use-announce-goal-finished";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { fireTaskConfetti } from "@/lib/utils/confetti";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,13 @@ import { RecommendationSkeleton } from "./recommendation-skeleton";
 import { RecommendationEmptyState } from "./empty-state";
 import type { EnergyLevel } from "@/types";
 
-export function DoThisNext() {
+/** A tapped free gap on the day timeline. `nonce` makes a repeat tap re-ask. */
+export interface GapRequest {
+  minutes: number;
+  nonce: number;
+}
+
+export function DoThisNext({ gapRequest }: { gapRequest?: GapRequest | null } = {}) {
   const announceGoalFinished = useAnnounceGoalFinished();
   const {
     recommendation,
@@ -33,11 +39,15 @@ export function DoThisNext() {
   // If a recommendation was persisted from a previous session, treat as already requested
   const [hasRequested, setHasRequested] = useState(!!recommendation);
   const hasFetched = useRef(!!recommendation);
+  // Set while the recommendation is for a picked free gap, so a refresh
+  // (snooze, energy change) keeps asking about the same stretch.
+  const availableMinutes = useRef<number | undefined>(undefined);
 
   // Fetch recommendation only when user has explicitly requested it
   const triggerRecommendation = useCallback(() => {
     setHasRequested(true);
     hasFetched.current = true;
+    availableMinutes.current = undefined;
     void fetchRecommendation({ energyOverride });
   }, [fetchRecommendation, energyOverride]);
 
@@ -46,11 +56,23 @@ export function DoThisNext() {
       setIsRefreshing(true);
       await fetchRecommendation({
         energyOverride: overrideEnergy ?? energyOverride,
+        availableMinutes: availableMinutes.current,
       });
       setIsRefreshing(false);
     },
     [fetchRecommendation, energyOverride]
   );
+
+  // A free gap tapped on the timeline asks for something that fits it.
+  useEffect(() => {
+    if (!gapRequest) return;
+    setHasRequested(true);
+    hasFetched.current = true;
+    availableMinutes.current = gapRequest.minutes;
+    void fetchRecommendation({ energyOverride, availableMinutes: gapRequest.minutes });
+    // Only a new tap should re-ask, not an energy change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gapRequest?.nonce]);
 
   const handleEnergySelect = useCallback(
     (level: EnergyLevel) => {
@@ -92,6 +114,7 @@ export function DoThisNext() {
       clearRecommendation();
       setHasRequested(false);
       hasFetched.current = false;
+      availableMinutes.current = undefined;
     },
     [sendFeedback, clearRecommendation, recommendation?.task?.title, announceGoalFinished]
   );

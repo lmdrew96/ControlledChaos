@@ -290,14 +290,6 @@
 }
 
 /* ---- Dashboard: day progress fill ---- */
-.day-progress-fill {
-  background: linear-gradient(90deg, var(--plum) 0%, var(--dark-plum) 100%);
-}
-
-.dark .day-progress-fill {
-  background: linear-gradient(90deg, var(--plum) 0%, var(--light-peach) 100%);
-}
-
 /* ---- Calendar: current time pulse ---- */
 .current-time-dot::after {
   content: "";

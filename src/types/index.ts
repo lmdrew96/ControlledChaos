@@ -237,6 +237,8 @@ export interface UserContext {
     startTime: string;
     minutesUntil: number;
   };
+  /** A free stretch the user picked on the day timeline; overrides the derived available time. */
+  availableMinutes?: number;
   upcomingEvents?: Array<{
     title: string;
     startTime: string;

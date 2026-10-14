@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TaskList } from "@/components/features/task-feed/task-list";
-import { DoThisNext } from "@/components/features/recommendation/do-this-next";
+import { DoThisNext, type GapRequest } from "@/components/features/recommendation/do-this-next";
 import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
 import { ScheduleMyDay } from "@/components/features/dashboard/schedule-my-day";
 import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
@@ -29,6 +29,14 @@ export default function DashboardPage() {
   // Bumped when the Today card completes a task, so the task feed's counts
   // catch up. Separate from planVersion so it doesn't reset the anchor.
   const [tasksVersion, setTasksVersion] = useState(0);
+  // A free gap tapped on the day timeline: ask "what should I do?" for it.
+  const [gapRequest, setGapRequest] = useState<GapRequest | null>(null);
+  const askForGap = (minutes: number) => {
+    setGapRequest((prev) => ({ minutes, nonce: (prev?.nonce ?? 0) + 1 }));
+    document
+      .getElementById("do-this-next")
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 
   useEffect(() => {
     if (window.location.hash !== "#momentum-panel") return;
@@ -42,7 +50,7 @@ export default function DashboardPage() {
       {/* Greeting + Time anchor */}
       <div className="space-y-3">
         <Greeting />
-        <TimeAnchor key={`anchor-${planVersion}`} />
+        <TimeAnchor key={`anchor-${planVersion}`} onGapSelect={askForGap} />
       </div>
 
       {/* Today — overdue, due today, planned today. Open by default. */}
@@ -52,7 +60,9 @@ export default function DashboardPage() {
       />
 
       {/* Hero: Task Recommendation — only loud surface */}
-      <DoThisNext />
+      <div id="do-this-next" className="scroll-mt-4">
+        <DoThisNext gapRequest={gapRequest} />
+      </div>
 
       {/* Today strip — momentum bars on the left, plan-my-day pill on the right */}
       <div className="flex flex-wrap items-center gap-3">

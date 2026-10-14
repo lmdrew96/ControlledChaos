@@ -76,6 +76,8 @@ export function useRecommendation() {
   const fetchRecommendation = useCallback(
     async (params?: {
       energyOverride?: EnergyLevel;
+      /** A free gap's length, from the dashboard timeline. */
+      availableMinutes?: number;
     }) => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
@@ -85,6 +87,7 @@ export function useRecommendation() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             energyOverride: params?.energyOverride,
+            availableMinutes: params?.availableMinutes,
           }),
         });
 
