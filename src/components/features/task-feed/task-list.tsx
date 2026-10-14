@@ -36,6 +36,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { compareBySoonestTime } from "@/lib/tasks/task-times";
+import { todayBucket } from "@/lib/tasks/today";
+import { useTimezone } from "@/hooks/use-timezone";
 
 type FilterStatus = "active" | "completed" | "cancelled" | "all";
 type SortBy = "none" | "priority" | "deadline" | "manual";
@@ -129,13 +131,16 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   // brain dump's results. Shown as a removable chip above the list.
   const goalScope = searchParams.get("goal") || "";
   const dumpScope = searchParams.get("dump") || "";
+  // The dashboard Today card's "+N more": overdue, due today, planned today.
+  const todayScope = searchParams.get("today") === "1";
+  const timezone = useTimezone();
 
   // Helper to update URL search params without full navigation
   const updateParams = useCallback((updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       // Remove param if it's the default value
-      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "", taskId: "", goal: "", dump: "" };
+      const defaults: Record<string, string> = { filter: "active", sort: "deadline", priority: "all", energy: "all", category: "all", q: "", taskId: "", goal: "", dump: "", today: "" };
       if (value === defaults[key]) {
         params.delete(key);
       } else {
@@ -229,6 +234,8 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   }, [deepLinkTaskId, isLoading, loadError, tasks, updateParams]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
+  const now = new Date();
+  const inTodayScope = (task: Task) => !todayScope || todayBucket(task, now, timezone) !== null;
   const filteredTasks = applySort(
     tasks.filter((task) => {
       if (filter === "cancelled") {
@@ -238,6 +245,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
       }
       if (goalScope && task.goalId !== goalScope) return false;
       if (dumpScope && task.sourceDumpId !== dumpScope) return false;
+      if (!inTodayScope(task)) return false;
       if (filter === "active" && task.status === "completed") return false;
       if (filter === "completed" && task.status !== "completed") return false;
       if (filterPriority !== "all" && task.priority !== filterPriority) return false;
@@ -258,11 +266,12 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
     sortBy
   );
 
-  // Counts follow the goal/dump scope; unscoped, this is every task.
+  // Counts follow the goal/dump/today scope; unscoped, this is every task.
   const scopedTasks = tasks.filter(
     (t) =>
       (!goalScope || t.goalId === goalScope) &&
-      (!dumpScope || t.sourceDumpId === dumpScope)
+      (!dumpScope || t.sourceDumpId === dumpScope) &&
+      inTodayScope(t)
   );
   const cancelledTasks = scopedTasks.filter((t) => t.status === "cancelled");
   const liveTasks = scopedTasks.filter((t) => t.status !== "cancelled");
@@ -271,7 +280,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
-  const isDragMode = sortBy === "manual" && filter === "active" && !goalScope && !dumpScope &&
+  const isDragMode = sortBy === "manual" && filter === "active" && !goalScope && !dumpScope && !todayScope &&
     filterPriority === "all" && filterEnergy === "all" && filterCategory === "all" &&
     normalizedSearch === "";
 
@@ -445,18 +454,20 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
           )}
         </div>
 
-        {(goalScope || dumpScope) && (
+        {(goalScope || dumpScope || todayScope) && (
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs">
             <span className="min-w-0 flex-1 truncate text-muted-foreground">
               {goalScope
                 ? goalTitle
                   ? <>Tasks for <span className="font-medium text-foreground">{goalTitle}</span></>
                   : "Tasks for one goal"
-                : "Tasks from one brain dump"}
+                : dumpScope
+                  ? "Tasks from one brain dump"
+                  : "Overdue, due today, or planned today"}
             </span>
             <button
               type="button"
-              onClick={() => updateParams({ goal: "", dump: "" })}
+              onClick={() => updateParams({ goal: "", dump: "", today: "" })}
               className="flex shrink-0 items-center gap-1 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
               aria-label="Show all tasks"
             >

@@ -35,11 +35,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.93.2",
-    label: "2.91.0 – 2.93.2",
+    version: "2.94.0",
+    label: "2.93.1 – 2.94.0",
     date: "2026-10-14",
-    title: "Check in a sitting early",
+    title: "Today, at a glance",
     changes: [
+      {
+        kind: "added",
+        text: "A Today card on the dashboard shows what's overdue, what's due today, and the sittings you planned, without opening your task list. Tick things off right there. When there's more than fits, \"+ more\" opens your tasks filtered to today.",
+      },
+      {
+        kind: "improved",
+        text: "The momentum chips now say \"done today\" and \"done this week\", so they don't read like things that are due.",
+      },
       {
         kind: "fixed",
         text: "Reminders now ask your phone to show them right away, and one that gets held up past the thing it's about is dropped instead of arriving an hour late saying you've got 10 minutes.",
@@ -48,6 +56,14 @@ export const CHANGELOG: ChangelogEntry[] = [
         kind: "fixed",
         text: "Tapping into a text box on your phone no longer zooms the page in.",
       },
+    ],
+  },
+  {
+    version: "2.93.0",
+    label: "2.91.0 – 2.93.0",
+    date: "2026-10-11",
+    title: "Check in a sitting early",
+    changes: [
       {
         kind: "added",
         text: "Marking a sitting done gets a little moment: the button lights up and cheers you on for a second before it settles.",

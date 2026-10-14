@@ -7,6 +7,7 @@ import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
 import { ScheduleMyDay } from "@/components/features/dashboard/schedule-my-day";
 import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
+import { TodayCard } from "@/components/features/dashboard/today-card";
 import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
 import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
 import { GoalStrip } from "@/components/features/goals/goal-strip";
@@ -25,6 +26,9 @@ export default function DashboardPage() {
   // Bumped after a plan is committed; used as a key so TimeAnchor and the task
   // feed re-read rather than showing yesterday's picture of today.
   const [planVersion, setPlanVersion] = useState(0);
+  // Bumped when the Today card completes a task, so the task feed's counts
+  // catch up. Separate from planVersion so it doesn't reset the anchor.
+  const [tasksVersion, setTasksVersion] = useState(0);
 
   useEffect(() => {
     if (window.location.hash !== "#momentum-panel") return;
@@ -40,6 +44,12 @@ export default function DashboardPage() {
         <Greeting />
         <TimeAnchor key={`anchor-${planVersion}`} />
       </div>
+
+      {/* Today — overdue, due today, planned today. Open by default. */}
+      <TodayCard
+        key={`today-${planVersion}`}
+        onTaskChanged={() => setTasksVersion((v) => v + 1)}
+      />
 
       {/* Hero: Task Recommendation — only loud surface */}
       <DoThisNext />
@@ -76,7 +86,7 @@ export default function DashboardPage() {
       <GoalStrip />
 
       {/* Task feed — collapsed by default; click header to expand */}
-      <TaskList key={`tasks-${planVersion}`} collapsible />
+      <TaskList key={`tasks-${planVersion}-${tasksVersion}`} collapsible />
     </div>
   );
 }

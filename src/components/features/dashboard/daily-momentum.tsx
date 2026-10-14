@@ -85,10 +85,10 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
       </div>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         <Badge variant="sticky" className="-rotate-2 tabular-nums">
-          {stats.completedToday} today
+          {stats.completedToday} done today
         </Badge>
         <Badge variant="sticky" className="rotate-1 bg-lavender tabular-nums">
-          {stats.completedThisWeek} this week
+          {stats.completedThisWeek} done this week
         </Badge>
       </div>
     </button>
