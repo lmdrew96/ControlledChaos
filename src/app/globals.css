@@ -392,3 +392,15 @@
   pointer-events: auto;
 }
 
+
+/* iOS Safari zooms the page into any focused field whose text is under 16px.
+   Touch devices get 16px on every form field, even ones styled text-xs/text-sm.
+   Unlayered so it beats Tailwind's utilities layer. maximum-scale=1 would also
+   stop the zoom, but it blocks pinch-zoom on Android. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
