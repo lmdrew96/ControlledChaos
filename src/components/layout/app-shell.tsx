@@ -13,6 +13,7 @@ import {
   Target,
   Calendar,
   Clock,
+  TrendingUp,
   Settings,
   Download,
   X,
@@ -54,6 +55,7 @@ const navItems = [
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/recap", label: "Daily Recap", icon: Clock },
+  { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -69,6 +71,7 @@ const mobileMoreItems = [
   { href: "/microtasks", label: "Microtasks", icon: Repeat },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/recap", label: "Daily Recap", icon: Clock },
+  { href: "/momentum", label: "Momentum", icon: TrendingUp },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

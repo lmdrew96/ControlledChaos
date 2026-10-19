@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.97.0",
-    label: "2.96.0 – 2.97.0",
+    version: "2.97.1",
+    label: "2.96.0 – 2.97.1",
     date: "2026-10-18",
     title: "Momentum gets its own page",
     changes: [
@@ -46,7 +46,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "added",
-        text: "Momentum moved off the dashboard to its own page. Tap the little bar chart on the dashboard to get there. It's organized by question (how's it going, when do I work, does chunking help, what's aging, what kind of effort), and one switcher at the top picks this week, the last 4 weeks or all time for every section.",
+        text: "Momentum moved off the dashboard to its own page. Find it in the sidebar, or tap the little bar chart on the dashboard. It's organized by question (how's it going, when do I work, does chunking help, what's aging, what kind of effort), and one switcher at the top picks this week, the last 4 weeks or all time for every section.",
       },
       {
         kind: "added",
