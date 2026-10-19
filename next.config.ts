@@ -90,8 +90,6 @@ const nextConfig: NextConfig = {
       { source: "/mirror/:path*", destination: "/recap/:path*", permanent: true },
       // Journal merged into the Brain Dump screen as a category toggle.
       { source: "/journal", destination: "/dump?category=junk_journal", permanent: true },
-      // Momentum folded into a collapsible section on the dashboard.
-      { source: "/momentum", destination: "/dashboard#momentum-panel", permanent: true },
     ];
   },
 };

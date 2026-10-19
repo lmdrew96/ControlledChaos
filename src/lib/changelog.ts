@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.97.1",
-    label: "2.96.0 – 2.97.1",
+    version: "2.97.2",
+    label: "2.96.0 – 2.97.2",
     date: "2026-10-18",
     title: "Momentum gets its own page",
     changes: [
