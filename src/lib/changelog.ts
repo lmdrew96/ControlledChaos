@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.95.4",
-    label: "2.95.1 – 2.95.4",
+    version: "2.95.5",
+    label: "2.95.1 – 2.95.5",
     date: "2026-10-18",
     title: "Readable overlaps",
     changes: [
@@ -46,7 +46,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         kind: "fixed",
-        text: "Finishing or planning a task from your task list or Do This Next now updates the Today card and the day timeline right away, without a reload.",
+        text: "Finishing or planning a task from your task list or Do This Next now updates the Today card and the day timeline right away, without a reload. Coming back to the dashboard tab catches up on anything you changed elsewhere.",
       },
       {
         kind: "fixed",

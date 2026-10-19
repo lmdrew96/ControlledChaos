@@ -34,6 +34,21 @@ export default function DashboardPage() {
   // without flashing their loading state.
   const [todayVersion, setTodayVersion] = useState(0);
   const refreshToday = () => setTodayVersion((v) => v + 1);
+
+  // Changes made elsewhere (calendar in another tab, the MCP tools, a push
+  // action) also show up when you come back to the tab. At most once a
+  // minute, so flicking between tabs doesn't refetch every time.
+  useEffect(() => {
+    let lastRefresh = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefresh < 60_000) return;
+      lastRefresh = Date.now();
+      setTodayVersion((v) => v + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
   // A free gap tapped on the day timeline: ask "what should I do?" for it.
   const [gapRequest, setGapRequest] = useState<GapRequest | null>(null);
   const askForGap = (minutes: number) => {
