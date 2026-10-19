@@ -41,15 +41,21 @@ interface PushPayload {
   /**
    * When this push stops being true ("starts in 10 minutes" is wrong once it
    * starts). Set → sent at high urgency and expires then. Without it the push
-   * service holds a push up to four weeks at normal urgency, and Apple may sit
-   * on a normal push to save battery: a 5:50 reminder for a 6:00 dinner landed
-   * at 7:00 on 10/13 still saying "about 10 minutes".
+   * goes at normal urgency, and Apple may sit on a normal push to save
+   * battery: a 5:50 reminder for a 6:00 dinner landed at 7:00 on 10/13 still
+   * saying "about 10 minutes".
    */
   staleAt?: Date;
 }
 
 /** Push services treat a TTL of 0 as "now or never"; give a fresh push a minute. */
 const MIN_TTL_SECONDS = 60;
+/**
+ * TTL for a push without staleAt. web-push's own default is four weeks, so a
+ * held check-in or nudge could land days later. Every alert gets one chance;
+ * an hour late is the most "one chance" can stretch to.
+ */
+const DEFAULT_TTL_SECONDS = 60 * 60;
 
 
 /**
@@ -115,7 +121,7 @@ export async function sendPushToUser(
           Math.floor((payload.staleAt.getTime() - Date.now()) / 1000)
         ),
       }
-    : undefined;
+    : { TTL: DEFAULT_TTL_SECONDS };
 
   let sent = false;
   const webpush = getWebPush();

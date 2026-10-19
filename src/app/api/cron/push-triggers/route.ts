@@ -864,6 +864,8 @@ export async function POST(request: Request) {
         // chose, so it's user-lane: never capped, never counted. It fires
         // outside the per-user loop, so it doesn't spend a tick budget either.
         lane: "user",
+        // Same window the expiry check above uses: past it, don't deliver.
+        staleAt: new Date(item.sendAfter.getTime() + SNOOZE_EXPIRY_MS),
       });
       if (sent) {
         await markSnoozedPushSent(item.id);

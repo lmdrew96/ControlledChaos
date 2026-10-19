@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.95.2",
-    label: "2.95.1 – 2.95.2",
+    version: "2.95.3",
+    label: "2.95.1 – 2.95.3",
     date: "2026-10-18",
     title: "Readable overlaps",
     changes: [
@@ -47,6 +47,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "Finishing or planning a task from your task list or Do This Next now updates the Today card and the day timeline right away, without a reload.",
+      },
+      {
+        kind: "fixed",
+        text: "Check-ins, nudges and snoozed reminders that your phone couldn't get in time now expire instead of turning up hours later. A snoozed reminder that misses its 15 minutes is simply dropped.",
       },
     ],
   },
