@@ -19,7 +19,14 @@ export interface GapRequest {
   nonce: number;
 }
 
-export function DoThisNext({ gapRequest }: { gapRequest?: GapRequest | null } = {}) {
+export function DoThisNext({
+  gapRequest,
+  onTaskChanged,
+}: {
+  gapRequest?: GapRequest | null;
+  /** Called after the recommended task is completed. */
+  onTaskChanged?: () => void;
+} = {}) {
   const announceGoalFinished = useAnnounceGoalFinished();
   const {
     recommendation,
@@ -109,6 +116,7 @@ export function DoThisNext({ gapRequest }: { gapRequest?: GapRequest | null } = 
       const taskTitle = recommendation?.task?.title;
       toast.success(taskTitle ? `'${taskTitle}' marked complete` : "Task completed!");
       fireTaskConfetti();
+      onTaskChanged?.();
       // Reset card to idle state — user gets the completion beat,
       // then explicitly asks for the next recommendation.
       clearRecommendation();
@@ -116,7 +124,7 @@ export function DoThisNext({ gapRequest }: { gapRequest?: GapRequest | null } = 
       hasFetched.current = false;
       availableMinutes.current = undefined;
     },
-    [sendFeedback, clearRecommendation, recommendation?.task?.title, announceGoalFinished]
+    [sendFeedback, clearRecommendation, recommendation?.task?.title, announceGoalFinished, onTaskChanged]
   );
 
   const handleSnooze = useCallback(

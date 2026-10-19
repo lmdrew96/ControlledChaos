@@ -29,6 +29,11 @@ export default function DashboardPage() {
   // Bumped when the Today card completes a task, so the task feed's counts
   // catch up. Separate from planVersion so it doesn't reset the anchor.
   const [tasksVersion, setTasksVersion] = useState(0);
+  // Bumped when the task feed or Do This Next changes a task. Passed as a
+  // refresh prop, not a key, so the Today card and timeline re-read in place
+  // without flashing their loading state.
+  const [todayVersion, setTodayVersion] = useState(0);
+  const refreshToday = () => setTodayVersion((v) => v + 1);
   // A free gap tapped on the day timeline: ask "what should I do?" for it.
   const [gapRequest, setGapRequest] = useState<GapRequest | null>(null);
   const askForGap = (minutes: number) => {
@@ -50,18 +55,29 @@ export default function DashboardPage() {
       {/* Greeting + Time anchor */}
       <div className="space-y-3">
         <Greeting />
-        <TimeAnchor key={`anchor-${planVersion}`} onGapSelect={askForGap} />
+        <TimeAnchor
+          key={`anchor-${planVersion}`}
+          onGapSelect={askForGap}
+          refreshKey={todayVersion}
+        />
       </div>
 
       {/* Today — overdue, due today, planned today. Open by default. */}
       <TodayCard
         key={`today-${planVersion}`}
+        refreshKey={todayVersion}
         onTaskChanged={() => setTasksVersion((v) => v + 1)}
       />
 
       {/* Hero: Task Recommendation — only loud surface */}
       <div id="do-this-next" className="scroll-mt-4">
-        <DoThisNext gapRequest={gapRequest} />
+        <DoThisNext
+          gapRequest={gapRequest}
+          onTaskChanged={() => {
+            refreshToday();
+            setTasksVersion((v) => v + 1);
+          }}
+        />
       </div>
 
       {/* Today strip — momentum bars on the left, plan-my-day pill on the right */}
@@ -96,7 +112,11 @@ export default function DashboardPage() {
       <GoalStrip />
 
       {/* Task feed — collapsed by default; click header to expand */}
-      <TaskList key={`tasks-${planVersion}-${tasksVersion}`} collapsible />
+      <TaskList
+        key={`tasks-${planVersion}-${tasksVersion}`}
+        collapsible
+        onTaskChanged={refreshToday}
+      />
     </div>
   );
 }

@@ -71,7 +71,14 @@ function localHourToday(dateKey: string, hour: number, timezone: string): Date {
   return new Date(toUTC(`${key}T${h}:00:00`, timezone));
 }
 
-export function TimeAnchor({ onGapSelect }: { onGapSelect?: (minutes: number) => void } = {}) {
+export function TimeAnchor({
+  onGapSelect,
+  refreshKey,
+}: {
+  onGapSelect?: (minutes: number) => void;
+  /** Bumped when a task changes elsewhere on the dashboard; re-reads in place. */
+  refreshKey?: number;
+} = {}) {
   // Timezone and the wake/sleep window come from the shared settings cache, so
   // a save in Settings reaches the anchor without a reload.
   const {
@@ -155,7 +162,7 @@ export function TimeAnchor({ onGapSelect }: { onGapSelect?: (minutes: number) =>
 
   useEffect(() => {
     void fetchData();
-  }, [fetchData]);
+  }, [fetchData, refreshKey]);
 
   function toggleCollapsed() {
     const next = !collapsed;

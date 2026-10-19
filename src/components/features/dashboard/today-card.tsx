@@ -32,7 +32,14 @@ const SECTION_LABELS: Record<TodayBucket, string> = {
  * today's sittings. Open by default; collapse is remembered for the session,
  * like the time anchor's.
  */
-export function TodayCard({ onTaskChanged }: { onTaskChanged?: () => void }) {
+export function TodayCard({
+  onTaskChanged,
+  refreshKey,
+}: {
+  onTaskChanged?: () => void;
+  /** Bumped when a task changes elsewhere on the dashboard; re-reads in place. */
+  refreshKey?: number;
+}) {
   const timezone = useTimezone();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -57,7 +64,7 @@ export function TodayCard({ onTaskChanged }: { onTaskChanged?: () => void }) {
 
   useEffect(() => {
     void fetchTasks();
-  }, [fetchTasks]);
+  }, [fetchTasks, refreshKey]);
 
   function toggleCollapsed() {
     const next = !collapsed;

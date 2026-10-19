@@ -35,13 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.95.1",
+    version: "2.95.2",
+    label: "2.95.1 – 2.95.2",
     date: "2026-10-18",
     title: "Readable overlaps",
     changes: [
       {
         kind: "fixed",
-        text: "Overlapping things on the calendar no longer squeeze into slivers like \"CGS...\" and \"Mee...\". Every event and planned sitting now gets the full width of its day, and the later one sits on top. Hover or tap-and-hold to bring one to the front.",
+        text: "Overlapping things on the calendar no longer squeeze into slivers like \"CGS...\" and \"Mee...\". Every event and planned sitting now gets the full width of its day, and the later one sits on top. Hover over one to bring it to the front.",
+      },
+      {
+        kind: "fixed",
+        text: "Finishing or planning a task from your task list or Do This Next now updates the Today card and the day timeline right away, without a reload.",
       },
     ],
   },

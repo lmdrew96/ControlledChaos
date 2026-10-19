@@ -113,7 +113,14 @@ function SortableTaskCard({
 const VALID_FILTERS: Set<string> = new Set(["active", "completed", "cancelled", "all"]);
 const VALID_SORTS: Set<string> = new Set(["none", "priority", "deadline", "manual"]);
 
-export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}) {
+export function TaskList({
+  collapsible = false,
+  onTaskChanged,
+}: {
+  collapsible?: boolean;
+  /** Called after a task is created, edited, completed or planned here. */
+  onTaskChanged?: () => void;
+} = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [expanded, setExpanded] = useState(!collapsible);
@@ -200,6 +207,12 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
   useEffect(() => {
     void fetchTasks();
   }, [fetchTasks]);
+
+  // Re-read here, and tell the rest of the dashboard.
+  const handleTaskChanged = useCallback(() => {
+    void fetchTasks();
+    onTaskChanged?.();
+  }, [fetchTasks, onTaskChanged]);
 
   // The goal chip names the goal; the task rows only carry its id.
   const [goalTitle, setGoalTitle] = useState<string | null>(null);
@@ -396,7 +409,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
           open={createOpen}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {
-            void fetchTasks();
+            handleTaskChanged();
             // Refetch after a short delay to pick up the AI-generated note
             setTimeout(fetchTasks, 3000);
           }}
@@ -610,7 +623,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
                 <SortableTaskCard
                   key={task.id}
                   task={task}
-                  onUpdate={fetchTasks}
+                  onUpdate={handleTaskChanged}
                   onClick={() => setSelectedTaskId(task.id)}
                   isDragMode={true}
                 />
@@ -624,7 +637,7 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
             <TaskCard
               key={task.id}
               task={task}
-              onUpdate={fetchTasks}
+              onUpdate={handleTaskChanged}
               onClick={() => setSelectedTaskId(task.id)}
             />
           ))}
@@ -656,14 +669,14 @@ export function TaskList({ collapsible = false }: { collapsible?: boolean } = {}
       <TaskDetailModal
         task={selectedTask}
         onClose={() => setSelectedTaskId(null)}
-        onUpdate={fetchTasks}
+        onUpdate={handleTaskChanged}
       />
 
       {/* Create task modal */}
       <CreateTaskModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={fetchTasks}
+        onCreated={handleTaskChanged}
       />
     </div>
   );
