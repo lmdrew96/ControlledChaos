@@ -126,3 +126,78 @@ export function chunkingInsight(chunked: FinishRate, unchunked: FinishRate): str
   }
   return "About the same either way.";
 }
+
+// ============================================================
+// Am I beating deadlines?
+// ============================================================
+
+/** Finished at least this far ahead of the deadline counts as early. */
+export const EARLY_THRESHOLD_SECONDS = 24 * 60 * 60;
+
+export type DeadlineBucket = "early" | "justInTime" | "late";
+
+export const DEADLINE_BUCKETS: DeadlineBucket[] = ["early", "justInTime", "late"];
+
+/** secondsAhead = deadline − completion; negative means after the deadline. */
+export function deadlineBucket(secondsAhead: number): DeadlineBucket {
+  if (secondsAhead < 0) return "late";
+  return secondsAhead >= EARLY_THRESHOLD_SECONDS ? "early" : "justInTime";
+}
+
+export function deadlineInsight(counts: Record<DeadlineBucket, number>): string {
+  const total = counts.early + counts.justInTime + counts.late;
+  if (total < MIN_INSIGHT_SAMPLE) return NOT_ENOUGH_DATA;
+  if (counts.early / total >= 0.5) return "You usually finish with a day or more to spare.";
+  if (counts.late / total >= 0.25) {
+    return `About ${Math.round((counts.late / total) * 10)} in 10 land after the deadline.`;
+  }
+  return "Most land in the last day before the deadline.";
+}
+
+// ============================================================
+// Do my plans hold?
+// ============================================================
+
+export type PlanOutcome = "inSitting" | "sameDay" | "later" | "open" | "skipped";
+
+export const PLAN_OUTCOMES: PlanOutcome[] = ["inSitting", "sameDay", "later", "open", "skipped"];
+
+export interface SittingFacts {
+  /** The sitting's check-in: done | partial | skipped, or null if unanswered. */
+  status: string | null;
+  /** Local date key of the sitting's start. */
+  startDay: string;
+  /** Local date key the task was completed, or null if it isn't. */
+  completedDay: string | null;
+  /** The task was finished before this sitting began. */
+  completedBeforeStart: boolean;
+}
+
+/**
+ * What became of one planned sitting. A slipped sitting whose task still got
+ * done the same day is its own outcome, never a failure. Returns null when
+ * the task was already finished before the sitting started: that plan was
+ * moot, not kept or broken.
+ */
+export function planOutcome(s: SittingFacts): PlanOutcome | null {
+  if (s.status === "done") return "inSitting";
+  if (s.completedDay !== null) {
+    if (s.completedBeforeStart) return null;
+    return s.completedDay === s.startDay ? "sameDay" : "later";
+  }
+  return s.status === "skipped" ? "skipped" : "open";
+}
+
+export function planInsight(counts: Record<PlanOutcome, number>): string {
+  const total = PLAN_OUTCOMES.reduce((sum, k) => sum + counts[k], 0);
+  if (total < MIN_INSIGHT_SAMPLE) return NOT_ENOUGH_DATA;
+  if (counts.inSitting / total >= 0.5) return "Most of your sittings happen as planned.";
+  const slipped = total - counts.inSitting;
+  if (counts.sameDay >= slipped / 2) {
+    return "When a sitting slips, the work usually still gets done the same day.";
+  }
+  if (counts.sameDay + counts.later >= slipped / 2) {
+    return "When a sitting slips, the work usually still gets done, just on another day.";
+  }
+  return "Many sittings end up skipped or still open. Useful to know when you plan.";
+}

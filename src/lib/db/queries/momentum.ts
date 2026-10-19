@@ -8,7 +8,18 @@ import {
   todayInTimezone,
   weekStartKey,
 } from "@/lib/timezone";
-import { median, type HeatmapCell, type FinishRate, type MomentumPeriod } from "@/lib/momentum";
+import {
+  DEADLINE_BUCKETS,
+  PLAN_OUTCOMES,
+  deadlineBucket,
+  median,
+  planOutcome,
+  type DeadlineBucket,
+  type FinishRate,
+  type HeatmapCell,
+  type MomentumPeriod,
+  type PlanOutcome,
+} from "@/lib/momentum";
 import { getUserSettings } from "./users";
 
 // ============================================================
@@ -19,6 +30,15 @@ import { getUserSettings } from "./users";
 export interface MomentumTaskRef {
   id: string;
   title: string;
+}
+
+/** One planned sitting, for the plans lists. */
+export interface MomentumSittingRef {
+  id: string;
+  taskId: string;
+  title: string;
+  /** Local date key the sitting started. */
+  day: string;
 }
 
 export interface MomentumBar {
@@ -53,6 +73,12 @@ export interface MomentumStats {
   firstActiveWeek: string | null;
   bars: MomentumBar[];
   wins: Array<{ icon: string; title: string; subtitle: string }>;
+
+  // --- 2. Am I beating deadlines? (hard deadlines, tasks finished in the period) ---
+  deadlines: Record<DeadlineBucket, MomentumTaskRef[]>;
+
+  // --- 3. Do my plans hold? (sittings that started in the period, up to now) ---
+  plans: Record<PlanOutcome, MomentumSittingRef[]>;
 
   // --- 4. When do I work? ---
   hourlyHeatmap: HeatmapCell[];
@@ -199,6 +225,7 @@ export async function getMomentumStats(
     allTimeRows,
     settingsResult,
     deadlineRows,
+    sittingRows,
   ] = await Promise.all([
     // Daily counts, last 28 days
     db.execute<{ date: string | Date; count: number }>(
@@ -312,19 +339,47 @@ export async function getMomentumStats(
     ),
     db.execute<{ count: number }>(sql`SELECT COUNT(*)::int AS count FROM ${doneMoments}`),
     getUserSettings(userId),
-    // Deadline tasks finished in the period, for the wins
-    db.execute<{ category: string | null; met: number; total: number }>(
-      sql`SELECT
-        category,
-        COUNT(*) FILTER (WHERE completed_at <= deadline)::int AS met,
-        COUNT(*)::int AS total
+    // Hard-deadline tasks finished in the period, with how far ahead they
+    // landed (seconds; negative = late). Computed in SQL so it doesn't depend
+    // on how the driver reads timestamp-without-tz columns.
+    db.execute<{ id: string; title: string; category: string | null; seconds_ahead: number }>(
+      sql`SELECT id, title, category,
+        EXTRACT(EPOCH FROM (deadline - completed_at))::float AS seconds_ahead
       FROM tasks
       WHERE user_id = ${userId}
         AND status = 'completed'
+        AND completed_at IS NOT NULL
         AND deadline IS NOT NULL
         AND deleted_at IS NULL
         ${periodStart ? sql`AND completed_at >= ${periodStart}` : sql.empty()}
-      GROUP BY category`
+      ORDER BY completed_at DESC`
+    ),
+    // Planned sittings that have started, with local days for the sitting and
+    // the task's completion. Cancelled tasks are left out: letting a task go
+    // isn't a plan kept or broken.
+    db.execute<{
+      id: string;
+      task_id: string;
+      title: string;
+      status: string | null;
+      start_day: string | Date;
+      completed_day: string | Date | null;
+      completed_before_start: boolean;
+    }>(
+      sql`SELECT s.id, s.task_id, t.title, s.status,
+        DATE(s.starts_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS start_day,
+        CASE WHEN t.status = 'completed' AND t.completed_at IS NOT NULL
+          THEN DATE(t.completed_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
+        END AS completed_day,
+        COALESCE(t.status = 'completed' AND t.completed_at < s.starts_at, false) AS completed_before_start
+      FROM task_sessions s
+      JOIN tasks t ON t.id = s.task_id
+      WHERE s.user_id = ${userId}
+        AND t.deleted_at IS NULL
+        AND t.status <> 'cancelled'
+        AND s.starts_at <= NOW()
+        ${periodStart ? sql`AND s.starts_at >= ${periodStart}` : sql.empty()}
+      ORDER BY s.starts_at DESC`
     ),
   ]);
 
@@ -460,6 +515,29 @@ export async function getMomentumStats(
     chunksTotal: Number(c?.chunks_total ?? 0),
   };
 
+  // --- Deadlines ---
+  const deadlines = Object.fromEntries(
+    DEADLINE_BUCKETS.map((b) => [b, [] as MomentumTaskRef[]])
+  ) as Record<DeadlineBucket, MomentumTaskRef[]>;
+  for (const r of deadlineRows.rows) {
+    deadlines[deadlineBucket(Number(r.seconds_ahead))].push({ id: r.id, title: r.title });
+  }
+
+  // --- Plans ---
+  const plans = Object.fromEntries(
+    PLAN_OUTCOMES.map((o) => [o, [] as MomentumSittingRef[]])
+  ) as Record<PlanOutcome, MomentumSittingRef[]>;
+  for (const r of sittingRows.rows) {
+    const day = toKey(r.start_day);
+    const outcome = planOutcome({
+      status: r.status,
+      startDay: day,
+      completedDay: r.completed_day === null ? null : toKey(r.completed_day),
+      completedBeforeStart: Boolean(r.completed_before_start),
+    });
+    if (outcome) plans[outcome].push({ id: r.id, taskId: r.task_id, title: r.title, day });
+  }
+
   const calendarColors: CalendarColors =
     (settingsResult?.calendarColors as CalendarColors | null) ?? DEFAULT_CALENDAR_COLORS;
 
@@ -494,15 +572,22 @@ export async function getMomentumStats(
   }
 
   // 3. All deadline tasks met for a category
-  for (const dr of deadlineRows.rows) {
+  const deadlineByCategory = new Map<string, { met: number; total: number }>();
+  for (const r of deadlineRows.rows) {
+    if (!r.category) continue;
+    const entry = deadlineByCategory.get(r.category) ?? { met: 0, total: 0 };
+    entry.total++;
+    if (Number(r.seconds_ahead) >= 0) entry.met++;
+    deadlineByCategory.set(r.category, entry);
+  }
+  for (const [category, { met, total }] of deadlineByCategory) {
     if (wins.length >= 3) break;
-    const total = Number(dr.total);
     // Two or more, so the phrasing can stay plural. "All your errands, done
     // early" about a single errand is a strange thing to say to someone.
-    if (Number(dr.met) === total && total > 1 && dr.category) {
+    if (met === total && total > 1) {
       wins.push({
         icon: "🎯",
-        title: `All your ${categoryPhrase(String(dr.category))}, done early`,
+        title: `All your ${categoryPhrase(category)}, done early`,
         subtitle: `All ${total} beat their deadlines`,
       });
     }
@@ -546,6 +631,8 @@ export async function getMomentumStats(
     firstActiveWeek,
     bars,
     wins,
+    deadlines,
+    plans,
     hourlyHeatmap,
     chunking,
     marination: { active, historical, activeTasks },

@@ -14,6 +14,7 @@ import { MOMENTUM_PERIODS, PERIOD_LABELS, parsePeriod, type MomentumPeriod } fro
 import { CircadianSignature } from "./circadian-signature";
 import { ChunkOutcomes } from "./chunk-outcomes";
 import { TaskMarination } from "./task-marination";
+import { DeadlineOutcomes, PlanOutcomes } from "./deadlines-and-plans";
 
 const PERIOD_STORAGE_KEY = "cc:momentum-period";
 
@@ -106,7 +107,10 @@ export function MomentumView() {
         <div className={cn("space-y-4 transition-opacity", isStale && "opacity-60")}>
           {/* 1 */}
           <HowItsGoing stats={stats} />
-          {/* 2 Am I beating deadlines? · 3 Do my plans hold? — sibling patch */}
+          {/* 2 */}
+          <DeadlineOutcomes deadlines={stats.deadlines} periodPhrase={phrase} />
+          {/* 3 */}
+          <PlanOutcomes plans={stats.plans} periodPhrase={phrase} />
           {/* 4 */}
           <CircadianSignature hourlyHeatmap={stats.hourlyHeatmap} periodPhrase={phrase} />
           {/* 5 */}

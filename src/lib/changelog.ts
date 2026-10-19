@@ -35,10 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.96.0",
+    version: "2.97.0",
+    label: "2.96.0 – 2.97.0",
     date: "2026-10-18",
     title: "Momentum gets its own page",
     changes: [
+      {
+        kind: "added",
+        text: "Two new questions on Momentum. \"Am I beating deadlines?\" shows how many deadline tasks you finished a day or more early, in the last day, or after. \"Do my plans hold?\" shows what became of your planned sittings, and a skipped sitting whose task you still finished that day counts as done later that day, not a miss. Tap any count to see the tasks.",
+      },
       {
         kind: "added",
         text: "Momentum moved off the dashboard to its own page. Tap the little bar chart on the dashboard to get there. It's organized by question (how's it going, when do I work, does chunking help, what's aging, what kind of effort), and one switcher at the top picks this week, the last 4 weeks or all time for every section.",

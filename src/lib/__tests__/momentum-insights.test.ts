@@ -2,6 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   NOT_ENOUGH_DATA,
   chunkingInsight,
+  deadlineBucket,
+  deadlineInsight,
+  planInsight,
+  planOutcome,
   heatmapInsight,
   median,
   parsePeriod,
@@ -52,4 +56,53 @@ describe("helpers", () => {
     expect(parsePeriod("bogus")).toBe("week");
     expect(parsePeriod(null)).toBe("week");
   });
+});
+
+describe("deadlines", () => {
+  it("buckets by time to spare", () => {
+    expect(deadlineBucket(2 * 86400)).toBe("early");
+    expect(deadlineBucket(86400)).toBe("early");
+    expect(deadlineBucket(3600)).toBe("justInTime");
+    expect(deadlineBucket(0)).toBe("justInTime");
+    expect(deadlineBucket(-60)).toBe("late");
+  });
+
+  it("gates and phrases the insight", () => {
+    expect(deadlineInsight({ early: 5, justInTime: 2, late: 1 })).toBe(NOT_ENOUGH_DATA);
+    expect(deadlineInsight({ early: 6, justInTime: 3, late: 1 })).toMatch(/day or more to spare/);
+    expect(deadlineInsight({ early: 2, justInTime: 5, late: 3 })).toBe("About 3 in 10 land after the deadline.");
+    expect(deadlineInsight({ early: 2, justInTime: 7, late: 1 })).toMatch(/last day/);
+  });
+});
+
+describe("planOutcome", () => {
+  const s = (over: Partial<Parameters<typeof planOutcome>[0]>) =>
+    planOutcome({ status: null, startDay: "2026-10-18", completedDay: null, completedBeforeStart: false, ...over });
+
+  it("Quiz 4: skipped at 3:30, finished at 8:16 the same day → done later same day", () => {
+    expect(s({ status: "skipped", completedDay: "2026-10-18" })).toBe("sameDay");
+  });
+
+  it("covers every outcome", () => {
+    expect(s({ status: "done" })).toBe("inSitting");
+    expect(s({ completedDay: "2026-10-20" })).toBe("later");
+    expect(s({ status: "skipped" })).toBe("skipped");
+    expect(s({})).toBe("open");
+    expect(s({ status: "partial" })).toBe("open");
+  });
+
+  it("drops a sitting the task was already finished before", () => {
+    expect(s({ completedDay: "2026-10-17", completedBeforeStart: true })).toBeNull();
+  });
+});
+
+describe("planInsight", () => {
+  const c = (inSitting: number, sameDay: number, later: number, open: number, skipped: number) => ({
+    inSitting, sameDay, later, open, skipped,
+  });
+  it("gates under 10", () => expect(planInsight(c(3, 3, 0, 0, 0))).toBe(NOT_ENOUGH_DATA));
+  it("same-day recovery reads as positive", () => {
+    expect(planInsight(c(2, 5, 1, 1, 1))).toMatch(/same day/);
+  });
+  it("mostly kept", () => expect(planInsight(c(6, 1, 1, 1, 1))).toMatch(/as planned/));
 });
