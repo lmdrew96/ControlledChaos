@@ -35,6 +35,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.96.0",
+    date: "2026-10-18",
+    title: "Momentum gets its own page",
+    changes: [
+      {
+        kind: "added",
+        text: "Momentum moved off the dashboard to its own page. Tap the little bar chart on the dashboard to get there. It's organized by question (how's it going, when do I work, does chunking help, what's aging, what kind of effort), and one switcher at the top picks this week, the last 4 weeks or all time for every section.",
+      },
+      {
+        kind: "added",
+        text: "Tap a day's bar to open that day's recap. Tap a number under \"What's aging?\" to sort through those tasks: keep it, park it for someday, or let it go.",
+      },
+      {
+        kind: "improved",
+        text: "The insights only speak up when there's enough behind them (about 10 things), and they say what the chart shows. \"Does chunking help?\" now compares chunked tasks with unchunked ones instead of just counting. The heatmap has a legend.",
+      },
+      {
+        kind: "fixed",
+        text: "The energy and area breakdowns now add up to the headline number. Sittings you worked count with their task's labels, and tasks without an area show as Unlabeled.",
+      },
+    ],
+  },
+  {
     version: "2.95.5",
     label: "2.95.1 – 2.95.5",
     date: "2026-10-18",

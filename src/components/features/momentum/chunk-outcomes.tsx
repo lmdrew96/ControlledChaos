@@ -2,24 +2,16 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import type { MomentumStats } from "@/lib/db/queries";
-
-const MIN_PARENTS_FOR_INSIGHT = 3;
+import { chunkingInsight } from "@/lib/momentum";
 
 type Props = {
-  chunkOutcomes: MomentumStats["chunkOutcomes"];
+  chunking: MomentumStats["chunking"];
+  periodPhrase: string;
 };
 
 function pct(part: number, whole: number): number {
   if (whole <= 0) return 0;
   return Math.round((part / whole) * 100);
-}
-
-function generateSentence(c: MomentumStats["chunkOutcomes"]): string | null {
-  if (c.parentsChunked < MIN_PARENTS_FOR_INSIGHT) return null;
-  const p = pct(c.parentsCompleted, c.parentsChunked);
-  if (p >= 70) return "Chunking is working for you.";
-  if (p >= 40) return "Chunking helps sometimes.";
-  return "Chunking isn't moving the needle yet.";
 }
 
 type BarProps = {
@@ -56,38 +48,45 @@ function OutcomeBar({ label, completed, total, color }: BarProps) {
   );
 }
 
-export function ChunkOutcomes({ chunkOutcomes }: Props) {
-  // Hide entirely if nothing's ever been chunked
-  if (chunkOutcomes.parentsChunked === 0) return null;
-
-  const sentence = generateSentence(chunkOutcomes);
+export function ChunkOutcomes({ chunking, periodPhrase }: Props) {
+  const { chunked, unchunked } = chunking;
 
   return (
     <Card>
       <CardContent className="p-5">
-        <h3 className="mb-1 text-sm font-medium">Chunk outcomes</h3>
+        <h2 className="mb-1 text-sm font-medium">Does chunking help?</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Does breaking things down help?
+          How often tasks added {periodPhrase} got finished, with and without steps
         </p>
 
-        <div className="space-y-4">
-          <OutcomeBar
-            label="Chunked tasks finished"
-            completed={chunkOutcomes.parentsCompleted}
-            total={chunkOutcomes.parentsChunked}
-            color="249, 115, 22"
-          />
-          <OutcomeBar
-            label="Individual chunks completed"
-            completed={chunkOutcomes.chunksCompleted}
-            total={chunkOutcomes.chunksTotal}
-            color="140, 189, 185"
-          />
-        </div>
-
-        {sentence && (
-          <p className="mt-4 text-[13px] text-muted-foreground">{sentence}</p>
+        {chunked.total + unchunked.total === 0 ? (
+          <p className="text-xs text-muted-foreground">No tasks added {periodPhrase}.</p>
+        ) : (
+          <div className="space-y-4">
+            <OutcomeBar
+              label="Chunked tasks finished"
+              completed={chunked.finished}
+              total={chunked.total}
+              color="249, 115, 22"
+            />
+            <OutcomeBar
+              label="Unchunked tasks finished"
+              completed={unchunked.finished}
+              total={unchunked.total}
+              color="140, 189, 185"
+            />
+            {chunking.chunksTotal > 0 && (
+              <p className="text-xs text-muted-foreground">
+                <span className="tabular-nums">{chunking.chunksCompleted}</span> of{" "}
+                <span className="tabular-nums">{chunking.chunksTotal}</span> individual steps done
+              </p>
+            )}
+          </div>
         )}
+
+        <p className="mt-4 text-[13px] text-muted-foreground">
+          {chunkingInsight(chunked, unchunked)}
+        </p>
       </CardContent>
     </Card>
   );

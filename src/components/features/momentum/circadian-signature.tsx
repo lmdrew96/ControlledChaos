@@ -2,20 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
-import type { MomentumStats } from "@/lib/db/queries";
+import { DAY_NAMES, heatmapInsight, type HeatmapCell } from "@/lib/momentum";
 
-type HeatmapEntry = MomentumStats["hourlyHeatmap"][number];
+type HeatmapEntry = HeatmapCell;
 
 const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
-const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
 
 function hourLabel(hour: number): string {
   if (hour === 0) return "12a";
@@ -26,39 +17,6 @@ function hourLabel(hour: number): string {
 
 function hourRangeLabel(startHour: number): string {
   return `${hourLabel(startHour)}–${hourLabel((startHour + 2) % 24)}`;
-}
-
-// Coarse time-of-day names for the insight sentence
-function timeOfDayName(hour: number): string {
-  if (hour < 6) return "late nights";
-  if (hour < 9) return "early mornings";
-  if (hour < 12) return "mornings";
-  if (hour < 17) return "afternoons";
-  if (hour < 21) return "evenings";
-  return "late evenings";
-}
-
-function generateCircadianSentence(
-  hourly: HeatmapEntry[]
-): string | null {
-  if (hourly.length === 0) return null;
-  const total = hourly.reduce((sum, c) => sum + c.count, 0);
-  if (total < 20) return null; // not enough signal
-
-  const peak = hourly.reduce((best, cell) =>
-    cell.count > best.count ? cell : best
-  );
-  if (peak.count === 0) return null;
-
-  // Flat-ish distribution: no clear peak
-  const avg = total / hourly.length;
-  if (peak.count < avg * 2.5) {
-    return "Your weeks are pretty spread out — no single peak.";
-  }
-
-  const day = DAY_NAMES[peak.dayOfWeek];
-  const time = timeOfDayName(peak.hour);
-  return `Most of your weeks happen on **${day} ${time}**.`;
 }
 
 // Build a dense 7×24 grid from sparse rows
@@ -91,26 +49,31 @@ function opacityFor(count: number, max: number): number {
   return 0.18 + t * 0.75;
 }
 
+const LEGEND_STEPS = [0, 1, 3, 6, 10];
+
 export function CircadianSignature({
   hourlyHeatmap,
+  periodPhrase,
 }: {
   hourlyHeatmap: HeatmapEntry[];
+  /** "this week", "in the last 4 weeks", "all time" */
+  periodPhrase: string;
 }) {
   const grid24 = buildGrid(hourlyHeatmap);
   const grid12 = aggregateTo12(grid24);
   const max24 = Math.max(...grid24.flat(), 1);
   const max12 = Math.max(...grid12.flat(), 1);
 
-  const sentence = generateCircadianSentence(hourlyHeatmap);
+  const sentence = heatmapInsight(hourlyHeatmap);
   const totalCompletions = hourlyHeatmap.reduce((s, c) => s + c.count, 0);
 
   if (totalCompletions === 0) {
     return (
       <Card>
         <CardContent className="p-5">
-          <h3 className="mb-1 text-sm font-medium">Your shape</h3>
+          <h2 className="mb-1 text-sm font-medium">When do I actually work?</h2>
           <p className="text-xs text-muted-foreground">
-            Your shape is still forming — finish a few tasks or sittings and check back.
+            Nothing done {periodPhrase} yet, so there&apos;s no shape to show.
           </p>
         </CardContent>
       </Card>
@@ -135,9 +98,9 @@ export function CircadianSignature({
   return (
     <Card>
       <CardContent className="p-5">
-        <h3 className="mb-1 text-sm font-medium">Your shape</h3>
+        <h2 className="mb-1 text-sm font-medium">When do I actually work?</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          When your weeks actually happen &middot; all time
+          Tasks finished and sittings done, by hour and weekday &middot; {periodPhrase}
         </p>
 
         {/* Mobile: 12 cols (2-hour blocks) */}
@@ -169,7 +132,7 @@ export function CircadianSignature({
             <div
               className="grid grid-cols-12 gap-[2px]"
               role="img"
-              aria-label={`All-time heatmap of tasks and sittings done, ${totalCompletions} across 7 days and 12 two-hour blocks`}
+              aria-label={`Heatmap of tasks and sittings done ${periodPhrase}, ${totalCompletions} across 7 days and 12 two-hour blocks`}
             >
               {grid12.map((row, dayIdx) =>
                 row.map((count, blockIdx) => (
@@ -218,7 +181,7 @@ export function CircadianSignature({
               className="grid gap-[2px]"
               style={{ gridTemplateColumns: "repeat(24, minmax(0, 1fr))" }}
               role="img"
-              aria-label={`All-time heatmap of tasks and sittings done, ${totalCompletions} across 7 days and 24 hours`}
+              aria-label={`Heatmap of tasks and sittings done ${periodPhrase}, ${totalCompletions} across 7 days and 24 hours`}
             >
               {grid24.map((row, dayIdx) =>
                 row.map((count, hour) => (
@@ -237,11 +200,22 @@ export function CircadianSignature({
           </div>
         </div>
 
-        {sentence && (
-          <p className="mt-4 text-[13px] text-muted-foreground">
-            <Markdown inline>{sentence}</Markdown>
-          </p>
-        )}
+        {/* Legend: what a darker cell means */}
+        <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+          <span>Fewer</span>
+          {LEGEND_STEPS.map((n) => (
+            <span
+              key={n}
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ backgroundColor: `rgba(249, 115, 22, ${opacityFor(n, 10)})` }}
+            />
+          ))}
+          <span>More</span>
+        </div>
+
+        <p className="mt-3 text-[13px] text-muted-foreground">
+          <Markdown inline>{sentence}</Markdown>
+        </p>
       </CardContent>
     </Card>
   );

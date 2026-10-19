@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 interface Stats {
@@ -12,11 +13,8 @@ interface Stats {
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
-interface DailyMomentumProps {
-  onOpenDetails: () => void;
-}
-
-export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
+/** The sparkline and today/week chips, as one link to /momentum. */
+export function DailyMomentum() {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -54,11 +52,10 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
   const todayDate = stats.daily[stats.daily.length - 1]?.date;
 
   return (
-    <button
-      type="button"
-      onClick={onOpenDetails}
+    <Link
+      href="/momentum"
       className="group flex items-center gap-3 rounded-md px-2 py-1.5 -mx-2 -my-1.5 transition-colors hover:bg-accent/40"
-      aria-label="View momentum details"
+      aria-label="Open Momentum"
     >
       <div className="flex items-end gap-1" aria-hidden>
         {currentWeek.map((d, i) => {
@@ -91,6 +88,6 @@ export function DailyMomentum({ onOpenDetails }: DailyMomentumProps) {
           {stats.completedThisWeek} done this week
         </Badge>
       </div>
-    </button>
+    </Link>
   );
 }

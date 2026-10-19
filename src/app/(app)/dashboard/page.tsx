@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { TaskList } from "@/components/features/task-feed/task-list";
 import { DoThisNext, type GapRequest } from "@/components/features/recommendation/do-this-next";
 import { DailyMomentum } from "@/components/features/dashboard/daily-momentum";
@@ -9,20 +10,11 @@ import { TimeAnchor } from "@/components/features/dashboard/time-anchor";
 import { Greeting } from "@/components/features/dashboard/greeting";
 import { TodayCard } from "@/components/features/dashboard/today-card";
 import { MicrotasksZone } from "@/components/features/microtasks/microtasks-zone";
-import { MomentumPanel } from "@/components/features/momentum/momentum-panel";
 import { GoalStrip } from "@/components/features/goals/goal-strip";
 import { ReferenceCards } from "@/components/features/reference-cards/reference-cards";
-import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export default function DashboardPage() {
-  // Old /momentum bookmarks/links redirect here with this hash — start expanded
-  // instead of leaving the visitor at a collapsed header. Gated on hydration
-  // because the server can't see the fragment.
-  const mounted = useIsMounted();
-  const [expandedOverride, setExpandedOverride] = useState<boolean | null>(null);
-  const momentumExpanded =
-    expandedOverride ?? (mounted && window.location.hash === "#momentum-panel");
-  const setMomentumExpanded = setExpandedOverride;
+  const router = useRouter();
   // Bumped after a plan is committed; used as a key so TimeAnchor and the task
   // feed re-read rather than showing yesterday's picture of today.
   const [planVersion, setPlanVersion] = useState(0);
@@ -58,12 +50,10 @@ export default function DashboardPage() {
       ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
+  // Momentum used to live here as an accordion; old links still point at it.
   useEffect(() => {
-    if (window.location.hash !== "#momentum-panel") return;
-    document
-      .getElementById("momentum-panel")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+    if (window.location.hash === "#momentum-panel") router.replace("/momentum");
+  }, [router]);
 
   return (
     <div className="space-y-6">
@@ -97,25 +87,12 @@ export default function DashboardPage() {
 
       {/* Today strip — momentum bars on the left, plan-my-day pill on the right */}
       <div className="flex flex-wrap items-center gap-3">
-        <DailyMomentum
-          onOpenDetails={() => {
-            setMomentumExpanded(true);
-            document
-              .getElementById("momentum-panel")
-              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-          }}
-        />
+        <DailyMomentum />
         <div className="ml-auto">
           {/* Remount the dependent surfaces so a fresh plan shows immediately. */}
           <ScheduleMyDay onPlanCommitted={() => setPlanVersion((v) => v + 1)} />
         </div>
       </div>
-
-      {/* Momentum details — collapsed by default, opened via the strip above */}
-      <MomentumPanel
-        expanded={momentumExpanded}
-        onExpandedChange={setMomentumExpanded}
-      />
 
       {/* Microtasks chip zone — small daily prompts, hidden in Crisis Mode */}
       <MicrotasksZone />

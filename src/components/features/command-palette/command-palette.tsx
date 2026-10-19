@@ -21,6 +21,7 @@ import {
   Moon,
   Search,
   ArrowRight,
+  TrendingUp,
 } from "lucide-react";
 import {
   Dialog,
@@ -49,7 +50,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview momentum stats progress streak weekly" },
+  { id: "nav-dashboard", label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, keywords: "home overview" },
+  { id: "nav-momentum", label: "Momentum", href: "/momentum", icon: TrendingUp, keywords: "stats progress weekly insights deadlines" },
   { id: "nav-dump", label: "Brain Dump", href: "/dump", icon: Brain, keywords: "capture thoughts journal writing notes" },
   { id: "nav-tasks", label: "Tasks", href: "/tasks", icon: ListTodo, keywords: "todo list" },
   { id: "nav-microtasks", label: "Microtasks", href: "/microtasks", icon: Repeat, keywords: "habits daily prompts" },

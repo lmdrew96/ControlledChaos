@@ -3,45 +3,90 @@ import { sql } from "drizzle-orm";
 import type { CalendarColors } from "@/types";
 import { DEFAULT_CALENDAR_COLORS, categoryLabel } from "@/lib/calendar/colors";
 import {
-  startOfDayInTimezone,
+  addDaysToDateKey,
+  startOfDateKey,
   todayInTimezone,
-  startOfWeekInTimezone,
-  toDateKeyInTimezone,
+  weekStartKey,
 } from "@/lib/timezone";
+import { median, type HeatmapCell, type FinishRate, type MomentumPeriod } from "@/lib/momentum";
 import { getUserSettings } from "./users";
 
 // ============================================================
 // Momentum Stats
 // ============================================================
 
+/** A task as a momentum list shows it. */
+export interface MomentumTaskRef {
+  id: string;
+  title: string;
+}
+
+export interface MomentumBar {
+  /** Date key of the day, or of the week's Monday for weekly bars. */
+  key: string;
+  label: string;
+  count: number;
+  /** Set on daily bars: the day /recap opens for. */
+  recapDate: string | null;
+  isCurrent: boolean;
+  isFuture: boolean;
+}
+
 export interface MomentumStats {
-  /** These counts (and daily, biggestDay, avg, heatmap) are finished tasks plus worked sittings. */
+  period: MomentumPeriod;
+  /** Date key the period starts on; null for all time. */
+  periodStartDate: string | null;
+
+  // --- Dashboard strip: always this week, whatever the period ---
+  /** These counts (and daily, bars, heatmap, effort, records) are finished tasks plus worked sittings. */
   completedToday: number;
   completedThisWeek: number;
-  completedAllTime: number;
-  biggestDay: { count: number; date: string } | null;
-  avgPerActiveDay: number;
+  /** The last 28 local days, oldest first; today is last. */
   daily: Array<{ date: string; count: number }>;
-  hourlyHeatmap: Array<{
-    dayOfWeek: number; // 0 = Mon ... 6 = Sun
-    hour: number; // 0..23 in user's timezone
-    count: number;
-  }>;
-  marination: {
-    active: MarinationBuckets;
-    historical: MarinationBuckets;
-  };
-  chunkOutcomes: {
-    parentsChunked: number; // parent tasks that have at least one chunk
-    parentsCompleted: number; // of those, how many are completed
-    chunksTotal: number; // total chunks (children)
-    chunksCompleted: number; // of those, how many are completed
-  };
-  byCategory: Array<{ category: string | null; count: number }>;
-  byEnergy: { low: number; medium: number; high: number };
+  weekStartDate: string; // "YYYY-MM-DD" of Monday in the user's timezone
+
+  // --- 1. How's it going? ---
+  periodCount: number;
+  /** Median of full weeks before this one, from the first active week. Null under 3 weeks. */
+  typicalWeek: number | null;
+  /** First week with anything done, for "since …" on all time. */
+  firstActiveWeek: string | null;
+  bars: MomentumBar[];
   wins: Array<{ icon: string; title: string; subtitle: string }>;
+
+  // --- 4. When do I work? ---
+  hourlyHeatmap: HeatmapCell[];
+
+  // --- 5. Does chunking help? (tasks created in the period) ---
+  chunking: {
+    chunked: FinishRate;
+    unchunked: FinishRate;
+    chunksCompleted: number;
+    chunksTotal: number;
+  };
+
+  // --- 6. What's aging? ---
+  marination: {
+    /** Open right now; not period-scoped, because age is about today. */
+    active: MarinationBuckets;
+    /** Age at completion, for tasks finished in the period. */
+    historical: MarinationBuckets;
+    activeTasks: Record<keyof MarinationBuckets, MomentumTaskRef[]>;
+  };
+
+  // --- 7. What kind of effort? ---
+  byEnergy: { low: number; medium: number; high: number };
+  /** category null = unlabeled. Sums to periodCount. */
+  byCategory: Array<{ category: string | null; count: number }>;
+
+  // --- Footer: all-time records ---
+  records: {
+    completedAllTime: number;
+    biggestDay: { count: number; date: string } | null;
+    avgPerActiveDay: number;
+  };
+
   calendarColors: CalendarColors;
-  weekStartDate: string; // ISO "YYYY-MM-DD" of Monday in user's timezone
 }
 
 export type MarinationBuckets = {
@@ -50,6 +95,13 @@ export type MarinationBuckets = {
   marinating: number; // 7–30 days
   aging: number; // 30+ days
 };
+
+const MARINATION_KEYS: Array<keyof MarinationBuckets> = ["fresh", "week", "marinating", "aging"];
+
+/** Weekly bars shown for all time. */
+const ALL_TIME_WEEK_BARS = 26;
+/** Prior weeks needed before "your typical week" means anything. */
+const MIN_WEEKS_FOR_TYPICAL = 3;
 
 /**
  * A category as it reads inside a sentence, not as a database value.
@@ -87,91 +139,114 @@ export function trailingDateKeys(todayKey: string, days: number): string[] {
   );
 }
 
+/** Driver returns DATE columns as a string or a Date depending on path. */
+const toKey = (v: string | Date): string =>
+  v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+
+/** Date keys name calendar days, so format them in UTC to keep the day. */
+const keyFormat = (key: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(new Date(`${key}T12:00:00Z`));
+
+const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 export async function getMomentumStats(
   userId: string,
-  timezone: string
+  timezone: string,
+  period: MomentumPeriod = "week"
 ): Promise<MomentumStats> {
-  const now = new Date();
-  const startOfDay = startOfDayInTimezone(now, timezone);
   const todayStr = todayInTimezone(timezone);
+  const weekStartStr = weekStartKey(todayStr, 1);
+  const last28 = trailingDateKeys(todayStr, 28);
 
-  const startOfWeek = startOfWeekInTimezone(timezone);
-
-  const fourteenDaysAgo = new Date(startOfDay);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
+  const periodStartDate =
+    period === "week" ? weekStartStr : period === "4w" ? last28[0] : null;
+  const periodStart = periodStartDate ? startOfDateKey(periodStartDate, timezone) : null;
+  const dailyStart = startOfDateKey(last28[0], timezone);
 
   // Everything that counts as getting something done: a finished task at its
   // completion, and a sitting checked in as done or partly at its start (the
   // Mirror's rule). Checking in a sitting never completes its task, so the
-  // two never describe the same act.
+  // two never describe the same act. Each carries its task's labels, so the
+  // effort mix adds up to the same number as the headline.
   const doneMoments = sql`(
-    SELECT completed_at AS done_at
+    SELECT completed_at AS done_at, energy_level, category
     FROM tasks
     WHERE user_id = ${userId}
       AND status = 'completed'
       AND completed_at IS NOT NULL
       AND deleted_at IS NULL
     UNION ALL
-    SELECT s.starts_at AS done_at
+    SELECT s.starts_at AS done_at, t.energy_level, t.category
     FROM task_sessions s
     JOIN tasks t ON t.id = s.task_id
     WHERE s.user_id = ${userId}
       AND s.status IN ('done', 'partial')
       AND t.deleted_at IS NULL
   ) AS done`;
+  const inPeriod = periodStart ? sql`WHERE done_at >= ${periodStart}` : sql.empty();
+  const localDoneAt = sql`(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})`;
 
-  // All queries in parallel
   const [
     dailyRows,
+    weeklyRows,
     hourlyHeatmapRows,
+    effortRows,
     marinationActiveRows,
     marinationHistoricalRows,
-    chunkOutcomesRows,
-    categoryRows,
-    energyRows,
+    chunkRows,
     biggestDayRows,
     avgRows,
     allTimeRows,
     settingsResult,
     deadlineRows,
   ] = await Promise.all([
-    // 1. Daily breakdown (14 days)
+    // Daily counts, last 28 days
     db.execute<{ date: string | Date; count: number }>(
-      sql`SELECT
-        DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
-        COUNT(*)::int AS count
+      sql`SELECT DATE(${localDoneAt}) AS date, COUNT(*)::int AS count
       FROM ${doneMoments}
-      WHERE done_at >= ${fourteenDaysAgo}
-      GROUP BY date
-      ORDER BY date ASC`
+      WHERE done_at >= ${dailyStart}
+      GROUP BY date`
     ),
-    // 2. Hourly heatmap (all-time, 7 days × 24 hours)
+    // Weekly counts, all time (ISO weeks start Monday, like weekStartKey)
+    db.execute<{ week: string | Date; count: number }>(
+      sql`SELECT DATE(date_trunc('week', ${localDoneAt})) AS week, COUNT(*)::int AS count
+      FROM ${doneMoments}
+      GROUP BY week`
+    ),
+    // Hour × weekday, in the user's timezone, for the period
     db.execute<{ day_of_week: number; hour: number; count: number }>(
       sql`SELECT
-        (EXTRACT(ISODOW FROM done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int - 1) AS day_of_week,
-        EXTRACT(HOUR FROM done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::int AS hour,
+        (EXTRACT(ISODOW FROM ${localDoneAt})::int - 1) AS day_of_week,
+        EXTRACT(HOUR FROM ${localDoneAt})::int AS hour,
         COUNT(*)::int AS count
       FROM ${doneMoments}
+      ${inPeriod}
       GROUP BY day_of_week, hour`
     ),
-    // 2a. Marination — active tasks bucketed by current age (top-level only)
-    db.execute<{ bucket: string; count: number }>(
-      sql`SELECT
+    // Effort mix for the period
+    db.execute<{ energy_level: string; category: string | null; count: number }>(
+      sql`SELECT energy_level, category, COUNT(*)::int AS count
+      FROM ${doneMoments}
+      ${inPeriod}
+      GROUP BY energy_level, category`
+    ),
+    // Open tasks with their current age bucket
+    db.execute<{ id: string; title: string; bucket: string }>(
+      sql`SELECT id, title,
         CASE
           WHEN NOW() - created_at < INTERVAL '1 day' THEN 'fresh'
           WHEN NOW() - created_at < INTERVAL '7 days' THEN 'week'
           WHEN NOW() - created_at < INTERVAL '30 days' THEN 'marinating'
           ELSE 'aging'
-        END AS bucket,
-        COUNT(*)::int AS count
+        END AS bucket
       FROM tasks
       WHERE user_id = ${userId}
         AND status IN ('pending', 'in_progress')
         AND completed_at IS NULL
         AND deleted_at IS NULL
-      GROUP BY bucket`
+      ORDER BY created_at ASC`
     ),
-    // 2b. Marination — historical distribution: age at completion (top-level only)
+    // Age at completion, for tasks finished in the period
     db.execute<{ bucket: string; count: number }>(
       sql`SELECT
         CASE
@@ -186,79 +261,58 @@ export async function getMomentumStats(
         AND status = 'completed'
         AND completed_at IS NOT NULL
         AND deleted_at IS NULL
+        ${periodStart ? sql`AND completed_at >= ${periodStart}` : sql.empty()}
       GROUP BY bucket`
     ),
-    // 2c. Chunk outcomes — chunks are stored in tasks.progress_steps JSONB,
-    // NOT as child rows. One task = one "chunked parent"; its chunks live
-    // inline. current_step_index is the count of completed chunks (0-based
-    // becomes a count since users increment past the last step on complete).
+    // Chunked vs unchunked finish rates, for tasks created in the period.
+    // Chunks live inline in tasks.progress_steps; current_step_index counts
+    // the finished ones.
     db.execute<{
-      parents_total: number;
-      parents_completed: number;
+      chunked_total: number;
+      chunked_finished: number;
+      unchunked_total: number;
+      unchunked_finished: number;
       chunks_total: number;
       chunks_completed: number;
     }>(
-      sql`SELECT
-        COUNT(*)::int AS parents_total,
-        COUNT(*) FILTER (WHERE status = 'completed')::int AS parents_completed,
-        COALESCE(SUM(jsonb_array_length(progress_steps)), 0)::int AS chunks_total,
+      sql`WITH t AS (
+        SELECT status, current_step_index,
+          COALESCE(jsonb_array_length(progress_steps), 0) AS steps
+        FROM tasks
+        WHERE user_id = ${userId}
+          AND deleted_at IS NULL
+          ${periodStart ? sql`AND created_at >= ${periodStart}` : sql.empty()}
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE steps > 0)::int AS chunked_total,
+        COUNT(*) FILTER (WHERE steps > 0 AND status = 'completed')::int AS chunked_finished,
+        COUNT(*) FILTER (WHERE steps = 0)::int AS unchunked_total,
+        COUNT(*) FILTER (WHERE steps = 0 AND status = 'completed')::int AS unchunked_finished,
+        COALESCE(SUM(steps), 0)::int AS chunks_total,
         COALESCE(SUM(
-          CASE
-            WHEN status = 'completed' THEN jsonb_array_length(progress_steps)
-            ELSE LEAST(current_step_index, jsonb_array_length(progress_steps))
-          END
+          CASE WHEN status = 'completed' THEN steps ELSE LEAST(current_step_index, steps) END
         ), 0)::int AS chunks_completed
-      FROM tasks
-      WHERE user_id = ${userId}
-        AND deleted_at IS NULL
-        AND progress_steps IS NOT NULL
-        AND jsonb_array_length(progress_steps) > 0`
+      FROM t`
     ),
-    // 3. By category (current week)
-    db.execute<{ category: string | null; count: number }>(
-      sql`SELECT category, COUNT(*)::int AS count
-      FROM tasks
-      WHERE user_id = ${userId}
-        AND status = 'completed'
-        AND completed_at >= ${startOfWeek}
-        AND deleted_at IS NULL
-      GROUP BY category
-      ORDER BY count DESC`
-    ),
-    // 4. By energy (current week)
-    db.execute<{ energy_level: string; count: number }>(
-      sql`SELECT energy_level, COUNT(*)::int AS count
-      FROM tasks
-      WHERE user_id = ${userId}
-        AND status = 'completed'
-        AND completed_at >= ${startOfWeek}
-        AND deleted_at IS NULL
-      GROUP BY energy_level`
-    ),
-    // 5. Biggest day (all-time)
+    // Records (all time, labeled as such)
     db.execute<{ date: string | Date; count: number }>(
-      sql`SELECT
-        DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone}) AS date,
-        COUNT(*)::int AS count
+      sql`SELECT DATE(${localDoneAt}) AS date, COUNT(*)::int AS count
       FROM ${doneMoments}
       GROUP BY date
       ORDER BY count DESC
       LIMIT 1`
     ),
-    // 6. Average per active day (all-time)
     db.execute<{ avg: number }>(
       sql`SELECT COALESCE(AVG(daily_count), 0)::float AS avg
       FROM (
         SELECT COUNT(*)::int AS daily_count
         FROM ${doneMoments}
-        GROUP BY DATE(done_at AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})
+        GROUP BY DATE(${localDoneAt})
       ) AS daily_counts`
     ),
-    // 7. All-time count
     db.execute<{ count: number }>(sql`SELECT COUNT(*)::int AS count FROM ${doneMoments}`),
-    // 8. User settings (for calendarColors)
     getUserSettings(userId),
-    // 9. Deadline tasks (current week) — for wins heuristic
+    // Deadline tasks finished in the period, for the wins
     db.execute<{ category: string | null; met: number; total: number }>(
       sql`SELECT
         category,
@@ -267,111 +321,149 @@ export async function getMomentumStats(
       FROM tasks
       WHERE user_id = ${userId}
         AND status = 'completed'
-        AND completed_at >= ${startOfWeek}
         AND deadline IS NOT NULL
         AND deleted_at IS NULL
+        ${periodStart ? sql`AND completed_at >= ${periodStart}` : sql.empty()}
       GROUP BY category`
     ),
   ]);
 
-  // Gap-fill daily dates for 14 days
+  // --- Daily (28 days, gap-filled) ---
   const dailyMap = new Map<string, number>();
-  for (const row of dailyRows.rows) {
-    // Normalize date to YYYY-MM-DD regardless of whether driver returns string or Date
-    const d = row.date instanceof Date
-      ? row.date.toISOString().slice(0, 10)
-      : String(row.date).slice(0, 10);
-    dailyMap.set(d, Number(row.count));
-  }
-  const daily = trailingDateKeys(todayStr, 14).map((date) => ({
-    date,
-    count: dailyMap.get(date) ?? 0,
-  }));
+  for (const row of dailyRows.rows) dailyMap.set(toKey(row.date), Number(row.count));
+  const daily = last28.map((date) => ({ date, count: dailyMap.get(date) ?? 0 }));
 
-  // Derive today/week counts from daily array
-  const completedToday = daily.find((d) => d.date === todayStr)?.count ?? 0;
-
-  const startOfWeekStr = toDateKeyInTimezone(startOfWeek, timezone);
+  const completedToday = dailyMap.get(todayStr) ?? 0;
   const completedThisWeek = daily
-    .filter((d) => d.date >= startOfWeekStr)
+    .filter((d) => d.date >= weekStartStr)
     .reduce((sum, d) => sum + d.count, 0);
-
   const completedAllTime = Number(allTimeRows.rows[0]?.count ?? 0);
 
-  // Biggest day
+  // --- Weekly (gap-filled from the first active week to this one) ---
+  const weeklyMap = new Map<string, number>();
+  for (const row of weeklyRows.rows) weeklyMap.set(toKey(row.week), Number(row.count));
+  const firstActiveWeek = [...weeklyMap.keys()].sort()[0] ?? null;
+  const weeks: Array<{ week: string; count: number }> = [];
+  if (firstActiveWeek) {
+    for (let w = firstActiveWeek; w <= weekStartStr; w = addDaysToDateKey(w, 7)) {
+      weeks.push({ week: w, count: weeklyMap.get(w) ?? 0 });
+    }
+  }
+  const priorWeeks = weeks.filter((w) => w.week < weekStartStr).map((w) => w.count);
+  const typicalWeek = priorWeeks.length >= MIN_WEEKS_FOR_TYPICAL ? median(priorWeeks) : null;
+
+  // --- Bars for the period ---
+  let bars: MomentumBar[];
+  if (period === "all") {
+    let lastMonth = "";
+    bars = weeks.slice(-ALL_TIME_WEEK_BARS).map((w) => {
+      const month = keyFormat(w.week, { month: "short" });
+      const label = month !== lastMonth ? month : "";
+      lastMonth = month;
+      return {
+        key: w.week,
+        label,
+        count: w.count,
+        recapDate: null,
+        isCurrent: w.week === weekStartStr,
+        isFuture: false,
+      };
+    });
+  } else {
+    const keys =
+      period === "week"
+        ? Array.from({ length: 7 }, (_, i) => addDaysToDateKey(weekStartStr, i))
+        : last28;
+    bars = keys.map((key, i) => {
+      const isFuture = key > todayStr;
+      const label =
+        key === todayStr
+          ? "Today"
+          : period === "week"
+            ? WEEKDAY_SHORT[i]
+            : // 4 weeks: label the Mondays so the weeks are readable
+              weekStartKey(key, 1) === key
+              ? keyFormat(key, { month: "short", day: "numeric" })
+              : "";
+      return {
+        key,
+        label,
+        count: dailyMap.get(key) ?? 0,
+        recapDate: isFuture ? null : key,
+        isCurrent: key === todayStr,
+        isFuture,
+      };
+    });
+  }
+
+  const periodCount =
+    period === "week"
+      ? completedThisWeek
+      : period === "4w"
+        ? daily.reduce((sum, d) => sum + d.count, 0)
+        : completedAllTime;
+
+  // --- Records ---
   const biggestDayRow = biggestDayRows.rows[0];
   const biggestDay = biggestDayRow
-    ? {
-        count: Number(biggestDayRow.count),
-        date: biggestDayRow.date instanceof Date
-          ? biggestDayRow.date.toISOString().slice(0, 10)
-          : String(biggestDayRow.date).slice(0, 10),
-      }
+    ? { count: Number(biggestDayRow.count), date: toKey(biggestDayRow.date) }
     : null;
-
-  // Avg per active day
   const avgPerActiveDay = Number(avgRows.rows[0]?.avg ?? 0);
 
-  // Hourly heatmap (all-time)
+  // --- Heatmap ---
   const hourlyHeatmap = hourlyHeatmapRows.rows.map((r) => ({
     dayOfWeek: Number(r.day_of_week),
     hour: Number(r.hour),
     count: Number(r.count),
   }));
 
-  // Marination buckets
-  const emptyBuckets: MarinationBuckets = {
-    fresh: 0,
-    week: 0,
-    marinating: 0,
-    aging: 0,
-  };
-  const readBuckets = (
-    rows: Array<{ bucket: string; count: number }>
-  ): MarinationBuckets => {
-    const buckets: MarinationBuckets = { ...emptyBuckets };
-    for (const r of rows) {
-      const key = r.bucket as keyof MarinationBuckets;
-      if (key in buckets) buckets[key] = Number(r.count);
-    }
-    return buckets;
-  };
-  const marination = {
-    active: readBuckets(marinationActiveRows.rows),
-    historical: readBuckets(marinationHistoricalRows.rows),
-  };
-
-  // Chunk outcomes
-  const chunkRow = chunkOutcomesRows.rows[0];
-  const chunkOutcomes = {
-    parentsChunked: Number(chunkRow?.parents_total ?? 0),
-    parentsCompleted: Number(chunkRow?.parents_completed ?? 0),
-    chunksTotal: Number(chunkRow?.chunks_total ?? 0),
-    chunksCompleted: Number(chunkRow?.chunks_completed ?? 0),
-  };
-
-  // By category
-  const byCategory = categoryRows.rows.map((r) => ({
-    category: r.category,
-    count: Number(r.count),
-  }));
-
-  // By energy
-  const energyMap: Record<string, number> = {};
-  for (const r of energyRows.rows) {
-    energyMap[r.energy_level] = Number(r.count);
+  // --- Effort ---
+  const byEnergy = { low: 0, medium: 0, high: 0 };
+  const categoryMap = new Map<string | null, number>();
+  for (const r of effortRows.rows) {
+    const count = Number(r.count);
+    if (r.energy_level in byEnergy) byEnergy[r.energy_level as keyof typeof byEnergy] += count;
+    categoryMap.set(r.category, (categoryMap.get(r.category) ?? 0) + count);
   }
-  const byEnergy = {
-    low: energyMap["low"] ?? 0,
-    medium: energyMap["medium"] ?? 0,
-    high: energyMap["high"] ?? 0,
+  const byCategory = [...categoryMap.entries()]
+    .map(([category, count]) => ({ category, count }))
+    // Unlabeled last, whatever its size: it's the leftover, not a category.
+    .sort((a, b) => (a.category === null ? 1 : b.category === null ? -1 : b.count - a.count));
+
+  // --- Marination ---
+  const emptyBuckets = (): MarinationBuckets => ({ fresh: 0, week: 0, marinating: 0, aging: 0 });
+  const isBucket = (b: string): b is keyof MarinationBuckets =>
+    (MARINATION_KEYS as string[]).includes(b);
+  const active = emptyBuckets();
+  const activeTasks: Record<keyof MarinationBuckets, MomentumTaskRef[]> = {
+    fresh: [],
+    week: [],
+    marinating: [],
+    aging: [],
+  };
+  for (const r of marinationActiveRows.rows) {
+    if (!isBucket(r.bucket)) continue;
+    active[r.bucket]++;
+    activeTasks[r.bucket].push({ id: r.id, title: r.title });
+  }
+  const historical = emptyBuckets();
+  for (const r of marinationHistoricalRows.rows) {
+    if (isBucket(r.bucket)) historical[r.bucket] = Number(r.count);
+  }
+
+  // --- Chunking ---
+  const c = chunkRows.rows[0];
+  const chunking = {
+    chunked: { finished: Number(c?.chunked_finished ?? 0), total: Number(c?.chunked_total ?? 0) },
+    unchunked: { finished: Number(c?.unchunked_finished ?? 0), total: Number(c?.unchunked_total ?? 0) },
+    chunksCompleted: Number(c?.chunks_completed ?? 0),
+    chunksTotal: Number(c?.chunks_total ?? 0),
   };
 
-  // Calendar colors
   const calendarColors: CalendarColors =
     (settingsResult?.calendarColors as CalendarColors | null) ?? DEFAULT_CALENDAR_COLORS;
 
-  // === Wins computation ===
+  // === Wins, for the period ===
   //
   // These strings are read by a person looking at their week, so they have to
   // sound like a sentence someone would say. Category KEYS ("errands",
@@ -379,13 +471,12 @@ export async function getMomentumStats(
   // "All ${category} tasks done early" produced "All errands tasks done early".
   const wins: Array<{ icon: string; title: string; subtitle: string }> = [];
 
-  // 1. New personal best
-  if (biggestDay) {
-    const thisWeekDays = daily.filter((d) => d.date >= startOfWeekStr);
-    const newPB = thisWeekDays.some((d) => d.count >= biggestDay.count && d.count > 0);
-    if (newPB && wins.length < 3) {
+  // 1. New personal best (meaningless for all time: it always holds)
+  if (biggestDay && period !== "all") {
+    const newPB = bars.some((b) => b.count >= biggestDay.count && b.count > 0);
+    if (newPB) {
       wins.push({
-        icon: "\u26A1",
+        icon: "⚡",
         title: "New personal best",
         // Tasks and sittings both count, so the noun stays out of it.
         subtitle: `${biggestDay.count} done in a single day`,
@@ -393,11 +484,11 @@ export async function getMomentumStats(
     }
   }
 
-  // 2. High-energy tasks
+  // 2. High-energy work
   if (byEnergy.high >= 3 && wins.length < 3) {
     wins.push({
-      icon: "\uD83D\uDCAA",
-      title: `Knocked out ${byEnergy.high} high-energy tasks`,
+      icon: "💪",
+      title: `${byEnergy.high} high-energy things done`,
       subtitle: "Tackling the tough stuff",
     });
   }
@@ -410,58 +501,57 @@ export async function getMomentumStats(
     // early" about a single errand is a strange thing to say to someone.
     if (Number(dr.met) === total && total > 1 && dr.category) {
       wins.push({
-        icon: "\uD83C\uDFAF",
+        icon: "🎯",
         title: `All your ${categoryPhrase(String(dr.category))}, done early`,
         subtitle: `All ${total} beat their deadlines`,
       });
     }
   }
 
-  // 4. Double digits
-  if (completedThisWeek >= 10 && wins.length < 3) {
+  // 4. Double digits (a week's milestone, so only on the week view)
+  if (period === "week" && completedThisWeek >= 10 && wins.length < 3) {
     wins.push({
-      icon: "\uD83D\uDD25",
+      icon: "🔥",
       title: "Double digits this week",
       subtitle: `${completedThisWeek} done so far`,
     });
   }
 
-  // 5. Multi-category day
+  // 5. A spread of areas
   if (wins.length < 3) {
-    // Check daily category spread — need per-day category counts from heatmap or raw data
-    // Approximate: check if byCategory has 3+ categories this week
-    const activeCategories = byCategory.filter((c) => c.count > 0);
-    if (activeCategories.length >= 3) {
+    const named = byCategory
+      .filter((c) => c.category !== null && c.count > 0)
+      .map((c) => categoryLabel(String(c.category)))
+      .filter((label): label is string => Boolean(label));
+    if (named.length >= 3) {
       // Naming the actual areas beats counting them. Nobody thinks of their
       // week as "3 categories".
-      const named = activeCategories
-        .map((c) => categoryLabel(String(c.category)))
-        .filter((label): label is string => Boolean(label));
       wins.push({
-        icon: "\uD83C\uDF08",
-        title: "A bit of everything this week",
-        subtitle:
-          named.length > 0 ? `${joinNaturally(named)} all moved` : "Nice spread of work",
+        icon: "🌈",
+        title: "A bit of everything",
+        subtitle: `${joinNaturally(named)} all moved`,
       });
     }
   }
 
   return {
+    period,
+    periodStartDate,
     completedToday,
     completedThisWeek,
-    completedAllTime,
-    biggestDay,
-    avgPerActiveDay,
     daily,
-    hourlyHeatmap,
-    marination,
-    chunkOutcomes,
-    byCategory,
-    byEnergy,
+    weekStartDate: weekStartStr,
+    periodCount,
+    typicalWeek,
+    firstActiveWeek,
+    bars,
     wins,
+    hourlyHeatmap,
+    chunking,
+    marination: { active, historical, activeTasks },
+    byEnergy,
+    byCategory,
+    records: { completedAllTime, biggestDay, avgPerActiveDay },
     calendarColors,
-    weekStartDate: startOfWeekStr,
   };
 }
-
-
