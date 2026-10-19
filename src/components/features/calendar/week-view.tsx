@@ -48,7 +48,6 @@ import { useNow } from "@/hooks/use-now";
 import { useRouter } from "next/navigation";
 import {
   layoutOverlappingTiles,
-  shortTileTitle,
   type TileLayout,
 } from "@/lib/calendar/overlap-layout";
 import type {
@@ -162,7 +161,7 @@ function eventPosition(
 }
 
 /** Layout for a tile that overlaps nothing. */
-const FULL_TILE: TileLayout = { leftPct: 0, widthPct: 100, z: 0, compact: false };
+const FULL_TILE: TileLayout = { z: 0 };
 
 /** Either kind of thing the grid lets you drag while Rearrange is on. */
 type DragTarget =
@@ -947,9 +946,7 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                         commitment always wins the pixel. */}
                     {(() => {
                       const dayPlan = planByDay.get(dayKey(day, timezone)) ?? [];
-                      // Two blocks planned into the same slot used to render
-                      // stacked on top of each other, unreadable and with no way
-                      // to tell there were two. Same column layout as events.
+                      // Same stacking as events: full width, later on top.
                       // Keyed by SESSION: a task planned for two sittings the
                       // same day is two blocks, and keying by task id would
                       // collapse them into one layout slot.
@@ -987,8 +984,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                       }
                                 }
                                 className={cn(
-                                  // z comes from the cascade (inline); hover or
-                                  // focus lifts a buried block to the front.
+                                  // z comes from the stacking order (inline); hover
+                                  // or focus lifts a buried block to the front.
                                   "absolute overflow-hidden rounded-md hover:z-30! focus-visible:z-30!",
                                   "border-2 border-dashed border-plum/55 bg-plum/[0.07]",
                                   "px-1.5 py-1 text-left outline-none",
@@ -1005,31 +1002,24 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                 style={{
                                   top: pos.top,
                                   height: pos.height,
-                                  left: `calc(${tile.leftPct}% + 2px)`,
-                                  width: `calc(${tile.widthPct}% - 4px)`,
+                                  left: 2,
+                                  right: 2,
                                   // Plans stay under real events (z 10+), however
-                                  // deep the cascade goes.
+                                  // deep the stack goes.
                                   zIndex: 5 + Math.min(tile.z, 4),
                                 }}
                               >
-                                {tile.compact ? (
-                                  <p className="truncate text-[11px] font-medium leading-tight text-plum dark:text-lavender">
-                                    {shortTileTitle(block.title)} ·{" "}
-                                    {formatTimeTz(new Date(block.startTime), timezone)}
-                                  </p>
-                                ) : (
-                                  <p
-                                    className="text-[11px] font-medium leading-tight text-plum dark:text-lavender"
-                                    style={{
-                                      display: "-webkit-box",
-                                      WebkitBoxOrient: "vertical",
-                                      WebkitLineClamp: titleLineClamp(pos.height),
-                                      overflow: "hidden",
-                                    }}
-                                  >
-                                    {block.title}
-                                  </p>
-                                )}
+                                <p
+                                  className="text-[11px] font-medium leading-tight text-plum dark:text-lavender"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitBoxOrient: "vertical",
+                                    WebkitLineClamp: titleLineClamp(pos.height),
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {block.title}
+                                </p>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="max-w-xs">
@@ -1061,13 +1051,8 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                       return dayEvents.map((event) => {
                         const pos = eventPosition(event, startHour, timezone);
                         const tile = overlapLayout.get(event.id) ?? FULL_TILE;
-                        // Rendered on the tile itself: a narrow tile hides
-                        // everything else, and the badge is the point.
+                        // Rendered on the tile itself: the badge is the point.
                         const riders = dayAttached.get(event.id) ?? [];
-                        const tileBadges = [
-                          ...(event.badge ? [event.badge] : []),
-                          ...riders.map((r) => r.label),
-                        ];
 
                         const isCC = event.source === "controlledchaos";
                         const isBeingDragged =
@@ -1087,9 +1072,12 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             }
                             className={cn(
                               "calendar-event-card absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition-all",
-                              // A cascaded tile can hide part of the one under
-                              // it; hover or focus brings any tile to the front.
+                              // A stacked tile hides part of the one under it;
+                              // hover or focus brings any tile to the front.
                               "hover:z-30! focus-visible:z-30!",
+                              // A background-colored hairline keeps a stacked
+                              // tile's edge visible over a same-colored one.
+                              tile.z > 0 && "shadow-[0_0_0_1px_var(--background)]",
                               "hover:brightness-105 hover:shadow-md",
                               isCC &&
                                 isEditMode &&
@@ -1101,21 +1089,11 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                             style={{
                               top: pos.top,
                               height: pos.height,
-                              left: `calc(${tile.leftPct}% + 2px)`,
-                              width: `calc(${tile.widthPct}% - 4px)`,
+                              left: 2,
+                              right: 2,
                               zIndex: 10 + tile.z,
                             }}
                           >
-                            {tile.compact ? (
-                              <p className="truncate text-[11px] font-semibold leading-tight">
-                                {tileBadges.length > 0 && <>{tileBadges.join(" ")} </>}
-                                {shortTileTitle(event.title)} ·{" "}
-                                <span className="font-normal opacity-70">
-                                  {formatTimeTz(new Date(event.startTime), timezone)}
-                                </span>
-                              </p>
-                            ) : (
-                            <>
                             <p
                               className="text-[11px] font-semibold leading-tight"
                               style={{
@@ -1164,8 +1142,6 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                               <p className="mt-0.5 truncate text-[10px] opacity-60">
                                 {formatTimeTz(new Date(event.startTime), timezone)}
                               </p>
-                            )}
-                            </>
                             )}
                           </button>
                             </TooltipTrigger>

@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.95.1",
+    date: "2026-10-18",
+    title: "Readable overlaps",
+    changes: [
+      {
+        kind: "fixed",
+        text: "Overlapping things on the calendar no longer squeeze into slivers like \"CGS...\" and \"Mee...\". Every event and planned sitting now gets the full width of its day, and the later one sits on top. Hover or tap-and-hold to bring one to the front.",
+      },
+    ],
+  },
+  {
     version: "2.95.0",
     label: "2.93.1 – 2.95.0",
     date: "2026-10-14",

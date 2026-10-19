@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutOverlappingTiles, shortTileTitle } from "@/lib/calendar/overlap-layout";
+import { layoutOverlappingTiles } from "@/lib/calendar/overlap-layout";
 
 const t = (id: string, start: string, end: string) => ({
   id,
@@ -8,58 +8,36 @@ const t = (id: string, start: string, end: string) => ({
 });
 
 describe("layoutOverlappingTiles", () => {
-  it("back-to-back tiles both keep the full width", () => {
+  it("back-to-back tiles both stay at the bottom", () => {
     const l = layoutOverlappingTiles([t("a", "16:00", "17:00"), t("b", "17:00", "18:00")]);
-    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 100 });
-    expect(l.get("b")).toMatchObject({ leftPct: 0, widthPct: 100 });
+    expect(l.get("a")).toEqual({ z: 0 });
+    expect(l.get("b")).toEqual({ z: 0 });
   });
 
-  it("tiles starting together sit side by side", () => {
-    const l = layoutOverlappingTiles([t("a", "16:00", "17:00"), t("b", "16:00", "17:00")]);
-    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 50 });
-    expect(l.get("b")).toMatchObject({ leftPct: 50, widthPct: 50 });
+  it("a later-starting tile is drawn on top", () => {
+    const l = layoutOverlappingTiles([t("b", "17:20", "18:40"), t("a", "17:00", "17:30")]);
+    expect(l.get("a")).toEqual({ z: 0 });
+    expect(l.get("b")).toEqual({ z: 1 });
   });
 
-  it("a later tile cascades on top at ~80% width", () => {
-    const l = layoutOverlappingTiles([t("a", "13:00", "15:00"), t("b", "14:00", "15:00")]);
-    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 80, z: 0, compact: false });
-    expect(l.get("b")).toMatchObject({ leftPct: 20, widthPct: 80, z: 1, compact: false });
+  it("with the same start, the shorter tile goes on top", () => {
+    const l = layoutOverlappingTiles([t("short", "17:00", "17:30"), t("long", "17:00", "18:30")]);
+    expect(l.get("long")).toEqual({ z: 0 });
+    expect(l.get("short")).toEqual({ z: 1 });
   });
 
-  it("a tile starting 20 min later cascades rather than splitting the column", () => {
-    const l = layoutOverlappingTiles([t("a", "17:00", "17:30"), t("b", "17:20", "18:40")]);
-    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 80, z: 0, compact: false });
-    expect(l.get("b")).toMatchObject({ leftPct: 20, widthPct: 80, z: 1, compact: false });
-  });
-
-  it("tiles starting under 15 min apart still sit side by side", () => {
-    const l = layoutOverlappingTiles([t("a", "17:00", "18:00"), t("b", "17:10", "18:00")]);
-    expect(l.get("a")).toMatchObject({ leftPct: 0, widthPct: 50 });
-    expect(l.get("b")).toMatchObject({ leftPct: 50, widthPct: 50 });
-  });
-
-  it("zero-length tiles at the same instant still get their own slot", () => {
-    const l = layoutOverlappingTiles([t("a", "09:00", "09:00"), t("b", "09:00", "09:00")]);
-    expect(l.get("a")!.widthPct).toBe(50);
-    expect(l.get("b")!.leftPct).toBe(50);
-  });
-
-  it("marks narrow side-by-side tiles compact", () => {
+  it("depth restarts after a cluster ends", () => {
     const l = layoutOverlappingTiles([
-      t("a", "10:00", "11:00"),
-      t("b", "10:00", "11:00"),
-      t("c", "10:10", "11:00"),
+      t("a", "09:00", "10:00"),
+      t("b", "09:30", "10:30"),
+      t("c", "11:00", "12:00"),
     ]);
-    expect(l.get("c")!.compact).toBe(true);
+    expect(l.get("b")).toEqual({ z: 1 });
+    expect(l.get("c")).toEqual({ z: 0 });
   });
-});
 
-describe("shortTileTitle", () => {
-  it("uses the course code when there is one", () => {
-    expect(shortTileTitle("LATN 101 - Elementary Latin I")).toBe("LATN 101");
-    expect(shortTileTitle("CGSC451 (sit-in): Cognition")).toBe("CGSC 451");
-  });
-  it("otherwise the first two words", () => {
-    expect(shortTileTitle("Perusall Discussion: Biology and Behavior")).toBe("Perusall Discussion");
+  it("zero-length tiles at the same instant still stack", () => {
+    const l = layoutOverlappingTiles([t("a", "09:00", "09:00"), t("b", "09:00", "09:00")]);
+    expect(new Set([l.get("a")!.z, l.get("b")!.z])).toEqual(new Set([0, 1]));
   });
 });
