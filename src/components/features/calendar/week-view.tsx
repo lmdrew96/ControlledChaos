@@ -987,14 +987,16 @@ export function WeekView({ initialDate }: { initialDate?: Date } = {}) {
                                   // z comes from the stacking order (inline); hover
                                   // or focus lifts a buried block to the front.
                                   "absolute overflow-hidden rounded-md hover:z-30! focus-visible:z-30!",
-                                  "border-2 border-dashed border-plum/55 bg-plum/[0.07]",
+                                  // Opaque fills (tint pre-mixed with the page) so a
+                                  // stacked block's title doesn't print through.
+                                  "border-2 border-dashed border-plum/55 bg-[color-mix(in_oklch,var(--color-plum)_7%,var(--background))]",
                                   "px-1.5 py-1 text-left outline-none",
                                   "focus-visible:ring-2 focus-visible:ring-primary/60",
-                                  "dark:border-lavender/55 dark:bg-lavender/[0.10]",
+                                  "dark:border-lavender/55 dark:bg-[color-mix(in_oklch,var(--color-lavender)_10%,var(--background))]",
                                   // Grabbable only while Rearrange is on, matching events.
                                   isEditMode
                                     ? "cursor-grab touch-none active:cursor-grabbing"
-                                    : "cursor-pointer hover:bg-plum/[0.12] dark:hover:bg-lavender/[0.16]",
+                                    : "cursor-pointer hover:bg-[color-mix(in_oklch,var(--color-plum)_12%,var(--background))] dark:hover:bg-[color-mix(in_oklch,var(--color-lavender)_16%,var(--background))]",
                                   dragTarget?.kind === "plan" &&
                                     dragTarget.block.sessionId === block.sessionId &&
                                     "opacity-40"

@@ -27,16 +27,21 @@ export const EVENT_CATEGORIES: { key: EventCategory; label: string }[] = [
   { key: "health",   label: "Health" },
 ];
 
-/** Week-view: border-l-4 style classes (light + dark) */
+/**
+ * Week-view: border-l-4 style classes (light + dark). Fills must be opaque:
+ * overlapping tiles stack at full width, and a see-through dark fill
+ * (`bg-x-500/25`) let the title underneath print through the one on top. The
+ * dark fill is the same tint pre-mixed with the page background.
+ */
 const WEEK_VIEW_CLASSES: Record<CalendarColorKey, string> = {
-  blue:   "bg-blue-100 dark:bg-blue-500/25 border-blue-300 dark:border-blue-400/60 text-blue-800 dark:text-blue-100",
-  purple: "bg-purple-100 dark:bg-purple-500/25 border-purple-300 dark:border-purple-400/60 text-purple-800 dark:text-purple-100",
-  green:  "bg-green-100 dark:bg-green-500/25 border-green-300 dark:border-green-400/60 text-green-800 dark:text-green-100",
-  orange: "bg-orange-100 dark:bg-orange-500/25 border-orange-300 dark:border-orange-400/60 text-orange-800 dark:text-orange-100",
-  red:    "bg-red-100 dark:bg-red-500/25 border-red-300 dark:border-red-400/60 text-red-800 dark:text-red-100",
-  pink:   "bg-pink-100 dark:bg-pink-500/25 border-pink-300 dark:border-pink-400/60 text-pink-800 dark:text-pink-100",
-  teal:   "bg-teal-100 dark:bg-teal-500/25 border-teal-300 dark:border-teal-400/60 text-teal-800 dark:text-teal-100",
-  yellow: "bg-yellow-100 dark:bg-yellow-500/25 border-yellow-300 dark:border-yellow-400/60 text-yellow-800 dark:text-yellow-100",
+  blue:   "bg-blue-100 dark:bg-[color-mix(in_oklch,var(--color-blue-500)_25%,var(--background))] border-blue-300 dark:border-blue-400/60 text-blue-800 dark:text-blue-100",
+  purple: "bg-purple-100 dark:bg-[color-mix(in_oklch,var(--color-purple-500)_25%,var(--background))] border-purple-300 dark:border-purple-400/60 text-purple-800 dark:text-purple-100",
+  green:  "bg-green-100 dark:bg-[color-mix(in_oklch,var(--color-green-500)_25%,var(--background))] border-green-300 dark:border-green-400/60 text-green-800 dark:text-green-100",
+  orange: "bg-orange-100 dark:bg-[color-mix(in_oklch,var(--color-orange-500)_25%,var(--background))] border-orange-300 dark:border-orange-400/60 text-orange-800 dark:text-orange-100",
+  red:    "bg-red-100 dark:bg-[color-mix(in_oklch,var(--color-red-500)_25%,var(--background))] border-red-300 dark:border-red-400/60 text-red-800 dark:text-red-100",
+  pink:   "bg-pink-100 dark:bg-[color-mix(in_oklch,var(--color-pink-500)_25%,var(--background))] border-pink-300 dark:border-pink-400/60 text-pink-800 dark:text-pink-100",
+  teal:   "bg-teal-100 dark:bg-[color-mix(in_oklch,var(--color-teal-500)_25%,var(--background))] border-teal-300 dark:border-teal-400/60 text-teal-800 dark:text-teal-100",
+  yellow: "bg-yellow-100 dark:bg-[color-mix(in_oklch,var(--color-yellow-500)_25%,var(--background))] border-yellow-300 dark:border-yellow-400/60 text-yellow-800 dark:text-yellow-100",
 };
 
 /** Month-view: small dot color */
