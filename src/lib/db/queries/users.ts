@@ -154,6 +154,7 @@ export async function updateUserSettings(
   data: Partial<{
     energyProfile: EnergyProfile | null;
     canvasIcalUrl: string | null;
+    canvasAuthFailedAt: Date | null;
     onboardingComplete: boolean;
     notificationPrefs: NotificationPrefs | null;
     personalityPrefs: PersonalityPrefs | null;

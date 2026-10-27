@@ -289,6 +289,7 @@ export async function getAllUsersWithCalendars() {
       canvasIcalUrl: userSettings.canvasIcalUrl,
       autoAddCanvasTasks: userSettings.autoAddCanvasTasks,
       canvasSelectedCourses: userSettings.canvasSelectedCourses,
+      canvasAuthFailedAt: userSettings.canvasAuthFailedAt,
       timezone: users.timezone,
     })
     .from(userSettings)

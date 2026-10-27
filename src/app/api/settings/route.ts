@@ -24,6 +24,7 @@ export async function GET() {
       canvasIcalUrl: settings?.canvasIcalUrl ?? null,
       autoAddCanvasTasks: settings?.autoAddCanvasTasks ?? true,
       canvasSelectedCourses: (settings?.canvasSelectedCourses as string[] | null) ?? null,
+      canvasLinkExpired: Boolean(settings?.canvasIcalUrl && settings?.canvasAuthFailedAt),
       wakeTime: settings?.wakeTime ?? 7,
       sleepTime: settings?.sleepTime ?? 22,
       calendarStartHour: settings?.calendarStartHour ?? settings?.wakeTime ?? 7,
@@ -55,6 +56,8 @@ export async function PATCH(request: Request) {
 
     if (body.canvasIcalUrl !== undefined) {
       data.canvasIcalUrl = body.canvasIcalUrl;
+      // A new link gets a fresh chance; the next sync re-checks it.
+      data.canvasAuthFailedAt = null;
     }
     if (body.autoAddCanvasTasks !== undefined) {
       if (typeof body.autoAddCanvasTasks === "boolean") {

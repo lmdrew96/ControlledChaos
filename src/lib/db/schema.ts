@@ -46,6 +46,10 @@ export const userSettings = pgTable(
     notificationPrefs: jsonb("notification_prefs"), // Push/email toggles, quiet hours
     personalityPrefs: jsonb("personality_prefs"), // AI personality: {supportive, formality, language} each 0|1|2
     canvasIcalUrl: text("canvas_ical_url"),
+    // When Canvas first refused the feed's token (401). Set → the cron stops
+    // fetching and Settings asks for a new link; saving one or any successful
+    // sync clears it.
+    canvasAuthFailedAt: timestamp("canvas_auth_failed_at"),
     autoAddCanvasTasks: boolean("auto_add_canvas_tasks").default(true), // Auto-create prep tasks from Canvas assessment events; false = user adds tasks manually
     onboardingComplete: boolean("onboarding_complete").default(false),
     wakeTime: integer("wake_time").default(7), // Hour 0-23 — AI scheduling window start (default 7am)

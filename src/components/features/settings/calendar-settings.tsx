@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
+  AlertTriangle,
   Calendar,
   Clock,
   Loader2,
@@ -37,6 +38,8 @@ export function CalendarSettings() {
   // Canvas state
   const [canvasUrl, setCanvasUrl] = useState("");
   const [original, setOriginal] = useState("");
+  // Canvas refused the saved link (401); see user_settings.canvasAuthFailedAt.
+  const [canvasLinkExpired, setCanvasLinkExpired] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -94,6 +97,7 @@ export function CalendarSettings() {
             setCanvasUrl(data.canvasIcalUrl);
             setOriginal(data.canvasIcalUrl);
           }
+          setCanvasLinkExpired(Boolean(data.canvasLinkExpired));
           if (data.autoAddCanvasTasks != null) {
             setAutoAddCanvasTasks(data.autoAddCanvasTasks);
           }
@@ -236,6 +240,8 @@ export function CalendarSettings() {
       });
       if (!res.ok) throw new Error("Failed to save");
       setOriginal(canvasUrl.trim());
+      setCanvasLinkExpired(false);
+      invalidateSettings();
       toast.success("Canvas iCal URL saved!");
     } catch {
       toast.error("Failed to save Canvas URL");
@@ -256,6 +262,7 @@ export function CalendarSettings() {
 
       const canvasTotal = data.canvas?.total ?? 0;
       setSyncResult({ total: canvasTotal, syncedAt: data.syncedAt });
+      if (data.canvas) setCanvasLinkExpired(false);
       toast.success(
         canvasTotal > 0 ? `Synced ${canvasTotal} Canvas events!` : "Sync complete!"
       );
@@ -612,9 +619,18 @@ export function CalendarSettings() {
             placeholder="https://udel.instructure.com/feeds/calendars/..."
             type="url"
           />
-          <p className="text-xs text-muted-foreground">
-            Find this in Canvas &rarr; Calendar &rarr; Calendar Feed
-          </p>
+          {canvasLinkExpired && !isDirty ? (
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Canvas stopped accepting this link, so syncing is paused. Paste a fresh one from Canvas &rarr; Calendar &rarr; Calendar Feed and save.
+              </span>
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Find this in Canvas &rarr; Calendar &rarr; Calendar Feed
+            </p>
+          )}
         </div>
 
         {(hasUrl || canvasUrl.trim()) && (

@@ -9,6 +9,7 @@ import {
   getTasksRetiredByDeselection,
   restoreTask,
   retireVanishedCanvasTasks,
+  updateUserSettings,
 } from "@/lib/db/queries";
 import { DISPLAY_DATETIME, allDayRange, formatForDisplay, getCalendarParts, toUTC } from "@/lib/timezone";
 import { parseCanvasTitle } from "@/lib/calendar/assessments";
@@ -61,6 +62,14 @@ function paramValue(val: ParameterValue | undefined): string | null {
   return val.val ?? null;
 }
 
+/** Canvas answered the feed request with an HTTP error. 401 = dead token. */
+export class CanvasFetchError extends Error {
+  constructor(readonly status: number, statusText: string) {
+    super(`Failed to fetch Canvas calendar: ${status} ${statusText}`);
+    this.name = "CanvasFetchError";
+  }
+}
+
 /** Fetch a Canvas .ics feed and return its parsed VEVENT components. */
 export async function fetchCanvasEvents(icalUrl: string): Promise<VEvent[]> {
   if (!icalUrl.startsWith("https://")) {
@@ -76,9 +85,7 @@ export async function fetchCanvasEvents(icalUrl: string): Promise<VEvent[]> {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Canvas calendar: ${response.status} ${response.statusText}`
-    );
+    throw new CanvasFetchError(response.status, response.statusText);
   }
 
   const icsText = await response.text();
@@ -151,6 +158,7 @@ export interface CanvasSyncSettings {
   canvasIcalUrl: string | null;
   autoAddCanvasTasks: boolean | null;
   canvasSelectedCourses: unknown;
+  canvasAuthFailedAt?: Date | null;
 }
 
 export async function syncCanvasCalendar(
@@ -166,7 +174,20 @@ export async function syncCanvasCalendar(
     ? (settings.canvasSelectedCourses as string[])
     : null;
 
-  const events = await fetchCanvasEvents(icalUrl);
+  let events: VEvent[];
+  try {
+    events = await fetchCanvasEvents(icalUrl);
+  } catch (err) {
+    // A 401 means the feed's token was revoked or reset. Record it once so
+    // the cron stops retrying and Settings can ask for a new link.
+    if (err instanceof CanvasFetchError && err.status === 401 && !settings.canvasAuthFailedAt) {
+      await updateUserSettings(userId, { canvasAuthFailedAt: new Date() });
+    }
+    throw err;
+  }
+  if (settings.canvasAuthFailedAt) {
+    await updateUserSettings(userId, { canvasAuthFailedAt: null });
+  }
 
   // A truncated feed can't tell us what vanished, so retirement is skipped.
   const feedTruncated = events.length > MAX_EVENTS;

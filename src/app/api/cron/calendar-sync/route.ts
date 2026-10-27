@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAllUsersWithCalendars, getUserSettings } from "@/lib/db/queries";
-import { syncCanvasCalendar } from "@/lib/calendar/sync-canvas";
+import { syncCanvasCalendar, CanvasFetchError } from "@/lib/calendar/sync-canvas";
 import { sendPushToUser } from "@/lib/notifications/send-push";
 import { hasBeenNotifiedToday, recordDroppedAlert } from "@/lib/notifications/triggers";
 import { isQuietHours } from "@/lib/notifications/quiet-hours";
@@ -48,29 +48,43 @@ export async function POST(request: Request) {
 
     let synced = 0;
     let failed = 0;
+    let expired = 0;
 
     for (const user of usersWithCalendars) {
       if (user.canvasIcalUrl) {
+        const timezone = user.timezone ?? "America/New_York";
+
+        // Canvas already refused this link. Fetching again only fails again,
+        // so wait for a new link (Settings clears the flag). The push still
+        // gets its chance for a day, in case quiet hours held the first one.
+        if (user.canvasAuthFailedAt) {
+          expired++;
+          if (Date.now() - user.canvasAuthFailedAt.getTime() < 24 * 60 * 60 * 1000) {
+            await notifyCanvasExpired(user.userId, timezone).catch(
+              (e) => console.error("[Cron] Failed to send Canvas-expired push:", e)
+            );
+          }
+          continue;
+        }
+
         try {
-          await syncCanvasCalendar(
-            user.userId,
-            user,
-            user.timezone ?? "America/New_York"
-          );
+          await syncCanvasCalendar(user.userId, user, timezone);
           synced++;
         } catch (err) {
+          // The message goes first, as text: Workers Observability showed
+          // only the minified stack when handed the Error object.
+          const cause = err instanceof Error && err.cause ? ` (cause: ${String(err.cause)})` : "";
           console.error(
-            `[Cron] Canvas sync failed for ${user.userId}:`,
-            err
+            `[Cron] Canvas sync failed for ${user.userId}: ${
+              err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+            }${cause}`
           );
           failed++;
 
           // If Canvas returned 401, the user's iCal token has expired.
-          // Send them a push notification (once per day) so they know to update it.
-          const is401 =
-            err instanceof Error && err.message.includes("401");
-          if (is401) {
-            await notifyCanvasExpired(user.userId, user.timezone ?? "America/New_York").catch(
+          // syncCanvasCalendar recorded it; tell them so they can update it.
+          if (err instanceof CanvasFetchError && err.status === 401) {
+            await notifyCanvasExpired(user.userId, timezone).catch(
               (e) => console.error("[Cron] Failed to send Canvas-expired push:", e)
             );
           }
@@ -79,13 +93,14 @@ export async function POST(request: Request) {
     }
 
     console.log(
-      `[Cron] Calendar sync complete: ${synced} synced, ${failed} failed`
+      `[Cron] Calendar sync complete: ${synced} synced, ${failed} failed, ${expired} skipped (Canvas link expired)`
     );
 
     return NextResponse.json({
       success: true,
       synced,
       failed,
+      expired,
       usersChecked: usersWithCalendars.length,
     });
   } catch (error) {

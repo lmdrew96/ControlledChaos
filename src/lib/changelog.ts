@@ -35,14 +35,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.97.4",
-    label: "2.97.3 – 2.97.4",
+    version: "2.97.5",
+    label: "2.97.3 – 2.97.5",
     date: "2026-10-27",
     title: "Notifications that say what they're about",
     changes: [
       {
         kind: "improved",
         text: "Notifications now have a real title, like the event or task name, \"Your day\" or \"Check-in\", instead of \"ControlledChaos\" right above \"from ControlledChaos\".",
+      },
+      {
+        kind: "fixed",
+        text: "When Canvas stops accepting your calendar link, Settings now says so and syncing pauses until you paste a fresh one, instead of failing quietly every half hour.",
       },
       {
         kind: "fixed",
