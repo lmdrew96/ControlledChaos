@@ -35,10 +35,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.97.3",
+    version: "2.97.4",
+    label: "2.97.3 – 2.97.4",
     date: "2026-10-27",
-    title: "Quieter behind the scenes",
+    title: "Notifications that say what they're about",
     changes: [
+      {
+        kind: "improved",
+        text: "Notifications now have a real title, like the event or task name, \"Your day\" or \"Check-in\", instead of \"ControlledChaos\" right above \"from ControlledChaos\".",
+      },
       {
         kind: "fixed",
         text: "When a digest email can't be delivered, it's retried a few times with the note it already wrote, then dropped for the day. Before, every retry wrote a brand-new note.",

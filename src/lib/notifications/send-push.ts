@@ -48,6 +48,18 @@ interface PushPayload {
   staleAt?: Date;
 }
 
+/**
+ * A push title naming the thing it's about. iOS draws the title, then its own
+ * "from ControlledChaos" line, so a title of "ControlledChaos" said the app
+ * name three times and told you nothing. Canvas course tags
+ * ("… [26S-LATN101-080]") are dropped and long names are cut.
+ */
+export function pushTitle(name: string, moreCount = 0): string {
+  const clean = name.replace(/\s*\[[^\]]*\]\s*$/, "").trim() || "Reminder";
+  const short = clean.length > 60 ? `${clean.slice(0, 59).trimEnd()}…` : clean;
+  return moreCount > 0 ? `${short} +${moreCount} more` : short;
+}
+
 /** Push services treat a TTL of 0 as "now or never"; give a fresh push a minute. */
 const MIN_TTL_SECONDS = 60;
 /**

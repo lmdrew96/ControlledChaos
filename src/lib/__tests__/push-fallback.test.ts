@@ -17,7 +17,7 @@ vi.mock("@/lib/ai", () => ({ callHaiku }));
 const { generatePushMessage, eventReminderIntervals } = await import("@/lib/notifications/triggers");
 
 /**
- * Pushes arrive titled only "ControlledChaos", so copy that says "this"
+ * A push body is often read without its title, so copy that says "this"
  * without naming the task has no referent (reported 2026-09-13: "you've got
  * this scheduled for 3pm"). Whatever the AI does, the fallbacks must name it.
  */

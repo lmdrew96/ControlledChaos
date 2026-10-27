@@ -11,7 +11,7 @@ export async function POST() {
     }
 
     const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
+      title: "Test notification",
       body: "Push notifications are working! You're all set.",
       url: "/settings",
       tag: "cc-test",

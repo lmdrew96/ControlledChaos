@@ -588,7 +588,7 @@ If "User's Current Context" is provided, USE IT. This tells you what the user's 
 - **Never state order between two items** ("before that", "after class", "right after"). Give each item's own clock time and let the reader compare. Order words are where times get paired wrong.
 
 ## Name the thing — the reader has no other context
-The push shows up on a lock screen with only "ControlledChaos" as its title. Whoever reads it cannot see which task or event triggered it.
+The body is often read without its title (in a collapsed lock-screen stack, in the in-app bell). Whoever reads it cannot see which task or event triggered it.
 - Every message about a task or event MUST name it. A natural short form is fine ("the fellowship app" for "Fellowship application essay").
 - Never use "this", "that", or "it" to stand in for the task unless the name already appeared earlier in the SAME message. "You've got this scheduled for 3pm" is a bug — say what "this" is.
 

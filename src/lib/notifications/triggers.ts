@@ -766,8 +766,8 @@ function describeTaskDetail(d: AlertingTaskDetail, timezone: string): string {
 }
 
 /**
- * Fallback copy that NAMES the task or event when there is one. The push
- * arrives titled only "ControlledChaos", so a bare "this" has no referent.
+ * Fallback copy that NAMES the task or event when there is one. The body is
+ * often read without its title, so a bare "this" has no referent.
  * Used both when the AI call throws and when it returns nothing usable —
  * the empty-result path used to send the unnamed generic string.
  */

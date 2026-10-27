@@ -184,7 +184,7 @@ export async function runCrisisDetection(ctx: CronContext): Promise<{
     );
 
     const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
+      title: "Target coming up",
       body: message,
       url: "/tasks",
       tag: driftDedupKeyToday,
@@ -341,7 +341,7 @@ async function sendFinalHeadsUp(
   );
 
   return sendPushToUser(ctx.userId, {
-    title: "ControlledChaos",
+    title: "Rescue plan",
     body: message,
     url: "/crisis",
     tag: dedupKey,
@@ -390,7 +390,7 @@ export async function sendCrisisNotification(
   );
 
   return sendPushToUser(ctx.userId, {
-    title: "ControlledChaos",
+    title: "Rescue plan",
     body: message,
     url: checkInUrl(detectionId),
     tag: dedupKey,
@@ -437,7 +437,7 @@ export async function sendReNudge(
   );
 
   return sendPushToUser(ctx.userId, {
-    title: "ControlledChaos",
+    title: "Rescue plan",
     body: message,
     url: checkInUrl(detectionId),
     tag: dedupKey,

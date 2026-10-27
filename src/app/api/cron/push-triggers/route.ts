@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/queries";
 import {
   sendPushToUser,
+  pushTitle,
   type PushAction,
 } from "@/lib/notifications/send-push";
 import {
@@ -525,7 +526,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
     // for the morning check-in. Otherwise it would just be one more push.
     if (items.length > 0 && (foldable.length > 0 || replacesCheckIn)) {
       const sent = await sendPushToUser(userId, {
-        title: "ControlledChaos",
+        title: "Your day",
         body: buildWakeSummaryBody(items, timezone),
         url: "/calendar",
         tag: wakeSummaryKey,
@@ -605,7 +606,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
       await getReminderSnapshot()
     );
     const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
+      title: pushTitle(primary.title, absorbed.length),
       body: message,
       url: primary.url,
       tag: primary.dedupKey,
@@ -630,7 +631,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
     // the model pairs times wrong, and spreading them out is the drip.
     const members = due.flatMap((c) => [c.primary, ...c.absorbed]);
     const sent = await sendPushToUser(userId, {
-      title: "ControlledChaos",
+      title: `${members.length} things coming up`,
       body: buildDigestBody(
         members.map((m) => ({
           at: m.at,
@@ -685,7 +686,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         await getSnapshot()
       );
       const sent = await sendPushToUser(userId, {
-        title: "ControlledChaos",
+        title: "Check-in",
         body: message,
         url: topTask ? "/tasks" : "/dump",
         tag: checkInDedupKey,
@@ -722,7 +723,7 @@ async function processUser(user: PushUser, scope: RunScope = "tick"): Promise<nu
         await getSnapshot()
       );
       const sent = await sendPushToUser(userId, {
-        title: "ControlledChaos",
+        title: "Gentle nudge",
         body: message,
         url: "/tasks",
         tag: nudgeDedupKey,

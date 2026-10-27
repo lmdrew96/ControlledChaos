@@ -23,7 +23,7 @@ async function notifyCanvasExpired(userId: string, timezone: string): Promise<vo
   if (prefs && isQuietHours(prefs, timezone)) return;
 
   const sent = await sendPushToUser(userId, {
-    title: "ControlledChaos",
+    title: "Canvas link expired",
     body: "Your Canvas calendar link has expired. Tap to update it in Settings.",
     url: "/settings",
     tag: dedupKey,
