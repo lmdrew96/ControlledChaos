@@ -20,6 +20,8 @@ import {
   getScheduledSessionsInRange,
   getUserGoals,
   getRecapDay,
+  getDigestDraft,
+  updateNotificationContent,
 } from "@/lib/db/queries";
 import { toTaskFacts, describeTaskFacts } from "@/lib/ai/context";
 import { summarizeDayLoad, dayLoadSubtitle, type DayLoad } from "@/lib/recap/day-load";
@@ -88,9 +90,102 @@ async function generateDigestNote(
 }
 
 /**
+ * A digest's once-a-day draft: the generated note, stored before the send.
+ *
+ * The cron polls every ~15 min and only records "sent" after Resend accepts
+ * the email, so when sends failed (10/24: domain unverified) every poll paid
+ * for a fresh Sonnet note. Now the note is generated once per user per digest
+ * per local day and reused; only the send is retried, up to
+ * MAX_DIGEST_SEND_ATTEMPTS times.
+ */
+const DIGEST_DRAFT_TYPE = "digest_draft";
+const MAX_DIGEST_SEND_ATTEMPTS = 3;
+/** A draft still ungenerated after this long was left by a run that died mid-call. */
+const DRAFT_GENERATION_GRACE_MS = 10 * 60 * 1000;
+
+interface DigestDraftContent {
+  draftKey: string;
+  aiNote: string | null;
+  generated: boolean;
+  attempts: number;
+}
+
+interface DigestDraft {
+  id: string;
+  content: DigestDraftContent;
+  isNew: boolean;
+}
+
+/**
+ * Today's draft for this digest, creating it if there isn't one yet. Null
+ * means skip this poll: the digest was abandoned, or another poll is
+ * generating its note right now.
+ */
+async function openDigestDraft(
+  userId: string,
+  draftKey: string
+): Promise<DigestDraft | null> {
+  const existing = await getDigestDraft(userId, draftKey);
+  if (!existing) {
+    const content: DigestDraftContent = { draftKey, aiNote: null, generated: false, attempts: 0 };
+    const row = await createNotification(userId, DIGEST_DRAFT_TYPE, { ...content });
+    return { id: row.id, content, isNew: true };
+  }
+
+  const content = existing.content as DigestDraftContent;
+  if (content.attempts >= MAX_DIGEST_SEND_ATTEMPTS) return null;
+  if (!content.generated && Date.now() - existing.createdAt.getTime() < DRAFT_GENERATION_GRACE_MS) {
+    return null;
+  }
+  // An old ungenerated draft sends with the static fallback rather than
+  // paying for a second note.
+  return { id: existing.id, content, isNew: false };
+}
+
+/** The note for this send: generated on a new draft, reused on a retry. */
+async function draftNote(
+  userId: string,
+  draft: DigestDraft | null,
+  generate: () => Promise<string | null>
+): Promise<string | null> {
+  if (draft && !draft.isNew) return draft.content.aiNote;
+
+  const aiNote = await generate();
+  if (draft) {
+    draft.content = { ...draft.content, aiNote, generated: true };
+    await updateNotificationContent(draft.id, userId, { ...draft.content });
+  }
+  return aiNote;
+}
+
+/** Count a failed send; warn once, on the attempt that abandons the digest. */
+async function recordDigestSendFailure(
+  userId: string,
+  draft: DigestDraft | null,
+  label: string
+): Promise<void> {
+  if (!draft) return;
+  const attempts = draft.content.attempts + 1;
+  draft.content = { ...draft.content, attempts };
+  try {
+    await updateNotificationContent(draft.id, userId, { ...draft.content });
+  } catch (err) {
+    console.error(`[Email] Couldn't record failed ${label} send for ${userId}:`, err);
+  }
+  if (attempts >= MAX_DIGEST_SEND_ATTEMPTS) {
+    console.warn(
+      `[Email] ${label} abandoned for ${userId} after ${attempts} failed sends — no more retries today`
+    );
+  }
+}
+
+/**
  * Send the morning digest email for a user.
  */
-export async function sendMorningDigest(userId: string): Promise<boolean> {
+export async function sendMorningDigest(
+  userId: string,
+  { force = false }: { force?: boolean } = {}
+): Promise<boolean> {
   const [user, settings] = await Promise.all([
     getUser(userId),
     getUserSettings(userId),
@@ -99,6 +194,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 
   const timezone = user.timezone ?? "America/New_York";
   const now = new Date();
+
+  // A forced (manual) run always generates fresh and leaves the draft alone.
+  const draft = force
+    ? null
+    : await openDigestDraft(userId, `morning-digest-${todayInTimezone(timezone)}`);
+  if (!force && !draft) return false;
 
   // Today's events
   const { start: todayStart, end: todayEnd } = localDaysRange(now, timezone);
@@ -189,10 +290,12 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     .filter(Boolean)
     .join("\n");
 
-  const aiNote = await generateDigestNote(
-    "Morning digest",
-    buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
-    context
+  const aiNote = await draftNote(userId, draft, () =>
+    generateDigestNote(
+      "Morning digest",
+      buildMorningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
+      context
+    )
   );
 
   const html = await render(
@@ -241,6 +344,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 
     if (result.error) {
       console.error(`[Email] Resend rejected morning digest:`, result.error);
+      await recordDigestSendFailure(userId, draft, "Morning digest");
       return false;
     }
 
@@ -252,6 +356,7 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
     return true;
   } catch (err) {
     console.error(`[Email] Morning digest failed for ${userId}:`, err);
+    await recordDigestSendFailure(userId, draft, "Morning digest");
     return false;
   }
 }
@@ -259,7 +364,10 @@ export async function sendMorningDigest(userId: string): Promise<boolean> {
 /**
  * Send the evening digest email for a user.
  */
-export async function sendEveningDigest(userId: string): Promise<boolean> {
+export async function sendEveningDigest(
+  userId: string,
+  { force = false }: { force?: boolean } = {}
+): Promise<boolean> {
   const [user, settings] = await Promise.all([
     getUser(userId),
     getUserSettings(userId),
@@ -268,6 +376,12 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
   const timezone = user.timezone ?? "America/New_York";
   const now = new Date();
+
+  // A forced (manual) run always generates fresh and leaves the draft alone.
+  const draft = force
+    ? null
+    : await openDigestDraft(userId, `evening-digest-${todayInTimezone(timezone)}`);
+  if (!force && !draft) return false;
 
   // What today held, read off the Mirror timeline — the calendar first, then
   // anything checked off or logged. Tasks alone called an exam day "quiet".
@@ -353,10 +467,12 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     .filter(Boolean)
     .join("\n");
 
-  const aiNote = await generateDigestNote(
-    "Evening digest",
-    buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
-    context
+  const aiNote = await draftNote(userId, draft, () =>
+    generateDigestNote(
+      "Evening digest",
+      buildEveningDigestPrompt(settings?.personalityPrefs as PersonalityPrefs | null ?? null),
+      context
+    )
   );
 
   const html = await render(
@@ -398,6 +514,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
 
     if (result.error) {
       console.error(`[Email] Resend rejected evening digest:`, result.error);
+      await recordDigestSendFailure(userId, draft, "Evening digest");
       return false;
     }
 
@@ -409,6 +526,7 @@ export async function sendEveningDigest(userId: string): Promise<boolean> {
     return true;
   } catch (err) {
     console.error(`[Email] Evening digest failed for ${userId}:`, err);
+    await recordDigestSendFailure(userId, draft, "Evening digest");
     return false;
   }
 }

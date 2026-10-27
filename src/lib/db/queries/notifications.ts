@@ -7,7 +7,7 @@ import {
   users,
   userSettings,
 } from "../schema";
-import { eq, and, desc, ne, lt, lte, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, ne, lt, lte, isNull, notInArray, sql } from "drizzle-orm";
 import type { CrisisDetectionTier, NotificationPrefs, PersonalityPrefs } from "@/types";
 
 // ============================================================
@@ -83,6 +83,46 @@ export async function createNotification(
   return notif;
 }
 
+/**
+ * Internal bookkeeping rows that share the notifications table but were never
+ * shown to anyone: "push_dropped" (triggers.ts DROPPED_ALERT_TYPE) and
+ * "digest_draft" (send-email.ts). The bell and unread count leave them out.
+ */
+const HIDDEN_NOTIFICATION_TYPES = ["push_dropped", "digest_draft"];
+
+/** Today's draft row for one digest, found by the key send-email.ts wrote. */
+export async function getDigestDraft(userId: string, draftKey: string) {
+  const [row] = await db
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.type, "digest_draft"),
+        sql`${notifications.content}->>'draftKey' = ${draftKey}`
+      )
+    )
+    .orderBy(desc(notifications.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function updateNotificationContent(
+  notificationId: string,
+  userId: string,
+  content: Record<string, unknown>
+) {
+  await db
+    .update(notifications)
+    .set({ content })
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, userId)
+      )
+    );
+}
+
 export async function markNotificationOpened(
   notificationId: string,
   userId: string
@@ -111,8 +151,8 @@ export async function markAllNotificationsOpened(userId: string) {
 
 /**
  * Recent notification rows. `visibleOnly` leaves out the internal
- * "push_dropped" records (triggers.ts DROPPED_ALERT_TYPE) — the bell wants
- * that; the dedup helpers need them included.
+ * HIDDEN_NOTIFICATION_TYPES rows — the bell wants that; the dedup helpers
+ * need the "push_dropped" ones included.
  */
 export async function getRecentNotifications(
   userId: string,
@@ -125,7 +165,7 @@ export async function getRecentNotifications(
     .where(
       and(
         eq(notifications.userId, userId),
-        visibleOnly ? ne(notifications.type, "push_dropped") : undefined
+        visibleOnly ? notInArray(notifications.type, HIDDEN_NOTIFICATION_TYPES) : undefined
       )
     )
     .orderBy(desc(notifications.createdAt))
@@ -155,7 +195,7 @@ export async function getUnreadNotificationCount(userId: string) {
       and(
         eq(notifications.userId, userId),
         isNull(notifications.openedAt),
-        ne(notifications.type, "push_dropped")
+        notInArray(notifications.type, HIDDEN_NOTIFICATION_TYPES)
       )
     );
   return result.length;

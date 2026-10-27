@@ -35,6 +35,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.97.3",
+    date: "2026-10-27",
+    title: "Quieter behind the scenes",
+    changes: [
+      {
+        kind: "fixed",
+        text: "When a digest email can't be delivered, it's retried a few times with the note it already wrote, then dropped for the day. Before, every retry wrote a brand-new note.",
+      },
+    ],
+  },
+  {
     version: "2.97.2",
     label: "2.96.0 – 2.97.2",
     date: "2026-10-18",

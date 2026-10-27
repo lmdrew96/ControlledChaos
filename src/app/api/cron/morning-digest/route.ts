@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         if (!force && await hasBeenNotifiedToday(userId, dedupKey, timezone)) continue;
 
         const { sendMorningDigest } = await import("@/lib/notifications/send-email");
-        const ok = await sendMorningDigest(userId);
+        const ok = await sendMorningDigest(userId, { force });
         if (ok) sent++;
       } catch (err) {
         failed++;
