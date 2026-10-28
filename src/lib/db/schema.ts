@@ -453,6 +453,32 @@ export const snoozedPushes = pgTable(
 );
 
 // ============================================================
+// Push Receipts — when a push actually reached a device
+// ============================================================
+// Diagnostic for iOS holding reminders: the service worker reports each push
+// it receives, so receivedAt vs notifications.sentAt shows whether the delay
+// is before the phone (APNs/network) or on it. One row per device, so a Mac
+// that got it instantly doesn't hide an iPhone that didn't. No foreign keys:
+// a receipt can land before the notifications row is written, and
+// subscriptions get pruned.
+export const pushReceipts = pgTable(
+  "push_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => users.id)
+      .notNull(),
+    notificationId: uuid("notification_id").notNull(),
+    subscriptionId: uuid("subscription_id").notNull(),
+    userAgent: text("user_agent"),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_push_receipts_notif_sub").on(table.notificationId, table.subscriptionId),
+  ]
+);
+
+// ============================================================
 // Microtasks (small repeatable prompts — non-accumulating, daily reset)
 // ============================================================
 export const microtasks = pgTable(

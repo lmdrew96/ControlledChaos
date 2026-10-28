@@ -9,6 +9,7 @@ import {
 import type { NotificationPrefs } from "@/types";
 import { isQuietHours } from "./quiet-hours";
 import { mintSnoozeToken } from "./snooze-token";
+import { mintReceiptToken } from "./receipt-token";
 
 export interface PushAction {
   action: string;
@@ -115,7 +116,10 @@ export async function sendPushToUser(
     }
   }
 
-  const pushPayload = JSON.stringify({
+  // The notifications row gets this id once something is sent, but each
+  // device's receipt token needs it now. See push_receipts in schema.ts.
+  const notificationId = crypto.randomUUID();
+  const basePayload = {
     title: payload.title,
     body: payload.body,
     url: payload.url ?? "/dashboard",
@@ -123,7 +127,7 @@ export async function sendPushToUser(
     taskId: payload.taskId,
     snoozeToken,
     actions,
-  });
+  };
 
   const sendOptions = payload.staleAt
     ? {
@@ -148,7 +152,10 @@ export async function sendPushToUser(
             auth: sub.keysAuth,
           },
         },
-        pushPayload,
+        JSON.stringify({
+          ...basePayload,
+          receiptToken: mintReceiptToken({ userId, notificationId, subscriptionId: sub.id }),
+        }),
         sendOptions
       );
       sent = true;
@@ -180,7 +187,7 @@ export async function sendPushToUser(
       dedupKey: payload.tag,
       dedupKeys: payload.dedupKeys ?? (payload.tag ? [payload.tag] : []),
       lane: payload.lane ?? "user",
-    });
+    }, notificationId);
   }
 
   return sent;

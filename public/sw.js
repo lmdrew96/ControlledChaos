@@ -71,11 +71,25 @@ self.addEventListener("push", (event) => {
     actions: payload.actions || [],
   };
 
+  // Receipt beacon for diagnosing held pushes (push_receipts). It runs
+  // beside showNotification, never ahead of it: iOS revokes push permission
+  // from a worker that doesn't show one, and a failed report must not matter.
+  const receipt = payload.receiptToken
+    ? fetch("/api/notifications/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: payload.receiptToken }),
+      }).catch((err) => console.warn("[SW] push receipt report failed:", err))
+    : Promise.resolve();
+
   event.waitUntil(
-    self.registration.showNotification(
-      payload.title || "ControlledChaos",
-      options
-    )
+    Promise.all([
+      self.registration.showNotification(
+        payload.title || "ControlledChaos",
+        options
+      ),
+      receipt,
+    ])
   );
 });
 

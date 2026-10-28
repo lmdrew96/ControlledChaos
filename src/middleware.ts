@@ -23,6 +23,9 @@ const isPublicRoute = createRouteMatcher([
   // Tapped from a push's Snooze button, often with no live session. Its only
   // authority is the signed token minted into that push (snooze-token.ts).
   "/api/notifications/snooze",
+  // The SW reports each push it receives; same token-only authority
+  // (receipt-token.ts).
+  "/api/notifications/receipt",
   "/manifest.json",
 ]);
 

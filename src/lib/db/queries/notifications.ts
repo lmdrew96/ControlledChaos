@@ -1,6 +1,7 @@
 import { db } from "../index";
 import {
   notifications,
+  pushReceipts,
   pushSubscriptions,
   snoozedPushes,
   tasks,
@@ -74,13 +75,25 @@ export async function getPushSubscriptions(userId: string) {
 export async function createNotification(
   userId: string,
   type: string,
-  content: Record<string, unknown>
+  content: Record<string, unknown>,
+  /** Set when the id was already handed out (a push's receipt token). */
+  id?: string
 ) {
   const [notif] = await db
     .insert(notifications)
-    .values({ userId, type, content, sentAt: new Date() })
+    .values({ id, userId, type, content, sentAt: new Date() })
     .returning();
   return notif;
+}
+
+/** A device reported receiving a push. A repeat report keeps the first time. */
+export async function recordPushReceipt(receipt: {
+  userId: string;
+  notificationId: string;
+  subscriptionId: string;
+  userAgent: string | null;
+}) {
+  await db.insert(pushReceipts).values(receipt).onConflictDoNothing();
 }
 
 /**
