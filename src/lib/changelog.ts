@@ -35,8 +35,8 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: "2.97.6",
-    label: "2.97.3 – 2.97.6",
+    version: "2.97.7",
+    label: "2.97.3 – 2.97.7",
     date: "2026-10-27",
     title: "Notifications that say what they're about",
     changes: [
@@ -51,6 +51,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         kind: "fixed",
         text: "When a digest email can't be delivered, it's retried a few times with the note it already wrote, then dropped for the day. Before, every retry wrote a brand-new note.",
+      },
+      {
+        kind: "fixed",
+        text: "Deleting a calendar event or series, removing a task session, or abandoning a crisis plan now asks you to confirm first, so one stray tap can't delete anything.",
       },
     ],
   },

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { Markdown } from "@/components/ui/markdown";
 import {
   Dialog,
@@ -133,6 +134,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<"event" | "series" | null>(null);
   const [isClearing, setIsClearing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [isDeletingSeries, setIsDeletingSeries] = useState(false);
@@ -659,7 +661,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                       Edit
                     </Button>
                     <Button
-                      onClick={handleDeleteEvent}
+                      onClick={() => setPendingDelete("event")}
                       disabled={isDeleting}
                       variant="ghost"
                       size="sm"
@@ -674,7 +676,7 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
                     </Button>
                     {selectedEvent.seriesId && (
                       <Button
-                        onClick={handleDeleteSeries}
+                        onClick={() => setPendingDelete("series")}
                         disabled={isDeletingSeries}
                         variant="ghost"
                         size="sm"
@@ -697,6 +699,23 @@ export function AgendaView({ initialDate }: { initialDate?: Date } = {}) {
       </Dialog>
 
       {/* Clear confirmation */}
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title={pendingDelete === "series" ? "Delete the whole series?" : "Delete event?"}
+        description={
+          pendingDelete === "series"
+            ? <>Every event in the &ldquo;{selectedEvent?.title}&rdquo; series will be deleted.</>
+            : <>&ldquo;{selectedEvent?.title}&rdquo; will be deleted.</>
+        }
+        confirmLabel={pendingDelete === "series" ? "Delete series" : "Delete"}
+        onConfirm={() => {
+          const which = pendingDelete;
+          setPendingDelete(null);
+          void (which === "series" ? handleDeleteSeries() : handleDeleteEvent());
+        }}
+      />
+
       <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>

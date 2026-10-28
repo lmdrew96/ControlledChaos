@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatForDisplay, DISPLAY_DATETIME } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -132,6 +133,7 @@ export default function CrisisPage() {
   const [strategyState, setStrategyState] = useState<StrategyPickerState | null>(null);
   const [detectionStatus, setDetectionStatus] = useState<CrisisDetectionStatus | null>(null);
   const [history, setHistory] = useState<ActivePlanData[]>([]);
+  const [pendingAbandon, setPendingAbandon] = useState<ActivePlanData | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [intakePrefill, setIntakePrefill] = useState<{ taskName?: string; deadline?: string }>({});
@@ -606,6 +608,18 @@ export default function CrisisPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
+      <ConfirmDeleteDialog
+        open={pendingAbandon !== null}
+        onOpenChange={(open) => !open && setPendingAbandon(null)}
+        title="Abandon this plan?"
+        description={<>&ldquo;{pendingAbandon?.taskName}&rdquo; moves to your plan history.</>}
+        confirmLabel="Abandon"
+        onConfirm={() => {
+          const plan = pendingAbandon;
+          setPendingAbandon(null);
+          if (plan) void handleAbandon(plan.id);
+        }}
+      />
       <CrisisCheckInSheet
         open={showCheckIn}
         taskNames={detectionStatus?.involvedTaskNames ?? []}
@@ -734,7 +748,7 @@ export default function CrisisPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void handleAbandon(plan.id);
+                          setPendingAbandon(plan);
                         }}
                         disabled={abandoningId === plan.id}
                         aria-label={`Abandon ${plan.taskName}`}

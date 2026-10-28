@@ -26,6 +26,7 @@ import type { CalendarEvent, EventCategory } from "@/types";
 import { allDayRange, toUTC, toUserLocal } from "@/lib/timezone";
 import { useTimezone } from "@/hooks/use-timezone";
 import { SourceBackBadge } from "@/components/shared/source-back-badge";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -94,6 +95,7 @@ export function EditEventDialog({
   const [initialForm, setInitialForm] = useState<FormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<"event" | "series" | null>(null);
 
   useEffect(() => {
     if (event) {
@@ -454,7 +456,7 @@ export function EditEventDialog({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setPendingDelete("event")}
               disabled={isDeleting}
               className="text-destructive hover:text-destructive"
             >
@@ -469,7 +471,7 @@ export function EditEventDialog({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleDeleteSeries}
+                onClick={() => setPendingDelete("series")}
                 disabled={isDeleting}
                 className="text-destructive hover:text-destructive"
               >
@@ -494,6 +496,22 @@ export function EditEventDialog({
             </Button>
           </div>
         </div>
+        <ConfirmDeleteDialog
+          open={pendingDelete !== null}
+          onOpenChange={(open) => !open && setPendingDelete(null)}
+          title={pendingDelete === "series" ? "Delete the whole series?" : "Delete event?"}
+          description={
+            pendingDelete === "series"
+              ? <>Every event in the &ldquo;{form.title}&rdquo; series will be deleted.</>
+              : <>&ldquo;{form.title}&rdquo; will be deleted.</>
+          }
+          confirmLabel={pendingDelete === "series" ? "Delete series" : "Delete"}
+          onConfirm={() => {
+            const which = pendingDelete;
+            setPendingDelete(null);
+            void (which === "series" ? handleDeleteSeries() : handleDelete());
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

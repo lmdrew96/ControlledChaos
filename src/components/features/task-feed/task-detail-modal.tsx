@@ -13,6 +13,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -153,6 +154,7 @@ export function TaskDetailModal({
   const [isAddingSession, setIsAddingSession] = useState(false);
   // Which row is mid-write, so it can't be edited twice at once.
   const [busySessionId, setBusySessionId] = useState<string | null>(null);
+  const [pendingRemoveSessionId, setPendingRemoveSessionId] = useState<string | null>(null);
   // A tap is usually "what was this again?", not "change it". The modal opens
   // on a read view; Edit swaps the same modal into the form.
   const [mode, setMode] = useState<"view" | "edit">("view");
@@ -752,7 +754,7 @@ export function TaskDetailModal({
                         void loadSessions(task.id);
                         onUpdate?.();
                       }}
-                      onRemove={() => handleRemoveSession(session.id)}
+                      onRemove={() => setPendingRemoveSessionId(session.id)}
                     />
                   ))}
                 </ul>
@@ -949,6 +951,18 @@ export function TaskDetailModal({
             )}
           </div>
         </div>
+        <ConfirmDeleteDialog
+          open={pendingRemoveSessionId !== null}
+          onOpenChange={(open) => !open && setPendingRemoveSessionId(null)}
+          title="Remove this session?"
+          description="The task stays; only this scheduled work time is removed."
+          confirmLabel="Remove"
+          onConfirm={() => {
+            const id = pendingRemoveSessionId;
+            setPendingRemoveSessionId(null);
+            if (id) void handleRemoveSession(id);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
